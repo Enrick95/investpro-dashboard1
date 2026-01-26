@@ -28,6 +28,11 @@ type Account = {
   // selon ton app (tu l'utilises dans la page profil)
   hideTrades?: boolean;
 
+  // ✅ stats publics (pour classement + profil public)
+  tradesTotal?: number;
+  winrate?: number;
+  rrAvg?: number;
+
   // vérification/plan (Header l’utilise)
   verified?: boolean;
   plan?: string;
@@ -163,6 +168,3 @@ export function updateAccount(patch: Partial<Account>) {
 export function setLeaderboardVisibility(isPublic: boolean) {
   return updateAccount({ showOnLeaderboard: isPublic });
 }
-try {
-  window.dispatchEvent(new CustomEvent("investpro:account_updated", { detail: updated }));
-} catch {}
