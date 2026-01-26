@@ -10,10 +10,10 @@ import GoldSelect from "../../../components/ui/GoldSelect";
 import { getPlan, hasTradingTerminalAccess } from "../../../lib/subscriptionStore";
 import { loadMt5Accounts, Mt5Account } from "../../../lib/mt5Store";
 import { syncMt5HistoryToTrades } from "../../../lib/mt5sync";
-import { pushNotif } from "../../../lib/notifyStore"; // ✅ notif (erreurs, actions, etc.)
+import { pushNotif } from "../../../lib/notifyStore"; // ✅ notif
 
 type Mode3 = "" | "MARKET" | "LIMIT" | "STOP_LIMIT";
-type Side = "NONE" | "BUY" | "SELL"; // ✅ NONE = progress 0
+type Side = "NONE" | "BUY" | "SELL";
 type SymbolCat = "all" | "forex" | "crypto" | "indices" | "metals" | "other";
 
 type SymbolInfo = {
@@ -51,7 +51,6 @@ function fmt2(n: number) {
 }
 
 function validateLevels(side: Side, entry: number, sl?: number, tp?: number) {
-  // retourne { ok, error } — si ok=false => message humain
   if (!Number.isFinite(entry) || entry <= 0) return { ok: true as const };
 
   const hasSL = Number.isFinite(sl as number) && (sl as number) > 0;
@@ -79,7 +78,6 @@ function validateLevels(side: Side, entry: number, sl?: number, tp?: number) {
 
   return { ok: true as const };
 }
-
 
 async function fetchJson(url: string, body: any) {
   const r = await fetch(url, {
@@ -153,12 +151,7 @@ function pendingTypeLabel(type: number) {
 /** ✅ Estimation PnL (USD) via tick_value/tick_size
  * Retourne une valeur "magnitude" positive, le signe est géré à part.
  */
-function pnlBetweenUSD(
-  priceA: number,
-  priceB: number,
-  lots: number,
-  info: SymbolInfo | null
-): number | null {
+function pnlBetweenUSD(priceA: number, priceB: number, lots: number, info: SymbolInfo | null): number | null {
   if (!info) return null;
   const tickSize = Number(info.tick_size || 0);
   const tickVal = Number(info.tick_value || 0);
@@ -175,10 +168,7 @@ function pnlBetweenUSD(
 
 export default function TerminalPage() {
   const [accounts, setAccounts] = useState<Mt5Account[]>([]);
-  const connectedAccounts = useMemo(
-    () => accounts.filter((a) => a.status === "CONNECTED"),
-    [accounts]
-  );
+  const connectedAccounts = useMemo(() => accounts.filter((a) => a.status === "CONNECTED"), [accounts]);
 
   const [selectedId, setSelectedId] = useState<string>("");
   const selectedAccount = useMemo(
@@ -188,15 +178,10 @@ export default function TerminalPage() {
 
   const [openAccountsModal, setOpenAccountsModal] = useState(false);
   const [openGateModal, setOpenGateModal] = useState(false);
-  const [gateReason, setGateReason] = useState<"noPlan" | "noAccounts" | null>(
-    null
-  );
+  const [gateReason, setGateReason] = useState<"noPlan" | "noAccounts" | null>(null);
 
-  const [symbolInfoMap, setSymbolInfoMap] = useState<Record<string, SymbolInfo>>({});
   const [category, setCategory] = useState<SymbolCat>("all");
-  const [symbols, setSymbols] = useState<
-    { name: string; category: SymbolCat; path?: string }[]
-  >([]);
+  const [symbols, setSymbols] = useState<{ name: string; category: SymbolCat; path?: string }[]>([]);
   const [symbolsLoaded, setSymbolsLoaded] = useState(false);
 
   const filteredSymbols = useMemo(
@@ -206,17 +191,12 @@ export default function TerminalPage() {
 
   const [symbol, setSymbol] = useState("");
   const [mode, setMode] = useState<Mode3>("");
-  const [side, setSide] = useState<Side>("NONE"); // ✅ default
+  const [side, setSide] = useState<Side>("NONE");
 
   // ✅ Ordres A/B/C...
-  const [ordres, setOrdres] = useState<Ordre[]>([
-    { id: "A", entry: "", sl: "", tp: "", enabled: true },
-  ]);
+  const [ordres, setOrdres] = useState<Ordre[]>([{ id: "A", entry: "", sl: "", tp: "", enabled: true }]);
   const [ordreActifId, setOrdreActifId] = useState<string>("A");
-  const ordreActif = useMemo(
-    () => ordres.find((o) => o.id === ordreActifId) ?? ordres[0],
-    [ordres, ordreActifId]
-  );
+  const ordreActif = useMemo(() => ordres.find((o) => o.id === ordreActifId) ?? ordres[0], [ordres, ordreActifId]);
   const ordresON = useMemo(() => ordres.filter((o) => o.enabled), [ordres]);
 
   const [stopPrice, setStopPrice] = useState("");
@@ -229,7 +209,10 @@ export default function TerminalPage() {
   const [deductCommission, setDeductCommission] = useState(false);
   const [commissionPerLot, setCommissionPerLot] = useState("0");
 
+  // ✅ symbolInfo global + ✅ cache par symbol (FIX “—” dans modals)
   const [symbolInfo, setSymbolInfo] = useState<SymbolInfo | null>(null);
+  const [symbolInfoMap, setSymbolInfoMap] = useState<Record<string, SymbolInfo>>({});
+
   const [tick, setTick] = useState<Tick | null>(null);
 
   const [positions, setPositions] = useState<any[]>([]);
@@ -237,10 +220,8 @@ export default function TerminalPage() {
   const [showPositions, setShowPositions] = useState(true);
   const [showOrders, setShowOrders] = useState(true);
 
-  // ✅ ticks live pour plusieurs symbols (positions + orders + symbol actuel)
-  const [ticksMapLive, setTicksMapLive] = useState<
-    Record<string, { bid: number; ask: number; digits?: number }>
-  >({});
+  // ✅ ticks live pour plusieurs symbols
+  const [ticksMapLive, setTicksMapLive] = useState<Record<string, { bid: number; ask: number; digits?: number }>>({});
 
   const symbolsToWatch = useMemo(() => {
     const set = new Set<string>();
@@ -259,18 +240,18 @@ export default function TerminalPage() {
   const [modSymbol, setModSymbol] = useState("");
   const [modEntry, setModEntry] = useState<number>(0);
   const [modLots, setModLots] = useState<number>(0);
-  const [modType, setModType] = useState<0 | 1>(0); // 0 BUY, 1 SELL
+  const [modType, setModType] = useState<0 | 1>(0);
   const [modSl, setModSl] = useState("");
   const [modTp, setModTp] = useState("");
 
-  // ✅ close modal (partiel)
+  // ✅ close modal
   const [openCloseModal, setOpenCloseModal] = useState(false);
   const [closeTicket, setCloseTicket] = useState<number | null>(null);
   const [closeSymbol, setCloseSymbol] = useState("");
   const [closeType, setCloseType] = useState<0 | 1>(0);
   const [closeEntry, setCloseEntry] = useState<number>(0);
   const [closeLotsTotal, setCloseLotsTotal] = useState<number>(0);
-  const [closeLots, setCloseLots] = useState<string>(""); // vide = tout
+  const [closeLots, setCloseLots] = useState<string>("");
 
   // ✅ bulk confirm modals
   const [openCloseAll, setOpenCloseAll] = useState(false);
@@ -278,7 +259,7 @@ export default function TerminalPage() {
 
   const needsStop = useMemo(() => mode === "STOP_LIMIT", [mode]);
 
-  // ✅ Prix global (symbol sélectionné)
+  // ✅ Prix global
   const priceBid = useMemo(() => (tick ? Number(tick.bid) : NaN), [tick]);
   const priceAsk = useMemo(() => (tick ? Number(tick.ask) : NaN), [tick]);
   const marketStr = useMemo(() => (Number.isFinite(priceBid) ? fmt2(priceBid) : "—"), [priceBid]);
@@ -288,14 +269,14 @@ export default function TerminalPage() {
     return fmt2(Math.abs(priceAsk - priceBid));
   }, [priceBid, priceAsk]);
 
-  // ✅ Total PnL en cours
+  // ✅ Total PnL
   const totalPnl = useMemo(() => {
     const sum = positions.reduce((acc, p) => acc + Number(p?.profit ?? 0), 0);
     return Number.isFinite(sum) ? sum : 0;
   }, [positions]);
   const totalPnlStr = useMemo(() => fmt(totalPnl), [totalPnl]);
 
-  // ✅ Progress: volontairement SANS le compte (sinon jamais 0 car auto-select)
+  // ✅ Progress
   const progressPct = useMemo(() => {
     const symOk = symbol.trim().length > 0;
     const modeOk = mode !== "";
@@ -312,10 +293,9 @@ export default function TerminalPage() {
   }, [symbol, mode, side, ordreActif.entry, ordreActif.sl, riskUsd]);
 
   /* =========================
-     API helpers (PARTIE 2)
+     API helpers (Partie 2)
      ========================= */
-
-  async function syncCapital() {
+    async function syncCapital() {
     if (!selectedAccount) return;
     const j = await fetchJson("/api/mt5/test", {
       broker: selectedAccount.broker,
@@ -354,47 +334,33 @@ export default function TerminalPage() {
 
   async function loadSymbolInfo(sym: string) {
     if (!selectedAccount) return;
+    const s = String(sym || "").trim();
+    if (!s) return;
+
     const j = await fetchJson("/api/mt5/symbol_info", {
       broker: selectedAccount.broker,
       server: selectedAccount.server,
       login: selectedAccount.login,
       password: (selectedAccount as any).password ?? "",
-      symbol: sym,
+      symbol: s,
     });
-    setSymbolInfo(j.info as SymbolInfo);
-  }
-  async function ensureSymbolInfo(sym: string) {
-    const s = String(sym || "").trim();
-    if (!s || !selectedAccount) return null;
 
-    // déjà en cache
-    if (symbolInfoMap[s]) return symbolInfoMap[s];
-
-    try {
-      const j = await fetchJson("/api/mt5/symbol_info", {
-        broker: selectedAccount.broker,
-        server: selectedAccount.server,
-        login: selectedAccount.login,
-        password: (selectedAccount as any).password ?? "",
-        symbol: s,
-      });
-
-      const info = j.info as SymbolInfo;
-      setSymbolInfoMap((p) => ({ ...p, [s]: info }));
-      return info;
-    } catch {
-      return null;
-    }
+    const info = j.info as SymbolInfo;
+    setSymbolInfo(info);
+    setSymbolInfoMap((p) => ({ ...p, [s]: info })); // ✅ cache
   }
 
   async function loadTick(sym: string) {
     if (!selectedAccount) return;
+    const s = String(sym || "").trim();
+    if (!s) return;
+
     const j = await fetchJson("/api/mt5/tick", {
       broker: selectedAccount.broker,
       server: selectedAccount.server,
       login: selectedAccount.login,
       password: (selectedAccount as any).password ?? "",
-      symbol: sym,
+      symbol: s,
     });
     setTick(j.tick as Tick);
   }
@@ -421,7 +387,7 @@ export default function TerminalPage() {
     setOrders(Array.isArray(j.orders) ? j.orders : []);
   }
 
-  // ✅ UNE SEULE version (pas en double) + merge correct
+  // ✅ ticks multi-symbols
   async function refreshTicks() {
     if (!selectedAccount) return;
     if (symbolsToWatch.length === 0) return;
@@ -435,7 +401,6 @@ export default function TerminalPage() {
     });
 
     const next: Record<string, { bid: number; ask: number; digits?: number }> = {};
-
     for (const [sym, v] of Object.entries(j.ticks || {})) {
       const vv: any = v;
       if (vv?.ok && Number.isFinite(vv.bid) && Number.isFinite(vv.ask)) {
@@ -446,7 +411,35 @@ export default function TerminalPage() {
     setTicksMapLive((prev) => ({ ...prev, ...next }));
   }
 
-  // ✅ init accounts
+  // ✅ IMPORTANT: assure un SymbolInfo pour le symbol d’une position / order
+  // => corrige les "—" dans Perte SL / Gain TP / RR / Preview PnL
+  async function ensureSymbolInfo(sym: string): Promise<SymbolInfo | null> {
+    const s = String(sym || "").trim();
+    if (!s || !selectedAccount) return null;
+
+    if (symbolInfoMap[s]) return symbolInfoMap[s];
+
+    try {
+      const j = await fetchJson("/api/mt5/symbol_info", {
+        broker: selectedAccount.broker,
+        server: selectedAccount.server,
+        login: selectedAccount.login,
+        password: (selectedAccount as any).password ?? "",
+        symbol: s,
+      });
+
+      const info = j.info as SymbolInfo;
+      setSymbolInfoMap((p) => ({ ...p, [s]: info }));
+      return info;
+    } catch {
+      return null;
+    }
+  }
+
+  /* =========================
+     Init + loops
+     ========================= */
+
   useEffect(() => {
     const list = loadMt5Accounts();
     setAccounts(list);
@@ -455,7 +448,6 @@ export default function TerminalPage() {
     if (first) setSelectedId(first.id);
   }, []);
 
-  // ✅ live ticks polling
   useEffect(() => {
     if (!selectedAccount) return;
     refreshTicks().catch(() => {});
@@ -464,31 +456,6 @@ export default function TerminalPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedAccount?.id, symbolsToWatch.join("|")]);
 
-  // ✅ load symbol_info + tick quand symbol change
-  useEffect(() => {
-    if (!selectedAccount) return;
-    if (!symbol.trim()) return;
-
-    const t = window.setTimeout(async () => {
-      try {
-        await loadSymbolInfo(symbol.trim());
-      } catch (e: any) {
-        setSymbolInfo(null);
-        setMsg("❌ symbol_info: " + String(e?.message ?? e));
-        pushNotif({ kind: "error", title: "Erreur", message: "symbol_info impossible", ttlMs: 8000 });
-      }
-      try {
-        await loadTick(symbol.trim());
-      } catch {
-        setTick(null);
-      }
-    }, 250);
-
-    return () => window.clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [symbol, selectedAccount?.id]);
-
-  // ✅ refresh positions/orders loop
   useEffect(() => {
     if (!selectedAccount) return;
 
@@ -506,12 +473,34 @@ export default function TerminalPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedAccount?.id, symbol, calcBase]);
 
-  // ✅ Market => reset stop trigger
+  useEffect(() => {
+    if (!selectedAccount) return;
+    if (!symbol.trim()) return;
+
+    const tt = window.setTimeout(async () => {
+      try {
+        await loadSymbolInfo(symbol.trim());
+      } catch (e: any) {
+        setSymbolInfo(null);
+        setMsg("❌ symbol_info: " + String(e?.message ?? e));
+        pushNotif({ kind: "error", title: "Erreur", message: "symbol_info impossible", ttlMs: 8000 });
+      }
+      try {
+        await loadTick(symbol.trim());
+      } catch {
+        setTick(null);
+      }
+    }, 250);
+
+    return () => window.clearTimeout(tt);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [symbol, selectedAccount?.id]);
+
   useEffect(() => {
     if (mode === "MARKET") setStopPrice("");
   }, [mode]);
 
-  // ✅ Market => auto-fill entry only if BUY/SELL selected
+  // ✅ Market => auto-fill entry si BUY/SELL
   useEffect(() => {
     if (!tick) return;
     if (mode !== "MARKET") return;
@@ -569,9 +558,11 @@ export default function TerminalPage() {
     setRiskUsd(((cap * rp) / 100).toFixed(2));
   }
 
-  // ✅ helpers ordres
+  /* =========================
+     Helpers ordres + risk calc
+     ========================= */
+
   function nextOrdreId(cur: Ordre[]) {
-    // 10 ordres max => A..J
     const alpha = "ABCDEFGHIJ";
     const used = new Set(cur.map((x) => x.id));
     for (const ch of alpha) if (!used.has(ch)) return ch;
@@ -606,7 +597,6 @@ export default function TerminalPage() {
     setOrdres((prev) => prev.map((o) => (o.id === id ? { ...o, enabled: !o.enabled } : o)));
   }
 
-  // ✅ click accounts
   function clickAccounts() {
     setMsg(null);
 
@@ -623,7 +613,6 @@ export default function TerminalPage() {
     setOpenAccountsModal(true);
   }
 
-  // ✅ calc risk distribution
   const riskMoneyTotal = useMemo(() => {
     const ru = Number(riskUsd);
     return Number.isFinite(ru) && ru > 0 ? ru : 0;
@@ -697,7 +686,8 @@ export default function TerminalPage() {
     return expRewardActif / riskMoneyPerOrdre;
   }, [riskMoneyPerOrdre, expRewardActif]);
 
-  /* ====== PARTIE 2: actions (sync, place, modals, etc.) + JSX ====== */
+  /* ====== PARTIE 3: Actions (sync/place/modify/close/cancel) + JSX ====== */
+
     // =========================
   // ACTIONS
   // =========================
@@ -773,7 +763,6 @@ export default function TerminalPage() {
           Number.isFinite(sl) ? sl : undefined,
           Number.isFinite(tp) ? tp : undefined
         );
-
         if (!v.ok) throw new Error(`${v.error} (Ordre ${o.id})`);
 
         const orderMode = (() => {
@@ -816,6 +805,35 @@ export default function TerminalPage() {
     }
   }
 
+  // ✅ FIX BUILD: cancelPending manquant
+  async function cancelPending(ticket: number) {
+    if (!selectedAccount) return;
+
+    if (!Number.isFinite(ticket) || ticket <= 0) {
+      pushNotif({ kind: "error", title: "Annulation", message: "Ticket invalide.", ttlMs: 8000 });
+      return;
+    }
+
+    try {
+      setBusy(true);
+
+      await fetchJson("/api/mt5/order_cancel", {
+        broker: selectedAccount.broker,
+        server: selectedAccount.server,
+        login: selectedAccount.login,
+        password: (selectedAccount as any).password ?? "",
+        order: ticket,
+      });
+
+      pushNotif({ kind: "success", title: "Ordre annulé", message: `Ticket ${ticket}`, ttlMs: 8000 });
+      await refreshOrders();
+    } catch (e: any) {
+      pushNotif({ kind: "error", title: "Erreur annulation", message: String(e?.message ?? e), ttlMs: 12000 });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   // =========================
   // MODAL: MODIFY (SL/TP + B/E)
   // =========================
@@ -826,8 +844,9 @@ export default function TerminalPage() {
     const lots = Number(p.volume ?? 0);
     const entry = Number(p.price_open ?? 0);
 
+    const sym = String(p.symbol ?? "");
     setModTicket(Number.isFinite(t) ? t : null);
-    setModSymbol(String(p.symbol ?? ""));
+    setModSymbol(sym);
     setModType(ty === 1 ? 1 : 0);
     setModLots(Number.isFinite(lots) ? lots : 0);
     setModEntry(Number.isFinite(entry) ? entry : 0);
@@ -835,40 +854,44 @@ export default function TerminalPage() {
     setModSl(p.sl ? String(p.sl) : "");
     setModTp(p.tp ? String(p.tp) : "");
 
+    // ✅ IMPORTANT: charger le bon symbol_info pour ce ticket => chiffres OK
+    ensureSymbolInfo(sym).then((info) => {
+      if (info) setSymbolInfo(info);
+    });
+
     setOpenModify(true);
   }
-  ensureSymbolInfo(String(p.symbol ?? "")).then((info) => {
-    if (info) setSymbolInfo(info);
-  });
 
-  // calc preview gain/loss + RR dans modal Modify
   const modPxNow = useMemo(() => {
     const t = ticksMapLive?.[modSymbol];
     if (!t) return NaN;
-    // si BUY: close au BID / si SELL: close au ASK
-    const px = modType === 0 ? Number(t.bid) : Number(t.ask);
+    const px = modType === 0 ? Number(t.bid) : Number(t.ask); // BUY -> bid, SELL -> ask
     return Number.isFinite(px) ? px : NaN;
   }, [ticksMapLive, modSymbol, modType]);
+
+  // ✅ utiliser le symbolInfo correspondant au modSymbol si dispo
+  const modInfo = useMemo(() => {
+    const s = modSymbol.trim();
+    return (s && symbolInfoMap[s]) ? symbolInfoMap[s] : symbolInfo;
+  }, [modSymbol, symbolInfoMap, symbolInfo]);
 
   const modLossUsd = useMemo(() => {
     const sl = Number(modSl);
     if (!Number.isFinite(sl) || sl <= 0) return null;
     if (!Number.isFinite(modEntry) || modEntry <= 0) return null;
-    const mag = pnlBetweenUSD(modEntry, sl, modLots, symbolInfo);
+    const mag = pnlBetweenUSD(modEntry, sl, modLots, modInfo ?? null);
     if (mag == null) return null;
-    // SL = perte (toujours négatif affichage)
     return -Math.abs(mag);
-  }, [modSl, modEntry, modLots, symbolInfo]);
+  }, [modSl, modEntry, modLots, modInfo]);
 
   const modGainUsd = useMemo(() => {
     const tp = Number(modTp);
     if (!Number.isFinite(tp) || tp <= 0) return null;
     if (!Number.isFinite(modEntry) || modEntry <= 0) return null;
-    const mag = pnlBetweenUSD(modEntry, tp, modLots, symbolInfo);
+    const mag = pnlBetweenUSD(modEntry, tp, modLots, modInfo ?? null);
     if (mag == null) return null;
-    // TP = gain (toujours positif affichage)
     return Math.abs(mag);
-  }, [modTp, modEntry, modLots, symbolInfo]);
+  }, [modTp, modEntry, modLots, modInfo]);
 
   const modRR = useMemo(() => {
     if (modGainUsd == null || modLossUsd == null) return null;
@@ -903,7 +926,6 @@ export default function TerminalPage() {
     }
   }
 
-  // ✅ bouton B/E => SL = entry
   function setBreakEven() {
     if (!Number.isFinite(modEntry) || modEntry <= 0) return;
     setModSl(modEntry.toFixed(2));
@@ -916,18 +938,21 @@ export default function TerminalPage() {
 
   function openClosePosition(p: any) {
     const t = Number(p.ticket);
+    const sym = String(p.symbol ?? "");
+
     setCloseTicket(Number.isFinite(t) ? t : null);
-    setCloseSymbol(String(p.symbol ?? ""));
+    setCloseSymbol(sym);
     setCloseType(Number(p.type) === 1 ? 1 : 0);
     setCloseEntry(Number(p.price_open ?? 0) || 0);
     setCloseLotsTotal(Number(p.volume ?? 0) || 0);
-    setCloseLots(""); // vide = tout
+    setCloseLots("");
+    // ✅ IMPORTANT: charger symbol_info du symbol du ticket => Preview PnL OK
+    ensureSymbolInfo(sym).then((info) => {
+      if (info) setSymbolInfo(info);
+    });
+
     setOpenCloseModal(true);
   }
-  ensureSymbolInfo(String(p.symbol ?? "")).then((info) => {
-    if (info) setSymbolInfo(info);
-  });
-
 
   const closeLotsNum = useMemo(() => {
     const v = Number(closeLots);
@@ -948,19 +973,23 @@ export default function TerminalPage() {
     return Number.isFinite(px) ? px : NaN;
   }, [ticksMapLive, closeSymbol, closeType]);
 
+  const closeInfo = useMemo(() => {
+    const s = closeSymbol.trim();
+    return (s && symbolInfoMap[s]) ? symbolInfoMap[s] : symbolInfo;
+  }, [closeSymbol, symbolInfoMap, symbolInfo]);
+
   const closeEstPnl = useMemo(() => {
     if (!Number.isFinite(closeEntry) || closeEntry <= 0) return null;
     if (!Number.isFinite(closePxNow) || closePxNow <= 0) return null;
     if (!Number.isFinite(closeLotsNum) || closeLotsNum <= 0) return null;
 
-    const mag = pnlBetweenUSD(closeEntry, closePxNow, closeLotsNum, symbolInfo);
+    const mag = pnlBetweenUSD(closeEntry, closePxNow, closeLotsNum, closeInfo ?? null);
     if (mag == null) return null;
 
-    // signe selon BUY/SELL
     const signed = closeType === 0 ? (closePxNow - closeEntry) : (closeEntry - closePxNow);
     const sign = signed >= 0 ? 1 : -1;
     return sign * Math.abs(mag);
-  }, [closeEntry, closePxNow, closeLotsNum, symbolInfo, closeType]);
+  }, [closeEntry, closePxNow, closeLotsNum, closeInfo, closeType]);
 
   async function confirmClosePartial() {
     if (!selectedAccount || !closeTicket) return;
@@ -975,7 +1004,6 @@ export default function TerminalPage() {
       return;
     }
 
-    // vide => tout clôturer
     const v = closeLots.trim() ? Number(closeLots) : undefined;
     if (closeLots.trim() && (!Number.isFinite(Number(closeLots)) || Number(closeLots) <= 0)) {
       pushNotif({ kind: "error", title: "Volume invalide", message: "Entre un volume correct.", ttlMs: 8000 });
@@ -1048,35 +1076,6 @@ export default function TerminalPage() {
     }
   }
 
-  async function cancelPending(ticket: number) {
-    if (!selectedAccount) return;
-
-    if (!Number.isFinite(ticket) || ticket <= 0) {
-      pushNotif({ kind: "error", title: "Annulation", message: "Ticket invalide.", ttlMs: 8000 });
-      return;
-    }
-
-    try {
-      setBusy(true);
-
-      await fetchJson("/api/mt5/order_cancel", {
-        broker: selectedAccount.broker,
-        server: selectedAccount.server,
-        login: selectedAccount.login,
-        password: (selectedAccount as any).password ?? "",
-        order: ticket,
-      });
-
-      pushNotif({ kind: "success", title: "Ordre annulé", message: `Ticket ${ticket}`, ttlMs: 8000 });
-
-      await refreshOrders();
-    } catch (e: any) {
-      pushNotif({ kind: "error", title: "Erreur annulation", message: String(e?.message ?? e), ttlMs: 12000 });
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function confirmCancelAll() {
     if (!selectedAccount) return;
     if (!orders.length) return setOpenCancelAll(false);
@@ -1106,8 +1105,9 @@ export default function TerminalPage() {
   }
 
   // =========================
-  // RETURN (PARTIE 3)
+  // RETURN (Partie 4)
   // =========================
+
     return (
     <div className="space-y-6">
       {/* Title */}
@@ -1122,10 +1122,10 @@ export default function TerminalPage() {
         </p>
       </div>
 
-      {/* HEADER (clean) */}
+      {/* HEADER */}
       <Card>
         <CardBody>
-          {/* COMPTE full width */}
+          {/* Compte */}
           <div className="w-full">
             <div className="text-xs text-white/70 mb-1">Compte</div>
             <button
@@ -1146,7 +1146,7 @@ export default function TerminalPage() {
             </button>
           </div>
 
-          {/* Row: Catégorie / Ordre / Sens */}
+          {/* Row: catégorie / ordre / sens */}
           <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
             <GoldSelect
               label="Catégorie"
@@ -1192,13 +1192,11 @@ export default function TerminalPage() {
             />
           </div>
 
-          {/* SYMBOL centered */}
+          {/* Symbol */}
           <div className="mt-4 flex justify-center">
             <div className="w-full md:w-[560px]">
               <InputCompact
-                label={`Symbol ${
-                  symbolsLoaded ? `(${filteredSymbols.length})` : "(clique Sync)"
-                }`}
+                label={`Symbol ${symbolsLoaded ? `(${filteredSymbols.length})` : "(clique Sync)"}`}
                 value={symbol}
                 onChange={setSymbol}
                 placeholder="Ex: BTCUSD.pi"
@@ -1212,7 +1210,7 @@ export default function TerminalPage() {
             </div>
           </div>
 
-          {/* Buttons row */}
+          {/* Buttons */}
           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
             <Button
               onClick={placeAllOrdres}
@@ -1222,12 +1220,7 @@ export default function TerminalPage() {
               {busy ? "..." : "Envoyer"}
             </Button>
 
-            <Button
-              variant="secondary"
-              onClick={syncAll}
-              disabled={busy}
-              className="w-full h-12 justify-center"
-            >
+            <Button variant="secondary" onClick={syncAll} disabled={busy} className="w-full h-12 justify-center">
               Sync
             </Button>
           </div>
@@ -1239,20 +1232,14 @@ export default function TerminalPage() {
                 className="h-full rounded-full"
                 style={{
                   width: `${progressPct}%`,
-                  background:
-                    "linear-gradient(90deg, #d6b35f, #f5e6a8, #d6b35f)",
-                  boxShadow:
-                    progressPct > 0 ? "0 0 14px rgba(214,179,95,.70)" : "none",
+                  background: "linear-gradient(90deg, #d6b35f, #f5e6a8, #d6b35f)",
+                  boxShadow: progressPct > 0 ? "0 0 14px rgba(214,179,95,.70)" : "none",
                   transition: "width .35s ease, box-shadow .35s ease",
                 }}
               />
             </div>
             <div className="mt-2 flex justify-between text-xs text-[color:var(--muted)]">
-              <span>
-                {progressPct === 0
-                  ? "En attente de configuration"
-                  : "Configuration en cours"}
-              </span>
+              <span>{progressPct === 0 ? "En attente de configuration" : "Configuration en cours"}</span>
               <span>{progressPct}%</span>
             </div>
           </div>
@@ -1287,6 +1274,7 @@ export default function TerminalPage() {
                           : "border-white/10 bg-black/20 text-white/70 hover:bg-white/5",
                       ].join(" ")}
                       title="Ordre actif"
+                      type="button"
                     >
                       Ordre {o.id} {o.enabled ? "" : "(off)"}
                     </button>
@@ -1317,15 +1305,12 @@ export default function TerminalPage() {
                       <InputCompact
                         label={
                           mode === "MARKET"
-                            ? `Entrée (Market • auto • ${
-                                side === "BUY" ? "Ask" : side === "SELL" ? "Bid" : "-"
+                            ? `Entrée (Market • auto • ${side === "BUY" ? "Ask" : side === "SELL" ? "Bid" : "-"
                               })`
                             : `Entrée ${ordreActifId}`
                         }
                         value={ordreActif.entry}
-                        onChange={
-                          mode === "MARKET" ? undefined : (v) => setOrdreField(ordreActifId, "entry", v)
-                        }
+                        onChange={mode === "MARKET" ? undefined : (v) => setOrdreField(ordreActifId, "entry", v)}
                         readOnly={mode === "MARKET"}
                         placeholder="Ex: 91000.00"
                       />
@@ -1367,6 +1352,7 @@ export default function TerminalPage() {
                       placeholder="Ex: 91500.00"
                     />
                   ) : null}
+
                   {(() => {
                     const entry = Number(ordreActif.entry);
                     const sl = Number(ordreActif.sl);
@@ -1379,9 +1365,8 @@ export default function TerminalPage() {
                       </div>
                     );
                   })()}
-                  <div className="text-xs text-[color:var(--muted)]">
-                    * Ordre B/C = position différente.
-                  </div>
+
+                  <div className="text-xs text-[color:var(--muted)]">* Ordre B/C = position différente.</div>
                 </div>
               </CardBody>
             </Card>
@@ -1392,18 +1377,8 @@ export default function TerminalPage() {
                 <div className="text-lg font-semibold">Réglages de votre risque</div>
 
                 <div className="mt-4 space-y-3">
-                  <InputCompact
-                    label="Risque (%)"
-                    value={riskPct}
-                    onChange={onChangeRiskPct}
-                    placeholder="1.00"
-                  />
-                  <InputCompact
-                    label="Risque (USD)"
-                    value={riskUsd}
-                    onChange={onChangeRiskUsd}
-                    placeholder="100"
-                  />
+                  <InputCompact label="Risque (%)" value={riskPct} onChange={onChangeRiskPct} placeholder="1.00" />
+                  <InputCompact label="Risque (USD)" value={riskUsd} onChange={onChangeRiskUsd} placeholder="100" />
                   <InputCompact label="Capital (USD)" value={capitalUsd} readOnly />
 
                   <div className="grid grid-cols-2 gap-3">
@@ -1416,9 +1391,7 @@ export default function TerminalPage() {
                     <div className="rounded-xl border border-white/10 bg-black/20 p-3 text-sm">
                       <div className="text-xs text-white/60 mb-1">Risque / Ordre</div>
                       <div className="text-white font-semibold">{fmt(riskMoneyPerOrdre)} USD</div>
-                      <div className="text-[11px] text-white/40 mt-1">
-                        ({ordresON.length} ordre(s) ON)
-                      </div>
+                      <div className="text-[11px] text-white/40 mt-1">({ordresON.length} ordre(s) ON)</div>
                     </div>
                   </div>
 
@@ -1459,9 +1432,7 @@ export default function TerminalPage() {
 
                     <div className="flex justify-between text-sm mt-2">
                       <span className="text-white/60">R:R estimé</span>
-                      <span className="text-white font-semibold">
-                        {rrActif > 0 ? rrActif.toFixed(2) : "N/A"}
-                      </span>
+                      <span className="text-white font-semibold">{rrActif > 0 ? rrActif.toFixed(2) : "N/A"}</span>
                     </div>
 
                     <div className="mt-2 text-xs text-[color:var(--muted)]">
@@ -1488,9 +1459,7 @@ export default function TerminalPage() {
 
                 <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
                   <div className="text-xs text-white/60">Risque total</div>
-                  <div className="mt-1 font-semibold text-[color:var(--gold)]">
-                    {fmt(riskMoneyTotal)} USD
-                  </div>
+                  <div className="mt-1 font-semibold text-[color:var(--gold)]">{fmt(riskMoneyTotal)} USD</div>
                 </div>
 
                 <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
@@ -1522,12 +1491,11 @@ export default function TerminalPage() {
               Widget officiel TradingView (vrai chart). Symbol TV: {symbol ? symbol : "BTCUSD"}
             </div>
 
-            {/* iframe TradingView */}
             <div className="rounded-2xl border border-white/10 overflow-hidden bg-black/20">
               <iframe
                 title="TradingView"
                 src={(() => {
-                  const tvSymbol = (symbol?.trim() || "BTCUSD");
+                  const tvSymbol = symbol?.trim() || "BTCUSD";
                   const params = new URLSearchParams({
                     symbol: tvSymbol,
                     interval: "15",
@@ -1570,6 +1538,7 @@ export default function TerminalPage() {
               ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]"
               : "border-[color:var(--border)] bg-black/20 text-white/70 hover:bg-white/5",
           ].join(" ")}
+          type="button"
         >
           Positions ouvertes
         </button>
@@ -1582,6 +1551,7 @@ export default function TerminalPage() {
               ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]"
               : "border-[color:var(--border)] bg-black/20 text-white/70 hover:bg-white/5",
           ].join(" ")}
+          type="button"
         >
           Ordres en attente
         </button>
@@ -1676,7 +1646,6 @@ export default function TerminalPage() {
                             <Button variant="secondary" onClick={() => openModifyPosition(p)} disabled={busy}>
                               Modifier
                             </Button>
-                            {/* ✅ ici on ouvre le modal clôture (partielle) */}
                             <Button variant="danger" onClick={() => openClosePosition(p)} disabled={busy}>
                               Clôturer
                             </Button>
@@ -1762,8 +1731,7 @@ export default function TerminalPage() {
         </Card>
       ) : null}
 
-      {/* PARTIE 4: MODALS (accounts + modify + close + bulk + gate) */}
-            {/* Accounts modal */}
+      {/* Accounts modal */}
       <Modal
         open={openAccountsModal}
         title="Choisir le compte MT5"
@@ -1792,6 +1760,7 @@ export default function TerminalPage() {
                     ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-white"
                     : "border-white/10 bg-black/20 text-white/80 hover:bg-white/5",
                 ].join(" ")}
+                type="button"
               >
                 <div>
                   <div className="font-semibold">{a.label}</div>
@@ -1806,7 +1775,7 @@ export default function TerminalPage() {
         </div>
       </Modal>
 
-      {/* Modify modal (SL/TP + BE + previews) */}
+      {/* Modify modal */}
       <Modal
         open={openModify}
         title={`Modifier SL/TP • Ticket ${modTicket ?? ""}`}
@@ -1814,11 +1783,7 @@ export default function TerminalPage() {
         footer={
           <div className="flex items-center justify-between gap-3 w-full">
             <div className="flex gap-2">
-              <Button
-                variant="secondary"
-                onClick={setBreakEven}
-                disabled={!Number.isFinite(modEntry) || modEntry <= 0}
-              >
+              <Button variant="secondary" onClick={setBreakEven} disabled={!Number.isFinite(modEntry) || modEntry <= 0}>
                 B/E
               </Button>
 
@@ -1843,31 +1808,15 @@ export default function TerminalPage() {
         <div className="space-y-4">
           <div className="text-sm text-[color:var(--muted)]">
             {modSymbol} • Lots:{" "}
-            <span className="text-[color:var(--gold)] font-semibold">
-              {Number.isFinite(modLots) ? fmt2(modLots) : "—"}
-            </span>{" "}
-            • Type:{" "}
-            <span className="text-white/90 font-semibold">
-              {modType === 0 ? "BUY" : "SELL"}
-            </span>
+            <span className="text-[color:var(--gold)] font-semibold">{Number.isFinite(modLots) ? fmt2(modLots) : "—"}</span>{" "}
+            • Type: <span className="text-white/90 font-semibold">{modType === 0 ? "BUY" : "SELL"}</span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <InputCompact
-              label="Stop Loss (prix)"
-              value={modSl}
-              onChange={setModSl}
-              placeholder="Ex: 90000.00"
-            />
-            <InputCompact
-              label="Take Profit (prix)"
-              value={modTp}
-              onChange={setModTp}
-              placeholder="Ex: 101000.00"
-            />
+            <InputCompact label="Stop Loss (prix)" value={modSl} onChange={setModSl} placeholder="Ex: 90000.00" />
+            <InputCompact label="Take Profit (prix)" value={modTp} onChange={setModTp} placeholder="Ex: 101000.00" />
           </div>
 
-          {/* Preview */}
           <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
               <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
@@ -1886,9 +1835,7 @@ export default function TerminalPage() {
 
               <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
                 <div className="text-xs text-white/60">R:R</div>
-                <div className="mt-1 font-semibold text-[color:var(--gold)]">
-                  {modRR == null ? "—" : modRR.toFixed(2)}
-                </div>
+                <div className="mt-1 font-semibold text-[color:var(--gold)]">{modRR == null ? "—" : modRR.toFixed(2)}</div>
               </div>
             </div>
 
@@ -1899,7 +1846,7 @@ export default function TerminalPage() {
         </div>
       </Modal>
 
-      {/* Close modal (partial) */}
+      {/* Close modal */}
       <Modal
         open={openCloseModal}
         title={`Clôturer • Ticket ${closeTicket ?? ""}`}
@@ -1973,7 +1920,11 @@ export default function TerminalPage() {
             </div>
           ) : (
             <div className="flex items-center justify-between">
-              <Button variant="secondary" onClick={fillMaxCloseLots} disabled={!Number.isFinite(closeLotsTotal) || closeLotsTotal <= 0}>
+              <Button
+                variant="secondary"
+                onClick={fillMaxCloseLots}
+                disabled={!Number.isFinite(closeLotsTotal) || closeLotsTotal <= 0}
+              >
                 Max
               </Button>
 
@@ -2038,13 +1989,9 @@ export default function TerminalPage() {
               Fermer
             </Button>
             {gateReason === "noPlan" ? (
-              <Button onClick={() => (window.location.href = "/dashboard/abonnement")}>
-                Voir abonnement
-              </Button>
+              <Button onClick={() => (window.location.href = "/dashboard/abonnement")}>Voir abonnement</Button>
             ) : (
-              <Button onClick={() => (window.location.href = "/dashboard/comptes")}>
-                Ajouter un compte
-              </Button>
+              <Button onClick={() => (window.location.href = "/dashboard/comptes")}>Ajouter un compte</Button>
             )}
           </div>
         }
@@ -2065,5 +2012,3 @@ export default function TerminalPage() {
     </div>
   );
 }
-
-
