@@ -192,6 +192,7 @@ export default function TerminalPage() {
     null
   );
 
+  const [symbolInfoMap, setSymbolInfoMap] = useState<Record<string, SymbolInfo>>({});
   const [category, setCategory] = useState<SymbolCat>("all");
   const [symbols, setSymbols] = useState<
     { name: string; category: SymbolCat; path?: string }[]
@@ -361,6 +362,29 @@ export default function TerminalPage() {
       symbol: sym,
     });
     setSymbolInfo(j.info as SymbolInfo);
+  }
+  async function ensureSymbolInfo(sym: string) {
+    const s = String(sym || "").trim();
+    if (!s || !selectedAccount) return null;
+
+    // déjà en cache
+    if (symbolInfoMap[s]) return symbolInfoMap[s];
+
+    try {
+      const j = await fetchJson("/api/mt5/symbol_info", {
+        broker: selectedAccount.broker,
+        server: selectedAccount.server,
+        login: selectedAccount.login,
+        password: (selectedAccount as any).password ?? "",
+        symbol: s,
+      });
+
+      const info = j.info as SymbolInfo;
+      setSymbolInfoMap((p) => ({ ...p, [s]: info }));
+      return info;
+    } catch {
+      return null;
+    }
   }
 
   async function loadTick(sym: string) {
@@ -813,6 +837,9 @@ export default function TerminalPage() {
 
     setOpenModify(true);
   }
+  ensureSymbolInfo(String(p.symbol ?? "")).then((info) => {
+    if (info) setSymbolInfo(info);
+  });
 
   // calc preview gain/loss + RR dans modal Modify
   const modPxNow = useMemo(() => {
@@ -897,6 +924,10 @@ export default function TerminalPage() {
     setCloseLots(""); // vide = tout
     setOpenCloseModal(true);
   }
+  ensureSymbolInfo(String(p.symbol ?? "")).then((info) => {
+    if (info) setSymbolInfo(info);
+  });
+
 
   const closeLotsNum = useMemo(() => {
     const v = Number(closeLots);
@@ -1012,6 +1043,35 @@ export default function TerminalPage() {
       await refreshPositions();
     } catch (e: any) {
       pushNotif({ kind: "error", title: "Erreur", message: String(e?.message ?? e), ttlMs: 12000 });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function cancelPending(ticket: number) {
+    if (!selectedAccount) return;
+
+    if (!Number.isFinite(ticket) || ticket <= 0) {
+      pushNotif({ kind: "error", title: "Annulation", message: "Ticket invalide.", ttlMs: 8000 });
+      return;
+    }
+
+    try {
+      setBusy(true);
+
+      await fetchJson("/api/mt5/order_cancel", {
+        broker: selectedAccount.broker,
+        server: selectedAccount.server,
+        login: selectedAccount.login,
+        password: (selectedAccount as any).password ?? "",
+        order: ticket,
+      });
+
+      pushNotif({ kind: "success", title: "Ordre annulé", message: `Ticket ${ticket}`, ttlMs: 8000 });
+
+      await refreshOrders();
+    } catch (e: any) {
+      pushNotif({ kind: "error", title: "Erreur annulation", message: String(e?.message ?? e), ttlMs: 12000 });
     } finally {
       setBusy(false);
     }
