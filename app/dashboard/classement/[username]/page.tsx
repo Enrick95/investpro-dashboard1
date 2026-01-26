@@ -309,6 +309,11 @@ export default function ClassementUserPage() {
     let alive = true;
 
     async function loadMedia() {
+      if (!user) {
+        setAvatarUrl("");
+        return;
+      }
+
       // avatar
       if (user.avatarMediaId) {
         try {
@@ -321,6 +326,7 @@ export default function ClassementUserPage() {
       } else {
         setAvatarUrl(user.avatarDataUrl || "");
       }
+    }
 
       // banner
       if (user.bannerMediaId) {
