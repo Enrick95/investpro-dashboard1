@@ -304,62 +304,48 @@ export default function ClassementUserPage() {
   const [bannerUrl, setBannerUrl] = useState<string>("");
 
   useEffect(() => {
-    if (!user) return;
+  let alive = true;
 
-    let alive = true;
+  async function loadMedia() {
+    if (!user) {
+      setAvatarUrl("");
+      setBannerUrl("");
+      return;
+    }
 
-    async function loadMedia() {
-      if (!user) {
-        setAvatarUrl("");
-        return;
-      }
-
-      // avatar
-      if (user.avatarMediaId) {
-        try {
-          const blob = await idbGetBlob(user.avatarMediaId);
-          if (!alive) return;
-          setAvatarUrl(blob ? URL.createObjectURL(blob) : user.avatarDataUrl || "");
-        } catch {
-          setAvatarUrl(user.avatarDataUrl || "");
-        }
-      } else {
+    // avatar
+    if (user.avatarMediaId) {
+      try {
+        const blob = await idbGetBlob(user.avatarMediaId);
+        if (!alive) return;
+        setAvatarUrl(blob ? URL.createObjectURL(blob) : user.avatarDataUrl || "");
+      } catch {
         setAvatarUrl(user.avatarDataUrl || "");
       }
+    } else {
+      setAvatarUrl(user.avatarDataUrl || "");
     }
 
-      // banner
-      if (user.bannerMediaId) {
-        try {
-          const blob = await idbGetBlob(user.bannerMediaId);
-          if (!alive) return;
-          setBannerUrl(blob ? URL.createObjectURL(blob) : user.bannerDataUrl || "");
-        } catch {
-          setBannerUrl(user.bannerDataUrl || "");
-        }
-      } else {
+    // banner
+    if (user.bannerMediaId) {
+      try {
+        const blob = await idbGetBlob(user.bannerMediaId);
+        if (!alive) return;
+        setBannerUrl(blob ? URL.createObjectURL(blob) : user.bannerDataUrl || "");
+      } catch {
         setBannerUrl(user.bannerDataUrl || "");
       }
+    } else {
+      setBannerUrl(user.bannerDataUrl || "");
     }
+  }
 
-    loadMedia();
-    return () => {
-      alive = false;
-    };
-  }, [user]);
+  loadMedia();
+  return () => {
+    alive = false;
+  };
+}, [user]);
 
-  // notif if not found
-  useEffect(() => {
-    if (user) return;
-    if (!usernameParam) return;
-    pushNotif({
-      kind: "warning",
-      title: "Profil indisponible",
-      message: "Cet utilisateur n’est pas (ou plus) public dans le classement.",
-      ttlMs: 9000,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, usernameParam]);
 
   /* ------------------- Viewer avatar (for comments) ------------------- */
   const [myAvatarUrl, setMyAvatarUrl] = useState<string>("");
