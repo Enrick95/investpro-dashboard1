@@ -548,7 +548,8 @@ export default function ProfilPage() {
 
   // header measured sizes (kept, not mandatory)
   const bannerFrameRef = useRef<HTMLDivElement | null>(null);
-  const avatarFrameRef = useRef<HTMLDivElement | null>(null);
+  const avatarFrameRef = useRef<HTMLLabelElement | null>(null);
+
   const [bannerFrameSize, setBannerFrameSize] = useState({ w: 0, h: 0 });
   const [avatarFrameSize, setAvatarFrameSize] = useState({ w: 0, h: 0 });
 
