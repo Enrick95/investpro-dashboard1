@@ -291,9 +291,9 @@ function MarketSessionsInline() {
 
   // Heures Paris (exemple)
   const sessions = [
-    { name: "Asia", open: 2, close: 11 },
-    { name: "London", open: 10, close: 19 },
-    { name: "New York", open: 15, close: 0 }, // traverse minuit
+    { name: "Asia", open: 1, close: 8.30 },
+    { name: "London", open: 7, close: 17 },
+    { name: "New York", open: 14, close: 23 }, // traverse minuit
   ] as const;
 
   function isActive(openHour: number, closeHour: number) {
