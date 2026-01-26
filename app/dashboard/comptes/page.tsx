@@ -17,13 +17,10 @@ import {
    BROKERS + SERVERS (EDIT HERE)
 ========================================================= */
 const BROKER_PRESETS = [
-
   // MetaQuotes Ltd.
   {
     broker: "MetaQuotes Ltd.",
-    servers: [
-      "MetaQuotes-Demo",
-    ],
+    servers: ["MetaQuotes-Demo"],
   },
 
   // BLUEBERRY MARKETS EXEMPLE
@@ -50,173 +47,205 @@ const BROKER_PRESETS = [
     broker: "Raise Global SA (Pty) Ltd",
     servers: ["RaiseGlobal-Live"],
   },
-
-    // RAISE GLOBAL
   {
     broker: "Raise Global SA (Pty) Limited",
     servers: ["RaiseGlobalSA-Live"],
   },
 
-    // FTMO
+  // FTMO
   {
     broker: "FTMO Global Markets Ltd",
-    servers: ["FTMO-Server", "FTMO-Server2","FTMO-Server3", "FTMO-Server4","FTMO-Server5","FTMO-Demo", "FTMO-Demo2"],
+    servers: [
+      "FTMO-Server",
+      "FTMO-Server2",
+      "FTMO-Server3",
+      "FTMO-Server4",
+      "FTMO-Server5",
+      "FTMO-Demo",
+      "FTMO-Demo2",
+    ],
   },
 
   // Fusion Markets
   {
     broker: "Fusion Markets Pty Ltd",
-    servers: ["FusionMarkets-Live", "FusionMarkets-Demo",],
+    servers: ["FusionMarkets-Live", "FusionMarkets-Demo"],
   },
-
-  // Fusion Markets
   {
     broker: "Fusion Markets International Ltd",
-    servers: ["FusionMarketInternational-MT5_2",],
+    servers: ["FusionMarketInternational-MT5_2"],
   },
 
-    // VT Markets
+  // VT Markets
   {
     broker: "VT Markets Pty Ltd",
-    servers: ["VTMarkets-Live", "VTMarkets-Live 2","VTMarkets-Live 3", "VTMarkets-Live 4", "VTMarkets-Live 5", "VTMarkets-Live 6", "VTMarkets-Demo",],
+    servers: [
+      "VTMarkets-Live",
+      "VTMarkets-Live 2",
+      "VTMarkets-Live 3",
+      "VTMarkets-Live 4",
+      "VTMarkets-Live 5",
+      "VTMarkets-Live 6",
+      "VTMarkets-Demo",
+    ],
   },
-  
-    // FundingPips Corp
+
+  // FundingPips
   {
     broker: "FundingPips Corp",
-    servers: ["FundingPips-SIM",],
+    servers: ["FundingPips-SIM"],
   },
-
-  // FundingPips Corp (2)
   {
     broker: "FundingPips Corp (2)",
-    servers: ["FundingPips2-SIM",],
+    servers: ["FundingPips2-SIM"],
   },
 
-    // PuPrime Ltd
+  // PuPrime
   {
     broker: "Pu Prime Ltd",
-    servers: ["PuPrime-Live","PuPrime-Live2", "PuPrime-Live 4","PuPrime-Live 5", "PuPrime-Live 6","PuPrime-Demo",],
+    servers: [
+      "PuPrime-Live",
+      "PuPrime-Live2",
+      "PuPrime-Live 4",
+      "PuPrime-Live 5",
+      "PuPrime-Live 6",
+      "PuPrime-Demo",
+    ],
   },
-
-  // PuPrime Trading Pty Ltd
   {
     broker: "PuPrime Trading Pty Ltd",
-    servers: ["PuPrimeTrading-Live",],
+    servers: ["PuPrimeTrading-Live"],
   },
 
-    // Notesco Limited
+  // Notesco (IronFX)
   {
     broker: "Notesco Limited",
-    servers: ["IronFX-Real1", "IronFX-Demo1",],
+    servers: ["IronFX-Real1", "IronFX-Demo1"],
   },
 
-  // RoboForex Ltd
+  // RoboForex
   {
     broker: "RoboForex Ltd",
     servers: ["RoboForex-Pro", "RoboForex-ECN"],
   },
 
-  // Vantage Fx Pty Ltd.
+  // Vantage
   {
     broker: "Vantage Fx Pty Ltd.",
-    servers: ["VantageFX-Live","VantageFX-Live 3" , "VantageFX-Live 4" , "VantageFX-Live 5" , "VantageFX-Live 6" , "VantageFX-Live 7" , "VantageFX-Live 8" , "VantageFX-Live 9" , "VantageFX-Live 10" , "VantageFX-Live 11" , "VantageFX-Live 12" , "VantageFX-Live 14" , "VantageFX-Live 15" , "VantageFX-Live 17" , "VantageFX-Live 19" , "VantageFX-Live 21" ,"VantageFX-Demo"],
+    servers: [
+      "VantageFX-Live",
+      "VantageFX-Live 3",
+      "VantageFX-Live 4",
+      "VantageFX-Live 5",
+      "VantageFX-Live 6",
+      "VantageFX-Live 7",
+      "VantageFX-Live 8",
+      "VantageFX-Live 9",
+      "VantageFX-Live 10",
+      "VantageFX-Live 11",
+      "VantageFX-Live 12",
+      "VantageFX-Live 14",
+      "VantageFX-Live 15",
+      "VantageFX-Live 17",
+      "VantageFX-Live 19",
+      "VantageFX-Live 21",
+      "VantageFX-Demo",
+    ],
   },
 
-  // Eightcap Pty Ltd
+  // Eightcap
   {
     broker: "Eightcap Pty Ltd",
-    servers: ["Eightcap-Live","Eightcap-Demo",],
+    servers: ["Eightcap-Live", "Eightcap-Demo"],
   },
-
-  // Eightcap Global Limited
   {
     broker: "Eightcap Global Limited",
-    servers: ["EightcapGlobal-Live",],
+    servers: ["EightcapGlobal-Live"],
   },
-
-  // Eightcap EU Ltd
   {
     broker: "Eightcap EU Ltd",
-    servers: ["EightcapEU-Live",],
+    servers: ["EightcapEU-Live"],
   },
 
-  // IC Markets (EU) Ltd
+  // IC Markets variants
   {
     broker: "IC Markets (EU) Ltd",
-    servers: ["ICMarketsEU-MT5-5", "ICMarketsEU-Demo",],
+    servers: ["ICMarketsEU-MT5-5", "ICMarketsEU-Demo"],
   },
-
-  // Ic Markets Ltd
   {
     broker: "Ic Markets Ltd",
-    servers: ["ICMarketsInternational-Demo" ,"ICMarketsInternational-MT5","ICMarketsInternational-MT5-4","ICMarketsInternational-MT5-2"],
+    servers: [
+      "ICMarketsInternational-Demo",
+      "ICMarketsInternational-MT5",
+      "ICMarketsInternational-MT5-4",
+      "ICMarketsInternational-MT5-2",
+    ],
   },
-
-  // IC Markets Group Ltd
   {
     broker: "IC Markets Group Ltd",
     servers: ["ICMarketsGRP-MT5", "ICMarketsGRP-Demo"],
   },
-
-  // IC Markets (KE) limited
   {
     broker: "IC Markets (KE) limited",
     servers: ["ICMarketsKE-MT5-7", "ICMarketsKE-Demo"],
   },
-
-  // International Capital Markets Pty. Ltd.
   {
     broker: "International Capital Markets Pty. Ltd.",
-    servers: ["ICMarkets-MT5","ICMarkets-MT5-2" , "ICMarkets-MT5-4", "ICMarkets-Demo"],
+    servers: ["ICMarkets-MT5", "ICMarkets-MT5-2", "ICMarkets-MT5-4", "ICMarkets-Demo"],
   },
 
-  // OANDA Corporation
+  // OANDA
   {
     broker: "OANDA Corporation",
-    servers: ["OANDA-Live-1", "OANDA-Demo-1" ,"OANDA-Prop Trader" , "Oanda-Japan MT5 Live" , "Oanda-Japan MT5 Demo"],
+    servers: [
+      "OANDA-Live-1",
+      "OANDA-Demo-1",
+      "OANDA-Prop Trader",
+      "Oanda-Japan MT5 Live",
+      "Oanda-Japan MT5 Demo",
+    ],
   },
-
-  // Oanda Europe Limited
   {
     broker: "Oanda Europe Limited",
     servers: ["OANDA_UK-Demo-1", "OANDA_UK-Live-1"],
   },
-
-  // Oanda Asia Pacific Pte Ltd
   {
     broker: "Oanda Asia Pacific Pte Ltd",
     servers: ["OANDA_SG-Demo-1", "OANDA_SG-Live-1"],
   },
-
-  // OANDA (Canada) Corporation ULC
   {
     broker: "OANDA (Canada) Corporation ULC",
     servers: ["OANDA_Canada-Demo-1"],
-  },  
-
-  // OANDA Global Markets Limited
+  },
   {
     broker: "OANDA Global Markets Limited",
     servers: ["OANDA_Global-Demo-1", "OANDA_Global-Live-1"],
   },
-
-  // OANDA TMS Brokers S.A.
   {
     broker: "OANDA TMS Brokers S.A.",
     servers: ["OANDATMS-MT5"],
   },
-  
-  // Ava Trade Markets Ltd.
+
+  // AvaTrade
   {
     broker: "Ava Trade Markets Ltd.",
     servers: ["AvaTradeMarkets-Demo 1-MT5", "AvaTradeMarkets-Real 1-MT5"],
   },
-  // --- ADD NEW BROKERS/SERVERS ABOVE THIS LINE ---
 
+  // --- ADD NEW BROKERS/SERVERS ABOVE THIS LINE ---
 ] as const;
 
 type BrokerName = (typeof BROKER_PRESETS)[number]["broker"];
+type ServerName = (typeof BROKER_PRESETS)[number]["servers"][number];
+
+type FormState = {
+  label: string;
+  broker: BrokerName;
+  server: ServerName | "__OTHER__" | "";
+  serverOther: string;
+  login: string;
+  password: string;
+};
 
 function Input({
   label,
@@ -288,9 +317,9 @@ export default function ComptesPage() {
   const [open, setOpen] = useState(false);
 
   const defaultBroker = BROKER_PRESETS[0]?.broker ?? ("" as BrokerName);
-  const defaultServer = BROKER_PRESETS[0]?.servers?.[0] ?? "";
+  const defaultServer = (BROKER_PRESETS[0]?.servers?.[0] ?? "") as ServerName | "";
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<FormState>({
     label: "",
     broker: defaultBroker as BrokerName,
     server: defaultServer,
@@ -310,7 +339,7 @@ export default function ComptesPage() {
     setForm((p) => ({
       ...p,
       broker: b,
-      server: preset.servers[0] ?? "",
+      server: ((preset.servers[0] ?? "") as ServerName) || "",
       serverOther: "",
     }));
   }
@@ -324,7 +353,7 @@ export default function ComptesPage() {
 
   function resetForm() {
     const b = BROKER_PRESETS[0]?.broker ?? ("" as BrokerName);
-    const s = BROKER_PRESETS[0]?.servers?.[0] ?? "";
+    const s = (BROKER_PRESETS[0]?.servers?.[0] ?? "") as ServerName | "";
     setForm({
       label: "",
       broker: b as BrokerName,
@@ -338,7 +367,7 @@ export default function ComptesPage() {
   function addAccount() {
     const label = form.label.trim() || `Compte ${form.login}`;
     const broker = form.broker;
-    const server = form.server === "__OTHER__" ? form.serverOther.trim() : form.server.trim();
+    const server = form.server === "__OTHER__" ? form.serverOther.trim() : String(form.server).trim();
     const login = form.login.trim();
 
     if (!broker || !server || !login) return;
@@ -482,9 +511,11 @@ export default function ComptesPage() {
                     <div className="text-right">
                       <div className="text-[color:var(--muted)]">Profit</div>
                       <div
-                        className={(a.snapshot?.profit ?? 0) >= 0
-                          ? "text-[color:var(--success)] font-semibold"
-                          : "text-[color:var(--danger)] font-semibold"}
+                        className={
+                          (a.snapshot?.profit ?? 0) >= 0
+                            ? "text-[color:var(--success)] font-semibold"
+                            : "text-[color:var(--danger)] font-semibold"
+                        }
                       >
                         {a.snapshot ? fmt(a.snapshot.profit) : "—"}
                       </div>
@@ -545,11 +576,7 @@ export default function ComptesPage() {
             placeholder="Ex: Master MT5"
           />
 
-          <Select
-            label="Broker"
-            value={form.broker}
-            onChange={(v) => onBrokerChange(v as BrokerName)}
-          >
+          <Select label="Broker" value={form.broker} onChange={(v) => onBrokerChange(v as BrokerName)}>
             {BROKER_PRESETS.map((b) => (
               <option key={b.broker} value={b.broker}>
                 {b.broker}
@@ -560,7 +587,7 @@ export default function ComptesPage() {
           <Select
             label="Serveur MT5 (selon broker)"
             value={form.server}
-            onChange={(v) => setForm((p) => ({ ...p, server: v }))}
+            onChange={(v) => setForm((p) => ({ ...p, server: v as FormState["server"] }))}
           >
             {serverOptions.map((s) => (
               <option key={s} value={s}>
