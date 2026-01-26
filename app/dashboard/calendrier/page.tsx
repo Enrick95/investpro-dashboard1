@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardBody, CardSubCard } from "../../../components/ui/Card";
 import { Button } from "../../../components/ui/Button";
 
-type Impact = "Low" | "Medium" | "High";
+import { pushNotif } from "../../../lib/notifyStore";
 
 type EconEvent = {
   id: string;
@@ -18,23 +18,27 @@ type EconEvent = {
   importance: number; // 1..3
 };
 
-function mapImpact(importance: number): Impact {
-  if (importance >= 3) return "High";
-  if (importance === 2) return "Medium";
-  return "Low";
+type Stars = 1 | 2 | 3;
+
+function toStars(importance: number): Stars {
+  if (importance >= 3) return 3;
+  if (importance === 2) return 2;
+  return 1;
 }
 
-function ImpactBadge({ impact }: { impact: Impact }) {
+function StarsBadge({ stars }: { stars: Stars }) {
   const cls =
-    impact === "High"
+    stars === 3
       ? "border-[color:var(--danger)]/25 bg-[color:var(--danger)]/10 text-[color:var(--danger)]"
-      : impact === "Medium"
+      : stars === 2
       ? "border-[color:var(--warning)]/25 bg-[color:var(--warning)]/10 text-[color:var(--warning)]"
       : "border-white/10 bg-white/5 text-[color:var(--muted)]";
 
+  const label = stars === 3 ? "★★★" : stars === 2 ? "★★" : "★";
+
   return (
-    <span className={["text-[10px] px-2 py-0.5 rounded-full border", cls].join(" ")}>
-      {impact.toUpperCase()}
+    <span className={["text-[11px] px-2 py-0.5 rounded-full border font-semibold", cls].join(" ")}>
+      {label}
     </span>
   );
 }
@@ -48,18 +52,7 @@ function fmtParisTime(isoUtc: string) {
   }).format(d);
 }
 
-function fmtParisDate(isoUtc: string) {
-  const d = new Date(isoUtc);
-  return new Intl.DateTimeFormat("fr-FR", {
-    timeZone: "Europe/Paris",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(d); // DD/MM/YYYY
-}
-
 function parisYMD(isoUtc: string) {
-  // retourne YYYY-MM-DD en heure de Paris (pour filtrer par jour)
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Europe/Paris",
     year: "numeric",
@@ -68,49 +61,55 @@ function parisYMD(isoUtc: string) {
   }).formatToParts(new Date(isoUtc));
 
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`; // YYYY-MM-DD (Paris)
+}
+
+function todayParisYMD() {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Paris",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
   return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
+function clamp(n: number, a: number, b: number) {
+  return Math.max(a, Math.min(b, n));
 }
 
 async function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+function safeId(x: any) {
+  const v = String(x ?? "").trim();
+  return v || `evt_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+
 export default function CalendrierPage() {
-  // Toast
-  const [toast, setToast] = useState<string | null>(null);
-  useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(null), 2600);
-    return () => clearTimeout(t);
-  }, [toast]);
+  const [date, setDate] = useState(() => todayParisYMD());
+  const [rangeDays, setRangeDays] = useState<1 | 7 | 14>(7);
 
-  // Dates (Paris)
-  const todayParis = useMemo(() => {
-    const now = new Date();
-    const parts = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Europe/Paris",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).formatToParts(now);
-
-    const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
-    return `${get("year")}-${get("month")}-${get("day")}`;
-  }, []);
-
-  const [date, setDate] = useState(todayParis);
-  const [rangeDays, setRangeDays] = useState("1"); // 1=jour, 7=semaine
-  const [impact, setImpact] = useState<"ALL" | Impact>("ALL");
+  // filtre impact
+  const [starsFilter, setStarsFilter] = useState<"ALL" | Stars>("ALL");
   const [q, setQ] = useState("");
+
   const [loading, setLoading] = useState(false);
+  const [events, setEvents] = useState<EconEvent[]>([]);
 
-  // Alerts + sound
+  // alertes
   const [alertsEnabled, setAlertsEnabled] = useState(false);
-  const [leadMin, setLeadMin] = useState("10");
-  const [alertImpact, setAlertImpact] = useState<"High" | "High+Medium">("High");
+  const [leadMin, setLeadMin] = useState(10);
+  const [alertStars, setAlertStars] = useState<3 | 2>(3); // 3 => seulement ★★★, 2 => ★★+★★★
 
+  // anti double notif (id + lead)
   const notifiedRef = useRef<Set<string>>(new Set());
 
+  // son (beep)
   const [soundEnabled, setSoundEnabled] = useState(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
 
@@ -150,37 +149,24 @@ export default function CalendrierPage() {
     osc.stop(now + dur + 0.02);
   }
 
-  async function playAlertSound(level: Impact) {
+  async function playAlertSound(stars: Stars) {
     if (!soundEnabled) return;
     if (!audioCtxRef.current) return;
 
-    if (level === "High") {
+    if (stars === 3) {
       beepOnce(880, 0.22);
       await sleep(220);
       beepOnce(880, 0.22);
-    } else if (level === "Medium") {
+    } else if (stars === 2) {
       beepOnce(740, 0.22);
+    } else {
+      beepOnce(660, 0.16);
     }
   }
-
-  async function toggleSound() {
-    const ok = ensureAudioUnlocked();
-    if (!ok) {
-      setToast("❌ Audio non supporté.");
-      return;
-    }
-    setSoundEnabled((v) => !v);
-    await sleep(50);
-    beepOnce(660, 0.15);
-    setToast(!soundEnabled ? "🔊 Son activé" : "🔇 Son désactivé");
-  }
-
-  // Load real events from API
-  const [events, setEvents] = useState<EconEvent[]>([]);
 
   const endDate = useMemo(() => {
     const start = new Date(date + "T00:00:00");
-    const days = Math.max(1, Math.min(14, Number(rangeDays) || 1));
+    const days = clamp(Number(rangeDays) || 7, 1, 14);
     const end = new Date(start);
     end.setDate(start.getDate() + (days - 1));
     const yyyy = end.getFullYear();
@@ -192,34 +178,30 @@ export default function CalendrierPage() {
   async function fetchEvents() {
     setLoading(true);
     try {
-      const start = date;
-      const end = endDate;
-
-      // importance filter server-side optional:
-      // High only => importance=3, High+Medium => importance=2 (TE returns 2+3)
-      let importanceParam = "";
-      if (impact === "High") importanceParam = "3";
-      if (impact === "Medium") importanceParam = "2"; // includes medium+high; we’ll filter in UI further if needed
-
       const url = new URL("/api/calendar", window.location.origin);
-      url.searchParams.set("start", start);
-      url.searchParams.set("end", end);
-      if (importanceParam) url.searchParams.set("importance", importanceParam);
+      url.searchParams.set("start", date);
+      url.searchParams.set("end", endDate);
 
+      // on peut laisser le serveur renvoyer tout, et filtrer côté UI
       const r = await fetch(url.toString(), { cache: "no-store" });
       const data = await r.json();
 
       if (!Array.isArray(data)) {
-        setToast("❌ Erreur API calendrier (voir console)");
         console.log("Calendar API response:", data);
+        pushNotif({
+          kind: "error",
+          title: "Calendrier",
+          message: "Erreur API calendrier (réponse invalide).",
+          ttlMs: 10000,
+        });
         setEvents([]);
         return;
       }
 
       const mapped: EconEvent[] = data
         .map((x: any) => ({
-          id: String(x.CalendarId ?? x.CalendarID ?? x.CalendarID ?? x.CalendarId ?? x.CalendarID ?? x.CalendarID),
-          dateUtcISO: x.Date, // UTC in ISO (doc) :contentReference[oaicite:4]{index=4}
+          id: safeId(x.CalendarId ?? x.CalendarID ?? x.Id ?? x.id),
+          dateUtcISO: String(x.Date ?? ""),
           country: String(x.Country ?? ""),
           event: String(x.Event ?? ""),
           category: x.Category ? String(x.Category) : undefined,
@@ -228,13 +210,24 @@ export default function CalendrierPage() {
           forecast: x.Forecast ? String(x.Forecast) : undefined,
           importance: Number(x.Importance ?? 1),
         }))
-        .filter((e: EconEvent) => !!e.id && !!e.dateUtcISO && !!e.event);
+        .filter((e) => !!e.id && !!e.dateUtcISO && !!e.event);
 
       setEvents(mapped);
-      setToast(`✅ ${mapped.length} événements chargés (heure de Paris)`);
-    } catch (err) {
-      console.error(err);
-      setToast("❌ Impossible de charger les événements");
+
+      pushNotif({
+        kind: "success",
+        title: "Calendrier",
+        message: `${mapped.length} événement(s) chargé(s) (heure de Paris).`,
+        ttlMs: 6500,
+      });
+    } catch (e: any) {
+      console.error(e);
+      pushNotif({
+        kind: "error",
+        title: "Calendrier",
+        message: "Impossible de charger les événements.",
+        ttlMs: 10000,
+      });
       setEvents([]);
     } finally {
       setLoading(false);
@@ -244,121 +237,150 @@ export default function CalendrierPage() {
   useEffect(() => {
     fetchEvents();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [date, rangeDays]);
+  }, [date, endDate]);
 
   const filtered = useMemo(() => {
+    const s = q.trim().toLowerCase();
     return events
       .filter((e) => {
-        const imp = mapImpact(e.importance);
-        return impact === "ALL" ? true : imp === impact;
+        const stars = toStars(e.importance);
+        return starsFilter === "ALL" ? true : stars === starsFilter;
       })
-      .filter((e) => (q.trim() ? e.event.toLowerCase().includes(q.trim().toLowerCase()) : true))
+      .filter((e) => (s ? e.event.toLowerCase().includes(s) || e.country.toLowerCase().includes(s) : true))
       .sort((a, b) => a.dateUtcISO.localeCompare(b.dateUtcISO));
-  }, [events, impact, q]);
+  }, [events, starsFilter, q]);
 
-  // Alert engine (real events) — checks every 20s
+  const grouped = useMemo(() => {
+    const map = new Map<string, EconEvent[]>();
+    for (const e of filtered) {
+      const k = parisYMD(e.dateUtcISO);
+      if (!map.has(k)) map.set(k, []);
+      map.get(k)!.push(e);
+    }
+    // tri interne
+    for (const [k, arr] of map.entries()) {
+      arr.sort((a, b) => a.dateUtcISO.localeCompare(b.dateUtcISO));
+      map.set(k, arr);
+    }
+    // tri jours
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [filtered]);
+
+  const stats = useMemo(() => {
+    const s3 = filtered.filter((e) => toStars(e.importance) === 3).length;
+    const s2 = filtered.filter((e) => toStars(e.importance) === 2).length;
+    const s1 = filtered.filter((e) => toStars(e.importance) === 1).length;
+    return { total: filtered.length, s1, s2, s3 };
+  }, [filtered]);
+
+  // Engine alert (toutes les 20s)
   useEffect(() => {
     if (!alertsEnabled) return;
 
-    const lead = Math.max(1, Math.min(120, Number(leadMin) || 10));
-    const impacts = alertImpact === "High"
-      ? new Set<Impact>(["High"])
-      : new Set<Impact>(["High", "Medium"]);
+    const lead = clamp(Number(leadMin) || 10, 1, 120);
+    const minStars = alertStars; // 3 => seulement ★★★ ; 2 => ★★ + ★★★
 
     const tick = () => {
       const now = Date.now();
 
-      events.forEach((e) => {
-        const imp = mapImpact(e.importance);
-        if (!impacts.has(imp)) return;
+      for (const e of events) {
+        const stars = toStars(e.importance);
+        if (stars < minStars) continue;
 
         const t = new Date(e.dateUtcISO).getTime();
         const diffMin = Math.round((t - now) / 60000);
 
-        const key = `${e.id}-${lead}`;
+        const key = `${e.id}-${lead}-${minStars}`;
         if (diffMin <= lead && diffMin >= lead - 1 && !notifiedRef.current.has(key)) {
           notifiedRef.current.add(key);
 
-          setToast(`📣 ${imp} dans ~${lead} min • ${e.event} (${e.country})`);
-          playAlertSound(imp);
+          const when = fmtParisTime(e.dateUtcISO);
+          const starTxt = stars === 3 ? "★★★" : stars === 2 ? "★★" : "★";
+
+          pushNotif({
+            kind: "live",
+            title: `News ${starTxt} dans ~${lead} min`,
+            message: `${e.event} • ${when} (Paris) • ${e.country}`,
+            ttlMs: 12000,
+          });
+
+          playAlertSound(stars);
 
           if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-            new Notification(`News ${imp} dans ~${lead} min`, {
-              body: `${e.event} • ${fmtParisTime(e.dateUtcISO)} (Paris) • ${e.country}`,
+            new Notification(`News ${starTxt} dans ~${lead} min`, {
+              body: `${e.event} • ${when} (Paris) • ${e.country}`,
             });
           }
         }
-      });
+      }
     };
 
     tick();
     const id = window.setInterval(tick, 20000);
     return () => window.clearInterval(id);
-  }, [alertsEnabled, leadMin, alertImpact, events, soundEnabled]);
+  }, [alertsEnabled, leadMin, alertStars, events, soundEnabled]);
 
   async function enableAlerts() {
-    setToast("🔔 Activation des alertes...");
     ensureAudioUnlocked();
     setSoundEnabled(true);
 
     if (typeof Notification === "undefined") {
-      setToast("✅ Alertes actives (popup+son). Pas de notif système.");
+      pushNotif({
+        kind: "info",
+        title: "Alertes",
+        message: "Alertes actives (toasts + son). Notifs système non supportées.",
+        ttlMs: 9000,
+      });
       setAlertsEnabled(true);
       return;
     }
 
     if (Notification.permission === "granted") {
-      setToast("✅ Alertes actives (popup+son+notif).");
+      pushNotif({ kind: "success", title: "Alertes", message: "Alertes actives (toasts + son + notif).", ttlMs: 9000 });
       setAlertsEnabled(true);
       return;
     }
 
     const perm = await Notification.requestPermission();
     if (perm === "granted") {
-      setToast("✅ Permission accordée. Alertes actives.");
+      pushNotif({ kind: "success", title: "Alertes", message: "Permission accordée. Alertes actives.", ttlMs: 9000 });
       setAlertsEnabled(true);
     } else {
-      setToast(`⚠️ Permission: ${perm}. Alertes actives (popup+son).`);
+      pushNotif({
+        kind: "warning",
+        title: "Alertes",
+        message: `Permission: ${perm}. Alertes actives (toasts + son).`,
+        ttlMs: 9000,
+      });
       setAlertsEnabled(true);
     }
   }
 
   function disableAlerts() {
-    setToast("🛑 Alertes désactivées.");
+    pushNotif({ kind: "info", title: "Alertes", message: "Alertes désactivées.", ttlMs: 7000 });
     setAlertsEnabled(false);
+  }
+
+  async function toggleSound() {
+    const ok = ensureAudioUnlocked();
+    if (!ok) {
+      pushNotif({ kind: "error", title: "Son", message: "Audio non supporté.", ttlMs: 9000 });
+      return;
+    }
+    setSoundEnabled((v) => !v);
+    await sleep(50);
+    beepOnce(660, 0.15);
+    pushNotif({ kind: "info", title: "Son", message: !soundEnabled ? "Son activé" : "Son désactivé", ttlMs: 5000 });
   }
 
   async function testAlert() {
     ensureAudioUnlocked();
     setSoundEnabled(true);
-    setToast("✅ Test alertes + son");
-    await playAlertSound("High");
+    pushNotif({ kind: "success", title: "Test", message: "Test alerte (son + toast).", ttlMs: 6000 });
+    await playAlertSound(3);
   }
-
-  const stats = useMemo(() => {
-    const high = filtered.filter((e) => mapImpact(e.importance) === "High").length;
-    const med = filtered.filter((e) => mapImpact(e.importance) === "Medium").length;
-    const low = filtered.filter((e) => mapImpact(e.importance) === "Low").length;
-    return { total: filtered.length, high, med, low };
-  }, [filtered]);
-
   return (
     <div className="space-y-6">
-      {/* Toast */}
-      {toast ? (
-        <div className="fixed bottom-6 right-6 z-50">
-          <div className="px-4 py-3 rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--panel)] shadow-2xl text-sm">
-            {toast}
-            <button
-              className="ml-3 text-xs text-[color:var(--muted)] hover:text-white"
-              onClick={() => setToast(null)}
-            >
-              fermer
-            </button>
-          </div>
-        </div>
-      ) : null}
-
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div>
@@ -366,7 +388,7 @@ export default function CalendrierPage() {
             Calendrier <span className="text-[color:var(--gold)]">économique</span>
           </h1>
           <p className="text-[color:var(--muted)] mt-1">
-            Événements réels + affichage en <b>heure de Paris</b>.
+            Affichage en <b>heure de Paris</b> • Impact en étoiles.
           </p>
         </div>
 
@@ -386,8 +408,8 @@ export default function CalendrierPage() {
           <label className="block">
             <div className="text-xs text-white/70 mb-1">Plage</div>
             <select
-              value={rangeDays}
-              onChange={(e) => setRangeDays(e.target.value)}
+              value={String(rangeDays)}
+              onChange={(e) => setRangeDays(clamp(Number(e.target.value) || 7, 1, 14) as 1 | 7 | 14)}
               className="px-4 py-3 rounded-2xl bg-black/20 border border-[color:var(--border)] text-white
                          outline-none focus:border-[color:var(--gold-border)]
                          focus:ring-2 focus:ring-[color:var(--gold-soft)] transition"
@@ -401,16 +423,19 @@ export default function CalendrierPage() {
           <label className="block">
             <div className="text-xs text-white/70 mb-1">Impact</div>
             <select
-              value={impact}
-              onChange={(e) => setImpact(e.target.value as any)}
+              value={starsFilter === "ALL" ? "ALL" : String(starsFilter)}
+              onChange={(e) => {
+                const v = e.target.value;
+                setStarsFilter(v === "ALL" ? "ALL" : (Number(v) as Stars));
+              }}
               className="px-4 py-3 rounded-2xl bg-black/20 border border-[color:var(--border)] text-white
                          outline-none focus:border-[color:var(--gold-border)]
                          focus:ring-2 focus:ring-[color:var(--gold-soft)] transition"
             >
               <option value="ALL">Tous</option>
-              <option value="High">High</option>
-              <option value="Medium">Medium</option>
-              <option value="Low">Low</option>
+              <option value="3">★★★</option>
+              <option value="2">★★</option>
+              <option value="1">★</option>
             </select>
           </label>
 
@@ -419,7 +444,7 @@ export default function CalendrierPage() {
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Ex: CPI, NFP..."
+              placeholder="Ex: CPI, NFP, USD…"
               className="px-4 py-3 rounded-2xl bg-black/20 border border-[color:var(--border)] text-white placeholder:text-white/30
                          outline-none focus:border-[color:var(--gold-border)]
                          focus:ring-2 focus:ring-[color:var(--gold-soft)] transition"
@@ -427,14 +452,14 @@ export default function CalendrierPage() {
           </label>
 
           <div className="flex items-end gap-3">
-            <Button variant="secondary" onClick={fetchEvents}>
+            <Button variant="secondary" onClick={fetchEvents} disabled={loading}>
               {loading ? "Chargement..." : "Rafraîchir"}
             </Button>
           </div>
         </div>
       </div>
 
-      {/* Alerts panel */}
+      {/* Alerts */}
       <Card>
         <CardBody>
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -443,7 +468,7 @@ export default function CalendrierPage() {
                 Alertes <span className="text-[color:var(--gold)]">news</span>
               </div>
               <div className="text-sm text-[color:var(--muted)] mt-1">
-                Popup + notification + son (Paris time).
+                Alerte avant l’événement (toast + son + notif système si autorisée).
               </div>
             </div>
 
@@ -470,24 +495,23 @@ export default function CalendrierPage() {
             <CardSubCard>
               <div className="text-xs uppercase tracking-wide text-[color:var(--muted)]">Impact alerté</div>
               <select
-                value={alertImpact}
-                onChange={(e) => setAlertImpact(e.target.value as any)}
+                value={String(alertStars)}
+                onChange={(e) => setAlertStars((Number(e.target.value) as 2 | 3) || 3)}
                 className="mt-3 w-full px-4 py-3 rounded-2xl bg-black/20 border border-[color:var(--border)] text-white
                            outline-none focus:border-[color:var(--gold-border)]
                            focus:ring-2 focus:ring-[color:var(--gold-soft)] transition"
               >
-                <option value="High">High uniquement</option>
-                <option value="High+Medium">High + Medium</option>
+                <option value="3">★★★ uniquement</option>
+                <option value="2">★★ + ★★★</option>
               </select>
             </CardSubCard>
 
             <CardSubCard>
               <div className="text-xs uppercase tracking-wide text-[color:var(--muted)]">Minutes avant</div>
               <input
-                value={leadMin}
-                onChange={(e) => setLeadMin(e.target.value)}
-                placeholder="10"
-                className="mt-3 w-full px-4 py-3 rounded-2xl bg-black/20 border border-[color:var(--border)] text-white placeholder:text-white/30
+                value={String(leadMin)}
+                onChange={(e) => setLeadMin(clamp(Number(e.target.value) || 10, 1, 120))}
+                className="mt-3 w-full px-4 py-3 rounded-2xl bg-black/20 border border-[color:var(--border)] text-white
                            outline-none focus:border-[color:var(--gold-border)]
                            focus:ring-2 focus:ring-[color:var(--gold-soft)] transition"
               />
@@ -503,6 +527,9 @@ export default function CalendrierPage() {
                   <span className="text-[color:var(--danger)] font-semibold">INACTIF</span>
                 )}
               </div>
+              <div className="mt-2 text-[11px] text-white/40">
+                * Les alertes se basent sur l’heure UTC de l’API, affichée en Paris.
+              </div>
             </CardSubCard>
           </div>
         </CardBody>
@@ -515,20 +542,20 @@ export default function CalendrierPage() {
           <div className="mt-2 text-lg font-semibold text-white">{stats.total}</div>
         </CardSubCard>
         <CardSubCard>
-          <div className="text-xs uppercase tracking-wide text-[color:var(--muted)]">High</div>
-          <div className="mt-2 text-lg font-semibold text-[color:var(--danger)]">{stats.high}</div>
+          <div className="text-xs uppercase tracking-wide text-[color:var(--muted)]">★★★</div>
+          <div className="mt-2 text-lg font-semibold text-[color:var(--danger)]">{stats.s3}</div>
         </CardSubCard>
         <CardSubCard>
-          <div className="text-xs uppercase tracking-wide text-[color:var(--muted)]">Medium</div>
-          <div className="mt-2 text-lg font-semibold text-[color:var(--warning)]">{stats.med}</div>
+          <div className="text-xs uppercase tracking-wide text-[color:var(--muted)]">★★</div>
+          <div className="mt-2 text-lg font-semibold text-[color:var(--warning)]">{stats.s2}</div>
         </CardSubCard>
         <CardSubCard>
-          <div className="text-xs uppercase tracking-wide text-[color:var(--muted)]">Low</div>
-          <div className="mt-2 text-lg font-semibold text-[color:var(--muted)]">{stats.low}</div>
+          <div className="text-xs uppercase tracking-wide text-[color:var(--muted)]">★</div>
+          <div className="mt-2 text-lg font-semibold text-[color:var(--muted)]">{stats.s1}</div>
         </CardSubCard>
       </div>
 
-      {/* Events list */}
+      {/* Events list (grouped by day Paris) */}
       <Card>
         <CardBody>
           <div className="flex items-center justify-between">
@@ -538,56 +565,70 @@ export default function CalendrierPage() {
             </div>
           </div>
 
-          <div className="mt-4 space-y-3">
-            {filtered.length === 0 ? (
-              <div className="text-sm text-[color:var(--muted)]">
-                {loading ? "Chargement..." : "Aucun événement."}
-              </div>
+          <div className="mt-4 space-y-5">
+            {grouped.length === 0 ? (
+              <div className="text-sm text-[color:var(--muted)]">{loading ? "Chargement..." : "Aucun événement."}</div>
             ) : (
-              filtered.map((e) => {
-                const imp = mapImpact(e.importance);
-                return (
-                  <CardSubCard
-                    key={e.id}
-                    className="flex flex-col md:flex-row md:items-center md:justify-between gap-4"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-[90px]">
-                        <div className="text-sm font-semibold">{fmtParisTime(e.dateUtcISO)}</div>
-                        <div className="text-[11px] text-[color:var(--muted)]">{parisYMD(e.dateUtcISO)}</div>
-                      </div>
+              grouped.map(([day, arr]) => (
+                <div key={day} className="space-y-2">
+                  <div className="text-xs text-white/60">
+                    {day} • {arr.length} évènement(s)
+                  </div>
 
-                      <ImpactBadge impact={imp} />
+                  <div className="space-y-2">
+                    {arr.map((e) => {
+                      const stars = toStars(e.importance);
+                      return (
+                        <CardSubCard
+                          key={e.id}
+                          className="flex flex-col md:flex-row md:items-center md:justify-between gap-4"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-[86px] shrink-0">
+                              <div className="text-sm font-semibold text-white">{fmtParisTime(e.dateUtcISO)}</div>
+                              <div className="text-[11px] text-white/40">{e.country || "—"}</div>
+                            </div>
 
-                      <div>
-                        <div className="font-semibold">{e.event}</div>
-                        <div className="text-xs text-[color:var(--muted)] mt-1">
-                          {e.country} {e.category ? `• ${e.category}` : ""}
-                        </div>
-                      </div>
-                    </div>
+                            <StarsBadge stars={stars} />
 
-                    <div className="grid grid-cols-3 gap-3 text-xs">
-                      <div className="text-right">
-                        <div className="text-[color:var(--muted)]">Prev</div>
-                        <div className="text-white/90">{e.previous ?? "—"}</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-[color:var(--muted)]">Forecast</div>
-                        <div className="text-white/90">{e.forecast ?? "—"}</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-[color:var(--muted)]">Actual</div>
-                        <div className="text-[color:var(--gold)] font-semibold">{e.actual ?? "—"}</div>
-                      </div>
-                    </div>
-                  </CardSubCard>
-                );
-              })
+                            <div className="min-w-0">
+                              <div className="font-semibold text-white truncate">{e.event}</div>
+                              <div className="text-xs text-[color:var(--muted)] mt-1 truncate">
+                                {e.category ? e.category : "—"}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-3 text-xs w-full md:w-auto">
+                            <div className="text-right">
+                              <div className="text-[color:var(--muted)]">Prev</div>
+                              <div className="text-white/90">{e.previous ?? "—"}</div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-[color:var(--muted)]">Forecast</div>
+                              <div className="text-white/90">{e.forecast ?? "—"}</div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-[color:var(--muted)]">Actual</div>
+                              <div className="text-[color:var(--gold)] font-semibold">{e.actual ?? "—"}</div>
+                            </div>
+                          </div>
+                        </CardSubCard>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))
             )}
+          </div>
+
+          <div className="mt-4 text-[11px] text-white/40">
+            Filtre: {starsFilter === "ALL" ? "Tous" : starsFilter === 3 ? "★★★" : starsFilter === 2 ? "★★" : "★"} •
+            Plage: {rangeDays} jour(s)
           </div>
         </CardBody>
       </Card>
     </div>
   );
 }
+
