@@ -1,0 +1,183 @@
+@import "tailwindcss";
+
+/* ===============================
+   THEME TOKENS
+   - Light par défaut
+   - Dark quand <html class="dark">
+=============================== */
+
+/* ---------- LIGHT ---------- */
+:root{
+  --bg: #ffffff;
+  --panel: rgba(0,0,0,.04);
+  --panel-2: rgba(0,0,0,.06);
+  --text: #0b0b0d;
+  --muted: rgba(0,0,0,.55);
+  --border: rgba(0,0,0,.10);
+
+  --gold: #d6b35f;
+  --gold-2: #b9923a;
+  --gold-soft: rgba(214,179,95,.14);
+  --gold-border: rgba(214,179,95,.25);
+
+  --success: #25b86a;
+  --danger: #e94b59;
+  --warning: #d9a84a;
+}
+
+/* ---------- DARK ---------- */
+.dark{
+  --bg: #07070a;
+  --panel: #0d0e13;
+  --panel-2: #12141b;
+  --text: #f3f4f6;
+  --muted: #a6adbb;
+  --border: rgba(255,255,255,.08);
+
+  --gold: #d6b35f;
+  --gold-2: #b9923a;
+  --gold-soft: rgba(214,179,95,.14);
+  --gold-border: rgba(214,179,95,.25);
+
+  --success: #35d07f;
+  --danger: #ff5c6c;
+  --warning: #f6c56c;
+}
+
+/* Native controls follow theme */
+:root { color-scheme: light; }
+.dark { color-scheme: dark; }
+
+html, body { height: 100%; }
+
+body{
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* Premium dark background only in dark */
+.dark body{
+  background:
+    radial-gradient(900px 500px at 15% -10%, rgba(214,179,95,.10), transparent 60%),
+    radial-gradient(700px 450px at 85% 0%, rgba(255,255,255,.05), transparent 55%),
+    var(--bg);
+}
+
+*{ box-sizing: border-box; }
+
+a { text-decoration: none; }
+
+/* ===============================
+   GLOBAL FORM THEME (LIGHT + DARK)
+=============================== */
+input, textarea, select {
+  background-color: color-mix(in srgb, var(--panel) 75%, transparent);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  outline: none;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: color-mix(in srgb, var(--muted) 70%, transparent);
+}
+
+input:focus, textarea:focus, select:focus {
+  border-color: var(--gold-border);
+  box-shadow: 0 0 0 4px var(--gold-soft);
+}
+
+/* Avoid blue outline */
+:focus-visible { outline: none; }
+
+/* Select styling */
+select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  backdrop-filter: blur(10px);
+  accent-color: var(--gold);
+}
+
+/* Dropdown options (theme-aware) */
+select option {
+  background-color: var(--bg);
+  color: var(--text);
+}
+
+/* Dark override for options */
+.dark select option {
+  background-color: #0b0f14;
+  color: #ffffff;
+}
+
+select option:checked,
+select option:hover {
+  background-color: var(--gold-soft);
+  color: var(--text);
+}
+
+.dark select option:checked,
+.dark select option:hover {
+  background-color: rgba(214,179,95,.25);
+  color: #ffffff;
+}
+
+input:disabled, textarea:disabled, select:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+/* ===============================
+   PREMIUM CONTROL CLASS (opt-in)
+=============================== */
+.control-gold {
+  background-color: color-mix(in srgb, var(--panel) 80%, transparent) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--gold-border) !important;
+  border-radius: 16px !important;
+  backdrop-filter: blur(10px);
+}
+
+.control-gold:focus {
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 0 4px var(--gold-soft) !important;
+}
+
+/* ===============================
+   Animations
+=============================== */
+@keyframes popIn {
+  0% { transform: translateY(14px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes floatCrown {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes gsfade {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===============================
+   Scrollbar (Chrome / Edge)
+=============================== */
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track {
+  background: color-mix(in srgb, var(--panel) 80%, transparent);
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(214,179,95,0.28);
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(214,179,95,0.40);
+}
+
+.podium-pop { animation: popIn .45s ease-out both; }
+.crown-float { animation: floatCrown 1.8s ease-in-out infinite; }
