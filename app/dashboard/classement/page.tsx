@@ -56,7 +56,6 @@ function initialsOf(username: string) {
 /* ------------------------- IndexedDB (avatars) ------------------------- */
 const IDB_DB = "investpro_media_db_v1";
 const IDB_STORE = "files";
-const acc: any = updated;
 
 
 function idbOpen(): Promise<IDBDatabase> {
@@ -298,9 +297,10 @@ export default function ClassementPage() {
       bannerTransform: updated.bannerTransform,
 
       // ✅ stats
-      tradesTotal: typeof acc.tradesTotal === "number" ? acc.tradesTotal : computed.tradesTotal,
-      winrate: typeof acc.winrate === "number" ? acc.winrate : computed.winrate,
-      rrAvg: typeof acc.rrAvg === "number" ? acc.rrAvg : computed.rrAvg,
+      tradesTotal: typeof updated.tradesTotal === "number" ? updated.tradesTotal : computed.tradesTotal,
+      winrate: typeof updated.winrate === "number" ? updated.winrate : computed.winrate,
+      rrAvg: typeof updated.rrAvg === "number" ? updated.rrAvg : computed.rrAvg,
+
 
     };
 
