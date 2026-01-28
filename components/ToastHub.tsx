@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { X, Bell, CheckCircle2, AlertTriangle, Info, Radio, Clock, Shield } from "lucide-react";
+import { X, Bell, CheckCircle2, AlertTriangle, Info, Radio, Clock, Shield, Youtube } from "lucide-react";
 import { useNotifs, removeNotif, markRead } from "../lib/notifyStore";
 
 function tone(kind: string) {
@@ -24,7 +24,7 @@ function iconFor(kind: string) {
   if (kind === "warning") return <AlertTriangle size={18} />;
   if (kind === "success") return <CheckCircle2 size={18} />;
   if (kind === "live") return <Radio size={18} />;
-  if (kind === "video") return <Clock size={18} />;
+  if (kind === "video") return <Youtube size={18} />;
   if (kind === "pending") return <Clock size={18} />;
   if (kind === "tp") return <CheckCircle2 size={18} />;
   if (kind === "sl") return <AlertTriangle size={18} />;

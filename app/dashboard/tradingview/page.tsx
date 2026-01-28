@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Card, CardBody, CardSubCard } from "../../../components/ui/Card";
+import { Button } from "../../../components/ui/Button";
+import GoldSelect from "../../../components/ui/GoldSelect";
+import { pushNotif } from "../../../lib/notifyStore";
 
 type Tf = { label: string; value: string };
 
@@ -11,6 +15,8 @@ const TIMEFRAMES: Tf[] = [
   { label: "1h", value: "60" },
   { label: "4h", value: "240" },
   { label: "1D", value: "D" },
+  { label: "W", value: "W" },
+  { label: "M", value: "M" },
 ];
 
 const DEFAULT_WATCHLIST = [
@@ -48,7 +54,7 @@ export default function TradingViewPage() {
       symbol: symbol || "BTCUSD",
       interval: tf,
       hideideas: "1",
-      theme: "dark",
+      theme: "dark", // chart = indépendant
       style: "1",
       locale: "fr",
       toolbarbg: "rgba(0,0,0,0)",
@@ -68,6 +74,12 @@ export default function TradingViewPage() {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         inputRef.current?.focus();
+        pushNotif({
+          kind: "info",
+          title: "Recherche symbole",
+          message: "Tape un symbole puis Entrée pour l’ajouter",
+          ttlMs: 1800,
+        });
       }
     }
     window.addEventListener("keydown", onKeyDown);
@@ -75,18 +87,51 @@ export default function TradingViewPage() {
   }, []);
 
   function setSymbolSafe(v: string) {
-    setSymbol(v.toUpperCase().replace(/\s+/g, ""));
+    const s = v.toUpperCase().replace(/\s+/g, "");
+    setSymbol(s);
   }
 
   function addToWatchlist(v: string) {
     const s = v.toUpperCase().replace(/\s+/g, "");
     if (!s) return;
-    setWatchlist((prev) => (prev.includes(s) ? prev : [s, ...prev]));
+
+    setWatchlist((prev) => {
+      if (prev.includes(s)) {
+        pushNotif({
+          kind: "warning",
+          title: "Déjà dans la watchlist",
+          message: s,
+          ttlMs: 1600,
+        });
+        return prev;
+      }
+      pushNotif({
+        kind: "success",
+        title: "Ajouté à la watchlist",
+        message: s,
+        ttlMs: 1600,
+      });
+      return [s, ...prev];
+    });
   }
 
   function removeFromWatchlist(s: string) {
     setWatchlist((prev) => prev.filter((x) => x !== s));
-    if (symbol === s) setSymbol("BTCUSD");
+    pushNotif({
+      kind: "warning",
+      title: "Retiré de la watchlist",
+      message: s,
+      ttlMs: 1600,
+    });
+    if (symbol === s) {
+      setSymbol("BTCUSD");
+      pushNotif({
+        kind: "info",
+        title: "Symbole réinitialisé",
+        message: "BTCUSD",
+        ttlMs: 1600,
+      });
+    }
   }
 
   function onReset() {
@@ -94,171 +139,212 @@ export default function TradingViewPage() {
     setTf("15");
     setQuery("");
     setWatchlist(DEFAULT_WATCHLIST);
+    pushNotif({
+      kind: "info",
+      title: "Reset TradingView",
+      message: "Symbol + TF + Watchlist",
+      ttlMs: 1800,
+    });
   }
 
   return (
-    <div className="relative min-h-screen w-full text-white">
-      {/* Fond neutre (écrase les backgrounds de layout) */}
-      <div className="fixed inset-0 -z-10 bg-[#05060A]" />
-
+    <div className="min-h-screen w-full bg-[color:var(--bg)] text-[color:var(--text)]">
       <div className="mx-auto max-w-[1400px] px-3 py-4 md:px-4">
         {/* ===== Ligne 1 : Horaires marchés ===== */}
-        <div className="mb-3 rounded-3xl border border-white/10 bg-[#070910] px-4 py-3">
-          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <div className="text-sm font-semibold">
-              Horaires marché — Asia / London / New York
+        <Card className="mb-3">
+          <CardBody className="py-4">
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+              <div className="text-sm font-semibold">
+                Horaires marché — Asia / London / New York
+              </div>
+              <MarketSessionsInline />
             </div>
-            <MarketSessionsInline />
-          </div>
-        </div>
+          </CardBody>
+        </Card>
 
         {/* ===== Ligne 2 : Reset + Symbol + Timeframes ===== */}
         <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-[160px_1fr_1fr]">
-          {/* Reset à gauche */}
-          <button
-            onClick={onReset}
-            className="h-[52px] rounded-3xl border border-white/10 bg-[#070910] px-4 text-sm font-semibold hover:bg-white/5"
-          >
+          <Button variant="secondary" onClick={onReset} className="h-[52px]">
             Reset
-          </button>
+          </Button>
 
-          {/* Symbol au centre */}
-          <div className="flex h-[52px] items-center gap-3 rounded-3xl border border-white/10 bg-[#070910] px-4">
-            <div className="text-xs font-semibold text-white/60">SYMBOL</div>
-            <input
-              ref={inputRef}
-              value={symbol}
-              onChange={(e) => setSymbolSafe(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") addToWatchlist(symbol);
-              }}
-              placeholder="Ex: XAUUSD"
-              className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/30"
-            />
-            <button
-              className="rounded-2xl bg-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-white/15"
-              onClick={() => addToWatchlist(symbol)}
-              title="Ajouter à la watchlist"
-            >
-              +
-            </button>
-          </div>
-
-          {/* Timeframes à droite */}
-          <div className="flex h-[52px] items-center gap-2 overflow-x-auto rounded-3xl border border-white/10 bg-[#070910] px-3">
-            {TIMEFRAMES.map((t) => {
-              const active = tf === t.value;
-              return (
-                <button
-                  key={t.value}
-                  onClick={() => setTf(t.value)}
-                  className={cx(
-                    "shrink-0 rounded-2xl px-3 py-2 text-xs font-semibold transition",
-                    active
-                      ? "bg-white text-black"
-                      : "bg-white/10 text-white hover:bg-white/15"
-                  )}
+          <Card>
+            <CardBody className="py-3">
+              <div className="flex h-[52px] items-center gap-3">
+                <div className="text-xs font-semibold text-[color:var(--muted)]">
+                  SYMBOL
+                </div>
+                <input
+                  ref={inputRef}
+                  value={symbol}
+                  onChange={(e) => setSymbolSafe(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      addToWatchlist(symbol);
+                      pushNotif({
+                        kind: "info",
+                        title: "Symbole chargé",
+                        message: symbol,
+                        ttlMs: 1400,
+                      });
+                    }
+                  }}
+                  placeholder="Ex: XAUUSD"
+                  className="w-full bg-transparent text-sm text-[color:var(--text)] outline-none placeholder:text-[color:var(--muted)]"
+                />
+                <Button
+                  variant="secondary"
+                  onClick={() => addToWatchlist(symbol)}
+                  className="h-10 px-4 rounded-2xl"
+                  title="Ajouter à la watchlist"
                 >
-                  {t.label}
-                </button>
-              );
-            })}
-          </div>
+                  +
+                </Button>
+              </div>
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardBody className="py-3">
+              <div className="flex h-[52px] items-center gap-2 overflow-x-auto">
+                {TIMEFRAMES.map((t) => {
+                  const active = tf === t.value;
+                  return (
+                    <button
+                      key={t.value}
+                      onClick={() => {
+                        setTf(t.value);
+                        pushNotif({
+                          kind: "info",
+                          title: "Timeframe",
+                          message: t.label,
+                          ttlMs: 1200,
+                        });
+                      }}
+                      className={cx(
+                        "shrink-0 rounded-2xl px-3 py-2 text-xs font-semibold transition border",
+                        active
+                          ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--text)]"
+                          : "border-[color:var(--border)] bg-[color:var(--panel-2)] text-[color:var(--text)] hover:bg-black/5 dark:hover:bg-white/5"
+                      )}
+                    >
+                      {t.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </CardBody>
+          </Card>
         </div>
 
         {/* ===== Corps : Watchlist gauche + Chart ===== */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-[240px_1fr]">
-          {/* Watchlist (hauteur full) */}
-          <div className="rounded-3xl border border-white/10 bg-[#070910] p-3">
-            <div className="mb-2">
-              <div className="text-sm font-semibold">Whatlist</div>
-              <div className="text-[11px] text-white/50">
-                Clique pour charger
-              </div>
-            </div>
-
-            <div className="mb-3 rounded-2xl border border-white/10 bg-[#0A0C12] px-3 py-2">
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Rechercher…"
-                className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/30"
-              />
-            </div>
-
-            {/* prend la hauteur dispo */}
-            <div className="max-h-[calc(100vh-260px)] overflow-auto pr-1">
-              {filtered.length === 0 ? (
-                <div className="rounded-2xl border border-white/10 bg-black/20 p-3 text-sm text-white/60">
-                  Aucun résultat.
-                </div>
-              ) : (
-                <ul className="space-y-2">
-                  {filtered.map((s) => {
-                    const active = s === symbol;
-                    return (
-                      <li
-                        key={s}
-                        className={cx(
-                          "group flex items-center justify-between rounded-2xl border px-3 py-2 transition",
-                          active
-                            ? "border-white/20 bg-white/10"
-                            : "border-white/10 bg-black/20 hover:bg-black/30"
-                        )}
-                      >
-                        <button
-                          className="flex-1 text-left"
-                          onClick={() => setSymbol(s)}
-                        >
-                          <div className="text-sm font-semibold">{s}</div>
-                          <div className="text-[11px] text-white/45">
-                            TF: {tf === "D" ? "1D" : `${tf}m`}
-                          </div>
-                        </button>
-
-                        <button
-                          onClick={() => removeFromWatchlist(s)}
-                          className="ml-2 rounded-xl border border-white/10 bg-white/5 px-2 py-1 text-[11px] text-white/60 opacity-0 hover:bg-white/10 group-hover:opacity-100"
-                          title="Retirer"
-                        >
-                          ✕
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
-
-            <div className="mt-3 rounded-2xl border border-white/10 bg-black/20 p-3 text-[11px] text-white/60">
-              Entrée dans SYMBOL = ajoute à la watchlist. (Ctrl/⌘ + K)
-            </div>
-          </div>
-
-          {/* Chart (très gros) */}
-          <div className="rounded-3xl border border-white/10 bg-[#070910] p-2">
-            <div className="mb-2 flex items-center justify-between px-2">
-              <div className="flex items-center gap-2">
-                <div className="rounded-2xl bg-white/10 px-3 py-1.5 text-xs font-semibold">
-                  {symbol}
-                </div>
-                <div className="text-xs text-white/50">
-                  {tf === "D" ? "1D" : `${tf} minutes`}
+          {/* Watchlist */}
+          <Card>
+            <CardBody>
+              <div className="mb-2">
+                <div className="text-sm font-semibold">Watchlist</div>
+                <div className="text-[11px] text-[color:var(--muted)]">
+                  Clique pour charger
                 </div>
               </div>
-              <div className="text-xs text-white/50">TradingView</div>
-            </div>
 
-            <div className="overflow-hidden rounded-3xl border border-white/10 bg-black">
-              <iframe
-                title="TradingView"
-                src={src}
-                className="h-[78vh] min-h-[640px] w-full border-0"
-                loading="lazy"
-                allowFullScreen
-              />
-            </div>
-          </div>
+              <CardSubCard className="mb-3">
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Rechercher…"
+                  className="w-full bg-transparent text-sm text-[color:var(--text)] outline-none placeholder:text-[color:var(--muted)]"
+                />
+              </CardSubCard>
+
+              <div className="max-h-[calc(100vh-260px)] overflow-auto pr-1">
+                {filtered.length === 0 ? (
+                  <CardSubCard>
+                    <div className="text-sm text-[color:var(--muted)]">
+                      Aucun résultat.
+                    </div>
+                  </CardSubCard>
+                ) : (
+                  <ul className="space-y-2">
+                    {filtered.map((s) => {
+                      const active = s === symbol;
+                      return (
+                        <li
+                          key={s}
+                          className={cx(
+                            "group flex items-center justify-between rounded-2xl border px-3 py-2 transition",
+                            active
+                              ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]"
+                              : "border-[color:var(--border)] bg-[color:var(--panel-2)] hover:bg-black/5 dark:hover:bg-white/5"
+                          )}
+                        >
+                          <button
+                            className="flex-1 text-left"
+                            onClick={() => {
+                              setSymbol(s);
+                              pushNotif({
+                                kind: "info",
+                                title: "Symbole chargé",
+                                message: s,
+                                ttlMs: 1400,
+                              });
+                            }}
+                          >
+                            <div className="text-sm font-semibold">{s}</div>
+                            <div className="text-[11px] text-[color:var(--muted)]">
+                              TF: {tf === "D" ? "1D" : `${tf}m`}
+                            </div>
+                          </button>
+
+                          <button
+                            onClick={() => removeFromWatchlist(s)}
+                            className="ml-2 rounded-xl border border-[color:var(--border)] bg-black/5 dark:bg-white/5 px-2 py-1 text-[11px] text-[color:var(--muted)] opacity-0 hover:bg-black/10 dark:hover:bg-white/10 group-hover:opacity-100"
+                            title="Retirer"
+                          >
+                            ✕
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+
+              <CardSubCard className="mt-3">
+                <div className="text-[11px] text-[color:var(--muted)]">
+                  Entrée dans SYMBOL = ajoute à la watchlist. (Ctrl/⌘ + K)
+                </div>
+              </CardSubCard>
+            </CardBody>
+          </Card>
+
+          {/* Chart */}
+          <Card>
+            <CardBody className="p-3">
+              <div className="mb-2 flex items-center justify-between px-1">
+                <div className="flex items-center gap-2">
+                  <div className="rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1.5 text-xs font-semibold">
+                    {symbol}
+                  </div>
+                  <div className="text-xs text-[color:var(--muted)]">
+                    {tf === "D" ? "1D" : `${tf} minutes`}
+                  </div>
+                </div>
+                <div className="text-xs text-[color:var(--muted)]">TradingView</div>
+              </div>
+
+              <div className="overflow-hidden rounded-3xl border border-[color:var(--border)] bg-[color:var(--panel-2)]">
+                <iframe
+                  title="TradingView"
+                  src={src}
+                  className="h-[78vh] min-h-[640px] w-full border-0"
+                  loading="lazy"
+                  allowFullScreen
+                />
+              </div>
+            </CardBody>
+          </Card>
         </div>
       </div>
     </div>
@@ -266,8 +352,7 @@ export default function TradingViewPage() {
 }
 
 /* ===========================
-   SESSIONS INLINE (simple, propre)
-   Week-end : Ven 23:00 -> Lun 00:00 (Paris)
+   SESSIONS INLINE
 =========================== */
 
 function MarketSessionsInline() {
@@ -289,11 +374,11 @@ function MarketSessionsInline() {
   const isWeekend =
     (day === 5 && totalMin >= 23 * 60) || day === 6 || day === 0;
 
-  // Heures Paris (exemple)
+  // Heures Paris
   const sessions = [
-    { name: "Asia", open: 1, close: 8.30 },
+    { name: "Asia", open: 1, close: 8.3 },
     { name: "London", open: 7, close: 17 },
-    { name: "New York", open: 14, close: 23 }, // traverse minuit
+    { name: "New York", open: 14, close: 23 },
   ] as const;
 
   function isActive(openHour: number, closeHour: number) {
@@ -306,18 +391,15 @@ function MarketSessionsInline() {
   }
 
   function fmt(h: number) {
-    const d = new Date(Date.UTC(2024, 0, 1, h, 0, 0));
-    return d.toLocaleTimeString("fr-FR", {
-      timeZone: "Europe/Paris",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    const hh = Math.floor(h);
+    const mm = Math.round((h - hh) * 60);
+    return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
   }
 
   return (
     <div className="flex flex-wrap items-center gap-2">
       {isWeekend && (
-        <span className="rounded-2xl border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-300">
+        <span className="rounded-2xl border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-600 dark:text-red-300">
           WEEKEND — fermé (Ven 23:00 → Lun 00:00)
         </span>
       )}
@@ -330,8 +412,8 @@ function MarketSessionsInline() {
             className={cx(
               "rounded-2xl border px-3 py-1.5 text-xs font-semibold",
               active
-                ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200"
-                : "border-white/10 bg-[#0A0C12] text-white/70"
+                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200"
+                : "border-[color:var(--border)] bg-[color:var(--panel-2)] text-[color:var(--muted)]"
             )}
             title={`${s.name} ${fmt(s.open)}–${fmt(s.close)} (Paris)`}
           >

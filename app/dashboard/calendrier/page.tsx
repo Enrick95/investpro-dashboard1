@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardBody, CardSubCard } from "../../../components/ui/Card";
 import { Button } from "../../../components/ui/Button";
+import GoldSelect from "../../../components/ui/GoldSelect";
 import { pushNotif } from "../../../lib/notifyStore";
 
 type Stars = 1 | 2 | 3;
+type StarsFilter = "ALL" | "23" | Stars;
 
 type EconEvent = {
   id: string;
@@ -244,7 +246,8 @@ export default function CalendrierPage() {
 
   const end = useMemo(() => (mode === "week" ? addDaysYMD(start, 6) : start), [mode, start]);
 
-  const [starsFilter, setStarsFilter] = useState<"ALL" | Stars>("ALL");
+  // ✅ ici on met le nouveau type StarsFilter
+  const [starsFilter, setStarsFilter] = useState<StarsFilter>("ALL");
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -297,7 +300,11 @@ export default function CalendrierPage() {
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
     return events
-      .filter((e) => (starsFilter === "ALL" ? true : e.stars === starsFilter))
+      .filter((e) => {
+        if (starsFilter === "ALL") return true;
+        if (starsFilter === "23") return e.stars >= 2; // ✅ 2★ ou 3★
+        return e.stars === starsFilter; // 1 | 2 | 3
+      })
       .filter((e) => (s ? e.title.toLowerCase().includes(s) || e.currency.toLowerCase().includes(s) : true));
   }, [events, starsFilter, q]);
 
@@ -337,22 +344,26 @@ export default function CalendrierPage() {
             </SegBtn>
           </div>
 
+          {/* IMPACT (GoldSelect) */}
           <div className="min-w-[160px]">
             <div className="text-xs text-white/60 mb-1">IMPACT</div>
-            <select
+
+            <GoldSelect
               value={starsFilter === "ALL" ? "ALL" : String(starsFilter)}
-              onChange={(e) => {
-                const v = e.target.value;
-                setStarsFilter(v === "ALL" ? "ALL" : (Number(v) as Stars));
+              onChange={(v: string) => {
+                if (v === "ALL") return setStarsFilter("ALL");
+                if (v === "23") return setStarsFilter("23");
+                setStarsFilter(Number(v) as Stars);
               }}
-              className="w-full px-4 py-3 rounded-2xl bg-black/20 border border-white/10 text-white outline-none
-                         focus:border-[color:var(--gold-border)] focus:ring-2 focus:ring-[color:var(--gold-soft)] transition"
-            >
-              <option value="ALL">Tous</option>
-              <option value="3">★★★</option>
-              <option value="2">★★</option>
-              <option value="1">★</option>
-            </select>
+              options={[
+                { value: "ALL", label: "Tous" },
+                { value: "23", label: "★★★ + ★★" }, // ✅ NOUVELLE OPTION
+                { value: "3", label: "★★★" },
+                { value: "2", label: "★★" },
+                { value: "1", label: "★" },
+              ]}
+              className="w-full"
+            />
           </div>
 
           <div className="flex-1">

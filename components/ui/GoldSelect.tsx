@@ -62,7 +62,9 @@ export default function GoldSelect({
 
   return (
     <div ref={ref} className={["w-full relative", className].join(" ")}>
-      {label ? <div className="text-xs text-white/70 mb-1">{label}</div> : null}
+      {label ? (
+        <div className="text-xs text-[color:var(--muted)] mb-1">{label}</div>
+      ) : null}
 
       <button
         type="button"
@@ -70,17 +72,19 @@ export default function GoldSelect({
         onClick={() => setOpen((v) => !v)}
         className={[
           "w-full h-12 px-4 rounded-2xl border transition flex items-center justify-between gap-3",
-          "bg-black/45 border-[color:var(--gold-border)]",
-          "hover:bg-white/5",
+          "bg-[color:var(--panel)] border-[color:var(--gold-border)]",
+          "hover:bg-black/5 dark:hover:bg-white/5",
           "backdrop-blur-md",
           disabled ? "opacity-60 cursor-not-allowed" : "",
         ].join(" ")}
       >
         <div className="min-w-0 text-left">
           {selected ? (
-            <div className="truncate text-white font-semibold">{selected.label}</div>
+            <div className="truncate text-[color:var(--text)] font-semibold">
+              {selected.label}
+            </div>
           ) : (
-            <div className="truncate text-white/60">{placeholder}</div>
+            <div className="truncate text-[color:var(--muted)]">{placeholder}</div>
           )}
         </div>
 
@@ -89,30 +93,31 @@ export default function GoldSelect({
 
       {open ? (
         <div
-          className="
-            absolute left-0 top-full z-50 mt-2
-            w-full min-w-full
-            rounded-2xl
-            border border-[color:var(--gold-border)]
-            overflow-hidden
-            shadow-[0_0_35px_rgba(214,179,95,0.16)]
-            animate-[gsfade_.12s_ease-out]
-          "
+          className={[
+            "absolute left-0 top-full z-50 mt-2 w-full min-w-full",
+            "rounded-2xl overflow-hidden",
+            "border border-[color:var(--gold-border)]",
+            "bg-[color:var(--panel)]",
+            "shadow-[var(--shadow-float)] dark:shadow-[0_0_35px_rgba(214,179,95,0.16)]",
+            "animate-[gsfade_.12s_ease-out]",
+          ].join(" ")}
           style={{
-            background: "rgba(0,0,0,0.55)",
             backdropFilter: "blur(14px)",
           }}
         >
           {searchable ? (
-            <div className="p-3 border-b border-white/10">
+            <div className="p-3 border-b border-[color:var(--border)]">
               <input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Rechercher…"
-                className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10
-                           text-white placeholder:text-white/30 outline-none
-                           focus:border-[color:var(--gold-border)]
-                           focus:ring-2 focus:ring-[color:var(--gold-soft)] transition"
+                className={[
+                  "w-full px-3 py-2 rounded-xl outline-none transition",
+                  "bg-[color:var(--panel-2)] border border-[color:var(--border)]",
+                  "text-[color:var(--text)] placeholder:text-[color:var(--muted)]",
+                  "focus:border-[color:var(--gold-border)]",
+                  "focus:ring-2 focus:ring-[color:var(--gold-soft)]",
+                ].join(" ")}
               />
             </div>
           ) : null}
@@ -138,18 +143,38 @@ export default function GoldSelect({
                       setOpen(false);
                     }}
                     className={[
-                      "w-full text-left px-4 py-3 rounded-2xl transition",
+                      "w-full text-left px-3 py-2 rounded-xl transition",
+                      "border",
                       active
-                        ? "bg-[color:var(--gold-soft)] text-[color:var(--gold)] border border-[color:var(--gold-border)]"
-                        : "text-white/90 hover:bg-white/5",
+                        ? "bg-[color:var(--gold-soft)] border-[color:var(--gold-border)]"
+                        : "bg-transparent border-transparent",
+                      "hover:bg-black/5 dark:hover:bg-white/5",
                     ].join(" ")}
                   >
-                    <div className="font-semibold">{o.label}</div>
-                    {o.meta ? (
-                      <div className="text-[10px] text-[color:var(--muted)]">
-                        {o.meta}
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div
+                          className={[
+                            "truncate text-sm font-semibold",
+                            active
+                              ? "text-[color:var(--text)]"
+                              : "text-[color:var(--text)]",
+                          ].join(" ")}
+                        >
+                          {o.label}
+                        </div>
+
+                        {o.meta ? (
+                          <div className="text-[10px] text-[color:var(--muted)]">
+                            {o.meta}
+                          </div>
+                        ) : null}
                       </div>
-                    ) : null}
+
+                      {active ? (
+                        <span className="text-[color:var(--gold)] text-xs">✓</span>
+                      ) : null}
+                    </div>
                   </button>
                 );
               })

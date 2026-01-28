@@ -79,7 +79,10 @@ export async function syncMt5HistoryToTrades(params: HistoryParams): Promise<num
     const id = `mt5_${d.position_id}_${d.ticket}`;
     if (existing.has(id)) continue;
 
-    const pnl = Number(d.profit ?? 0) + Number(d.commission ?? 0) + Number(d.swap ?? 0);
+    const pnl =
+      Number(d.profit ?? 0) +
+      Number(d.commission ?? 0) +
+      Number(d.swap ?? 0);
 
     // ✅ trade “compact” (note/tags tronqués)
     trades.unshift({
@@ -99,8 +102,7 @@ export async function syncMt5HistoryToTrades(params: HistoryParams): Promise<num
     existing.add(id);
     added += 1;
   }
-
-  // ✅ limiter avant save
+    // ✅ limiter avant save
   const capped = capTrades(trades, MAX_TRADES);
 
   // ✅ try save; si quota → purge clé puis sauver ultra-light
@@ -134,7 +136,10 @@ export async function syncMt5HistoryToTrades(params: HistoryParams): Promise<num
   // Update profit for current logged user
   const me = getCurrentAccount();
   if (me) {
-    const totalProfit = capped.reduce((s: number, t: any) => s + (Number(t.pnl) || 0), 0);
+    const totalProfit = capped.reduce(
+      (s: number, t: any) => s + (Number(t.pnl) || 0),
+      0
+    );
     const updated = updateAccount({ profitUsd: Number(totalProfit.toFixed(2)) });
 
     if (updated && (updated as any).showOnLeaderboard) {

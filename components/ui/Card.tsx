@@ -1,3 +1,5 @@
+import React from "react";
+
 export function Card({
   children,
   className = "",
@@ -8,7 +10,12 @@ export function Card({
   return (
     <div
       className={[
-        "bg-[color:var(--panel)] border border-[color:var(--border)] rounded-2xl shadow-lg",
+        // ✅ comportement stable en grid
+        "h-full min-w-0 flex flex-col",
+        // ✅ style (light clean + dark premium)
+        "bg-[color:var(--panel)] border border-[color:var(--border)] rounded-2xl shadow-[var(--shadow-card)] dark:shadow-lg",
+        // ✅ évite que des SVG/éléments dépassent et cassent l’alignement
+        "overflow-hidden",
         className,
       ].join(" ")}
     >
@@ -24,7 +31,18 @@ export function CardBody({
   children: React.ReactNode;
   className?: string;
 }) {
-  return <div className={["px-6 py-6", className].join(" ")}>{children}</div>;
+  return (
+    <div
+      className={[
+        // ✅ permet à la Card de “remplir” la hauteur et d’aligner le contenu
+        "flex-1 min-w-0",
+        "px-6 py-6",
+        className,
+      ].join(" ")}
+    >
+      {children}
+    </div>
+  );
 }
 
 export function CardSubCard({
@@ -38,6 +56,7 @@ export function CardSubCard({
     <div
       className={[
         "bg-[color:var(--panel-2)] border border-[color:var(--border)] rounded-2xl p-4",
+        "min-w-0",
         className,
       ].join(" ")}
     >

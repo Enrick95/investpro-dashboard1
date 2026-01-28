@@ -6,26 +6,33 @@
    - Dark quand <html class="dark">
 =============================== */
 
-/* ---------- LIGHT ---------- */
+/* ---------- LIGHT (CORRIGÉ) ---------- */
 :root{
-  --bg: #ffffff;
-  --panel: rgba(0,0,0,.04);
-  --panel-2: rgba(0,0,0,.06);
-  --text: #0b0b0d;
-  --muted: rgba(0,0,0,.55);
-  --border: rgba(0,0,0,.10);
+  /* ✅ Soft light premium (pas blanc agressif, pas gris "disabled") */
+  --bg: #f5f6f8;
+  --panel: #ffffff;
+  --panel-2: #f0f1f3;
 
+  --text: #12141a;
+  --muted: rgba(18,20,26,.62);
+  --border: rgba(18,20,26,.12);
+
+  /* ✅ Gold reste cohérent avec le dark */
   --gold: #d6b35f;
   --gold-2: #b9923a;
-  --gold-soft: rgba(214,179,95,.14);
-  --gold-border: rgba(214,179,95,.25);
+  --gold-soft: rgba(214,179,95,.18);
+  --gold-border: rgba(214,179,95,.30);
 
   --success: #25b86a;
   --danger: #e94b59;
   --warning: #d9a84a;
+
+  /* ✅ Ombres propres en light (facultatif mais utile) */
+  --shadow-card: 0 12px 28px rgba(0,0,0,.08);
+  --shadow-float: 0 18px 50px rgba(0,0,0,.12);
 }
 
-/* ---------- DARK ---------- */
+/* ---------- DARK (INCHANGÉ) ---------- */
 .dark{
   --bg: #07070a;
   --panel: #0d0e13;
