@@ -6,13 +6,14 @@
  * - Inbox (historique) + unread count
  * - Settings (mute + volume + sons par type)
  *
- * Compat ToastHub:
- * - useNotifs()
- * - removeNotif(id)  => enlève un toast
- * - markRead(id), markAllRead(), clearInbox()
+ * ✅ Relié à prefsStore:
+ * - Filtre par type (enabled[kind]) : si OFF -> pas de notif
+ * - Volume & mute viennent de prefsStore (Paramètres)
+ * - toggleMute / setVolume / setMuted mettent à jour prefsStore
  */
 
 import { useEffect, useState } from "react";
+import { getPrefs, patchPrefs } from "./prefsStore";
 
 export type NotifKind =
   | "info"
@@ -39,9 +40,8 @@ export type Notif = {
 };
 
 export type NotifSettings = {
-  muted: boolean;
-  volume: number; // 0..1
-  // son par type (fichier dans /public/sounds/...)
+  // ✅ maintenant on garde ici uniquement le mapping son par type
+  // mute/volume viennent de prefsStore
   soundByKind: Partial<Record<NotifKind, string>>;
 };
 
@@ -49,10 +49,16 @@ export type NotifsSnapshot = {
   toasts: Notif[];
   inbox: Notif[];
   unread: number;
-  settings: NotifSettings;
+
+  // exposé pour compat (header etc)
+  settings: {
+    muted: boolean;
+    volume: number;
+    soundByKind: Partial<Record<NotifKind, string>>;
+  };
 };
 
-const LS_SETTINGS = "investpro_notifs_settings_v1";
+const LS_SOUNDBY = "investpro_notifs_soundbykind_v1";
 const LS_INBOX = "investpro_notifs_inbox_v1";
 
 const MAX_INBOX = 50;
@@ -63,8 +69,8 @@ let state: NotifsSnapshot = {
   inbox: [],
   unread: 0,
   settings: {
-    muted: false,
-    volume: 0.3,
+    muted: false, // sera sync depuis prefsStore
+    volume: 0.8, // sera sync depuis prefsStore
     soundByKind: {
       live: "/sounds/live.mp3",
       video: "/sounds/video.mp3",
@@ -101,10 +107,10 @@ function emit() {
   for (const l of listeners) l(state);
 }
 
-function saveSettings() {
+function saveSoundByKind() {
   if (!isBrowser()) return;
   try {
-    localStorage.setItem(LS_SETTINGS, JSON.stringify(state.settings));
+    localStorage.setItem(LS_SOUNDBY, JSON.stringify(state.settings.soundByKind));
   } catch {}
 }
 
@@ -115,18 +121,31 @@ function saveInbox() {
   } catch {}
 }
 
+function syncFromPrefs() {
+  if (!isBrowser()) return;
+  try {
+    const p = getPrefs();
+    state.settings.muted = !!p.notif.muted;
+    state.settings.volume = Math.max(0, Math.min(1, Number(p.notif.volume ?? 0.8)));
+  } catch {
+    // si prefsStore pas prêt, on garde les valeurs actuelles
+  }
+}
+
 function safeLoad() {
   if (!isBrowser()) return;
 
-  // settings
+  // sync prefs (mute/volume)
+  syncFromPrefs();
+
+  // soundByKind
   try {
-    const raw = localStorage.getItem(LS_SETTINGS);
+    const raw = localStorage.getItem(LS_SOUNDBY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      state.settings = {
-        ...state.settings,
-        ...parsed,
-        soundByKind: { ...state.settings.soundByKind, ...(parsed.soundByKind || {}) },
+      state.settings.soundByKind = {
+        ...state.settings.soundByKind,
+        ...(parsed || {}),
       };
     }
   } catch {}
@@ -150,14 +169,37 @@ function safeLoad() {
 
 let loadedOnce = false;
 function ensureLoaded() {
-  if (!isBrowser()) return; // ✅ évite toute exécution côté "server"
+  if (!isBrowser()) return;
   if (loadedOnce) return;
   loadedOnce = true;
+
   safeLoad();
+
+  // ✅ écoute les changements de prefs (Paramètres)
+  window.addEventListener("investpro:prefs_updated", () => {
+    syncFromPrefs();
+    emit();
+  });
+}
+
+function kindEnabled(kind: NotifKind) {
+  if (!isBrowser()) return true;
+  try {
+    const p = getPrefs();
+    const enabled = p?.notif?.enabled?.[kind];
+    // par défaut true si absent
+    return enabled !== false;
+  } catch {
+    return true;
+  }
 }
 
 function playSound(kind: NotifKind) {
   if (!isBrowser()) return;
+
+  // ✅ sync prefs avant de jouer
+  syncFromPrefs();
+
   if (state.settings.muted) return;
 
   const src = state.settings.soundByKind[kind];
@@ -165,7 +207,9 @@ function playSound(kind: NotifKind) {
 
   try {
     const a = new Audio(src);
+    // ✅ volume vient des paramètres
     a.volume = Math.max(0, Math.min(1, state.settings.volume));
+    a.currentTime = 0;
     a.play().catch(() => {});
   } catch {}
 }
@@ -179,13 +223,17 @@ export function pushNotif(input: {
   url?: string;
   ttlMs?: number;
 }) {
-  // ✅ OK ici: action utilisateur / code runtime, pas un render React
   ensureLoaded();
+
+  const kind = (input.kind ?? "info") as NotifKind;
+
+  // ✅ filtre par type (Paramètres)
+  if (!kindEnabled(kind)) return;
 
   const now = Date.now();
   const n: Notif = {
     id: uid(),
-    kind: input.kind ?? "info",
+    kind,
     title: input.title,
     message: input.message,
     url: input.url,
@@ -246,45 +294,62 @@ export function clearInbox() {
   emit();
 }
 
+/* ---------------- Settings bridgés vers prefsStore ---------------- */
+
 export function toggleMute() {
   ensureLoaded();
-  state.settings = { ...state.settings, muted: !state.settings.muted };
-  saveSettings();
-  emit();
+  try {
+    const p = getPrefs();
+    patchPrefs({ notif: { ...p.notif, muted: !p.notif.muted } });
+  } catch {
+    state.settings.muted = !state.settings.muted;
+    emit();
+  }
 }
 
 export function setMuted(muted: boolean) {
   ensureLoaded();
-  state.settings = { ...state.settings, muted: !!muted };
-  saveSettings();
-  emit();
+  try {
+    const p = getPrefs();
+    patchPrefs({ notif: { ...p.notif, muted: !!muted } });
+  } catch {
+    state.settings.muted = !!muted;
+    emit();
+  }
 }
 
 export function setVolume(v: number) {
   ensureLoaded();
   const vol = Math.max(0, Math.min(1, v));
-  state.settings = { ...state.settings, volume: vol };
-  saveSettings();
-  emit();
+  try {
+    const p = getPrefs();
+    patchPrefs({ notif: { ...p.notif, volume: vol } });
+  } catch {
+    state.settings.volume = vol;
+    emit();
+  }
 }
 
+/* son par type reste géré ici */
 export function setSoundForKind(kind: NotifKind, src: string | null) {
   ensureLoaded();
   const next = { ...state.settings.soundByKind };
   if (!src) delete next[kind];
   else next[kind] = src;
-  state.settings = { ...state.settings, soundByKind: next };
-  saveSettings();
+  state.settings.soundByKind = next;
+  saveSoundByKind();
   emit();
 }
 
-export function getSettings(): NotifSettings {
+export function getSettings() {
   ensureLoaded();
+  syncFromPrefs();
   return state.settings;
 }
 
 export function getNotifsSnapshot(): NotifsSnapshot {
   ensureLoaded();
+  syncFromPrefs();
   return state;
 }
 
@@ -304,10 +369,10 @@ export function useNotifs() {
   const [, bump] = useState(0);
 
   useEffect(() => {
-    // ✅ charge après montage (évite mismatch SSR/CSR)
     ensureLoaded();
+    // sync prefs immédiatement
+    syncFromPrefs();
 
-    // ✅ puis on subscribe
     return subscribeNotifs(() => bump((x) => x + 1));
   }, []);
 

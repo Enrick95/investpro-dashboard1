@@ -1,18 +1,12 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { getCurrentAccount } from "../../lib/authStore";
 
-function Item({
-  href,
-  label,
-  badge,
-}: {
-  href: string;
-  label: string;
-  badge?: string;
-}) {
+function Item({ href, label, badge }: { href: string; label: string; badge?: string }) {
   const pathname = usePathname();
   const active = pathname === href;
 
@@ -45,18 +39,30 @@ function Section({ title }: { title: string }) {
 }
 
 export default function Sidebar() {
+  const [isLogged, setIsLogged] = useState(false);
+
+  useEffect(() => {
+    function checkLogin() {
+      const acc = getCurrentAccount();
+      setIsLogged(!!acc);
+    }
+
+    checkLogin();
+
+    window.addEventListener("storage", checkLogin);
+    window.addEventListener("focus", checkLogin);
+
+    return () => {
+      window.removeEventListener("storage", checkLogin);
+      window.removeEventListener("focus", checkLogin);
+    };
+  }, []);
+
   return (
     <aside className="w-[280px] min-h-screen bg-black/35 backdrop-blur border-r border-[color:var(--border)] px-4 py-6">
       <div className="flex items-center gap-3 px-2">
         <div className="w-11 h-11 rounded-2xl bg-[color:var(--panel-2)] border border-[color:var(--gold-border)] flex items-center justify-center overflow-hidden">
-          <Image
-            src="/logo.webp"
-            alt="Logo"
-            width={44}
-            height={44}
-            className="object-cover"
-            priority
-          />
+          <Image src="/logo.webp" alt="Logo" width={44} height={44} className="object-cover" priority />
         </div>
 
         <div className="leading-tight">
@@ -71,7 +77,7 @@ export default function Sidebar() {
       <nav className="mt-8">
         <Section title="Général" />
         <div className="space-y-1">
-          <Item href="/dashboard/profil" label="Profil" />
+          {isLogged && <Item href="/dashboard/profil" label="Profil" />}
           <Item href="/dashboard/comptes" label="Comptes" />
           <Item href="/dashboard/classement" label="Classement" />
         </div>
@@ -80,14 +86,14 @@ export default function Sidebar() {
         <div className="space-y-1">
           <Item href="/dashboard/tradingview" label="TradingView" />
           <Item href="/dashboard/calendrier" label="Calendrier économique" />
-          <Item href="/dashboard/journal" label="Journal de trading" />
+          {isLogged && <Item href="/dashboard/journal" label="Journal de trading" />}
           <Item href="/dashboard/simulateur" label="Simulateur de risque" badge="BETA" />
         </div>
 
         <Section title="Terminal" />
         <div className="space-y-1">
           <Item href="/dashboard/copieur" label="Copieur de positions" badge="BETA" />
-          <Item href="/dashboard/terminal" label="Terminal de trading" badge="BETA" />
+          {isLogged && <Item href="/dashboard/terminal" label="Terminal de trading" badge="BETA" />}
         </div>
 
         <Section title="Support" />

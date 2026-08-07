@@ -1,8 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Card, CardBody, CardSubCard } from "../../../components/ui/Card";
 import { Button } from "../../../components/ui/Button";
+
+// ✅ Nouveau: blocage maintenance piloté par la page Admin
+import MaintenanceGate from "../../../components/admin/MaintenanceGate";
 
 type Account = {
   id: string;
@@ -21,13 +24,7 @@ function Pill({ children }: { children: string }) {
   );
 }
 
-function Row({
-  label,
-  right,
-}: {
-  label: string;
-  right: React.ReactNode;
-}) {
+function Row({ label, right }: { label: string; right: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-4">
       <div className="text-sm text-[color:var(--muted)]">{label}</div>
@@ -61,9 +58,7 @@ export default function CopieurPage() {
   const [maxLot, setMaxLot] = useState("2.0");
 
   const [running, setRunning] = useState(false);
-  const [logs, setLogs] = useState<string[]>([
-    "Système prêt (démo). Configure Master + Followers.",
-  ]);
+  const [logs, setLogs] = useState<string[]>(["Système prêt (démo). Configure Master + Followers."]);
 
   const master = accounts.find((a) => a.id === masterId);
   const followerList = accounts.filter((a) => a.id !== masterId);
@@ -103,7 +98,9 @@ export default function CopieurPage() {
         ? `MM: Risque ${riskPercent}% (max lot ${maxLot})`
         : `MM: x${multiplier} (max lot ${maxLot})`;
 
-    pushLog(`📩 Trade reçu du master (${master?.name}) • EURUSD BUY • ${mm} • SL/TP: ${copySLTP ? "ON" : "OFF"}`);
+    pushLog(
+      `📩 Trade reçu du master (${master?.name}) • EURUSD BUY • ${mm} • SL/TP: ${copySLTP ? "ON" : "OFF"}`
+    );
 
     activeFollowers.forEach((fid) => {
       const f = accounts.find((a) => a.id === fid);
@@ -112,258 +109,179 @@ export default function CopieurPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-semibold">
-            Copieur de positions <span className="text-[color:var(--gold)]">BETA</span>
-          </h1>
-          <p className="text-[color:var(--muted)] mt-1">
-            Mode démo pour l’instant. VPS/MT5 sera branché ensuite.
-          </p>
-        </div>
+    <MaintenanceGate kind="copieur">
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <div className="text-2xl font-semibold">Copieur</div>
+            <div className="text-sm opacity-70">Démo locale (UI + logique mock)</div>
+          </div>
 
-        <div className="flex gap-3">
-          {running ? (
-            <Button variant="danger" onClick={stop}>
-              Stop
+          <div className="flex gap-2">
+            <Button variant="ghost" onClick={simulateTrade} disabled={!running}>
+              Simuler un trade
             </Button>
-          ) : (
-            <Button onClick={start}>Start</Button>
-          )}
-          <Button variant="secondary" onClick={simulateTrade} disabled={!running}>
-            Simuler un trade
-          </Button>
+
+            {!running ? (
+              <Button onClick={start}>Démarrer</Button>
+            ) : (
+              <Button variant="ghost" onClick={stop}>
+                Arrêter
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Config */}
-        <Card className="xl:col-span-2">
-          <CardBody>
-            <div className="flex items-center justify-between">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+          <Card className="xl:col-span-2">
+            <CardBody className="space-y-4">
               <div className="text-lg font-semibold">Configuration</div>
-              <div className="flex gap-2">
-                <Pill>VPS: OFF</Pill>
-                <Pill>MT5: OFF</Pill>
-              </div>
-            </div>
 
-            <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <CardSubCard>
-                <div className="text-sm font-semibold">Master</div>
-                <div className="text-xs text-[color:var(--muted)] mt-1">
-                  Compte source (les trades viennent de lui)
+              <CardSubCard className="space-y-3">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div className="font-semibold">Master</div>
+                  <Pill>{master?.status || "—"}</Pill>
                 </div>
 
-                <select
-                  value={masterId}
-                  onChange={(e) => setMasterId(e.target.value)}
-                  className="mt-4 w-full px-4 py-3 rounded-2xl bg-black/20 border border-[color:var(--border)]
-                             text-white outline-none focus:border-[color:var(--gold-border)]
-                             focus:ring-2 focus:ring-[color:var(--gold-soft)] transition"
-                >
-                  {accounts.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name} • {a.broker} • {a.balance} {a.currency}
-                    </option>
-                  ))}
-                </select>
-              </CardSubCard>
-
-              <CardSubCard>
-                <div className="text-sm font-semibold">Followers</div>
-                <div className="text-xs text-[color:var(--muted)] mt-1">
-                  Comptes qui reçoivent la copie
-                </div>
-
-                <div className="mt-4 space-y-2">
-                  {followerList.map((a) => (
-                    <button
-                      key={a.id}
-                      onClick={() => toggleFollower(a.id)}
-                      className={[
-                        "w-full flex items-center justify-between px-4 py-3 rounded-2xl border transition",
-                        followers[a.id]
-                          ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]"
-                          : "border-[color:var(--border)] bg-black/20 hover:bg-white/5",
-                      ].join(" ")}
-                    >
-                      <div className="text-left">
-                        <div className="font-semibold">{a.name}</div>
-                        <div className="text-xs text-[color:var(--muted)]">
-                          {a.broker} • {a.balance} {a.currency}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {accounts
+                    .filter((a) => a.id.startsWith("m"))
+                    .map((a) => (
+                      <button
+                        key={a.id}
+                        onClick={() => setMasterId(a.id)}
+                        className={[
+                          "text-left rounded-2xl border p-4 transition",
+                          a.id === masterId
+                            ? "border-[color:var(--gold)] bg-[color:var(--panel-2)]"
+                            : "border-white/10 bg-white/5 hover:bg-white/7",
+                        ].join(" ")}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="font-semibold">{a.name}</div>
+                          <Pill>{a.broker}</Pill>
                         </div>
-                      </div>
-                      <div className="text-sm font-semibold">
-                        {followers[a.id] ? (
-                          <span className="text-[color:var(--gold)]">ON</span>
-                        ) : (
-                          <span className="text-[color:var(--muted)]">OFF</span>
-                        )}
-                      </div>
-                    </button>
-                  ))}
+                        <div className="mt-2 text-sm opacity-80">
+                          Balance: {a.balance.toLocaleString("fr-FR")} {a.currency}
+                        </div>
+                      </button>
+                    ))}
                 </div>
               </CardSubCard>
-            </div>
 
-            <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <CardSubCard>
-                <div className="text-sm font-semibold">Money management</div>
-                <div className="text-xs text-[color:var(--muted)] mt-1">
-                  Choisis comment dimensionner les lots sur les followers
+              <CardSubCard className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="font-semibold">Followers</div>
+                  <Pill>
+                    {Object.values(followers).filter(Boolean).length}/{followerList.length} actifs
+                  </Pill>
                 </div>
 
-                <div className="mt-4 flex gap-2">
-                  <button
-                    onClick={() => setMode("risk")}
-                    className={[
-                      "px-3 py-2 rounded-xl border text-sm transition",
-                      mode === "risk"
-                        ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-white"
-                        : "border-[color:var(--border)] bg-black/20 text-[color:var(--muted)] hover:bg-white/5",
-                    ].join(" ")}
-                  >
-                    Risque %
-                  </button>
-                  <button
-                    onClick={() => setMode("mult")}
-                    className={[
-                      "px-3 py-2 rounded-xl border text-sm transition",
-                      mode === "mult"
-                        ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-white"
-                        : "border-[color:var(--border)] bg-black/20 text-[color:var(--muted)] hover:bg-white/5",
-                    ].join(" ")}
-                  >
-                    Multiplicateur
-                  </button>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {followerList.map((a) => {
+                    const on = !!followers[a.id];
+                    return (
+                      <button
+                        key={a.id}
+                        onClick={() => toggleFollower(a.id)}
+                        className={[
+                          "text-left rounded-2xl border p-4 transition",
+                          on ? "border-[color:var(--gold)] bg-[color:var(--panel-2)]" : "border-white/10 bg-white/5 hover:bg-white/7",
+                        ].join(" ")}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="font-semibold">{a.name}</div>
+                          <Pill>{a.broker}</Pill>
+                        </div>
+                        <div className="mt-2 text-sm opacity-80">
+                          Balance: {a.balance.toLocaleString("fr-FR")} {a.currency}
+                        </div>
+                        <div className="mt-2 text-xs opacity-70">{on ? "✅ Actif" : "⏸️ Inactif"}</div>
+                      </button>
+                    );
+                  })}
                 </div>
+              </CardSubCard>
 
-                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {mode === "risk" ? (
-                    <label className="block">
-                      <div className="text-sm text-white/70 mb-2">Risque (%) / trade</div>
+              <CardSubCard className="space-y-3">
+                <div className="font-semibold">Money Management</div>
+
+                <Row
+                  label="Mode"
+                  right={
+                    <div className="flex gap-2">
+                      <Button variant={mode === "risk" ? "default" : "ghost"} onClick={() => setMode("risk")}>
+                        Risque %
+                      </Button>
+                      <Button variant={mode === "mult" ? "default" : "ghost"} onClick={() => setMode("mult")}>
+                        Multiplicateur
+                      </Button>
+                    </div>
+                  }
+                />
+
+                {mode === "risk" ? (
+                  <Row
+                    label="Risque (%)"
+                    right={
                       <input
                         value={riskPercent}
                         onChange={(e) => setRiskPercent(e.target.value)}
-                        placeholder="Ex: 1"
-                        className="w-full px-4 py-3 rounded-2xl bg-black/20 border border-[color:var(--border)] text-white
-                                   outline-none focus:border-[color:var(--gold-border)]
-                                   focus:ring-2 focus:ring-[color:var(--gold-soft)] transition"
+                        className="w-[140px] rounded-xl bg-[var(--panel-2)] border border-[var(--border)] px-3 py-2 outline-none"
                       />
-                    </label>
-                  ) : (
-                    <label className="block">
-                      <div className="text-sm text-white/70 mb-2">Multiplicateur (x)</div>
+                    }
+                  />
+                ) : (
+                  <Row
+                    label="Multiplicateur"
+                    right={
                       <input
                         value={multiplier}
                         onChange={(e) => setMultiplier(e.target.value)}
-                        placeholder="Ex: 1.0"
-                        className="w-full px-4 py-3 rounded-2xl bg-black/20 border border-[color:var(--border)] text-white
-                                   outline-none focus:border-[color:var(--gold-border)]
-                                   focus:ring-2 focus:ring-[color:var(--gold-soft)] transition"
+                        className="w-[140px] rounded-xl bg-[var(--panel-2)] border border-[var(--border)] px-3 py-2 outline-none"
                       />
-                    </label>
-                  )}
+                    }
+                  />
+                )}
 
-                  <label className="block">
-                    <div className="text-sm text-white/70 mb-2">Lot max</div>
+                <Row
+                  label="Copier SL/TP"
+                  right={
+                    <label className="flex items-center gap-2 text-sm">
+                      <input type="checkbox" checked={copySLTP} onChange={(e) => setCopySLTP(e.target.checked)} />
+                      <span className="opacity-80">{copySLTP ? "ON" : "OFF"}</span>
+                    </label>
+                  }
+                />
+
+                <Row
+                  label="Lot max"
+                  right={
                     <input
                       value={maxLot}
                       onChange={(e) => setMaxLot(e.target.value)}
-                      placeholder="Ex: 2.0"
-                      className="w-full px-4 py-3 rounded-2xl bg-black/20 border border-[color:var(--border)] text-white
-                                 outline-none focus:border-[color:var(--gold-border)]
-                                 focus:ring-2 focus:ring-[color:var(--gold-soft)] transition"
+                      className="w-[140px] rounded-xl bg-[var(--panel-2)] border border-[var(--border)] px-3 py-2 outline-none"
                     />
-                  </label>
-                </div>
-
-                <div className="mt-4">
-                  <label className="flex items-center gap-3 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={copySLTP}
-                      onChange={(e) => setCopySLTP(e.target.checked)}
-                      className="accent-[color:var(--gold)]"
-                    />
-                    Copier SL/TP
-                  </label>
-                </div>
+                  }
+                />
               </CardSubCard>
+            </CardBody>
+          </Card>
 
-              <CardSubCard>
-                <div className="text-sm font-semibold">Résumé</div>
-                <div className="text-xs text-[color:var(--muted)] mt-1">
-                  Ce qui sera appliqué (démo)
-                </div>
-
-                <div className="mt-4 space-y-3 text-sm">
-                  <Row
-                    label="Master"
-                    right={<span className="font-semibold">{master?.name ?? "—"}</span>}
-                  />
-                  <Row
-                    label="Followers actifs"
-                    right={
-                      <span className="font-semibold text-[color:var(--gold)]">
-                        {Object.values(followers).filter(Boolean).length}
-                      </span>
-                    }
-                  />
-                  <Row
-                    label="MM"
-                    right={
-                      <span className="font-semibold">
-                        {mode === "risk" ? `Risque ${riskPercent}%` : `x${multiplier}`}
-                      </span>
-                    }
-                  />
-                  <Row
-                    label="Copie SL/TP"
-                    right={
-                      <span className="font-semibold">
-                        {copySLTP ? (
-                          <span className="text-[color:var(--success)]">ON</span>
-                        ) : (
-                          <span className="text-[color:var(--danger)]">OFF</span>
-                        )}
-                      </span>
-                    }
-                  />
-                  <Row label="Lot max" right={<span className="font-semibold">{maxLot}</span>} />
-                  <div className="pt-2 text-xs text-[color:var(--muted)]">
-                    * Le copier réel sera branché via VPS (agent MT5) plus tard.
-                  </div>
-                </div>
-              </CardSubCard>
-            </div>
-          </CardBody>
-        </Card>
-
-        {/* Logs */}
-        <Card>
-          <CardBody>
-            <div className="flex items-center justify-between">
+          <Card>
+            <CardBody className="space-y-3">
               <div className="text-lg font-semibold">Logs</div>
-              <Pill>{running ? "RUNNING" : "STOPPED"}</Pill>
-            </div>
-
-            <div className="mt-4 space-y-2">
-              {logs.map((l, i) => (
-                <div
-                  key={i}
-                  className="text-xs text-[color:var(--muted)] border border-[color:var(--border)] bg-black/20 rounded-xl p-3"
-                >
-                  {l}
-                </div>
-              ))}
-            </div>
-          </CardBody>
-        </Card>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-3 h-[520px] overflow-auto">
+                {logs.map((l, i) => (
+                  <div key={i} className="text-sm opacity-85 py-1 border-b border-white/5 last:border-b-0">
+                    {l}
+                  </div>
+                ))}
+              </div>
+            </CardBody>
+          </Card>
+        </div>
       </div>
-    </div>
+    </MaintenanceGate>
   );
 }

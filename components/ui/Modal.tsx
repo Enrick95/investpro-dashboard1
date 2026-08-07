@@ -10,6 +10,11 @@ type ModalProps = {
   children: React.ReactNode;
   footer?: React.ReactNode;
   maxWidthClassName?: string; // ex: "max-w-2xl"
+
+  // ✅ NEW (pour Maintenance / modals bloquants)
+  hideClose?: boolean; // enlève la croix
+  disableBackdropClose?: boolean; // empêche click backdrop
+  disableEscClose?: boolean; // empêche ESC
 };
 
 export default function Modal({
@@ -19,6 +24,9 @@ export default function Modal({
   children,
   footer,
   maxWidthClassName = "max-w-2xl",
+  hideClose = false,
+  disableBackdropClose = false,
+  disableEscClose = false,
 }: ModalProps) {
   // Lock scroll
   useEffect(() => {
@@ -33,12 +41,14 @@ export default function Modal({
   // ESC close
   useEffect(() => {
     if (!open) return;
+    if (disableEscClose) return;
+
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open, onClose, disableEscClose]);
 
   if (!open) return null;
 
@@ -48,7 +58,7 @@ export default function Modal({
       <button
         type="button"
         aria-label="Fermer"
-        onClick={onClose}
+        onClick={disableBackdropClose ? undefined : onClose}
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
       />
 
@@ -74,20 +84,23 @@ export default function Modal({
               {title ?? "Modal"}
             </div>
 
-            <button
-              type="button"
-              onClick={onClose}
-              className={[
-                "h-9 w-9 rounded-xl transition flex items-center justify-center",
-                "border border-[color:var(--border)]",
-                "bg-black/5 dark:bg-black/20",
-                "hover:bg-black/10 dark:hover:bg-white/5",
-                "text-[color:var(--muted)] hover:text-[color:var(--text)]",
-              ].join(" ")}
-              aria-label="Fermer"
-            >
-              ✕
-            </button>
+            {/* ✅ Croix optionnelle */}
+            {!hideClose ? (
+              <button
+                type="button"
+                onClick={onClose}
+                className={[
+                  "h-9 w-9 rounded-xl transition flex items-center justify-center",
+                  "border border-[color:var(--border)]",
+                  "bg-black/5 dark:bg-black/20",
+                  "hover:bg-black/10 dark:hover:bg-white/5",
+                  "text-[color:var(--muted)] hover:text-[color:var(--text)]",
+                ].join(" ")}
+                aria-label="Fermer"
+              >
+                ✕
+              </button>
+            ) : null}
           </div>
 
           {/* Body */}

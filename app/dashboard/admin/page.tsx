@@ -1,178 +1,125 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Card, CardBody, CardSubCard } from "../../../components/ui/Card";
-import { Button } from "../../../components/ui/Button";
-import { pushNotif } from "../../../lib/notifyStore";
+import React, { useMemo } from "react";
+import AdminStatCard from "../../../components/admin/AdminStatCard";
+import AdminWorldVisitorsMap from "../../../components/admin/AdminWorldVisitorsMap";
+import AdminActivityLog from "../../../components/admin/AdminActivityLog";
 
-const MAINT_KEY = "investpro_maintenance_v1";
+function fmt(n: number) {
+  return n.toLocaleString("fr-FR");
+}
 
-type Kind =
-  | "info"
-  | "success"
-  | "warning"
-  | "error"
-  | "admin"
-  | "live"
-  | "video"
-  | "pending"
-  | "tp"
-  | "sl"
-  | "be";
-
-export default function AdminPage() {
-  const [title, setTitle] = useState("Annonce Admin");
-  const [message, setMessage] = useState("Message global…");
-  const [url, setUrl] = useState("");
-  const [kind, setKind] = useState<Kind>("admin");
-  const [ttl, setTtl] = useState("15000");
-
-  const [maintenance, setMaintenance] = useState(() => {
-    try {
-      return localStorage.getItem(MAINT_KEY) === "1";
-    } catch {
-      return false;
-    }
-  });
-
-  const ttlMs = useMemo(() => {
-    const n = Number(ttl);
-    return Number.isFinite(n) ? Math.max(3000, Math.min(60000, n)) : 15000;
-  }, [ttl]);
-
-  function toggleMaintenance() {
-    const next = !maintenance;
-    setMaintenance(next);
-    try {
-      localStorage.setItem(MAINT_KEY, next ? "1" : "0");
-    } catch {}
-    pushNotif({
-      kind: next ? "warning" : "success",
-      title: "Maintenance",
-      message: next ? "Mode maintenance activé." : "Mode maintenance désactivé.",
-      ttlMs: 12000,
-    });
-  }
-
-  function send() {
-    pushNotif({
-      kind,
-      title,
-      message,
-      url: url.trim() ? url.trim() : undefined,
-      ttlMs,
-    });
-  }
+export default function AdminOverviewPage() {
+  // mock (branchera plus tard sur vraie data)
+  const stats = useMemo(
+    () => ({
+      usersLastHour: 652,
+      newUsers: 275000,
+      avgSession: "3m 12s",
+      subscribers: 3720000,
+      pageViews: 523000,
+      revenueWeek: 1240,
+      revenueMonth: 8920,
+      revenueYear: 64210,
+    }),
+    []
+  );
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold">
-          Admin <span className="text-[color:var(--gold)]">Panel</span>
-        </h1>
-        <p className="text-[color:var(--muted)] mt-1">
-          MVP local (pas de DB). Sert à tester les notifications.
-        </p>
+    <div className="w-full">
+      {/* Row KPI -> 1 ligne */}
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-5">
+        <AdminStatCard label="Users (last hour)" value={fmt(stats.usersLastHour)} />
+        <AdminStatCard label="New users" value={fmt(stats.newUsers)} />
+        <AdminStatCard label="Avg. session" value={stats.avgSession} />
+        <AdminStatCard label="Subscribers" value={fmt(stats.subscribers)} />
+        <AdminStatCard label="Page views" value={fmt(stats.pageViews)} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <CardSubCard>
-          <div className="text-xs text-[color:var(--muted)]">Maintenance</div>
-          <div className="mt-3 flex items-center justify-between">
-            <div className="text-sm text-white/80">
-              {maintenance ? "ACTIVÉE" : "DÉSACTIVÉE"}
+      {/* Map + Right column */}
+      <div className="mt-4 grid gap-4 grid-cols-1 xl:grid-cols-3">
+        <div className="xl:col-span-2">
+          <AdminWorldVisitorsMap
+            title="Répartition visiteurs"
+            subtitle="Carte monde (drag + zoom) — tooltip uniquement sur pays dorés"
+            pageViews={stats.pageViews}
+            // countries to highlight (ISO A2)
+            highlights={[
+              { iso2: "FR", label: "France", visitors: 44123, pageViews: stats.pageViews },
+              { iso2: "JP", label: "Japon", visitors: 38765, pageViews: 210000 },
+              { iso2: "IN", label: "Inde", visitors: 27112, pageViews: 140000 },
+              { iso2: "MX", label: "Mexique", visitors: 19002, pageViews: 90000 },
+              { iso2: "EG", label: "Égypte", visitors: 13220, pageViews: 60000 },
+            ]}
+          />
+        </div>
+
+        <div className="xl:col-span-1 flex flex-col gap-4">
+          {/* Insights */}
+          <div className="rounded-2xl border p-4"
+               style={{ borderColor: "rgba(255,255,255,.08)", background: "rgba(255,255,255,.03)" }}>
+            <div className="font-semibold" style={{ color: "var(--text)" }}>
+              Insights
             </div>
-            <Button variant={maintenance ? "danger" : "secondary"} onClick={toggleMaintenance}>
-              {maintenance ? "Désactiver" : "Activer"}
-            </Button>
-          </div>
-        </CardSubCard>
+            <div className="text-sm mt-1" style={{ color: "var(--muted)" }}>
+              (mock) devices, pages top, sources, conversions...
+            </div>
 
-        <CardSubCard>
-          <div className="text-xs text-[color:var(--muted)]">Couleurs / types</div>
-          <div className="mt-2 text-sm text-white/70">
-            Admin, Live, Video, Warning, Error, TP/SL/BE…
+            <div className="mt-4 space-y-2 text-sm">
+              <div className="flex items-center justify-between">
+                <span style={{ color: "var(--muted)" }}>Top source</span>
+                <span style={{ color: "var(--text)" }}>Direct</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span style={{ color: "var(--muted)" }}>Device</span>
+                <span style={{ color: "var(--text)" }}>Mobile</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span style={{ color: "var(--muted)" }}>Conversion</span>
+                <span style={{ color: "var(--text)" }}>—</span>
+              </div>
+            </div>
           </div>
-        </CardSubCard>
 
-        <CardSubCard>
-          <div className="text-xs text-[color:var(--muted)]">Durée</div>
-          <div className="mt-2 text-sm text-white/70">
-            TTL entre 3s et 60s
+          {/* Revenus */}
+          <div className="rounded-2xl border p-4"
+               style={{ borderColor: "rgba(255,255,255,.08)", background: "rgba(255,255,255,.03)" }}>
+            <div className="font-semibold" style={{ color: "var(--text)" }}>
+              Revenus
+            </div>
+            <div className="text-sm mt-1" style={{ color: "var(--muted)" }}>
+              (mock) semaine / mois / année
+            </div>
+
+            <div className="mt-4 grid grid-cols-3 gap-3">
+              <div className="rounded-xl border p-3"
+                   style={{ borderColor: "rgba(255,255,255,.08)", background: "rgba(0,0,0,.2)" }}>
+                <div className="text-xs" style={{ color: "var(--muted)" }}>Semaine</div>
+                <div className="mt-1 font-semibold" style={{ color: "var(--gold)" }}>
+                  {stats.revenueWeek.toLocaleString("fr-FR")} $
+                </div>
+              </div>
+              <div className="rounded-xl border p-3"
+                   style={{ borderColor: "rgba(255,255,255,.08)", background: "rgba(0,0,0,.2)" }}>
+                <div className="text-xs" style={{ color: "var(--muted)" }}>Mois</div>
+                <div className="mt-1 font-semibold" style={{ color: "var(--gold)" }}>
+                  {stats.revenueMonth.toLocaleString("fr-FR")} $
+                </div>
+              </div>
+              <div className="rounded-xl border p-3"
+                   style={{ borderColor: "rgba(255,255,255,.08)", background: "rgba(0,0,0,.2)" }}>
+                <div className="text-xs" style={{ color: "var(--muted)" }}>Année</div>
+                <div className="mt-1 font-semibold" style={{ color: "var(--gold)" }}>
+                  {stats.revenueYear.toLocaleString("fr-FR")} $
+                </div>
+              </div>
+            </div>
           </div>
-        </CardSubCard>
+
+          {/* Alerte -> remplacé par Logs */}
+          <AdminActivityLog />
+        </div>
       </div>
-
-      <Card>
-        <CardBody>
-          <div className="text-lg font-semibold">Envoyer une notification (test)</div>
-
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <label className="block">
-              <div className="text-sm text-white/70 mb-2">Titre</div>
-              <input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-4 py-3 rounded-2xl bg-black/20 border border-white/10 text-white outline-none"
-              />
-            </label>
-
-            <label className="block">
-              <div className="text-sm text-white/70 mb-2">Type</div>
-              <select
-                value={kind}
-                onChange={(e) => setKind(e.target.value as any)}
-                className="w-full px-4 py-3 rounded-2xl bg-black/20 border border-white/10 text-white outline-none"
-              >
-                <option value="admin">admin</option>
-                <option value="live">live</option>
-                <option value="video">video</option>
-                <option value="info">info</option>
-                <option value="success">success</option>
-                <option value="warning">warning</option>
-                <option value="error">error</option>
-                <option value="pending">pending</option>
-                <option value="tp">tp</option>
-                <option value="sl">sl</option>
-                <option value="be">be</option>
-              </select>
-            </label>
-
-            <label className="block md:col-span-2">
-              <div className="text-sm text-white/70 mb-2">Message</div>
-              <textarea
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                rows={4}
-                className="w-full px-4 py-3 rounded-2xl bg-black/20 border border-white/10 text-white outline-none"
-              />
-            </label>
-
-            <label className="block">
-              <div className="text-sm text-white/70 mb-2">URL (optionnel)</div>
-              <input
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://..."
-                className="w-full px-4 py-3 rounded-2xl bg-black/20 border border-white/10 text-white outline-none"
-              />
-            </label>
-
-            <label className="block">
-              <div className="text-sm text-white/70 mb-2">TTL (ms)</div>
-              <input
-                value={ttl}
-                onChange={(e) => setTtl(e.target.value)}
-                className="w-full px-4 py-3 rounded-2xl bg-black/20 border border-white/10 text-white outline-none"
-              />
-            </label>
-          </div>
-
-          <div className="mt-5 flex justify-end">
-            <Button onClick={send}>Envoyer</Button>
-          </div>
-        </CardBody>
-      </Card>
     </div>
   );
 }

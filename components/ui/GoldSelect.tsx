@@ -1,187 +1,64 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo } from "react";
 
-type Option = {
+export type GoldSelectOption = {
   value: string;
   label: string;
-  meta?: string;
+  disabled?: boolean;
+};
+
+type Props = {
+  value: string;
+  onChange: (value: string) => void;
+
+  /** compat: certains écrans utilisent items, d'autres options */
+  items?: GoldSelectOption[];
+  options?: GoldSelectOption[];
+
+  placeholder?: string;
+  className?: string;
 };
 
 export default function GoldSelect({
-  label,
   value,
-  options,
   onChange,
-  placeholder = "Choisir…",
-  searchable = true,
-  disabled = false,
+  items,
+  options,
+  placeholder = "Sélectionner…",
   className = "",
-  maxMenuHeight = 320, // ✅ plus grand
-}: {
-  label?: string;
-  value: string;
-  options: Option[];
-  onChange: (v: string) => void;
-  placeholder?: string;
-  searchable?: boolean;
-  disabled?: boolean;
-  className?: string;
-  maxMenuHeight?: number;
-}) {
-  const [open, setOpen] = useState(false);
-  const [q, setQ] = useState("");
-  const ref = useRef<HTMLDivElement | null>(null);
+}: Props) {
+  const list = (items ?? options ?? []) as GoldSelectOption[];
 
-  const selected = useMemo(
-    () => options.find((o) => o.value === value) ?? null,
-    [options, value]
-  );
-
-  const filtered = useMemo(() => {
-    const s = q.trim().toLowerCase();
-    if (!s) return options;
-    return options.filter((o) =>
-      `${o.label} ${o.value} ${o.meta ?? ""}`.toLowerCase().includes(s)
-    );
-  }, [q, options]);
-
-  useEffect(() => {
-    function onDown(e: MouseEvent) {
-      if (!open) return;
-      if (!ref.current) return;
-      if (!ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) setQ("");
-  }, [open]);
+  const selected = useMemo(() => {
+    if (!Array.isArray(list) || list.length === 0) return null;
+    return list.find((o) => o.value === value) ?? null;
+  }, [list, value]);
 
   return (
-    <div ref={ref} className={["w-full relative", className].join(" ")}>
-      {label ? (
-        <div className="text-xs text-[color:var(--muted)] mb-1">{label}</div>
-      ) : null}
-
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => setOpen((v) => !v)}
+    <div className={`relative ${className}`}>
+      <select
+        value={selected?.value ?? ""}
+        onChange={(e) => onChange(e.target.value)}
         className={[
-          "w-full h-12 px-4 rounded-2xl border transition flex items-center justify-between gap-3",
-          "bg-[color:var(--panel)] border-[color:var(--gold-border)]",
-          "hover:bg-black/5 dark:hover:bg-white/5",
-          "backdrop-blur-md",
-          disabled ? "opacity-60 cursor-not-allowed" : "",
+          "w-full rounded-xl border border-gold-soft bg-panel px-3 py-2",
+          "text-sm outline-none",
+          "focus:ring-2 focus:ring-gold/30",
         ].join(" ")}
       >
-        <div className="min-w-0 text-left">
-          {selected ? (
-            <div className="truncate text-[color:var(--text)] font-semibold">
-              {selected.label}
-            </div>
-          ) : (
-            <div className="truncate text-[color:var(--muted)]">{placeholder}</div>
-          )}
-        </div>
+        {/* Placeholder si aucune valeur */}
+        {!selected && (
+          <option value="" disabled>
+            {placeholder}
+          </option>
+        )}
 
-        <span className="text-[color:var(--gold)]/70">{open ? "▴" : "▾"}</span>
-      </button>
-
-      {open ? (
-        <div
-          className={[
-            "absolute left-0 top-full z-50 mt-2 w-full min-w-full",
-            "rounded-2xl overflow-hidden",
-            "border border-[color:var(--gold-border)]",
-            "bg-[color:var(--panel)]",
-            "shadow-[var(--shadow-float)] dark:shadow-[0_0_35px_rgba(214,179,95,0.16)]",
-            "animate-[gsfade_.12s_ease-out]",
-          ].join(" ")}
-          style={{
-            backdropFilter: "blur(14px)",
-          }}
-        >
-          {searchable ? (
-            <div className="p-3 border-b border-[color:var(--border)]">
-              <input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Rechercher…"
-                className={[
-                  "w-full px-3 py-2 rounded-xl outline-none transition",
-                  "bg-[color:var(--panel-2)] border border-[color:var(--border)]",
-                  "text-[color:var(--text)] placeholder:text-[color:var(--muted)]",
-                  "focus:border-[color:var(--gold-border)]",
-                  "focus:ring-2 focus:ring-[color:var(--gold-soft)]",
-                ].join(" ")}
-              />
-            </div>
-          ) : null}
-
-          {/* ✅ Un seul scroll VERTICAL (pas horizontal) */}
-          <div
-            className="p-2 overflow-y-auto overflow-x-hidden"
-            style={{ maxHeight: maxMenuHeight }}
-          >
-            {filtered.length === 0 ? (
-              <div className="px-3 py-3 text-sm text-[color:var(--muted)]">
-                Aucun résultat
-              </div>
-            ) : (
-              filtered.map((o) => {
-                const active = o.value === value;
-                return (
-                  <button
-                    key={o.value}
-                    type="button"
-                    onClick={() => {
-                      onChange(o.value);
-                      setOpen(false);
-                    }}
-                    className={[
-                      "w-full text-left px-3 py-2 rounded-xl transition",
-                      "border",
-                      active
-                        ? "bg-[color:var(--gold-soft)] border-[color:var(--gold-border)]"
-                        : "bg-transparent border-transparent",
-                      "hover:bg-black/5 dark:hover:bg-white/5",
-                    ].join(" ")}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <div
-                          className={[
-                            "truncate text-sm font-semibold",
-                            active
-                              ? "text-[color:var(--text)]"
-                              : "text-[color:var(--text)]",
-                          ].join(" ")}
-                        >
-                          {o.label}
-                        </div>
-
-                        {o.meta ? (
-                          <div className="text-[10px] text-[color:var(--muted)]">
-                            {o.meta}
-                          </div>
-                        ) : null}
-                      </div>
-
-                      {active ? (
-                        <span className="text-[color:var(--gold)] text-xs">✓</span>
-                      ) : null}
-                    </div>
-                  </button>
-                );
-              })
-            )}
-          </div>
-        </div>
-      ) : null}
+        {(list ?? []).map((o) => (
+          <option key={o.value} value={o.value} disabled={o.disabled}>
+            {o.label}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }

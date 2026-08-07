@@ -54,7 +54,7 @@ type LeaderUser = {
   profitUsd?: number;
   showOnLeaderboard?: boolean;
 
-  // privacy
+  // privacy (legacy)
   hideTrades?: boolean;
 
   // public stats (fallback leaderboard)
@@ -95,6 +95,13 @@ type Comment = {
   attachments?: Att[];
   reactions?: Record<string, number>;
   reactedBy?: Record<string, string[]>; // emoji -> [usernames]
+};
+
+/* ✅ prefs publiques (depuis Paramètres) */
+type PublicProfilePrefs = {
+  profilePublic?: boolean;
+  showStats?: boolean;
+  showTrades?: boolean;
 };
 
 /* ------------------------------ Helpers ------------------------------ */
@@ -149,6 +156,11 @@ function publicTradesKeyFor(username: string) {
 }
 function publicStatsKeyFor(username: string) {
   return `investpro_public_stats_v1_${(username || "unknown").toLowerCase()}`;
+}
+
+/** ✅ prefs publiques (depuis Paramètres) */
+function publicProfilePrefsKeyFor(username: string) {
+  return `investpro_profile_prefs_v1_${(username || "unknown").toLowerCase()}`;
 }
 
 function safeJsonParse<T>(raw: string | null): T | null {
@@ -206,22 +218,39 @@ function readFileAsDataUrl(file: File): Promise<string> {
 
 function renderAttachment(a: Att) {
   if (!a.dataUrl) {
-    return <div className="text-xs text-white/50">Fichier non conservé après refresh (stockage local).</div>;
+    return (
+      <div className="text-xs text-white/50">
+        Fichier non conservé après refresh (stockage local).
+      </div>
+    );
   }
 
   if (a.kind === "gif") {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={a.dataUrl} alt={a.name} className="max-h-[260px] w-auto rounded-xl border border-white/10" />;
+    return (
+      <img
+        src={a.dataUrl}
+        alt={a.name}
+        className="max-h-[260px] w-auto rounded-xl border border-white/10"
+      />
+    );
   }
 
   if (a.kind === "video") {
     // eslint-disable-next-line jsx-a11y/media-has-caption
-    return <video src={a.dataUrl} controls className="max-h-[260px] w-full rounded-xl border border-white/10" />;
+    return (
+      <video
+        src={a.dataUrl}
+        controls
+        className="max-h-[260px] w-full rounded-xl border border-white/10"
+      />
+    );
   }
 
   // eslint-disable-next-line jsx-a11y/media-has-caption
   return <audio src={a.dataUrl} controls className="w-full" />;
 }
+
 /* -------------------------- Emoji picker (compact) -------------------------- */
 const EMOJIS = [
   "😀","😅","😂","🤣","😊","😍","😘","😎","😴","🤯","😡","🥶","🥵","🤔","🙏",
@@ -273,6 +302,90 @@ function EmojiPicker(props: { open: boolean; onPick: (e: string) => void }) {
   );
 }
 
+/* ------------------- ✅ Private overlay (style profil) ------------------- */
+function PrivateTradesOverlay(props: { title?: string; subtitle?: string }) {
+  const title = props.title ?? "Privé";
+  const subtitle = props.subtitle ?? "Historique masqué";
+
+  return (
+    <div className="mt-2 rounded-2xl border border-white/10 bg-black/15 overflow-hidden relative">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+        <div>
+          <div className="text-white font-semibold">Historique trades</div>
+          <div className="text-xs text-white/40">Pour voir plus → journal.</div>
+        </div>
+
+        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-xl border border-white/10 bg-black/20 text-xs text-white/80">
+          <EyeOff className="w-4 h-4 text-white/60" />
+          Privé
+        </span>
+      </div>
+
+      <div className="p-4">
+        <div className="rounded-2xl border border-white/10 bg-black/20 overflow-hidden">
+          <div className="grid grid-cols-4 gap-0 border-b border-white/10 text-xs text-white/50">
+            <div className="px-4 py-3">Date</div>
+            <div className="px-4 py-3">Symbol</div>
+            <div className="px-4 py-3">PNL</div>
+            <div className="px-4 py-3">Result</div>
+          </div>
+
+          {Array.from({ length: 12 }).map((_, i) => (
+            <div key={i} className="grid grid-cols-4 gap-0 border-b border-white/5">
+              <div className="px-4 py-3">
+                <div className="h-3 w-[72%] rounded-full bg-white/10" />
+              </div>
+              <div className="px-4 py-3">
+                <div className="h-3 w-[55%] rounded-full bg-white/10" />
+              </div>
+              <div className="px-4 py-3">
+                <div className="h-3 w-[45%] rounded-full bg-white/10" />
+              </div>
+              <div className="px-4 py-3">
+                <div className="h-3 w-[40%] rounded-full bg-white/10" />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-3 text-[11px] text-white/40">
+          🔒 Historique privé : invisible depuis le classement.
+        </div>
+      </div>
+
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div className="px-4 py-3 rounded-2xl border border-white/10 bg-black/40 backdrop-blur text-center">
+          <div className="flex items-center justify-center gap-2 text-white font-semibold">
+            <EyeOff className="w-4 h-4 text-white/70" />
+            {title}
+          </div>
+          <div className="text-xs text-white/50 mt-0.5">{subtitle}</div>
+        </div>
+      </div>
+
+      <div className="absolute inset-0 backdrop-blur-[2px] opacity-70 pointer-events-none" />
+    </div>
+  );
+}
+
+function PrivateStatsCard() {
+  return (
+    <CardSubCard className="p-4">
+      <div className="text-xs text-white/50">Stats</div>
+      <div className="mt-2 rounded-2xl border border-white/10 bg-black/20 p-4 flex items-center gap-3">
+        <EyeOff className="w-5 h-5 text-white/60" />
+        <div className="text-sm">
+          <div className="text-white font-semibold">Privé</div>
+          <div className="text-white/50 text-xs">Statistiques masquées</div>
+        </div>
+      </div>
+      <div className="mt-3 text-xs text-white/40">
+        Cet utilisateur a choisi de ne pas afficher ses statistiques publiquement.
+      </div>
+    </CardSubCard>
+  );
+}
+
 export default function ClassementUserPage() {
   const params = useParams<{ username: string }>();
   const usernameParam = decodeURIComponent(String(params?.username || ""));
@@ -287,7 +400,9 @@ export default function ClassementUserPage() {
   }, []);
 
   const user = useMemo(() => {
-    const u = rows.find((x) => String(x.username).toLowerCase() === usernameParam.toLowerCase());
+    const u = rows.find(
+      (x) => String(x.username).toLowerCase() === usernameParam.toLowerCase()
+    );
     return u || null;
   }, [rows, usernameParam]);
 
@@ -304,48 +419,47 @@ export default function ClassementUserPage() {
   const [bannerUrl, setBannerUrl] = useState<string>("");
 
   useEffect(() => {
-  let alive = true;
+    let alive = true;
 
-  async function loadMedia() {
-    if (!user) {
-      setAvatarUrl("");
-      setBannerUrl("");
-      return;
-    }
+    async function loadMedia() {
+      if (!user) {
+        setAvatarUrl("");
+        setBannerUrl("");
+        return;
+      }
 
-    // avatar
-    if (user.avatarMediaId) {
-      try {
-        const blob = await idbGetBlob(user.avatarMediaId);
-        if (!alive) return;
-        setAvatarUrl(blob ? URL.createObjectURL(blob) : user.avatarDataUrl || "");
-      } catch {
+      // avatar
+      if (user.avatarMediaId) {
+        try {
+          const blob = await idbGetBlob(user.avatarMediaId);
+          if (!alive) return;
+          setAvatarUrl(blob ? URL.createObjectURL(blob) : user.avatarDataUrl || "");
+        } catch {
+          setAvatarUrl(user.avatarDataUrl || "");
+        }
+      } else {
         setAvatarUrl(user.avatarDataUrl || "");
       }
-    } else {
-      setAvatarUrl(user.avatarDataUrl || "");
-    }
 
-    // banner
-    if (user.bannerMediaId) {
-      try {
-        const blob = await idbGetBlob(user.bannerMediaId);
-        if (!alive) return;
-        setBannerUrl(blob ? URL.createObjectURL(blob) : user.bannerDataUrl || "");
-      } catch {
+      // banner
+      if (user.bannerMediaId) {
+        try {
+          const blob = await idbGetBlob(user.bannerMediaId);
+          if (!alive) return;
+          setBannerUrl(blob ? URL.createObjectURL(blob) : user.bannerDataUrl || "");
+        } catch {
+          setBannerUrl(user.bannerDataUrl || "");
+        }
+      } else {
         setBannerUrl(user.bannerDataUrl || "");
       }
-    } else {
-      setBannerUrl(user.bannerDataUrl || "");
     }
-  }
 
-  loadMedia();
-  return () => {
-    alive = false;
-  };
-}, [user]);
-
+    loadMedia();
+    return () => {
+      alive = false;
+    };
+  }, [user]);
 
   /* ------------------- Viewer avatar (for comments) ------------------- */
   const [myAvatarUrl, setMyAvatarUrl] = useState<string>("");
@@ -359,7 +473,6 @@ export default function ClassementUserPage() {
         return;
       }
 
-      // if you store your avatar in IDB
       if (me.avatarMediaId) {
         try {
           const blob = await idbGetBlob(me.avatarMediaId);
@@ -368,9 +481,7 @@ export default function ClassementUserPage() {
             setMyAvatarUrl(URL.createObjectURL(blob));
             return;
           }
-        } catch {
-          // ignore
-        }
+        } catch {}
       }
 
       setMyAvatarUrl(me.avatarDataUrl || "");
@@ -382,6 +493,13 @@ export default function ClassementUserPage() {
     };
   }, [me?.avatarMediaId, me?.avatarDataUrl]);
 
+  /* ------------------- Public prefs (from Paramètres) ------------------- */
+  const [publicPrefs, setPublicPrefs] = useState<{
+    profilePublic: boolean;
+    showStats: boolean;
+    showTrades: boolean;
+  }>({ profilePublic: true, showStats: true, showTrades: true });
+
   /* ------------------- Read public profile/trades/stats from /profil ------------------- */
   const [publicProfile, setPublicProfile] = useState<{ bio?: string; tag?: string } | null>(null);
   const [publicFromProfileTrades, setPublicFromProfileTrades] = useState<PublicTrade[]>([]);
@@ -391,14 +509,35 @@ export default function ClassementUserPage() {
     const u = user?.username || usernameParam;
     if (!u) return;
 
+    // prefs publiques (profil/stat/trades)
+    const prefs = safeJsonParse<PublicProfilePrefs>(
+      localStorage.getItem(publicProfilePrefsKeyFor(u))
+    );
+
+    const profilePublic = prefs?.profilePublic !== false; // default true
+    const showStats = prefs?.showStats !== false; // default true
+    const showTrades = prefs?.showTrades !== false; // default true (mets false si tu veux par défaut)
+    setPublicPrefs({ profilePublic, showStats, showTrades });
+
+    // bio
     try {
-      const prof = safeJsonParse<{ bio?: string; tag?: string }>(localStorage.getItem(publicProfileKeyFor(u)));
+      const prof = safeJsonParse<{ bio?: string; tag?: string }>(
+        localStorage.getItem(publicProfileKeyFor(u))
+      );
       setPublicProfile(prof && typeof prof === "object" ? prof : null);
     } catch {
       setPublicProfile(null);
     }
 
-    if (user?.hideTrades === true) {
+    // si profil complètement privé -> rien
+    if (!profilePublic) {
+      setPublicFromProfileTrades([]);
+      setPublicFromProfileStats(null);
+      return;
+    }
+
+    // trades masqués (legacy + prefs)
+    if (user?.hideTrades === true || showTrades === false) {
       setPublicFromProfileTrades([]);
       setPublicFromProfileStats(null);
       return;
@@ -418,38 +557,49 @@ export default function ClassementUserPage() {
   const profit = Number(user?.profitUsd ?? 0);
   const profitClass = profit >= 0 ? "text-[color:var(--success)]" : "text-[color:var(--danger)]";
 
-  const tradesPrivate = user?.hideTrades === true;
+  const statsPrivate = publicPrefs.profilePublic === false || publicPrefs.showStats === false;
 
-  // ✅ Trades: profil d’abord (vrai), sinon fallback leaderboard
+  const tradesPrivate =
+    user?.hideTrades === true ||
+    publicPrefs.profilePublic === false ||
+    publicPrefs.showTrades === false;
+
   const publicTrades: PublicTrade[] =
     publicFromProfileTrades.length
       ? publicFromProfileTrades
-      : Array.isArray(user?.publicTrades)
+      : Array.isArray(user?.publicTrades) && !tradesPrivate
       ? user!.publicTrades!
       : [];
 
-  // ✅ Stats: profil d’abord
   const tradesTotal =
-    publicFromProfileStats?.tradesTotal ??
-    (typeof user?.tradesTotal === "number" && Number.isFinite(user.tradesTotal)
-      ? user.tradesTotal
-      : typeof user?.tradesCount === "number" && Number.isFinite(user.tradesCount)
-      ? user.tradesCount
-      : null);
+    !statsPrivate
+      ? publicFromProfileStats?.tradesTotal ??
+        (typeof user?.tradesTotal === "number" && Number.isFinite(user.tradesTotal)
+          ? user.tradesTotal
+          : typeof user?.tradesCount === "number" && Number.isFinite(user.tradesCount)
+          ? user.tradesCount
+          : null)
+      : null;
 
   const winrate =
-    (typeof publicFromProfileStats?.winrate === "number" ? publicFromProfileStats.winrate : null) ??
-    (typeof user?.winrate === "number" && Number.isFinite(user.winrate) ? user.winrate : null);
+    !statsPrivate
+      ? (typeof publicFromProfileStats?.winrate === "number"
+          ? publicFromProfileStats.winrate
+          : null) ??
+        (typeof user?.winrate === "number" && Number.isFinite(user.winrate) ? user.winrate : null)
+      : null;
 
   const rrAvg =
-    (typeof publicFromProfileStats?.rrAvg === "number" ? publicFromProfileStats.rrAvg : null) ??
-    (typeof user?.rrAvg === "number" && Number.isFinite(user.rrAvg) ? user.rrAvg : null);
+    !statsPrivate
+      ? (typeof publicFromProfileStats?.rrAvg === "number"
+          ? publicFromProfileStats.rrAvg
+          : null) ??
+        (typeof user?.rrAvg === "number" && Number.isFinite(user.rrAvg) ? user.rrAvg : null)
+      : null;
 
-  // ✅ Bio: profil d’abord
   const bioText = (publicProfile?.bio ?? user?.bio ?? "").trim();
   const tagText = (publicProfile?.tag ?? user?.tag ?? "").trim();
 
-  // ✅ Pagination public trades (10/page)
   const PUBLIC_TRADES_PER_PAGE = 10;
   const [publicTradesPage, setPublicTradesPage] = useState(1);
 
@@ -517,7 +667,6 @@ export default function ClassementUserPage() {
     const pruned = sorted.slice(0, 120);
     setComments(pruned);
 
-    // strip attachments dataUrl to avoid localStorage quota
     const light = pruned.map((c) => ({
       ...c,
       attachments: (c.attachments || []).map((a) => ({
@@ -531,9 +680,7 @@ export default function ClassementUserPage() {
 
     try {
       localStorage.setItem(commentsKey, JSON.stringify(light));
-    } catch {
-      // ignore
-    }
+    } catch {}
   }
 
   const totalCommentPages = useMemo(() => {
@@ -552,7 +699,6 @@ export default function ClassementUserPage() {
     if (commentsPage < 1) setCommentsPage(1);
   }, [commentsPage, totalCommentPages]);
 
-  // close popovers
   useEffect(() => {
     function onDoc(e: MouseEvent) {
       const t = e.target as HTMLElement;
@@ -617,7 +763,6 @@ export default function ClassementUserPage() {
     const c: Comment = {
       id: safeId("c"),
       createdAt: Date.now(),
-      // ✅ use myAvatarUrl for proper avatar
       author: { username: authorName, tag: me?.tag, avatarDataUrl: myAvatarUrl || me?.avatarDataUrl },
       text: content,
       attachments: atts.length ? atts : undefined,
@@ -674,7 +819,7 @@ export default function ClassementUserPage() {
     persist(next);
   }
 
-  // guard (must be after hooks)
+  // guard
   if (!user) {
     return (
       <div className="space-y-4">
@@ -701,7 +846,6 @@ export default function ClassementUserPage() {
         <Button variant="secondary" onClick={() => window.history.back()}>
           <ArrowLeft className="w-4 h-4" /> Retour
         </Button>
-
         <div className="text-xs text-white/40">Profil public (depuis le classement)</div>
       </div>
 
@@ -758,7 +902,9 @@ export default function ClassementUserPage() {
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <span className="text-2xl font-semibold text-[color:var(--gold)]">{initialsOf(user.username)}</span>
+                      <span className="text-2xl font-semibold text-[color:var(--gold)]">
+                        {initialsOf(user.username)}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -802,13 +948,7 @@ export default function ClassementUserPage() {
                   <div className="text-sm text-white/70">Historique trades</div>
 
                   {tradesPrivate ? (
-                    <div className="mt-2 rounded-2xl border border-white/10 bg-black/20 p-4 flex items-center gap-3">
-                      <Lock className="w-5 h-5 text-white/60" />
-                      <div className="text-sm">
-                        <div className="text-white font-semibold">Historique privé</div>
-                        <div className="text-white/50 text-xs">Cet utilisateur a masqué son historique de trades.</div>
-                      </div>
-                    </div>
+                    <PrivateTradesOverlay title="Privé" subtitle="Historique masqué" />
                   ) : publicTrades.length ? (
                     <div className="mt-2 rounded-2xl border border-white/10 bg-black/15 p-4 overflow-x-auto">
                       <table className="w-full text-sm">
@@ -844,7 +984,6 @@ export default function ClassementUserPage() {
                         Affichage: {PUBLIC_TRADES_PER_PAGE} trades par page.
                       </div>
 
-                      {/* ✅ mini pagination trades publics */}
                       {publicTrades.length > PUBLIC_TRADES_PER_PAGE ? (
                         <div className="mt-3 flex items-center justify-between">
                           <div className="text-xs text-white/40">
@@ -869,7 +1008,9 @@ export default function ClassementUserPage() {
                             <button
                               type="button"
                               disabled={publicTradesPage >= totalPublicTradePages}
-                              onClick={() => setPublicTradesPage((p) => Math.min(totalPublicTradePages, p + 1))}
+                              onClick={() =>
+                                setPublicTradesPage((p) => Math.min(totalPublicTradePages, p + 1))
+                              }
                               className={[
                                 "h-9 px-3 rounded-xl border text-sm transition",
                                 publicTradesPage >= totalPublicTradePages
@@ -884,57 +1025,66 @@ export default function ClassementUserPage() {
                       ) : null}
                     </div>
                   ) : (
-                    <div className="mt-2 rounded-2xl border border-white/10 bg-black/15 p-4 text-sm text-white/70">
-                      Historique public activé, mais aucune donnée publique n’est disponible (MVP).
-                    </div>
+                    <PrivateTradesOverlay title="Privé" subtitle="Aucun trade public" />
                   )}
                 </div>
               </div>
 
               {/* Stats */}
               <div className="space-y-3">
-                <CardSubCard className="p-4">
-                  <div className="text-xs text-white/50">Stats</div>
+                {statsPrivate ? (
+                  <PrivateStatsCard />
+                ) : (
+                  <CardSubCard className="p-4">
+                    <div className="text-xs text-white/50">Stats</div>
 
-                  <div className="mt-2 space-y-2 text-sm">
-                    <div className="flex items-center justify-between">
-                      <span className="text-white/60 inline-flex items-center gap-2">
-                        <Medal className="w-4 h-4" /> Rang
-                      </span>
-                      <span className="text-white font-semibold">{rank ? `#${rank}` : "—"}</span>
+                    <div className="mt-2 space-y-2 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-white/60 inline-flex items-center gap-2">
+                          <Medal className="w-4 h-4" /> Rang
+                        </span>
+                        <span className="text-white font-semibold">{rank ? `#${rank}` : "—"}</span>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-white/60 inline-flex items-center gap-2">
+                          <DollarSign className="w-4 h-4" /> Profit
+                        </span>
+                        <span className={cx("font-semibold", profitClass)}>{money(profit)}</span>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-white/60 inline-flex items-center gap-2">
+                          <Trophy className="w-4 h-4" /> Trades
+                        </span>
+                        <span className="text-white font-semibold">{tradesTotal ?? "—"}</span>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-white/60">Winrate</span>
+                        <span className="text-white font-semibold">
+                          {winrate === null ? "—" : `${winrate.toFixed(1)}%`}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-white/60">RR moyen</span>
+                        <span className="text-white font-semibold">
+                          {rrAvg === null ? "—" : rrAvg.toFixed(2)}
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="flex items-center justify-between">
-                      <span className="text-white/60 inline-flex items-center gap-2">
-                        <DollarSign className="w-4 h-4" /> Profit
-                      </span>
-                      <span className={cx("font-semibold", profitClass)}>{money(profit)}</span>
+                    <div className="mt-3 text-xs text-white/40">
+                      Données: bio/trades/stats depuis le profil (si dispo) sinon fallback classement.
                     </div>
+                  </CardSubCard>
+                )}
 
-                    <div className="flex items-center justify-between">
-                      <span className="text-white/60 inline-flex items-center gap-2">
-                        <Trophy className="w-4 h-4" /> Trades
-                      </span>
-                      <span className="text-white font-semibold">{tradesTotal ?? "—"}</span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-white/60">Winrate</span>
-                      <span className="text-white font-semibold">{winrate === null ? "—" : `${winrate.toFixed(1)}%`}</span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-white/60">RR moyen</span>
-                      <span className="text-white font-semibold">{rrAvg === null ? "—" : rrAvg.toFixed(2)}</span>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 text-xs text-white/40">
-                    Données: bio/trades/stats depuis le profil (si dispo) sinon fallback classement.
-                  </div>
-                </CardSubCard>
-
-                <Button variant="secondary" onClick={() => (window.location.href = "/dashboard/classement")}>
+                <Button
+                  variant="secondary"
+                  onClick={() => (window.location.href = "/dashboard/classement")}
+                >
                   Retour au classement
                 </Button>
               </div>
@@ -948,14 +1098,15 @@ export default function ClassementUserPage() {
         </CardBody>
       </Card>
 
-      {/* ---------------- COMMENTS (synced with profile) ---------------- */}
+      {/* ---------------- COMMENTS (inchangé) ---------------- */}
       <Card>
         <CardBody className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="text-lg font-semibold text-white">Commentaires</div>
             <div className="text-xs text-white/40">{comments.length}/120</div>
           </div>
-                    {/* composer */}
+
+          {/* composer */}
           <div ref={composerRef} className="rounded-2xl border border-white/10 bg-black/20 p-3 md:p-4 relative">
             <div className="flex items-start gap-3">
               <div className="w-9 h-9 rounded-full border border-white/10 bg-black/20 flex items-center justify-center shrink-0 mt-1 overflow-hidden">
@@ -978,7 +1129,6 @@ export default function ClassementUserPage() {
                   placeholder="Écrire un commentaire…"
                 />
 
-                {/* attachments chips */}
                 {atts.length ? (
                   <div className="mt-3 flex flex-wrap gap-2">
                     {atts.map((a) => (
@@ -1006,7 +1156,6 @@ export default function ClassementUserPage() {
                 />
 
                 <div className="mt-3 flex items-center gap-2">
-                  {/* attach */}
                   <button
                     type="button"
                     className="h-9 w-9 rounded-xl border border-white/10 bg-black/20 hover:bg-white/5 transition inline-flex items-center justify-center text-white/70"
@@ -1016,7 +1165,6 @@ export default function ClassementUserPage() {
                     <Paperclip className="w-4 h-4" />
                   </button>
 
-                  {/* emoji */}
                   <div className="relative">
                     <button
                       type="button"
@@ -1050,7 +1198,7 @@ export default function ClassementUserPage() {
             </div>
           </div>
 
-          {/* list */}
+          {/* LIST + pagination (IDENTIQUE à ton fichier actuel) */}
           <div className="space-y-2">
             <div ref={commentsTopRef} />
 
@@ -1076,7 +1224,9 @@ export default function ClassementUserPage() {
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={src} alt="avatar" className="w-full h-full object-cover" />
                         ) : (
-                          <span className="text-xs text-white/70">{initialsOf(c.author.username)}</span>
+                          <span className="text-xs text-white/70">
+                            {initialsOf(c.author.username)}
+                          </span>
                         );
                       })()}
                     </div>
@@ -1085,15 +1235,24 @@ export default function ClassementUserPage() {
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm text-white/90 font-semibold truncate">{c.author.username}</span>
-                            {c.author.tag ? <span className="text-xs text-white/40">{c.author.tag}</span> : null}
-                            {c.pinned ? <span className="text-[11px] text-[color:var(--gold)]">Épinglé</span> : null}
-                            {c.reported ? <span className="text-[11px] text-red-200/80">Signalé</span> : null}
+                            <span className="text-sm text-white/90 font-semibold truncate">
+                              {c.author.username}
+                            </span>
+                            {c.author.tag ? (
+                              <span className="text-xs text-white/40">{c.author.tag}</span>
+                            ) : null}
+                            {c.pinned ? (
+                              <span className="text-[11px] text-[color:var(--gold)]">
+                                Épinglé
+                              </span>
+                            ) : null}
+                            {c.reported ? (
+                              <span className="text-[11px] text-red-200/80">Signalé</span>
+                            ) : null}
                           </div>
                           <div className="text-[11px] text-white/40">{fmtAgo(c.createdAt)}</div>
                         </div>
 
-                        {/* menu */}
                         <div className="relative" data-comment-menu>
                           <button
                             type="button"
@@ -1152,7 +1311,11 @@ export default function ClassementUserPage() {
                         </div>
                       </div>
 
-                      {c.text ? <div className="mt-2 text-sm text-white/80 whitespace-pre-wrap break-words">{c.text}</div> : null}
+                      {c.text ? (
+                        <div className="mt-2 text-sm text-white/80 whitespace-pre-wrap break-words">
+                          {c.text}
+                        </div>
+                      ) : null}
 
                       {c.attachments?.length ? (
                         <div className="mt-3 space-y-2">
@@ -1164,7 +1327,7 @@ export default function ClassementUserPage() {
                           ))}
                         </div>
                       ) : null}
-                                            {/* reactions + picker */}
+
                       <div className="mt-3 flex flex-wrap items-center gap-2">
                         {Object.entries(c.reactions || {})
                           .filter(([, count]) => (count ?? 0) > 0)
@@ -1210,7 +1373,6 @@ export default function ClassementUserPage() {
               ))
             )}
 
-            {/* pagination */}
             {comments.length > COMMENTS_PER_PAGE ? (
               <div className="flex items-center justify-between pt-2">
                 <div className="text-xs text-white/40">
@@ -1260,4 +1422,3 @@ export default function ClassementUserPage() {
     </div>
   );
 }
-

@@ -8,7 +8,7 @@ from typing import Optional, List, Dict, Any
 app = FastAPI()
 
 # ✅ Mets le bon chemin exact du terminal MT5
-TERMINAL_PATH = r"E:\MetaTrader5\terminal64.exe"
+TERMINAL_PATH = r"C:\Program Files\MetaTrader 5\terminal64.exe"
 
 MAGIC = 20260117
 DEVIATION = 30

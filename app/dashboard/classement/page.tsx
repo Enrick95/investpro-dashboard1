@@ -37,7 +37,7 @@ type LeaderUser = {
   avatarTransform?: MediaTransform;
   bannerTransform?: MediaTransform;
 
-  // privacy
+  // privacy (legacy)
   hideTrades?: boolean;
 };
 
@@ -56,7 +56,6 @@ function initialsOf(username: string) {
 /* ------------------------- IndexedDB (avatars) ------------------------- */
 const IDB_DB = "investpro_media_db_v1";
 const IDB_STORE = "files";
-
 
 function idbOpen(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -109,7 +108,9 @@ function Avatar({
         // eslint-disable-next-line @next/next/no-img-element
         <img src={src} alt="avatar" className="w-full h-full object-cover" />
       ) : (
-        <span className="text-sm font-semibold text-[color:var(--gold)]">{initialsOf(username)}</span>
+        <span className="text-sm font-semibold text-[color:var(--gold)]">
+          {initialsOf(username)}
+        </span>
       )}
     </div>
   );
@@ -147,7 +148,12 @@ function ProfitPill({ profitUsd }: { profitUsd: number }) {
   const v = Number(profitUsd ?? 0);
   return (
     <div className="text-right">
-      <div className={cx("text-sm font-semibold", v >= 0 ? "text-[color:var(--success)]" : "text-[color:var(--danger)]")}>
+      <div
+        className={cx(
+          "text-sm font-semibold",
+          v >= 0 ? "text-[color:var(--success)]" : "text-[color:var(--danger)]"
+        )}
+      >
         {money(v)}
       </div>
       <div className="text-[10px] text-[color:var(--muted)]">profit</div>
@@ -188,6 +194,39 @@ export default function ClassementPage() {
     return () => window.removeEventListener("investpro:account_updated", onAccUpdated as any);
   }, []);
 
+  // ✅ écoute l’event envoyé par Paramètres (profil public ON/OFF)
+  useEffect(() => {
+    function onLeaderboardUpdated(e: any) {
+      const d = e?.detail;
+      const username = String(d?.username || "");
+      const visible = !!d?.visible;
+
+      // refresh liste
+      setRefresh((v) => v + 1);
+
+      // si c'est toi, update local state pour que le bouton Public/Privé reflète le changement
+      setMe((prev: any) => {
+        if (!prev?.username) return prev;
+        if (String(prev.username).toLowerCase() !== username.toLowerCase()) return prev;
+        return { ...prev, showOnLeaderboard: visible };
+      });
+    }
+
+    // storage (si autre onglet)
+    function onStorage() {
+      setRefresh((v) => v + 1);
+      setMe(getCurrentAccount());
+    }
+
+    window.addEventListener("investpro:leaderboard_updated", onLeaderboardUpdated as any);
+    window.addEventListener("storage", onStorage);
+
+    return () => {
+      window.removeEventListener("investpro:leaderboard_updated", onLeaderboardUpdated as any);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
+
   const [openPrivacyModal, setOpenPrivacyModal] = useState(false);
 
   const rows = useMemo(() => {
@@ -217,7 +256,7 @@ export default function ClassementPage() {
     async function resolveVisibleAvatars() {
       const ids = new Set<string>();
       for (const u of top3) if (u?.avatarMediaId) ids.add(u.avatarMediaId);
-      for (const u of filteredRows.slice(0, 25)) if (u?.avatarMediaId) ids.add(u.avatarMediaId); // limite perf
+      for (const u of filteredRows.slice(0, 25)) if (u?.avatarMediaId) ids.add(u.avatarMediaId);
 
       const toFetch = Array.from(ids).filter((id) => !avatarCache[id]);
       if (!toFetch.length) return;
@@ -228,9 +267,7 @@ export default function ClassementPage() {
           const blob = await idbGetBlob(id);
           if (!alive) return;
           if (blob) next[id] = URL.createObjectURL(blob);
-        } catch {
-          // ignore
-        }
+        } catch {}
       }
 
       if (!alive) return;
@@ -257,7 +294,12 @@ export default function ClassementPage() {
 
   function togglePopup() {
     if (!me) {
-      pushNotif({ kind: "warning", title: "Classement", message: "Connecte-toi pour changer la visibilité.", ttlMs: 9000 });
+      pushNotif({
+        kind: "warning",
+        title: "Classement",
+        message: "Connecte-toi pour changer la visibilité.",
+        ttlMs: 9000,
+      });
       return;
     }
     setOpenPrivacyModal(true);
@@ -265,13 +307,23 @@ export default function ClassementPage() {
 
   function setPublic(nextPublic: boolean) {
     if (!me) {
-      pushNotif({ kind: "warning", title: "Classement", message: "Connecte-toi pour changer la visibilité.", ttlMs: 9000 });
+      pushNotif({
+        kind: "warning",
+        title: "Classement",
+        message: "Connecte-toi pour changer la visibilité.",
+        ttlMs: 9000,
+      });
       return;
     }
 
     const updated = setLeaderboardVisibility(nextPublic);
     if (!updated) {
-      pushNotif({ kind: "error", title: "Classement", message: "Impossible de modifier la visibilité.", ttlMs: 10000 });
+      pushNotif({
+        kind: "error",
+        title: "Classement",
+        message: "Impossible de modifier la visibilité.",
+        ttlMs: 10000,
+      });
       return;
     }
 
@@ -289,22 +341,25 @@ export default function ClassementPage() {
       tag: updated.tag ?? "",
       hideTrades: !!updated.hideTrades,
 
-      // ✅ media (pour afficher photo + bannière partout)
       avatarDataUrl: updated.avatarDataUrl ?? "",
       avatarMediaId: updated.avatarMediaId,
       bannerMediaId: updated.bannerMediaId,
       avatarTransform: updated.avatarTransform,
       bannerTransform: updated.bannerTransform,
 
-      // ✅ stats
       tradesTotal: typeof updated.tradesTotal === "number" ? updated.tradesTotal : computed.tradesTotal,
       winrate: typeof updated.winrate === "number" ? updated.winrate : computed.winrate,
       rrAvg: typeof updated.rrAvg === "number" ? updated.rrAvg : computed.rrAvg,
-
-
     };
 
     upsertLeaderboardUser(payload);
+
+    // ✅ ping instant (utile si d’autres pages écoutent)
+    window.dispatchEvent(
+      new CustomEvent("investpro:leaderboard_updated", {
+        detail: { username: updated.username, visible: nextPublic },
+      })
+    );
 
     pushNotif({
       kind: "success",
@@ -379,21 +434,6 @@ export default function ClassementPage() {
 
               {/* Controls */}
               <div className="flex gap-3">
-                <button
-                  onClick={togglePopup}
-                  className={cx(
-                    "px-4 py-3 rounded-2xl border transition flex items-center gap-2",
-                    isPublic
-                      ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)] hover:brightness-110"
-                      : "border-white/10 bg-black/20 text-white/80 hover:bg-white/5"
-                  )}
-                  title="Changer la visibilité"
-                  type="button"
-                >
-                  {isPublic ? <Unlock className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
-                  <span className="text-sm font-semibold">{isPublic ? "Public" : "Privé"}</span>
-                </button>
-
                 <Button variant="secondary" onClick={refreshList}>
                   Rafraîchir
                 </Button>

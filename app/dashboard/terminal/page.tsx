@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useId } from "react";
 
 import { Card, CardBody } from "../../../components/ui/Card";
 import { Button } from "../../../components/ui/Button";
@@ -10,8 +10,17 @@ import GoldSelect from "../../../components/ui/GoldSelect";
 import { getPlan, hasTradingTerminalAccess } from "../../../lib/subscriptionStore";
 import { loadMt5Accounts, Mt5Account } from "../../../lib/mt5Store";
 import { syncMt5HistoryToTrades } from "../../../lib/mt5sync";
-import { pushNotif } from "../../../lib/notifyStore"; // ✅ notif
+import { loadTrades } from "../../../lib/tradesStore";
+import { pushNotif } from "../../../lib/notifyStore";
 
+import MaintenanceModal from "../../../components/ui/MaintenanceModal";
+import { useMaintenance } from "../../../lib/adminStore";
+
+import { usePrefs, lockTrading, unlockTrading, isTradeLocked } from "../../../lib/prefsStore";
+
+import { Lock, ShieldAlert } from "lucide-react";
+
+/* -------------------------------- Types -------------------------------- */
 type Mode3 = "" | "MARKET" | "LIMIT" | "STOP_LIMIT";
 type Side = "NONE" | "BUY" | "SELL";
 type SymbolCat = "all" | "forex" | "crypto" | "indices" | "metals" | "other";
@@ -42,12 +51,47 @@ type Ordre = {
   enabled: boolean;
 };
 
+/* -------------------------------- Helpers -------------------------------- */
 function fmt(n: number) {
   return n.toLocaleString("fr-FR", { maximumFractionDigits: 2 });
 }
 function fmt2(n: number) {
   if (!Number.isFinite(n)) return "—";
   return Number(n).toFixed(2);
+}
+function toNum(v: string) {
+  if (v == null) return NaN;
+  const s = String(v).trim().replace(",", ".");
+  if (!s) return NaN;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : NaN;
+}
+function clamp(v: number, a: number, b: number) {
+  return Math.max(a, Math.min(b, v));
+}
+
+/* -------------------- Time helpers (Paris) -------------------- */
+function parisYMD(d: Date) {
+  const parts = new Intl.DateTimeFormat("fr-FR", {
+    timeZone: "Europe/Paris",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(d);
+  const y = parts.find((p) => p.type === "year")?.value ?? "1970";
+  const m = parts.find((p) => p.type === "month")?.value ?? "01";
+  const da = parts.find((p) => p.type === "day")?.value ?? "01";
+  return `${y}-${m}-${da}`;
+}
+
+function fmtCountdown(ms: number) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const hh = Math.floor(s / 3600);
+  const mm = Math.floor((s % 3600) / 60);
+  const ss = s % 60;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  if (hh > 0) return `${hh}h ${pad(mm)}m`;
+  return `${mm}m ${pad(ss)}s`;
 }
 
 function validateLevels(side: Side, entry: number, sl?: number, tp?: number) {
@@ -102,24 +146,29 @@ function InputCompact({
   label,
   value,
   onChange,
+  onBlur,
   placeholder,
   readOnly,
   listId,
+  inputMode = "decimal",
 }: {
   label: string;
   value: string;
   onChange?: (v: string) => void;
+  onBlur?: () => void;
   placeholder?: string;
   readOnly?: boolean;
   listId?: string;
+  inputMode?: "decimal" | "numeric" | "text";
 }) {
   return (
     <div className="w-full">
       <div className="text-[11px] text-white/60 mb-1">{label}</div>
       <input
-        inputMode="decimal"
+        inputMode={inputMode}
         value={value}
         onChange={(e) => onChange?.(e.target.value)}
+        onBlur={onBlur}
         placeholder={placeholder}
         readOnly={readOnly}
         list={listId}
@@ -148,9 +197,7 @@ function pendingTypeLabel(type: number) {
   return `TYPE ${type}`;
 }
 
-/** ✅ Estimation PnL (USD) via tick_value/tick_size
- * Retourne une valeur "magnitude" positive, le signe est géré à part.
- */
+/** ✅ Estimation PnL (USD) via tick_value/tick_size */
 function pnlBetweenUSD(priceA: number, priceB: number, lots: number, info: SymbolInfo | null): number | null {
   if (!info) return null;
   const tickSize = Number(info.tick_size || 0);
@@ -166,7 +213,220 @@ function pnlBetweenUSD(priceA: number, priceB: number, lots: number, info: Symbo
   return Number.isFinite(mag) ? mag : null;
 }
 
+/* ------------------------ Lock modal (Terminal) ------------------------ */
+function LockModal(props: { open: boolean; onClose: () => void }) {
+  return (
+    <Modal
+      open={props.open}
+      title="Bloquer le compte"
+      onClose={props.onClose}
+      footer={
+        <div className="flex items-center justify-end gap-2 w-full">
+          <Button variant="ghost" onClick={props.onClose}>
+            Annuler
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-3">
+        <div className="text-sm text-[color:var(--muted)]">Bloque le trading depuis InvestPro (anti revenge trade).</div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <Button
+            variant="secondary"
+            onClick={() => {
+              lockTrading("15m", "Blocage terminal");
+              props.onClose();
+              pushNotif({ kind: "warning", title: "Blocage", message: "Compte bloqué 15 minutes." });
+            }}
+          >
+            15 min
+          </Button>
+
+          <Button
+            variant="secondary"
+            onClick={() => {
+              lockTrading("30m", "Blocage terminal");
+              props.onClose();
+              pushNotif({ kind: "warning", title: "Blocage", message: "Compte bloqué 30 minutes." });
+            }}
+          >
+            30 min
+          </Button>
+
+          <Button
+            variant="secondary"
+            onClick={() => {
+              lockTrading("1h", "Blocage terminal");
+              props.onClose();
+              pushNotif({ kind: "warning", title: "Blocage", message: "Compte bloqué 1 heure." });
+            }}
+          >
+            1h
+          </Button>
+
+          <Button
+            variant="secondary"
+            onClick={() => {
+              lockTrading("eod", "Blocage terminal");
+              props.onClose();
+              pushNotif({ kind: "warning", title: "Blocage", message: "Compte bloqué jusqu’à 00:00 (FR)." });
+            }}
+            title="Jusqu’à demain 00:00 (heure FR)"
+          >
+            Fin journée
+          </Button>
+        </div>
+
+        <div className="text-[11px] text-[color:var(--muted)]">
+          Le blocage s’applique à l’interface InvestPro (pas à MT5 directement).
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* -------------------- TradingView API widget (NO iframe) -------------------- */
+let __tvScriptPromise: Promise<void> | null = null;
+
+function loadTradingViewScript() {
+  if (__tvScriptPromise) return __tvScriptPromise;
+
+  __tvScriptPromise = new Promise<void>((resolve) => {
+    if ((window as any).TradingView?.widget) {
+      resolve();
+      return;
+    }
+
+    const existing = document.querySelector('script[src="https://s3.tradingview.com/tv.js"]') as HTMLScriptElement | null;
+
+    if (existing) {
+      existing.addEventListener("load", () => resolve(), { once: true });
+      window.setTimeout(() => resolve(), 300);
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://s3.tradingview.com/tv.js";
+    script.async = true;
+    script.onload = () => resolve();
+    document.head.appendChild(script);
+  });
+
+  return __tvScriptPromise;
+}
+
+function TradingViewApiChart(props: { symbol: string }) {
+  const { symbol } = props;
+
+  // ✅ FIX HYDRATION : ID stable server/client
+  const rid = useId();
+  const containerId = useMemo(() => `tv_${rid.replace(/:/g, "")}`, [rid]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function mount() {
+      await loadTradingViewScript();
+      if (cancelled) return;
+
+      const tv = (window as any).TradingView;
+      if (!tv?.widget) return;
+
+      const el = document.getElementById(containerId);
+      if (el) el.innerHTML = "";
+
+      // eslint-disable-next-line no-new
+      new tv.widget({
+        autosize: true,
+        symbol: symbol || "BTCUSD",
+        interval: "15",
+        timezone: "Europe/Paris",
+        theme: "dark",
+        style: "1",
+        locale: "fr",
+        toolbar_bg: "rgba(0,0,0,0)",
+        enable_publishing: false,
+        allow_symbol_change: true,
+        hide_side_toolbar: false,
+        save_image: false,
+        calendar: true,
+        container_id: containerId,
+      });
+    }
+
+    mount();
+    return () => {
+      cancelled = true;
+      const el = document.getElementById(containerId);
+      if (el) el.innerHTML = "";
+    };
+  }, [containerId, symbol]);
+
+  return <div id={containerId} className="w-full h-[700px]" />;
+}
+
+/* -------------------- Mini progress bars (Daily Loss / Profit) -------------------- */
+function MiniProgress({
+  label,
+  left,
+  right,
+  valuePct,
+}: {
+  label: string;
+  left: string;
+  right: string;
+  valuePct: number; // 0..100
+}) {
+  const pct = Number.isFinite(valuePct) ? clamp(valuePct, 0, 100) : 0;
+  return (
+    <div className="w-full rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
+      <div className="flex items-center justify-between text-xs text-white/80">
+        <span className="font-semibold">{label}</span>
+        <span className="text-white/60">{right}</span>
+      </div>
+
+      <div className="mt-2 h-2 rounded-full bg-white/10 overflow-hidden">
+        <div
+          className="h-full rounded-full"
+          style={{
+            width: `${pct}%`,
+            background: "linear-gradient(90deg, rgba(214,179,95,.55), rgba(245,230,168,.9), rgba(214,179,95,.55))",
+            boxShadow: pct > 0 ? "0 0 10px rgba(214,179,95,.55)" : "none",
+          }}
+        />
+      </div>
+
+      <div className="mt-2 flex items-center justify-between text-[11px] text-white/55">
+        <span>{left}</span>
+        <span>{pct.toFixed(0)}%</span>
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------- Page -------------------------------- */
 export default function TerminalPage() {
+  const { rules, lock } = usePrefs();
+
+  // ✅ Maintenance flag
+  const [maintenanceTerminal, setMaintenanceTerminal] = useState(false);
+
+  // ✅ FIX: on récupère la maintenance via le hook (plus de getAdminStatus undefined)
+  const maint = useMaintenance();
+  useEffect(() => {
+    const v =
+      typeof maint === "boolean"
+        ? maint
+        : Boolean(
+            (maint as any)?.terminal ??
+              (maint as any)?.maintTerminal ??
+              (maint as any)?.maintenanceTerminal ??
+              (maint as any)?.targets?.terminal
+          );
+    setMaintenanceTerminal(v);
+  }, [maint]);
+
   const [accounts, setAccounts] = useState<Mt5Account[]>([]);
   const connectedAccounts = useMemo(() => accounts.filter((a) => a.status === "CONNECTED"), [accounts]);
 
@@ -193,7 +453,6 @@ export default function TerminalPage() {
   const [mode, setMode] = useState<Mode3>("");
   const [side, setSide] = useState<Side>("NONE");
 
-  // ✅ Ordres A/B/C...
   const [ordres, setOrdres] = useState<Ordre[]>([{ id: "A", entry: "", sl: "", tp: "", enabled: true }]);
   const [ordreActifId, setOrdreActifId] = useState<string>("A");
   const ordreActif = useMemo(() => ordres.find((o) => o.id === ordreActifId) ?? ordres[0], [ordres, ordreActifId]);
@@ -202,6 +461,7 @@ export default function TerminalPage() {
   const [stopPrice, setStopPrice] = useState("");
 
   const [capitalUsd, setCapitalUsd] = useState("0");
+  // ✅ on autorise vide pendant la saisie, et on clamp au blur
   const [riskPct, setRiskPct] = useState("1.00");
   const [riskUsd, setRiskUsd] = useState("0");
   const [calcBase, setCalcBase] = useState<"BALANCE" | "EQUITY">("BALANCE");
@@ -209,18 +469,26 @@ export default function TerminalPage() {
   const [deductCommission, setDeductCommission] = useState(false);
   const [commissionPerLot, setCommissionPerLot] = useState("0");
 
-  // ✅ symbolInfo global + ✅ cache par symbol (FIX “—” dans modals)
   const [symbolInfo, setSymbolInfo] = useState<SymbolInfo | null>(null);
   const [symbolInfoMap, setSymbolInfoMap] = useState<Record<string, SymbolInfo>>({});
 
   const [tick, setTick] = useState<Tick | null>(null);
+
+  // ✅ Prix global
+  const priceBid = useMemo(() => (tick ? Number(tick.bid) : NaN), [tick]);
+  const priceAsk = useMemo(() => (tick ? Number(tick.ask) : NaN), [tick]);
+  const marketStr = useMemo(() => (Number.isFinite(priceBid) ? fmt2(priceBid) : "—"), [priceBid]);
+  const askStr = useMemo(() => (Number.isFinite(priceAsk) ? fmt2(priceAsk) : "—"), [priceAsk]);
+  const spreadStr = useMemo(() => {
+    if (!Number.isFinite(priceBid) || !Number.isFinite(priceAsk)) return "—";
+    return fmt2(Math.abs(priceAsk - priceBid));
+  }, [priceBid, priceAsk]);
 
   const [positions, setPositions] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
   const [showPositions, setShowPositions] = useState(true);
   const [showOrders, setShowOrders] = useState(true);
 
-  // ✅ ticks live pour plusieurs symbols
   const [ticksMapLive, setTicksMapLive] = useState<Record<string, { bid: number; ask: number; digits?: number }>>({});
 
   const symbolsToWatch = useMemo(() => {
@@ -234,68 +502,119 @@ export default function TerminalPage() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-  // ✅ modals modify
-  const [openModify, setOpenModify] = useState(false);
-  const [modTicket, setModTicket] = useState<number | null>(null);
-  const [modSymbol, setModSymbol] = useState("");
-  const [modEntry, setModEntry] = useState<number>(0);
-  const [modLots, setModLots] = useState<number>(0);
-  const [modType, setModType] = useState<0 | 1>(0);
-  const [modSl, setModSl] = useState("");
-  const [modTp, setModTp] = useState("");
-
-  // ✅ close modal
-  const [openCloseModal, setOpenCloseModal] = useState(false);
-  const [closeTicket, setCloseTicket] = useState<number | null>(null);
-  const [closeSymbol, setCloseSymbol] = useState("");
-  const [closeType, setCloseType] = useState<0 | 1>(0);
-  const [closeEntry, setCloseEntry] = useState<number>(0);
-  const [closeLotsTotal, setCloseLotsTotal] = useState<number>(0);
-  const [closeLots, setCloseLots] = useState<string>("");
-
-  // ✅ bulk confirm modals
-  const [openCloseAll, setOpenCloseAll] = useState(false);
-  const [openCancelAll, setOpenCancelAll] = useState(false);
-
-  const needsStop = useMemo(() => mode === "STOP_LIMIT", [mode]);
-
-  // ✅ Prix global
-  const priceBid = useMemo(() => (tick ? Number(tick.bid) : NaN), [tick]);
-  const priceAsk = useMemo(() => (tick ? Number(tick.ask) : NaN), [tick]);
-  const marketStr = useMemo(() => (Number.isFinite(priceBid) ? fmt2(priceBid) : "—"), [priceBid]);
-  const askStr = useMemo(() => (Number.isFinite(priceAsk) ? fmt2(priceAsk) : "—"), [priceAsk]);
-  const spreadStr = useMemo(() => {
-    if (!Number.isFinite(priceBid) || !Number.isFinite(priceAsk)) return "—";
-    return fmt2(Math.abs(priceAsk - priceBid));
-  }, [priceBid, priceAsk]);
-
-  // ✅ Total PnL
-  const totalPnl = useMemo(() => {
-    const sum = positions.reduce((acc, p) => acc + Number(p?.profit ?? 0), 0);
-    return Number.isFinite(sum) ? sum : 0;
-  }, [positions]);
-  const totalPnlStr = useMemo(() => fmt(totalPnl), [totalPnl]);
-
   // ✅ Progress
   const progressPct = useMemo(() => {
     const symOk = symbol.trim().length > 0;
     const modeOk = mode !== "";
     const sideOk = side !== "NONE";
-    const entryOk = Number(ordreActif.entry) > 0;
-    const slOk = Number(ordreActif.sl) > 0;
-    const riskOk = Number(riskUsd) > 0;
+    const entryOk = toNum(ordreActif?.entry) > 0;
+    const slOk = toNum(ordreActif?.sl) > 0;
+    const riskOk = toNum(riskUsd) > 0;
 
     if (!symOk && !modeOk && !sideOk && !entryOk && !slOk && !riskOk) return 0;
 
     const checks = [symOk, modeOk, sideOk, entryOk, slOk, riskOk];
     const done = checks.filter(Boolean).length;
     return Math.round((done / checks.length) * 100);
-  }, [symbol, mode, side, ordreActif.entry, ordreActif.sl, riskUsd]);
+  }, [symbol, mode, side, ordreActif?.entry, ordreActif?.sl, riskUsd]);
+
+  // ✅ Lock countdown
+  const [openLockModal, setOpenLockModal] = useState(false);
+  const [nowMs, setNowMs] = useState(Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  const locked = lock.active && lock.untilMs > nowMs;
+  const lockRemaining = locked ? lock.untilMs - nowMs : 0;
+
+  // ✅ KPIs today
+  const todayYMD = useMemo(() => parisYMD(new Date()), []);
+  const tradesClosedToday = useMemo(() => {
+    const all = loadTrades();
+    const list = Array.isArray(all) ? all : [];
+    return list.filter((t: any) => {
+      const ts = t?.closedAt || t?.closedTime || t?.date || t?.time || t?.createdAt;
+      if (!ts) return false;
+      const d = new Date(ts);
+      if (String(d) === "Invalid Date") return false;
+      return parisYMD(d) === todayYMD;
+    });
+  }, [busy, todayYMD]);
+
+  const realizedToday = useMemo(
+    () => tradesClosedToday.reduce((sum: number, t: any) => sum + Number(t?.pnl ?? t?.profit ?? 0), 0),
+    [tradesClosedToday]
+  );
+
+  // ✅ (on garde le calcul pour tes règles internes)
+  const slCountToday = useMemo(() => {
+    return tradesClosedToday.reduce((n: number, t: any) => {
+      const res = String(t?.result ?? "").toUpperCase();
+      const pnl = Number(t?.pnl ?? t?.profit ?? 0);
+      const isLoss = res === "LOSS" || (res === "" && Number.isFinite(pnl) && pnl < 0);
+      return n + (isLoss ? 1 : 0);
+    }, 0);
+  }, [tradesClosedToday]);
+
+  const unrealizedNow = useMemo(() => positions.reduce((acc, p) => acc + Number(p?.profit ?? 0), 0), [positions]);
+
+  const ruleAlerts = useMemo(() => {
+    const a: string[] = [];
+    if (!rules?.enabled) return a;
+
+    if (rules.maxSLPerDay > 0 && slCountToday >= rules.maxSLPerDay) {
+      a.push(`⚠️ Limite SL atteinte : ${slCountToday}/${rules.maxSLPerDay}`);
+    }
+    if (rules.dailyLossMax > 0 && realizedToday <= -Math.abs(rules.dailyLossMax)) {
+      a.push(`⛔ Daily loss atteint : ${fmt(realizedToday)}$ (max -${rules.dailyLossMax}$)`);
+    }
+    if (rules.dailyProfitTarget > 0 && realizedToday >= rules.dailyProfitTarget) {
+      a.push(`✅ Objectif atteint : +${fmt(realizedToday)}$ (target +${rules.dailyProfitTarget}$)`);
+    }
+    return a;
+  }, [rules?.enabled, rules?.maxSLPerDay, rules?.dailyLossMax, rules?.dailyProfitTarget, slCountToday, realizedToday]);
+
+  // ✅ barres PDDL/PDPT (comme ton screen)
+  const dailyLossMax = useMemo(() => Math.max(0, Number(rules?.dailyLossMax ?? 0)), [rules?.dailyLossMax]);
+  const dailyProfitTarget = useMemo(() => Math.max(0, Number(rules?.dailyProfitTarget ?? 0)), [rules?.dailyProfitTarget]);
+
+  const pddlUsed = useMemo(() => (realizedToday < 0 ? Math.abs(realizedToday) : 0), [realizedToday]);
+  const pdptDone = useMemo(() => (realizedToday > 0 ? realizedToday : 0), [realizedToday]);
+
+  const pddlPct = useMemo(() => {
+    if (!dailyLossMax) return 0;
+    return (pddlUsed / dailyLossMax) * 100;
+  }, [pddlUsed, dailyLossMax]);
+
+  const pdptPct = useMemo(() => {
+    if (!dailyProfitTarget) return 0;
+    return (pdptDone / dailyProfitTarget) * 100;
+  }, [pdptDone, dailyProfitTarget]);
+
+  const needsStop = useMemo(() => mode === "STOP_LIMIT", [mode]);
+
+  // ✅ Total PnL (positions ouvertes)
+  const totalPnl = useMemo(() => {
+    const sum = positions.reduce((acc, p) => acc + Number(p?.profit ?? 0), 0);
+    return Number.isFinite(sum) ? sum : 0;
+  }, [positions]);
+  const totalPnlStr = useMemo(() => fmt(totalPnl), [totalPnl]);
 
   /* =========================
-     API helpers (Partie 2)
+     Init comptes
      ========================= */
-    async function syncCapital() {
+  useEffect(() => {
+    const list = loadMt5Accounts();
+    setAccounts(list);
+    const first = list.find((x) => x.status === "CONNECTED");
+    if (first) setSelectedId(first.id);
+  }, []);
+
+    /* =========================
+     API helpers
+     ========================= */
+  async function syncCapital() {
     if (!selectedAccount) return;
     const j = await fetchJson("/api/mt5/test", {
       broker: selectedAccount.broker,
@@ -308,6 +627,22 @@ export default function TerminalPage() {
     const eq = Number(j.snapshot?.equity ?? 0);
     const base = calcBase === "EQUITY" ? eq : bal;
     if (Number.isFinite(base) && base > 0) setCapitalUsd(String(base));
+  }
+
+  async function syncTodayHistory() {
+    if (!selectedAccount) return;
+    try {
+      const to = Math.floor(Date.now() / 1000);
+      const from = to - 48 * 3600;
+      await syncMt5HistoryToTrades({
+        broker: selectedAccount.broker,
+        server: selectedAccount.server,
+        login: selectedAccount.login,
+        password: (selectedAccount as any).password ?? "",
+        from_ts: from,
+        to_ts: to,
+      });
+    } catch {}
   }
 
   async function syncSymbols() {
@@ -347,7 +682,7 @@ export default function TerminalPage() {
 
     const info = j.info as SymbolInfo;
     setSymbolInfo(info);
-    setSymbolInfoMap((p) => ({ ...p, [s]: info })); // ✅ cache
+    setSymbolInfoMap((p) => ({ ...p, [s]: info }));
   }
 
   async function loadTick(sym: string) {
@@ -387,7 +722,6 @@ export default function TerminalPage() {
     setOrders(Array.isArray(j.orders) ? j.orders : []);
   }
 
-  // ✅ ticks multi-symbols
   async function refreshTicks() {
     if (!selectedAccount) return;
     if (symbolsToWatch.length === 0) return;
@@ -407,12 +741,9 @@ export default function TerminalPage() {
         next[String(sym)] = { bid: Number(vv.bid), ask: Number(vv.ask), digits: Number(vv.digits ?? 0) };
       }
     }
-
     setTicksMapLive((prev) => ({ ...prev, ...next }));
   }
 
-  // ✅ IMPORTANT: assure un SymbolInfo pour le symbol d’une position / order
-  // => corrige les "—" dans Perte SL / Gain TP / RR / Preview PnL
   async function ensureSymbolInfo(sym: string): Promise<SymbolInfo | null> {
     const s = String(sym || "").trim();
     if (!s || !selectedAccount) return null;
@@ -437,17 +768,8 @@ export default function TerminalPage() {
   }
 
   /* =========================
-     Init + loops
+     Loops
      ========================= */
-
-  useEffect(() => {
-    const list = loadMt5Accounts();
-    setAccounts(list);
-
-    const first = list.find((x) => x.status === "CONNECTED");
-    if (first) setSelectedId(first.id);
-  }, []);
-
   useEffect(() => {
     if (!selectedAccount) return;
     refreshTicks().catch(() => {});
@@ -500,7 +822,7 @@ export default function TerminalPage() {
     if (mode === "MARKET") setStopPrice("");
   }, [mode]);
 
-  // ✅ Market => auto-fill entry si BUY/SELL
+  // ✅ Market => auto-fill entry
   useEffect(() => {
     if (!tick) return;
     if (mode !== "MARKET") return;
@@ -530,38 +852,67 @@ export default function TerminalPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tick?.bid, tick?.ask, mode, side]);
 
-  // ✅ Risk USD <-> %
-  useEffect(() => {
-    const cap = Number(capitalUsd);
-    const rp = Number(riskPct);
-    if (!Number.isFinite(cap) || cap <= 0) return;
-    if (!Number.isFinite(rp) || rp < 0) return;
-    setRiskUsd(((cap * rp) / 100).toFixed(2));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [capitalUsd, riskPct]);
-
+  /* =========================
+     Risk clamp + sync
+     ========================= */
   function onChangeRiskUsd(v: string) {
     setRiskUsd(v);
-    const cap = Number(capitalUsd);
-    const ru = Number(v);
+    const cap = toNum(capitalUsd);
+    const raw = toNum(v);
     if (!Number.isFinite(cap) || cap <= 0) return;
-    if (!Number.isFinite(ru) || ru < 0) return;
-    setRiskPct(((ru / cap) * 100).toFixed(2));
+    if (!Number.isFinite(raw) || raw < 0) return;
+    setRiskPct(((raw / cap) * 100).toFixed(2));
+  }
+
+  function onBlurRiskUsd() {
+    const raw = toNum(riskUsd);
+    if (!Number.isFinite(raw)) return;
+    const next = Math.max(0, raw);
+    setRiskUsd(next.toFixed(2));
   }
 
   function onChangeRiskPct(v: string) {
     setRiskPct(v);
-    const cap = Number(capitalUsd);
-    const rp = Number(v);
+    const cap = toNum(capitalUsd);
+    const rp = toNum(v);
     if (!Number.isFinite(cap) || cap <= 0) return;
-    if (!Number.isFinite(rp) || rp < 0) return;
-    setRiskUsd(((cap * rp) / 100).toFixed(2));
+    if (!Number.isFinite(rp)) return;
+
+    const rpClamped = clamp(rp, 0.01, 100);
+    const usd = (cap * rpClamped) / 100;
+    setRiskUsd(usd.toFixed(2));
   }
 
-  /* =========================
-     Helpers ordres + risk calc
-     ========================= */
+  function onBlurRiskPct() {
+    const rp = toNum(riskPct);
+    if (!Number.isFinite(rp)) {
+      setRiskPct("0.01");
+      return;
+    }
+    const rpClamped = clamp(rp, 0.01, 100);
+    setRiskPct(rpClamped.toFixed(2));
 
+    const cap = toNum(capitalUsd);
+    if (Number.isFinite(cap) && cap > 0) {
+      const usd = (cap * rpClamped) / 100;
+      setRiskUsd(usd.toFixed(2));
+    }
+  }
+
+  useEffect(() => {
+    const cap = toNum(capitalUsd);
+    const rp = toNum(riskPct);
+    if (!Number.isFinite(cap) || cap <= 0) return;
+    if (!Number.isFinite(rp) || rp < 0) return;
+    const rpClamped = clamp(rp, 0.01, 100);
+    const usd = (cap * rpClamped) / 100;
+    setRiskUsd(usd.toFixed(2));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [capitalUsd]);
+
+  /* =========================
+     Ordres helpers
+     ========================= */
   function nextOrdreId(cur: Ordre[]) {
     const alpha = "ABCDEFGHIJ";
     const used = new Set(cur.map((x) => x.id));
@@ -597,24 +948,8 @@ export default function TerminalPage() {
     setOrdres((prev) => prev.map((o) => (o.id === id ? { ...o, enabled: !o.enabled } : o)));
   }
 
-  function clickAccounts() {
-    setMsg(null);
-
-    if (!hasTradingTerminalAccess()) {
-      setGateReason("noPlan");
-      setOpenGateModal(true);
-      return;
-    }
-    if (connectedAccounts.length === 0) {
-      setGateReason("noAccounts");
-      setOpenGateModal(true);
-      return;
-    }
-    setOpenAccountsModal(true);
-  }
-
   const riskMoneyTotal = useMemo(() => {
-    const ru = Number(riskUsd);
+    const ru = toNum(riskUsd);
     return Number.isFinite(ru) && ru > 0 ? ru : 0;
   }, [riskUsd]);
 
@@ -624,8 +959,8 @@ export default function TerminalPage() {
   }, [riskMoneyTotal, ordresON.length]);
 
   function lotsForOrdre(o: Ordre) {
-    const entry = Number(o.entry);
-    const sl = Number(o.sl);
+    const entry = toNum(o.entry);
+    const sl = toNum(o.sl);
 
     if (!symbolInfo) return { lots: 0, reason: "sync_symbol" as const };
     if (!Number.isFinite(entry) || entry <= 0) return { lots: 0, reason: "entry" as const };
@@ -643,7 +978,7 @@ export default function TerminalPage() {
     const riskPerLot = ticksN * tickVal;
     if (!riskPerLot) return { lots: 0, reason: "risk_per_lot" as const };
 
-    const comm = Number(commissionPerLot);
+    const comm = toNum(commissionPerLot);
     const commEff = deductCommission && Number.isFinite(comm) && comm > 0 ? comm : 0;
     const usable = Math.max(0, riskMoneyPerOrdre - commEff);
 
@@ -668,8 +1003,8 @@ export default function TerminalPage() {
     const r = lotsForOrdre(ordreActif);
     if (r.reason !== "ok" || r.lots <= 0 || !symbolInfo) return 0;
 
-    const tp = Number(ordreActif.tp);
-    const entry = Number(ordreActif.entry);
+    const tp = toNum(ordreActif.tp);
+    const entry = toNum(ordreActif.entry);
     if (!Number.isFinite(tp) || tp <= 0 || !Number.isFinite(entry) || entry <= 0) return 0;
 
     const tickSize = Number(symbolInfo.tick_size || 0);
@@ -686,12 +1021,9 @@ export default function TerminalPage() {
     return expRewardActif / riskMoneyPerOrdre;
   }, [riskMoneyPerOrdre, expRewardActif]);
 
-  /* ====== PARTIE 3: Actions (sync/place/modify/close/cancel) + JSX ====== */
-
-    // =========================
-  // ACTIONS
-  // =========================
-
+  /* =========================
+     Actions
+     ========================= */
   async function syncAll() {
     if (!selectedAccount) return;
 
@@ -731,6 +1063,16 @@ export default function TerminalPage() {
   async function placeAllOrdres() {
     setMsg(null);
 
+    if (isTradeLocked()) {
+      pushNotif({
+        kind: "warning",
+        title: "Compte bloqué",
+        message: `Impossible de prendre un trade. Temps restant: ${fmtCountdown(lockRemaining)}.`,
+        ttlMs: 9000,
+      });
+      return;
+    }
+
     if (!selectedAccount) return setMsg("Choisis un compte.");
     if (!symbol.trim()) return setMsg("Choisis un symbol.");
     if (!mode) return setMsg("Choisis un type d’ordre.");
@@ -739,7 +1081,7 @@ export default function TerminalPage() {
     if (ordresON.length === 0) return setMsg("Aucun ordre activé.");
 
     if (mode === "STOP_LIMIT") {
-      const sp = Number(stopPrice);
+      const sp = toNum(stopPrice);
       if (!Number.isFinite(sp) || sp <= 0) return setMsg("Stop requis (Stop-Limit).");
     }
 
@@ -747,9 +1089,9 @@ export default function TerminalPage() {
       setBusy(true);
 
       for (const o of ordresON) {
-        const entry = Number(o.entry);
-        const sl = Number(o.sl);
-        const tp = Number(o.tp);
+        const entry = toNum(o.entry);
+        const sl = toNum(o.sl);
+        const tp = toNum(o.tp);
 
         if (!Number.isFinite(entry) || entry <= 0) throw new Error(`Entrée invalide (Ordre ${o.id})`);
         if (!Number.isFinite(sl) || sl <= 0) throw new Error(`SL invalide (Ordre ${o.id})`);
@@ -757,24 +1099,16 @@ export default function TerminalPage() {
         const lots = lotsForOrdre(o);
         if (lots.reason !== "ok" || lots.lots <= 0) throw new Error(`Lots = 0 (Ordre ${o.id})`);
 
-        const v = validateLevels(
-          side,
-          entry,
-          Number.isFinite(sl) ? sl : undefined,
-          Number.isFinite(tp) ? tp : undefined
-        );
+        const v = validateLevels(side, entry, Number.isFinite(sl) ? sl : undefined, Number.isFinite(tp) ? tp : undefined);
         if (!v.ok) throw new Error(`${v.error} (Ordre ${o.id})`);
 
         const orderMode = (() => {
           if (mode === "MARKET") return side === "BUY" ? "MARKET_BUY" : "MARKET_SELL";
           if (mode === "LIMIT") return side === "BUY" ? "BUY_LIMIT" : "SELL_LIMIT";
-          return side === "BUY" ? "BUY_STOP" : "SELL_STOP"; // stop-limit MVP
+          return side === "BUY" ? "BUY_STOP" : "SELL_STOP";
         })();
 
-        const entryPrice =
-          mode === "MARKET" ? undefined :
-          mode === "LIMIT" ? entry :
-          Number(stopPrice);
+        const entryPrice = mode === "MARKET" ? undefined : mode === "LIMIT" ? entry : toNum(stopPrice);
 
         await fetchJson("/api/mt5/order", {
           broker: selectedAccount.broker,
@@ -805,7 +1139,6 @@ export default function TerminalPage() {
     }
   }
 
-  // ✅ FIX BUILD: cancelPending manquant
   async function cancelPending(ticket: number) {
     if (!selectedAccount) return;
 
@@ -833,14 +1166,32 @@ export default function TerminalPage() {
       setBusy(false);
     }
   }
+  /* =========================
+     Modals state + handlers
+     ========================= */
+  const [openModify, setOpenModify] = useState(false);
+  const [modTicket, setModTicket] = useState<number | null>(null);
+  const [modSymbol, setModSymbol] = useState("");
+  const [modEntry, setModEntry] = useState<number>(0);
+  const [modLots, setModLots] = useState<number>(0);
+  const [modType, setModType] = useState<0 | 1>(0);
+  const [modSl, setModSl] = useState("");
+  const [modTp, setModTp] = useState("");
 
-  // =========================
-  // MODAL: MODIFY (SL/TP + B/E)
-  // =========================
+  const [openCloseModal, setOpenCloseModal] = useState(false);
+  const [closeTicket, setCloseTicket] = useState<number | null>(null);
+  const [closeSymbol, setCloseSymbol] = useState("");
+  const [closeType, setCloseType] = useState<0 | 1>(0);
+  const [closeEntry, setCloseEntry] = useState<number>(0);
+  const [closeLotsTotal, setCloseLotsTotal] = useState<number>(0);
+  const [closeLots, setCloseLots] = useState<string>("");
+
+  const [openCloseAll, setOpenCloseAll] = useState(false);
+  const [openCancelAll, setOpenCancelAll] = useState(false);
 
   function openModifyPosition(p: any) {
     const t = Number(p.ticket);
-    const ty = Number(p.type); // 0 BUY / 1 SELL
+    const ty = Number(p.type);
     const lots = Number(p.volume ?? 0);
     const entry = Number(p.price_open ?? 0);
 
@@ -854,7 +1205,6 @@ export default function TerminalPage() {
     setModSl(p.sl ? String(p.sl) : "");
     setModTp(p.tp ? String(p.tp) : "");
 
-    // ✅ IMPORTANT: charger le bon symbol_info pour ce ticket => chiffres OK
     ensureSymbolInfo(sym).then((info) => {
       if (info) setSymbolInfo(info);
     });
@@ -865,18 +1215,17 @@ export default function TerminalPage() {
   const modPxNow = useMemo(() => {
     const t = ticksMapLive?.[modSymbol];
     if (!t) return NaN;
-    const px = modType === 0 ? Number(t.bid) : Number(t.ask); // BUY -> bid, SELL -> ask
+    const px = modType === 0 ? Number(t.bid) : Number(t.ask);
     return Number.isFinite(px) ? px : NaN;
   }, [ticksMapLive, modSymbol, modType]);
 
-  // ✅ utiliser le symbolInfo correspondant au modSymbol si dispo
   const modInfo = useMemo(() => {
     const s = modSymbol.trim();
-    return (s && symbolInfoMap[s]) ? symbolInfoMap[s] : symbolInfo;
+    return s && symbolInfoMap[s] ? symbolInfoMap[s] : symbolInfo;
   }, [modSymbol, symbolInfoMap, symbolInfo]);
 
   const modLossUsd = useMemo(() => {
-    const sl = Number(modSl);
+    const sl = toNum(modSl);
     if (!Number.isFinite(sl) || sl <= 0) return null;
     if (!Number.isFinite(modEntry) || modEntry <= 0) return null;
     const mag = pnlBetweenUSD(modEntry, sl, modLots, modInfo ?? null);
@@ -885,7 +1234,7 @@ export default function TerminalPage() {
   }, [modSl, modEntry, modLots, modInfo]);
 
   const modGainUsd = useMemo(() => {
-    const tp = Number(modTp);
+    const tp = toNum(modTp);
     if (!Number.isFinite(tp) || tp <= 0) return null;
     if (!Number.isFinite(modEntry) || modEntry <= 0) return null;
     const mag = pnlBetweenUSD(modEntry, tp, modLots, modInfo ?? null);
@@ -912,8 +1261,8 @@ export default function TerminalPage() {
         login: selectedAccount.login,
         password: (selectedAccount as any).password ?? "",
         ticket: modTicket,
-        sl: modSl ? Number(modSl) : null,
-        tp: modTp ? Number(modTp) : null,
+        sl: modSl ? toNum(modSl) : null,
+        tp: modTp ? toNum(modTp) : null,
       });
 
       pushNotif({ kind: "success", title: "SL/TP modifiés", message: modSymbol, ttlMs: 7000 });
@@ -932,10 +1281,6 @@ export default function TerminalPage() {
     pushNotif({ kind: "be", title: "B/E", message: "SL mis au prix d’entrée", ttlMs: 5000 });
   }
 
-  // =========================
-  // MODAL: CLOSE (partiel + preview)
-  // =========================
-
   function openClosePosition(p: any) {
     const t = Number(p.ticket);
     const sym = String(p.symbol ?? "");
@@ -946,7 +1291,7 @@ export default function TerminalPage() {
     setCloseEntry(Number(p.price_open ?? 0) || 0);
     setCloseLotsTotal(Number(p.volume ?? 0) || 0);
     setCloseLots("");
-    // ✅ IMPORTANT: charger symbol_info du symbol du ticket => Preview PnL OK
+
     ensureSymbolInfo(sym).then((info) => {
       if (info) setSymbolInfo(info);
     });
@@ -955,14 +1300,14 @@ export default function TerminalPage() {
   }
 
   const closeLotsNum = useMemo(() => {
-    const v = Number(closeLots);
-    if (!closeLots.trim()) return closeLotsTotal; // vide = full
+    const v = toNum(closeLots);
+    if (!closeLots.trim()) return closeLotsTotal;
     return Number.isFinite(v) ? v : NaN;
   }, [closeLots, closeLotsTotal]);
 
   const closeTooHigh = useMemo(() => {
     if (!closeLots.trim()) return false;
-    const v = Number(closeLots);
+    const v = toNum(closeLots);
     return Number.isFinite(v) && v > closeLotsTotal;
   }, [closeLots, closeLotsTotal]);
 
@@ -975,7 +1320,7 @@ export default function TerminalPage() {
 
   const closeInfo = useMemo(() => {
     const s = closeSymbol.trim();
-    return (s && symbolInfoMap[s]) ? symbolInfoMap[s] : symbolInfo;
+    return s && symbolInfoMap[s] ? symbolInfoMap[s] : symbolInfo;
   }, [closeSymbol, symbolInfoMap, symbolInfo]);
 
   const closeEstPnl = useMemo(() => {
@@ -986,7 +1331,7 @@ export default function TerminalPage() {
     const mag = pnlBetweenUSD(closeEntry, closePxNow, closeLotsNum, closeInfo ?? null);
     if (mag == null) return null;
 
-    const signed = closeType === 0 ? (closePxNow - closeEntry) : (closeEntry - closePxNow);
+    const signed = closeType === 0 ? closePxNow - closeEntry : closeEntry - closePxNow;
     const sign = signed >= 0 ? 1 : -1;
     return sign * Math.abs(mag);
   }, [closeEntry, closePxNow, closeLotsNum, closeInfo, closeType]);
@@ -995,17 +1340,12 @@ export default function TerminalPage() {
     if (!selectedAccount || !closeTicket) return;
 
     if (closeTooHigh) {
-      pushNotif({
-        kind: "error",
-        title: "Volume invalide",
-        message: `Max = ${fmt2(closeLotsTotal)} lots`,
-        ttlMs: 9000,
-      });
+      pushNotif({ kind: "error", title: "Volume invalide", message: `Max = ${fmt2(closeLotsTotal)} lots`, ttlMs: 9000 });
       return;
     }
 
-    const v = closeLots.trim() ? Number(closeLots) : undefined;
-    if (closeLots.trim() && (!Number.isFinite(Number(closeLots)) || Number(closeLots) <= 0)) {
+    const v = closeLots.trim() ? toNum(closeLots) : undefined;
+    if (closeLots.trim() && (!Number.isFinite(toNum(closeLots)) || toNum(closeLots) <= 0)) {
       pushNotif({ kind: "error", title: "Volume invalide", message: "Entre un volume correct.", ttlMs: 8000 });
       return;
     }
@@ -1032,6 +1372,7 @@ export default function TerminalPage() {
       setOpenCloseModal(false);
       setCloseLots("");
       await refreshPositions();
+      await syncTodayHistory();
     } catch (e: any) {
       pushNotif({ kind: "error", title: "Erreur clôture", message: String(e?.message ?? e), ttlMs: 12000 });
     } finally {
@@ -1043,10 +1384,6 @@ export default function TerminalPage() {
     setCloseLots(fmt2(closeLotsTotal));
     pushNotif({ kind: "info", title: "Max", message: "Volume mis au max.", ttlMs: 5000 });
   }
-
-  // =========================
-  // BULK CLOSE / BULK CANCEL
-  // =========================
 
   async function confirmCloseAll() {
     if (!selectedAccount) return;
@@ -1069,6 +1406,7 @@ export default function TerminalPage() {
       setOpenCloseAll(false);
       pushNotif({ kind: "success", title: "Tout clôturé", message: `${positions.length} position(s)`, ttlMs: 9000 });
       await refreshPositions();
+      await syncTodayHistory();
     } catch (e: any) {
       pushNotif({ kind: "error", title: "Erreur", message: String(e?.message ?? e), ttlMs: 12000 });
     } finally {
@@ -1104,911 +1442,990 @@ export default function TerminalPage() {
     }
   }
 
+  /* =========================
+     UI click: accounts
+     ========================= */
+  function clickAccounts() {
+    setMsg(null);
+
+    if (!hasTradingTerminalAccess()) {
+      setGateReason("noPlan");
+      setOpenGateModal(true);
+      return;
+    }
+    if (connectedAccounts.length === 0) {
+      setGateReason("noAccounts");
+      setOpenGateModal(true);
+      return;
+    }
+    setOpenAccountsModal(true);
+  }
+
   // =========================
-  // RETURN (Partie 4)
+  // RETURN
   // =========================
+  return (
+    <>
+      <MaintenanceModal open={maintenanceTerminal} target="terminal" />
 
-    return (
-    <div className="space-y-6">
-      {/* Title */}
-      <div>
-        <h1 className="text-3xl font-semibold">
-          Terminal <span className="text-[color:var(--gold)]">de trading</span>
-        </h1>
-        <p className="text-[color:var(--muted)] mt-1">
-          Market: <span className="text-white/90">{marketStr}</span> • Ask:{" "}
-          <span className="text-white/90">{askStr}</span> • Spread:{" "}
-          <span className="text-white/90">{spreadStr}</span>
-        </p>
-      </div>
-
-      {/* HEADER */}
-      <Card>
-        <CardBody>
-          {/* Compte */}
-          <div className="w-full">
-            <div className="text-xs text-white/70 mb-1">Compte</div>
-            <button
-              type="button"
-              onClick={clickAccounts}
-              className="w-full h-11 px-4 rounded-2xl bg-black/20 border border-[color:var(--border)]
-                        text-white/90 flex items-center justify-between gap-3 hover:bg-white/5 transition"
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <span className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-                  🏦
-                </span>
-                <div className="text-sm text-white/80 truncate">
-                  {selectedAccount ? selectedAccount.label : "Choisir…"}
-                </div>
-              </div>
-              <span className="text-white/40">▾</span>
-            </button>
+      <div className={maintenanceTerminal ? "pointer-events-none select-none" : ""}>
+        <div className="space-y-6">
+          {/* Title */}
+          <div>
+            <h1 className="text-3xl font-semibold">
+              Terminal <span className="text-[color:var(--gold)]">de trading</span>
+            </h1>
+            <p className="text-[color:var(--muted)] mt-1">
+              Market: <span className="text-white/90">{marketStr}</span> • Ask:{" "}
+              <span className="text-white/90">{askStr}</span> • Spread:{" "}
+              <span className="text-white/90">{spreadStr}</span>
+            </p>
           </div>
 
-          {/* Row: catégorie / ordre / sens */}
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <GoldSelect
-              label="Catégorie"
-              value={category}
-              onChange={(v) => setCategory(v as SymbolCat)}
-              searchable={false}
-              maxMenuHeight={240}
-              options={[
-                { value: "all", label: "Tous" },
-                { value: "forex", label: "Forex" },
-                { value: "crypto", label: "Cryptomonnaie" },
-                { value: "indices", label: "Indices" },
-                { value: "metals", label: "Métaux" },
-                { value: "other", label: "Autres" },
-              ]}
+          {/* ✅ PDDL / PDPT */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <MiniProgress
+              label="PDDL"
+              left={`$${fmt(pddlUsed)}`}
+              right={`$${fmt(dailyLossMax || 0)}`}
+              valuePct={dailyLossMax ? pddlPct : 0}
             />
-
-            <GoldSelect
-              label="Ordre"
-              value={mode}
-              onChange={(v) => setMode(v as Mode3)}
-              searchable={false}
-              maxMenuHeight={200}
-              options={[
-                { value: "", label: "N/A" },
-                { value: "MARKET", label: "Market" },
-                { value: "LIMIT", label: "Limit" },
-                { value: "STOP_LIMIT", label: "Stop-Limit" },
-              ]}
-            />
-
-            <GoldSelect
-              label="Sens"
-              value={side}
-              onChange={(v) => setSide(v as Side)}
-              searchable={false}
-              maxMenuHeight={160}
-              options={[
-                { value: "NONE", label: "None" },
-                { value: "BUY", label: "BUY" },
-                { value: "SELL", label: "SELL" },
-              ]}
+            <MiniProgress
+              label="PDPT"
+              left={`$${fmt(pdptDone)}`}
+              right={`$${fmt(dailyProfitTarget || 0)}`}
+              valuePct={dailyProfitTarget ? pdptPct : 0}
             />
           </div>
 
-          {/* Symbol */}
-          <div className="mt-4 flex justify-center">
-            <div className="w-full md:w-[560px]">
-              <InputCompact
-                label={`Symbol ${symbolsLoaded ? `(${filteredSymbols.length})` : "(clique Sync)"}`}
-                value={symbol}
-                onChange={setSymbol}
-                placeholder="Ex: BTCUSD.pi"
-                listId="mt5-symbols"
-              />
-              <datalist id="mt5-symbols">
-                {filteredSymbols.map((s) => (
-                  <option key={s.name} value={s.name} />
-                ))}
-              </datalist>
-            </div>
-          </div>
-
-          {/* Buttons */}
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Button
-              onClick={placeAllOrdres}
-              disabled={busy || mode === "" || side === "NONE"}
-              className="w-full h-12 justify-center"
-            >
-              {busy ? "..." : "Envoyer"}
-            </Button>
-
-            <Button variant="secondary" onClick={syncAll} disabled={busy} className="w-full h-12 justify-center">
-              Sync
-            </Button>
-          </div>
-
-          {/* Progress */}
-          <div className="mt-5">
-            <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
-              <div
-                className="h-full rounded-full"
-                style={{
-                  width: `${progressPct}%`,
-                  background: "linear-gradient(90deg, #d6b35f, #f5e6a8, #d6b35f)",
-                  boxShadow: progressPct > 0 ? "0 0 14px rgba(214,179,95,.70)" : "none",
-                  transition: "width .35s ease, box-shadow .35s ease",
-                }}
-              />
-            </div>
-            <div className="mt-2 flex justify-between text-xs text-[color:var(--muted)]">
-              <span>{progressPct === 0 ? "En attente de configuration" : "Configuration en cours"}</span>
-              <span>{progressPct}%</span>
-            </div>
-          </div>
-
-          {msg ? (
-            <div className="mt-4 text-sm rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)] p-3">
-              {msg}
-            </div>
-          ) : null}
-        </CardBody>
-      </Card>
-
-      {/* Layout dashboard */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-        {/* LEFT */}
-        <div className="lg:col-span-8 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Position */}
-            <Card className="min-h-[320px]">
-              <CardBody className="p-5">
-                <div className="text-lg font-semibold">Réglages de votre position</div>
-
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {ordres.map((o) => (
-                    <button
-                      key={o.id}
-                      onClick={() => setOrdreActifId(o.id)}
-                      className={[
-                        "px-3 py-1.5 rounded-xl border text-sm transition",
-                        o.id === ordreActifId
-                          ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]"
-                          : "border-white/10 bg-black/20 text-white/70 hover:bg-white/5",
-                      ].join(" ")}
-                      title="Ordre actif"
-                      type="button"
-                    >
-                      Ordre {o.id} {o.enabled ? "" : "(off)"}
-                    </button>
-                  ))}
-
-                  <div className="ml-auto flex gap-2">
-                    <button
-                      onClick={addOrdre}
-                      className="px-3 py-1.5 rounded-xl border border-white/10 bg-black/20 hover:bg-white/5 transition text-sm"
-                      type="button"
-                    >
-                      + Ordre
-                    </button>
-                    <button
-                      onClick={removeOrdre}
-                      className="px-3 py-1.5 rounded-xl border border-white/10 bg-black/10 hover:bg-white/5 transition text-sm"
-                      type="button"
-                      disabled={ordres.length <= 1}
-                    >
-                      − Ordre
-                    </button>
-                  </div>
-                </div>
-
-                <div className="mt-4 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1">
-                      <InputCompact
-                        label={
-                          mode === "MARKET"
-                            ? `Entrée (Market • auto • ${side === "BUY" ? "Ask" : side === "SELL" ? "Bid" : "-"
-                              })`
-                            : `Entrée ${ordreActifId}`
+          {/* Discipline bar */}
+          <Card>
+            <CardBody>
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="px-3 py-2 rounded-2xl border border-[color:var(--border)] bg-black/20">
+                      <div className="text-[10px] text-white/50 uppercase tracking-wide">Gain du jour</div>
+                      <div
+                        className={
+                          realizedToday >= 0
+                            ? "text-[color:var(--success)] font-semibold"
+                            : "text-[color:var(--danger)] font-semibold"
                         }
-                        value={ordreActif.entry}
-                        onChange={mode === "MARKET" ? undefined : (v) => setOrdreField(ordreActifId, "entry", v)}
-                        readOnly={mode === "MARKET"}
-                        placeholder="Ex: 91000.00"
-                      />
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => toggleOrdre(ordreActifId)}
-                      className={[
-                        "h-9 px-3 rounded-xl border text-sm transition",
-                        ordreActif.enabled
-                          ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]"
-                          : "border-white/10 bg-black/20 text-white/60 hover:bg-white/5",
-                      ].join(" ")}
-                    >
-                      {ordreActif.enabled ? "ON" : "OFF"}
-                    </button>
-                  </div>
-
-                  <InputCompact
-                    label={`Stop Loss ${ordreActifId}`}
-                    value={ordreActif.sl}
-                    onChange={(v) => setOrdreField(ordreActifId, "sl", v)}
-                    placeholder="Ex: 90000.00"
-                  />
-
-                  <InputCompact
-                    label={`Take Profit ${ordreActifId}`}
-                    value={ordreActif.tp}
-                    onChange={(v) => setOrdreField(ordreActifId, "tp", v)}
-                    placeholder="Ex: 101000.00"
-                  />
-
-                  {needsStop ? (
-                    <InputCompact
-                      label="Stop (trigger) • Stop-Limit"
-                      value={stopPrice}
-                      onChange={setStopPrice}
-                      placeholder="Ex: 91500.00"
-                    />
-                  ) : null}
-
-                  {(() => {
-                    const entry = Number(ordreActif.entry);
-                    const sl = Number(ordreActif.sl);
-                    const tp = Number(ordreActif.tp);
-                    const v = validateLevels(side, entry, sl, tp);
-                    if (v.ok) return null;
-                    return (
-                      <div className="text-sm rounded-2xl border border-[color:var(--danger)]/25 bg-[color:var(--danger)]/10 text-[color:var(--danger)] p-3">
-                        {v.error}
+                      >
+                        {fmt(realizedToday)} $
                       </div>
-                    );
-                  })()}
-
-                  <div className="text-xs text-[color:var(--muted)]">* Ordre B/C = position différente.</div>
-                </div>
-              </CardBody>
-            </Card>
-
-            {/* Risk */}
-            <Card className="min-h-[320px]">
-              <CardBody className="p-5">
-                <div className="text-lg font-semibold">Réglages de votre risque</div>
-
-                <div className="mt-4 space-y-3">
-                  <InputCompact label="Risque (%)" value={riskPct} onChange={onChangeRiskPct} placeholder="1.00" />
-                  <InputCompact label="Risque (USD)" value={riskUsd} onChange={onChangeRiskUsd} placeholder="100" />
-                  <InputCompact label="Capital (USD)" value={capitalUsd} readOnly />
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <InputCompact
-                      label="Commission estimée (USD/lot)"
-                      value={commissionPerLot}
-                      onChange={setCommissionPerLot}
-                      placeholder="ex: 7"
-                    />
-                    <div className="rounded-xl border border-white/10 bg-black/20 p-3 text-sm">
-                      <div className="text-xs text-white/60 mb-1">Risque / Ordre</div>
-                      <div className="text-white font-semibold">{fmt(riskMoneyPerOrdre)} USD</div>
-                      <div className="text-[11px] text-white/40 mt-1">({ordresON.length} ordre(s) ON)</div>
                     </div>
+
+                    <div className="px-3 py-2 rounded-2xl border border-[color:var(--border)] bg-black/20">
+                      <div className="text-[10px] text-white/50 uppercase tracking-wide">Gain en cours</div>
+                      <div
+                        className={
+                          unrealizedNow >= 0
+                            ? "text-[color:var(--success)] font-semibold"
+                            : "text-[color:var(--danger)] font-semibold"
+                        }
+                      >
+                        {fmt(unrealizedNow)} $
+                      </div>
+                    </div>
+
+                    {locked ? (
+                      <div className="px-3 py-2 rounded-2xl border border-rose-500/25 bg-rose-500/10">
+                        <div className="text-[10px] text-rose-200/70 uppercase tracking-wide flex items-center gap-2">
+                          <Lock size={12} /> Compte bloqué
+                        </div>
+                        <div className="text-sm font-semibold text-rose-200">{fmtCountdown(lockRemaining)}</div>
+                      </div>
+                    ) : null}
                   </div>
 
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setDeductCommission(true)}
-                      className={[
-                        "px-4 h-9 rounded-2xl border transition text-sm",
-                        deductCommission
-                          ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]"
-                          : "border-white/10 bg-black/20 text-white/70 hover:bg-white/5",
-                      ].join(" ")}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant={locked ? "danger" : "secondary"}
+                      onClick={() => (locked ? unlockTrading() : setOpenLockModal(true))}
                     >
-                      Déduire commissions: Oui
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDeductCommission(false)}
-                      className={[
-                        "px-4 h-9 rounded-2xl border transition text-sm",
-                        !deductCommission
-                          ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]"
-                          : "border-white/10 bg-black/20 text-white/70 hover:bg-white/5",
-                      ].join(" ")}
-                    >
-                      Non
-                    </button>
-                  </div>
-
-                  <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-white/60">Lots (Ordre {ordreActifId})</span>
-                      <span className="font-semibold text-[color:var(--gold)]">
-                        {lotsActif.reason === "ok" ? lotsActif.lots.toFixed(2) : "N/A"}
-                      </span>
-                    </div>
-
-                    <div className="flex justify-between text-sm mt-2">
-                      <span className="text-white/60">R:R estimé</span>
-                      <span className="text-white font-semibold">{rrActif > 0 ? rrActif.toFixed(2) : "N/A"}</span>
-                    </div>
-
-                    <div className="mt-2 text-xs text-[color:var(--muted)]">
-                      Market: <span className="text-white/80">{marketStr}</span> • Ask:{" "}
-                      <span className="text-white/80">{askStr}</span> • Spread:{" "}
-                      <span className="text-white/80">{spreadStr}</span>
-                    </div>
+                      {locked ? "Débloquer" : "Bloquer"}
+                    </Button>
                   </div>
                 </div>
-              </CardBody>
-            </Card>
-          </div>
 
-          {/* Résumé */}
-          <Card className="min-h-[220px]">
-            <CardBody className="p-5">
-              <div className="text-lg font-semibold mb-3">Résumé</div>
-
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-                <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-                  <div className="text-xs text-white/60">Ordres ON</div>
-                  <div className="mt-1 font-semibold text-white">{ordresON.length}</div>
-                </div>
-
-                <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-                  <div className="text-xs text-white/60">Risque total</div>
-                  <div className="mt-1 font-semibold text-[color:var(--gold)]">{fmt(riskMoneyTotal)} USD</div>
-                </div>
-
-                <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-                  <div className="text-xs text-white/60">Actif</div>
-                  <div className="mt-1 font-semibold text-white">Ordre {ordreActifId}</div>
-                </div>
-
-                <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-                  <div className="text-xs text-white/60">Market</div>
-                  <div className="mt-1 font-semibold text-white">{marketStr}</div>
-                </div>
-
-                <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-                  <div className="text-xs text-white/60">Reward (actif)</div>
-                  <div className="mt-1 font-semibold text-[color:var(--success)]">
-                    {expRewardActif > 0 ? `${fmt(expRewardActif)} USD` : "0.00 USD"}
+                {ruleAlerts.length ? (
+                  <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 p-3">
+                    <div className="flex items-center gap-2 text-amber-200 text-sm font-semibold">
+                      <ShieldAlert size={16} />
+                      Discipline
+                    </div>
+                    <div className="mt-2 space-y-1 text-sm text-amber-100/90">
+                      {ruleAlerts.map((x, i) => (
+                        <div key={i}>{x}</div>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                ) : null}
               </div>
             </CardBody>
           </Card>
-        </div>
 
-        {/* RIGHT: TradingView */}
-        <Card className="lg:col-span-4 min-h-[560px]">
-          <CardBody className="p-5">
-            <div className="text-lg font-semibold mb-3">Graphique TradingView</div>
-            <div className="text-xs text-[color:var(--muted)] mb-3">
-              Widget officiel TradingView (vrai chart). Symbol TV: {symbol ? symbol : "BTCUSD"}
-            </div>
+          <LockModal open={openLockModal} onClose={() => setOpenLockModal(false)} />
 
-            <div className="rounded-2xl border border-white/10 overflow-hidden bg-black/20">
-              <iframe
-                title="TradingView"
-                src={(() => {
-                  const tvSymbol = symbol?.trim() || "BTCUSD";
-                  const params = new URLSearchParams({
-                    symbol: tvSymbol,
-                    interval: "15",
-                    hideideas: "1",
-                    theme: "dark",
-                    style: "1",
-                    locale: "fr",
-                    toolbarbg: "rgba(0,0,0,0)",
-                    enable_publishing: "0",
-                    hide_side_toolbar: "0",
-                    allow_symbol_change: "1",
-                    saveimage: "0",
-                    calendar: "1",
-                  });
-                  return `https://s.tradingview.com/widgetembed/?${params.toString()}`;
-                })()}
-                className="w-full"
-                style={{ height: 700, border: 0 }}
-                loading="lazy"
-                allowFullScreen
-              />
-            </div>
-
-            <div className="mt-3 text-xs text-[color:var(--muted)] flex justify-between">
-              <span>Market: {marketStr}</span>
-              <span>Ask: {askStr}</span>
-              <span>Spread: {spreadStr}</span>
-            </div>
-          </CardBody>
-        </Card>
-      </div>
-
-      {/* Tables toggles */}
-      <div className="flex flex-wrap gap-2 items-center">
-        <button
-          onClick={() => setShowPositions((v) => !v)}
-          className={[
-            "px-4 py-2 rounded-2xl border transition text-sm",
-            showPositions
-              ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]"
-              : "border-[color:var(--border)] bg-black/20 text-white/70 hover:bg-white/5",
-          ].join(" ")}
-          type="button"
-        >
-          Positions ouvertes
-        </button>
-
-        <button
-          onClick={() => setShowOrders((v) => !v)}
-          className={[
-            "px-4 py-2 rounded-2xl border transition text-sm",
-            showOrders
-              ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]"
-              : "border-[color:var(--border)] bg-black/20 text-white/70 hover:bg-white/5",
-          ].join(" ")}
-          type="button"
-        >
-          Ordres en attente
-        </button>
-
-        <div className="ml-auto flex gap-2">
-          <Button variant="secondary" onClick={() => refreshPositions().catch(() => {})} disabled={busy}>
-            Refresh Positions
-          </Button>
-          <Button variant="secondary" onClick={() => refreshOrders().catch(() => {})} disabled={busy}>
-            Refresh Pending
-          </Button>
-        </div>
-      </div>
-
-      {/* Positions */}
-      {showPositions ? (
-        <Card>
-          <CardBody>
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-              <div>
-                <div className="text-lg font-semibold">Positions ouvertes</div>
-                <div className="text-xs text-[color:var(--muted)] mt-1">
-                  PnL total:{" "}
-                  <span
-                    className={
-                      totalPnl >= 0
-                        ? "text-[color:var(--success)] font-semibold"
-                        : "text-[color:var(--danger)] font-semibold"
-                    }
-                  >
-                    {totalPnlStr} $
-                  </span>
-                </div>
-              </div>
-
-              <Button variant="danger" onClick={() => setOpenCloseAll(true)} disabled={busy || positions.length === 0}>
-                Tout clôturer
-              </Button>
-            </div>
-
-            <div className="mt-4 overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="text-white/70">
-                  <tr className="border-b border-white/10">
-                    <th className="text-left py-3">Ticket</th>
-                    <th className="text-left py-3">Symbol</th>
-                    <th className="text-left py-3">Type</th>
-                    <th className="text-left py-3">Lots</th>
-                    <th className="text-left py-3">Entry</th>
-                    <th className="text-left py-3">Prix actuel</th>
-                    <th className="text-left py-3">SL</th>
-                    <th className="text-left py-3">TP</th>
-                    <th className="text-left py-3">Profit</th>
-                    <th className="text-left py-3"></th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {positions.length === 0 ? (
-                    <tr>
-                      <td colSpan={10} className="py-10 text-center text-[color:var(--muted)]">
-                        Aucune position ouverte.
-                      </td>
-                    </tr>
-                  ) : (
-                    positions.map((p) => {
-                      const sym = String(p.symbol ?? "");
-                      const t = ticksMapLive[sym];
-                      const isBuy = Number(p.type) === 0;
-                      const pxNow = t ? (isBuy ? t.bid : t.ask) : NaN;
-
-                      return (
-                        <tr key={p.ticket} className="border-b border-white/5">
-                          <td className="py-3">{p.ticket}</td>
-                          <td className="py-3">{p.symbol}</td>
-                          <td className="py-3">{orderTypeLabel(Number(p.type))}</td>
-                          <td className="py-3">{p.volume}</td>
-                          <td className="py-3">{p.price_open}</td>
-                          <td className="py-3">{Number.isFinite(pxNow) ? fmt2(pxNow) : "—"}</td>
-                          <td className="py-3">{p.sl}</td>
-                          <td className="py-3">{p.tp}</td>
-                          <td
-                            className={
-                              Number(p.profit ?? 0) >= 0
-                                ? "py-3 text-[color:var(--success)]"
-                                : "py-3 text-[color:var(--danger)]"
-                            }
-                          >
-                            {fmt(Number(p.profit ?? 0))}
-                          </td>
-                          <td className="py-3 flex gap-2">
-                            <Button variant="secondary" onClick={() => openModifyPosition(p)} disabled={busy}>
-                              Modifier
-                            </Button>
-                            <Button variant="danger" onClick={() => openClosePosition(p)} disabled={busy}>
-                              Clôturer
-                            </Button>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </CardBody>
-        </Card>
-      ) : null}
-
-      {/* Pending */}
-      {showOrders ? (
-        <Card>
-          <CardBody>
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-              <div>
-                <div className="text-lg font-semibold">Ordres en attente</div>
-              </div>
-
-              <Button variant="secondary" onClick={() => setOpenCancelAll(true)} disabled={busy || orders.length === 0}>
-                Tout annuler
-              </Button>
-            </div>
-
-            <div className="mt-4 overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="text-white/70">
-                  <tr className="border-b border-white/10">
-                    <th className="text-left py-3">Order</th>
-                    <th className="text-left py-3">Symbol</th>
-                    <th className="text-left py-3">Type</th>
-                    <th className="text-left py-3">Volume</th>
-                    <th className="text-left py-3">Prix</th>
-                    <th className="text-left py-3">Prix actuel</th>
-                    <th className="text-left py-3">SL</th>
-                    <th className="text-left py-3">TP</th>
-                    <th className="text-left py-3">Comment</th>
-                    <th className="text-left py-3"></th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {orders.length === 0 ? (
-                    <tr>
-                      <td colSpan={10} className="py-10 text-center text-[color:var(--muted)]">
-                        Aucun ordre en attente.
-                      </td>
-                    </tr>
-                  ) : (
-                    orders.map((o) => {
-                      const t = ticksMapLive[String(o.symbol)];
-                      const cur = t ? `${fmt2(t.bid)} / ${fmt2(t.ask)}` : "—";
-
-                      return (
-                        <tr key={o.ticket} className="border-b border-white/5">
-                          <td className="py-3">{o.ticket}</td>
-                          <td className="py-3">{o.symbol}</td>
-                          <td className="py-3">{pendingTypeLabel(Number(o.type))}</td>
-                          <td className="py-3">{o.volume_current}</td>
-                          <td className="py-3">{o.price_open}</td>
-                          <td className="py-3">{cur}</td>
-                          <td className="py-3">{o.sl}</td>
-                          <td className="py-3">{o.tp}</td>
-                          <td className="py-3 text-white/60">{o.comment}</td>
-                          <td className="py-3">
-                            <Button variant="danger" onClick={() => cancelPending(Number(o.ticket))} disabled={busy}>
-                              Annuler
-                            </Button>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </CardBody>
-        </Card>
-      ) : null}
-
-      {/* Accounts modal */}
-      <Modal
-        open={openAccountsModal}
-        title="Choisir le compte MT5"
-        onClose={() => setOpenAccountsModal(false)}
-        footer={
-          <div className="flex items-center justify-end gap-3 w-full">
-            <Button variant="secondary" onClick={() => setOpenAccountsModal(false)}>
-              Fermer
-            </Button>
-          </div>
-        }
-      >
-        <div className="space-y-2">
-          {connectedAccounts.map((a) => {
-            const active = a.id === selectedId;
-            return (
-              <button
-                key={a.id}
-                onClick={() => {
-                  setSelectedId(a.id);
-                  setOpenAccountsModal(false);
-                }}
-                className={[
-                  "w-full text-left px-4 py-3 rounded-2xl border transition flex items-center justify-between gap-3",
-                  active
-                    ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-white"
-                    : "border-white/10 bg-black/20 text-white/80 hover:bg-white/5",
-                ].join(" ")}
-                type="button"
-              >
-                <div>
-                  <div className="font-semibold">{a.label}</div>
-                  <div className="text-xs text-white/50">
-                    {a.broker} • {a.server}
-                  </div>
-                </div>
-                <div className="text-lg">{active ? "✅" : "⬜"}</div>
-              </button>
-            );
-          })}
-        </div>
-      </Modal>
-
-      {/* Modify modal */}
-      <Modal
-        open={openModify}
-        title={`Modifier SL/TP • Ticket ${modTicket ?? ""}`}
-        onClose={() => setOpenModify(false)}
-        footer={
-          <div className="flex items-center justify-between gap-3 w-full">
-            <div className="flex gap-2">
-              <Button variant="secondary" onClick={setBreakEven} disabled={!Number.isFinite(modEntry) || modEntry <= 0}>
-                B/E
-              </Button>
-
-              <div className="hidden sm:flex items-center px-3 py-2 rounded-2xl border border-white/10 bg-black/20 text-xs text-white/70">
-                Entry: <span className="ml-1 text-white/90">{Number.isFinite(modEntry) ? fmt2(modEntry) : "—"}</span>
-                <span className="mx-2 text-white/20">•</span>
-                Now: <span className="ml-1 text-white/90">{Number.isFinite(modPxNow) ? fmt2(modPxNow) : "—"}</span>
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <Button variant="ghost" onClick={() => setOpenModify(false)}>
-                Annuler
-              </Button>
-              <Button onClick={saveModify} disabled={busy}>
-                {busy ? "..." : "Enregistrer"}
-              </Button>
-            </div>
-          </div>
-        }
-      >
-        <div className="space-y-4">
-          <div className="text-sm text-[color:var(--muted)]">
-            {modSymbol} • Lots:{" "}
-            <span className="text-[color:var(--gold)] font-semibold">{Number.isFinite(modLots) ? fmt2(modLots) : "—"}</span>{" "}
-            • Type: <span className="text-white/90 font-semibold">{modType === 0 ? "BUY" : "SELL"}</span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <InputCompact label="Stop Loss (prix)" value={modSl} onChange={setModSl} placeholder="Ex: 90000.00" />
-            <InputCompact label="Take Profit (prix)" value={modTp} onChange={setModTp} placeholder="Ex: 101000.00" />
-          </div>
-
-          <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-                <div className="text-xs text-white/60">Perte au SL (est.)</div>
-                <div className="mt-1 font-semibold text-[color:var(--danger)]">
-                  {modLossUsd == null ? "—" : `${fmt(modLossUsd)} $`}
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-                <div className="text-xs text-white/60">Gain au TP (est.)</div>
-                <div className="mt-1 font-semibold text-[color:var(--success)]">
-                  {modGainUsd == null ? "—" : `${fmt(modGainUsd)} $`}
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-                <div className="text-xs text-white/60">R:R</div>
-                <div className="mt-1 font-semibold text-[color:var(--gold)]">{modRR == null ? "—" : modRR.toFixed(2)}</div>
-              </div>
-            </div>
-
-            <div className="mt-3 text-xs text-[color:var(--muted)]">
-              * Les estimations utilisent <b>tick_value/tick_size</b> (symbol_info) et la distance Entry→SL/TP.
-            </div>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Close modal */}
-      <Modal
-        open={openCloseModal}
-        title={`Clôturer • Ticket ${closeTicket ?? ""}`}
-        onClose={() => setOpenCloseModal(false)}
-        footer={
-          <div className="flex items-center justify-between gap-3 w-full">
-            <div className="text-xs text-white/60">
-              Lots total:{" "}
-              <span className="text-[color:var(--gold)] font-semibold">
-                {Number.isFinite(closeLotsTotal) ? fmt2(closeLotsTotal) : "—"}
-              </span>
-            </div>
-
-            <div className="flex gap-3">
-              <Button variant="ghost" onClick={() => setOpenCloseModal(false)}>
-                Annuler
-              </Button>
-              <Button variant="danger" onClick={confirmClosePartial} disabled={busy}>
-                {busy ? "..." : "Clôturer"}
-              </Button>
-            </div>
-          </div>
-        }
-      >
-        <div className="space-y-4">
-          <div className="text-sm text-[color:var(--muted)]">
-            {closeSymbol} • {closeType === 0 ? "BUY" : "SELL"} • Entry{" "}
-            <span className="text-white/90">{Number.isFinite(closeEntry) ? fmt2(closeEntry) : "—"}</span>
-            {"  "}• Now{" "}
-            <span className="text-white/90">{Number.isFinite(closePxNow) ? fmt2(closePxNow) : "—"}</span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <InputCompact
-              label="Lots à clôturer (vide = tout)"
-              value={closeLots}
-              onChange={setCloseLots}
-              placeholder={fmt2(closeLotsTotal)}
-            />
-
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-              <div className="flex items-center justify-between">
-                <div className="text-xs text-white/60">Prévisualisation PnL (est.)</div>
-                <div
-                  className={[
-                    "text-sm font-semibold",
-                    closeEstPnl == null
-                      ? "text-white/70"
-                      : closeEstPnl >= 0
-                      ? "text-[color:var(--success)]"
-                      : "text-[color:var(--danger)]",
-                  ].join(" ")}
+          {/* HEADER */}
+          <Card>
+            <CardBody>
+              {/* Compte */}
+              <div className="w-full">
+                <div className="text-xs text-white/70 mb-1">Compte</div>
+                <button
+                  type="button"
+                  onClick={clickAccounts}
+                  className="w-full h-11 px-4 rounded-2xl bg-black/20 border border-[color:var(--border)]
+                        text-white/90 flex items-center justify-between gap-3 hover:bg-white/5 transition"
                 >
-                  {closeEstPnl == null ? "—" : `${fmt(closeEstPnl)} $`}
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+                      🏦
+                    </span>
+                    <div className="text-sm text-white/80 truncate">
+                      {selectedAccount ? selectedAccount.label : "Choisir…"}
+                    </div>
+                  </div>
+                  <span className="text-white/40">▾</span>
+                </button>
+              </div>
+
+              {/* ✅ GOLDSELECT : catégorie / ordre / sens */}
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <GoldSelect
+                  value={category}
+                  onChange={(v) => setCategory(v as SymbolCat)}
+                  options={[
+                    { value: "all", label: "Tous" },
+                    { value: "forex", label: "Forex" },
+                    { value: "crypto", label: "Cryptomonnaie" },
+                    { value: "indices", label: "Indices" },
+                    { value: "metals", label: "Métaux" },
+                    { value: "other", label: "Autres" },
+                  ]}
+                />
+
+                <GoldSelect
+                  value={mode}
+                  onChange={(v) => setMode(v as Mode3)}
+                  options={[
+                    { value: "", label: "N/A" },
+                    { value: "MARKET", label: "Market" },
+                    { value: "LIMIT", label: "Limit" },
+                    { value: "STOP_LIMIT", label: "Stop-Limit" },
+                  ]}
+                />
+
+                <GoldSelect
+                  value={side}
+                  onChange={(v) => setSide(v as Side)}
+                  options={[
+                    { value: "NONE", label: "None" },
+                    { value: "BUY", label: "BUY" },
+                    { value: "SELL", label: "SELL" },
+                  ]}
+                />
+              </div>
+
+              {/* Symbol */}
+              <div className="mt-4 flex justify-center">
+                <div className="w-full md:w-[560px]">
+                  <InputCompact
+                    label={`Symbol ${symbolsLoaded ? `(${filteredSymbols.length})` : "(clique Sync)"}`}
+                    value={symbol}
+                    onChange={setSymbol}
+                    placeholder="Ex: BTCUSD.pi"
+                    listId="mt5-symbols"
+                  />
+                  <datalist id="mt5-symbols">
+                    {filteredSymbols.map((s) => (
+                      <option key={s.name} value={s.name} />
+                    ))}
+                  </datalist>
                 </div>
               </div>
-              <div className="mt-2 text-[11px] text-white/40">
-                * Estimation sur la base du prix actuel et du lot saisi.
-              </div>
-            </div>
-          </div>
 
-          {closeTooHigh ? (
-            <div className="text-sm rounded-2xl border border-[color:var(--danger)]/25 bg-[color:var(--danger)]/10 text-[color:var(--danger)] p-3">
-              Volume trop élevé. Max = <b>{fmt2(closeLotsTotal)}</b> lots.
-              <div className="mt-2">
-                <Button variant="secondary" onClick={fillMaxCloseLots}>
-                  Mettre le max
+              {/* Buttons */}
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Button onClick={placeAllOrdres} disabled={busy || mode === "" || side === "NONE"} className="w-full h-12 justify-center">
+                  {busy ? "..." : locked ? "Bloqué" : "Envoyer"}
+                </Button>
+
+                <Button variant="secondary" onClick={syncAll} disabled={busy} className="w-full h-12 justify-center">
+                  Sync
                 </Button>
               </div>
-            </div>
-          ) : (
-            <div className="flex items-center justify-between">
-              <Button
-                variant="secondary"
-                onClick={fillMaxCloseLots}
-                disabled={!Number.isFinite(closeLotsTotal) || closeLotsTotal <= 0}
-              >
-                Max
-              </Button>
 
-              <div className="text-xs text-white/40">
-                Si tu mets un lot, ça fera une <b>clôture partielle</b>.
+              {/* Progress */}
+              <div className="mt-5">
+                <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${progressPct}%`,
+                      background: "linear-gradient(90deg, #d6b35f, #f5e6a8, #d6b35f)",
+                      boxShadow: progressPct > 0 ? "0 0 14px rgba(214,179,95,.70)" : "none",
+                      transition: "width .35s ease, box-shadow .35s ease",
+                    }}
+                  />
+                </div>
+                <div className="mt-2 flex justify-between text-xs text-[color:var(--muted)]">
+                  <span>{progressPct === 0 ? "En attente de configuration" : "Configuration en cours"}</span>
+                  <span>{progressPct}%</span>
+                </div>
+              </div>
+
+              {msg ? (
+                <div className="mt-4 text-sm rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)] p-3">
+                  {msg}
+                </div>
+              ) : null}
+            </CardBody>
+          </Card>
+
+          {/* Layout dashboard */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+            {/* LEFT */}
+            <div className="lg:col-span-8 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Position */}
+                <Card className="min-h-[320px]">
+                  <CardBody className="p-5">
+                    <div className="text-lg font-semibold">Réglages de votre position</div>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {ordres.map((o) => (
+                        <button
+                          key={o.id}
+                          onClick={() => setOrdreActifId(o.id)}
+                          className={[
+                            "px-3 py-1.5 rounded-xl border text-sm transition",
+                            o.id === ordreActifId
+                              ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]"
+                              : "border-white/10 bg-black/20 text-white/70 hover:bg-white/5",
+                          ].join(" ")}
+                          type="button"
+                        >
+                          Ordre {o.id} {o.enabled ? "" : "(off)"}
+                        </button>
+                      ))}
+
+                      <div className="ml-auto flex gap-2">
+                        <button
+                          onClick={addOrdre}
+                          className="px-3 py-1.5 rounded-xl border border-white/10 bg-black/20 hover:bg-white/5 transition text-sm"
+                          type="button"
+                        >
+                          + Ordre
+                        </button>
+                        <button
+                          onClick={removeOrdre}
+                          className="px-3 py-1.5 rounded-xl border border-white/10 bg-black/10 hover:bg-white/5 transition text-sm"
+                          type="button"
+                          disabled={ordres.length <= 1}
+                        >
+                          − Ordre
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1">
+                          <InputCompact
+                            label={
+                              mode === "MARKET"
+                                ? `Entrée (Market • auto • ${side === "BUY" ? "Ask" : side === "SELL" ? "Bid" : "-"})`
+                                : `Entrée ${ordreActifId}`
+                            }
+                            value={ordreActif.entry}
+                            onChange={mode === "MARKET" ? undefined : (v) => setOrdreField(ordreActifId, "entry", v)}
+                            readOnly={mode === "MARKET"}
+                            placeholder="Ex: 91000.00"
+                          />
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => toggleOrdre(ordreActifId)}
+                          className={[
+                            "h-9 px-3 rounded-xl border text-sm transition",
+                            ordreActif.enabled
+                              ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]"
+                              : "border-white/10 bg-black/20 text-white/60 hover:bg-white/5",
+                          ].join(" ")}
+                        >
+                          {ordreActif.enabled ? "ON" : "OFF"}
+                        </button>
+                      </div>
+
+                      <InputCompact
+                        label={`Stop Loss ${ordreActifId}`}
+                        value={ordreActif.sl}
+                        onChange={(v) => setOrdreField(ordreActifId, "sl", v)}
+                        placeholder="Ex: 90000.00"
+                      />
+
+                      <InputCompact
+                        label={`Take Profit ${ordreActifId}`}
+                        value={ordreActif.tp}
+                        onChange={(v) => setOrdreField(ordreActifId, "tp", v)}
+                        placeholder="Ex: 101000.00"
+                      />
+
+                      {needsStop ? (
+                        <InputCompact
+                          label="Stop (trigger) • Stop-Limit"
+                          value={stopPrice}
+                          onChange={setStopPrice}
+                          placeholder="Ex: 91500.00"
+                        />
+                      ) : null}
+
+                      {(() => {
+                        const entry = toNum(ordreActif.entry);
+                        const sl = toNum(ordreActif.sl);
+                        const tp = toNum(ordreActif.tp);
+                        const v = validateLevels(side, entry, sl, tp);
+                        if (v.ok) return null;
+                        return (
+                          <div className="text-sm rounded-2xl border border-[color:var(--danger)]/25 bg-[color:var(--danger)]/10 text-[color:var(--danger)] p-3">
+                            {v.error}
+                          </div>
+                        );
+                      })()}
+
+                      <div className="text-xs text-[color:var(--muted)]">* Ordre B/C = position différente.</div>
+                    </div>
+                  </CardBody>
+                </Card>
+
+                {/* Risk */}
+                <Card className="min-h-[320px]">
+                  <CardBody className="p-5">
+                    <div className="text-lg font-semibold">Réglages de votre risque</div>
+
+                    <div className="mt-4 space-y-3">
+                      <InputCompact
+                        label="Risque (%) (0.01 → 100)"
+                        value={riskPct}
+                        onChange={onChangeRiskPct}
+                        onBlur={onBlurRiskPct}
+                        placeholder="1.00"
+                      />
+                      <InputCompact
+                        label="Risque (USD)"
+                        value={riskUsd}
+                        onChange={onChangeRiskUsd}
+                        onBlur={onBlurRiskUsd}
+                        placeholder="100"
+                      />
+                      <InputCompact label="Capital (USD)" value={capitalUsd} readOnly />
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <InputCompact
+                          label="Commission estimée (USD/lot)"
+                          value={commissionPerLot}
+                          onChange={setCommissionPerLot}
+                          placeholder="ex: 7"
+                        />
+                        <div className="rounded-xl border border-white/10 bg-black/20 p-3 text-sm">
+                          <div className="text-xs text-white/60 mb-1">Risque / Ordre</div>
+                          <div className="text-white font-semibold">{fmt(riskMoneyPerOrdre)} USD</div>
+                          <div className="text-[11px] text-white/40 mt-1">({ordresON.length} ordre(s) ON)</div>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setDeductCommission(true)}
+                          className={[
+                            "px-4 h-9 rounded-2xl border transition text-sm",
+                            deductCommission
+                              ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]"
+                              : "border-white/10 bg-black/20 text-white/70 hover:bg-white/5",
+                          ].join(" ")}
+                        >
+                          Déduire commissions: Oui
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeductCommission(false)}
+                          className={[
+                            "px-4 h-9 rounded-2xl border transition text-sm",
+                            !deductCommission
+                              ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]"
+                              : "border-white/10 bg-black/20 text-white/70 hover:bg-white/5",
+                          ].join(" ")}
+                        >
+                          Non
+                        </button>
+                      </div>
+
+                      <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-white/60">Lots (Ordre {ordreActifId})</span>
+                          <span className="font-semibold text-[color:var(--gold)]">
+                            {lotsActif.reason === "ok" ? lotsActif.lots.toFixed(2) : "N/A"}
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between text-sm mt-2">
+                          <span className="text-white/60">R:R estimé</span>
+                          <span className="text-white font-semibold">{rrActif > 0 ? rrActif.toFixed(2) : "N/A"}</span>
+                        </div>
+
+                        <div className="mt-2 text-xs text-[color:var(--muted)]">
+                          Market: <span className="text-white/80">{marketStr}</span> • Ask:{" "}
+                          <span className="text-white/80">{askStr}</span> • Spread:{" "}
+                          <span className="text-white/80">{spreadStr}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardBody>
+                </Card>
+              </div>
+
+              {/* Résumé */}
+              <Card className="min-h-[220px]">
+                <CardBody className="p-5">
+                  <div className="text-lg font-semibold mb-3">Résumé</div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                    <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                      <div className="text-xs text-white/60">Ordres ON</div>
+                      <div className="mt-1 font-semibold text-white">{ordresON.length}</div>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                      <div className="text-xs text-white/60">Risque total</div>
+                      <div className="mt-1 font-semibold text-[color:var(--gold)]">{fmt(riskMoneyTotal)} USD</div>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                      <div className="text-xs text-white/60">Actif</div>
+                      <div className="mt-1 font-semibold text-white">Ordre {ordreActifId}</div>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                      <div className="text-xs text-white/60">Market</div>
+                      <div className="mt-1 font-semibold text-white">{marketStr}</div>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                      <div className="text-xs text-white/60">Reward (actif)</div>
+                      <div className="mt-1 font-semibold text-[color:var(--success)]">
+                        {expRewardActif > 0 ? `${fmt(expRewardActif)} USD` : "0.00 USD"}
+                      </div>
+                    </div>
+                  </div>
+                </CardBody>
+              </Card>
+            </div>
+
+            {/* RIGHT: TradingView */}
+            <Card className="lg:col-span-4 min-h-[560px]">
+              <CardBody className="p-5">
+                <div className="text-lg font-semibold mb-3">Graphique TradingView</div>
+                <div className="text-xs text-[color:var(--muted)] mb-3">
+                  TradingView API (tv.js) • Symbol: {symbol ? symbol : "BTCUSD"}
+                </div>
+
+                <div className="rounded-2xl border border-white/10 overflow-hidden bg-black/20">
+                  <TradingViewApiChart symbol={symbol?.trim() || "BTCUSD"} />
+                </div>
+
+                <div className="mt-3 text-xs text-[color:var(--muted)] flex justify-between">
+                  <span>Market: {marketStr}</span>
+                  <span>Ask: {askStr}</span>
+                  <span>Spread: {spreadStr}</span>
+                </div>
+              </CardBody>
+            </Card>
+          </div>
+
+          {/* Tables toggles */}
+          <div className="flex flex-wrap gap-2 items-center">
+            <button
+              onClick={() => setShowPositions((v) => !v)}
+              className={[
+                "px-4 py-2 rounded-2xl border transition text-sm",
+                showPositions
+                  ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]"
+                  : "border-[color:var(--border)] bg-black/20 text-white/70 hover:bg-white/5",
+              ].join(" ")}
+              type="button"
+            >
+              Positions ouvertes
+            </button>
+
+            <button
+              onClick={() => setShowOrders((v) => !v)}
+              className={[
+                "px-4 py-2 rounded-2xl border transition text-sm",
+                showOrders
+                  ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]"
+                  : "border-[color:var(--border)] bg-black/20 text-white/70 hover:bg-white/5",
+              ].join(" ")}
+              type="button"
+            >
+              Ordres en attente
+            </button>
+
+            <div className="ml-auto flex gap-2">
+              <Button variant="secondary" onClick={() => refreshPositions().catch(() => {})} disabled={busy}>
+                Refresh Positions
+              </Button>
+              <Button variant="secondary" onClick={() => refreshOrders().catch(() => {})} disabled={busy}>
+                Refresh Pending
+              </Button>
+            </div>
+          </div>
+
+          {/* Positions */}
+          {showPositions ? (
+            <Card>
+              <CardBody>
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                  <div>
+                    <div className="text-lg font-semibold">Positions ouvertes</div>
+                    <div className="text-xs text-[color:var(--muted)] mt-1">
+                      PnL total:{" "}
+                      <span
+                        className={
+                          totalPnl >= 0
+                            ? "text-[color:var(--success)] font-semibold"
+                            : "text-[color:var(--danger)] font-semibold"
+                        }
+                      >
+                        {totalPnlStr} $
+                      </span>
+                    </div>
+                  </div>
+
+                  <Button variant="danger" onClick={() => setOpenCloseAll(true)} disabled={busy || positions.length === 0}>
+                    Tout clôturer
+                  </Button>
+                </div>
+
+                <div className="mt-4 overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="text-white/70">
+                      <tr className="border-b border-white/10">
+                        <th className="text-left py-3">Ticket</th>
+                        <th className="text-left py-3">Symbol</th>
+                        <th className="text-left py-3">Type</th>
+                        <th className="text-left py-3">Lots</th>
+                        <th className="text-left py-3">Entry</th>
+                        <th className="text-left py-3">Prix actuel</th>
+                        <th className="text-left py-3">SL</th>
+                        <th className="text-left py-3">TP</th>
+                        <th className="text-left py-3">Profit</th>
+                        <th className="text-left py-3"></th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {positions.length === 0 ? (
+                        <tr>
+                          <td colSpan={10} className="py-10 text-center text-[color:var(--muted)]">
+                            Aucune position ouverte.
+                          </td>
+                        </tr>
+                      ) : (
+                        positions.map((p) => {
+                          const sym = String(p.symbol ?? "");
+                          const t = ticksMapLive[sym];
+                          const isBuy = Number(p.type) === 0;
+                          const pxNow = t ? (isBuy ? t.bid : t.ask) : NaN;
+
+                          return (
+                            <tr key={p.ticket} className="border-b border-white/5">
+                              <td className="py-3">{p.ticket}</td>
+                              <td className="py-3">{p.symbol}</td>
+                              <td className="py-3">{orderTypeLabel(Number(p.type))}</td>
+                              <td className="py-3">{p.volume}</td>
+                              <td className="py-3">{p.price_open}</td>
+                              <td className="py-3">{Number.isFinite(pxNow) ? fmt2(pxNow) : "—"}</td>
+                              <td className="py-3">{p.sl}</td>
+                              <td className="py-3">{p.tp}</td>
+                              <td
+                                className={
+                                  Number(p.profit ?? 0) >= 0
+                                    ? "py-3 text-[color:var(--success)]"
+                                    : "py-3 text-[color:var(--danger)]"
+                                }
+                              >
+                                {fmt(Number(p.profit ?? 0))}
+                              </td>
+                              <td className="py-3 flex gap-2">
+                                <Button variant="secondary" onClick={() => openModifyPosition(p)} disabled={busy}>
+                                  Modifier
+                                </Button>
+                                <Button variant="danger" onClick={() => openClosePosition(p)} disabled={busy}>
+                                  Clôturer
+                                </Button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardBody>
+            </Card>
+          ) : null}
+
+          {/* Pending */}
+          {showOrders ? (
+            <Card>
+              <CardBody>
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                  <div>
+                    <div className="text-lg font-semibold">Ordres en attente</div>
+                  </div>
+
+                  <Button variant="secondary" onClick={() => setOpenCancelAll(true)} disabled={busy || orders.length === 0}>
+                    Tout annuler
+                  </Button>
+                </div>
+
+                <div className="mt-4 overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="text-white/70">
+                      <tr className="border-b border-white/10">
+                        <th className="text-left py-3">Order</th>
+                        <th className="text-left py-3">Symbol</th>
+                        <th className="text-left py-3">Type</th>
+                        <th className="text-left py-3">Volume</th>
+                        <th className="text-left py-3">Prix</th>
+                        <th className="text-left py-3">Prix actuel</th>
+                        <th className="text-left py-3">SL</th>
+                        <th className="text-left py-3">TP</th>
+                        <th className="text-left py-3">Comment</th>
+                        <th className="text-left py-3"></th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {orders.length === 0 ? (
+                        <tr>
+                          <td colSpan={10} className="py-10 text-center text-[color:var(--muted)]">
+                            Aucun ordre en attente.
+                          </td>
+                        </tr>
+                      ) : (
+                        orders.map((o) => {
+                          const t = ticksMapLive[String(o.symbol)];
+                          const cur = t ? `${fmt2(t.bid)} / ${fmt2(t.ask)}` : "—";
+
+                          return (
+                            <tr key={o.ticket} className="border-b border-white/5">
+                              <td className="py-3">{o.ticket}</td>
+                              <td className="py-3">{o.symbol}</td>
+                              <td className="py-3">{pendingTypeLabel(Number(o.type))}</td>
+                              <td className="py-3">{o.volume_current}</td>
+                              <td className="py-3">{o.price_open}</td>
+                              <td className="py-3">{cur}</td>
+                              <td className="py-3">{o.sl}</td>
+                              <td className="py-3">{o.tp}</td>
+                              <td className="py-3 text-white/60">{o.comment}</td>
+                              <td className="py-3">
+                                <Button variant="danger" onClick={() => cancelPending(Number(o.ticket))} disabled={busy}>
+                                  Annuler
+                                </Button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardBody>
+            </Card>
+          ) : null}
+
+          {/* Accounts modal */}
+          <Modal
+            open={openAccountsModal}
+            title="Choisir le compte MT5"
+            onClose={() => setOpenAccountsModal(false)}
+            footer={
+              <div className="flex items-center justify-end gap-3 w-full">
+                <Button variant="secondary" onClick={() => setOpenAccountsModal(false)}>
+                  Fermer
+                </Button>
+              </div>
+            }
+          >
+            <div className="space-y-2">
+              {connectedAccounts.map((a) => {
+                const active = a.id === selectedId;
+                return (
+                  <button
+                    key={a.id}
+                    onClick={() => {
+                      setSelectedId(a.id);
+                      setOpenAccountsModal(false);
+                    }}
+                    className={[
+                      "w-full text-left px-4 py-3 rounded-2xl border transition flex items-center justify-between gap-3",
+                      active
+                        ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-white"
+                        : "border-white/10 bg-black/20 text-white/80 hover:bg-white/5",
+                    ].join(" ")}
+                    type="button"
+                  >
+                    <div>
+                      <div className="font-semibold">{a.label}</div>
+                      <div className="text-xs text-white/50">
+                        {a.broker} • {a.server}
+                      </div>
+                    </div>
+                    <div className="text-lg">{active ? "✅" : "⬜"}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </Modal>
+
+          {/* ✅ MODIFY modal */}
+          <Modal
+            open={openModify}
+            title={`Modifier SL/TP • Ticket ${modTicket ?? ""}`}
+            onClose={() => setOpenModify(false)}
+            footer={
+              <div className="flex items-center justify-between gap-3 w-full">
+                <div className="flex gap-2">
+                  <Button variant="secondary" onClick={setBreakEven} disabled={!Number.isFinite(modEntry) || modEntry <= 0}>
+                    B/E
+                  </Button>
+
+                  <div className="hidden sm:flex items-center px-3 py-2 rounded-2xl border border-white/10 bg-black/20 text-xs text-white/70">
+                    Entry: <span className="ml-1 text-white/90">{Number.isFinite(modEntry) ? fmt2(modEntry) : "—"}</span>
+                    <span className="mx-2 text-white/20">•</span>
+                    Now: <span className="ml-1 text-white/90">{Number.isFinite(modPxNow) ? fmt2(modPxNow) : "—"}</span>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <Button variant="ghost" onClick={() => setOpenModify(false)}>
+                    Annuler
+                  </Button>
+                  <Button onClick={saveModify} disabled={busy}>
+                    {busy ? "..." : "Enregistrer"}
+                  </Button>
+                </div>
+              </div>
+            }
+          >
+            <div className="space-y-4">
+              <div className="text-sm text-[color:var(--muted)]">
+                {modSymbol} • Lots:{" "}
+                <span className="text-[color:var(--gold)] font-semibold">{Number.isFinite(modLots) ? fmt2(modLots) : "—"}</span>{" "}
+                • Type: <span className="text-white/90 font-semibold">{modType === 0 ? "BUY" : "SELL"}</span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <InputCompact label="Stop Loss (prix)" value={modSl} onChange={setModSl} placeholder="Ex: 90000.00" />
+                <InputCompact label="Take Profit (prix)" value={modTp} onChange={setModTp} placeholder="Ex: 101000.00" />
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                  <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                    <div className="text-xs text-white/60">Perte au SL (est.)</div>
+                    <div className="mt-1 font-semibold text-[color:var(--danger)]">
+                      {modLossUsd == null ? "—" : `${fmt(modLossUsd)} $`}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                    <div className="text-xs text-white/60">Gain au TP (est.)</div>
+                    <div className="mt-1 font-semibold text-[color:var(--success)]">
+                      {modGainUsd == null ? "—" : `${fmt(modGainUsd)} $`}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                    <div className="text-xs text-white/60">R:R</div>
+                    <div className="mt-1 font-semibold text-[color:var(--gold)]">{modRR == null ? "—" : modRR.toFixed(2)}</div>
+                  </div>
+                </div>
+
+                <div className="mt-3 text-xs text-[color:var(--muted)]">* Estimations via tick_value/tick_size.</div>
               </div>
             </div>
-          )}
-        </div>
-      </Modal>
+          </Modal>
 
-      {/* Bulk confirm close all */}
-      <Modal
-        open={openCloseAll}
-        title="Clôturer toutes les positions ?"
-        onClose={() => setOpenCloseAll(false)}
-        footer={
-          <div className="flex justify-end gap-3">
-            <Button variant="ghost" onClick={() => setOpenCloseAll(false)}>
-              Annuler
-            </Button>
-            <Button variant="danger" onClick={confirmCloseAll} disabled={busy}>
-              {busy ? "..." : "Confirmer"}
-            </Button>
-          </div>
-        }
-      >
-        <div className="text-sm text-[color:var(--muted)]">
-          Tu es sur le point de clôturer <b>{positions.length}</b> position(s). Action irréversible.
-        </div>
-      </Modal>
+          {/* ✅ CLOSE modal */}
+          <Modal
+            open={openCloseModal}
+            title={`Clôturer • Ticket ${closeTicket ?? ""}`}
+            onClose={() => setOpenCloseModal(false)}
+            footer={
+              <div className="flex items-center justify-between gap-3 w-full">
+                <div className="text-xs text-white/60">
+                  Lots total:{" "}
+                  <span className="text-[color:var(--gold)] font-semibold">
+                    {Number.isFinite(closeLotsTotal) ? fmt2(closeLotsTotal) : "—"}
+                  </span>
+                </div>
 
-      {/* Bulk confirm cancel all */}
-      <Modal
-        open={openCancelAll}
-        title="Annuler tous les ordres en attente ?"
-        onClose={() => setOpenCancelAll(false)}
-        footer={
-          <div className="flex justify-end gap-3">
-            <Button variant="ghost" onClick={() => setOpenCancelAll(false)}>
-              Annuler
-            </Button>
-            <Button variant="secondary" onClick={confirmCancelAll} disabled={busy}>
-              {busy ? "..." : "Confirmer"}
-            </Button>
-          </div>
-        }
-      >
-        <div className="text-sm text-[color:var(--muted)]">
-          Tu es sur le point d’annuler <b>{orders.length}</b> ordre(s) en attente.
-        </div>
-      </Modal>
+                <div className="flex gap-3">
+                  <Button variant="ghost" onClick={() => setOpenCloseModal(false)}>
+                    Annuler
+                  </Button>
+                  <Button variant="danger" onClick={confirmClosePartial} disabled={busy}>
+                    {busy ? "..." : "Clôturer"}
+                  </Button>
+                </div>
+              </div>
+            }
+          >
+            <div className="space-y-4">
+              <div className="text-sm text-[color:var(--muted)]">
+                {closeSymbol} • {closeType === 0 ? "BUY" : "SELL"} • Entry{" "}
+                <span className="text-white/90">{Number.isFinite(closeEntry) ? fmt2(closeEntry) : "—"}</span>
+                {"  "}• Now{" "}
+                <span className="text-white/90">{Number.isFinite(closePxNow) ? fmt2(closePxNow) : "—"}</span>
+              </div>
 
-      {/* Gate modal */}
-      <Modal
-        open={openGateModal}
-        title="Accès requis"
-        onClose={() => setOpenGateModal(false)}
-        footer={
-          <div className="flex items-center justify-end gap-3">
-            <Button variant="ghost" onClick={() => setOpenGateModal(false)}>
-              Fermer
-            </Button>
-            {gateReason === "noPlan" ? (
-              <Button onClick={() => (window.location.href = "/dashboard/abonnement")}>Voir abonnement</Button>
-            ) : (
-              <Button onClick={() => (window.location.href = "/dashboard/comptes")}>Ajouter un compte</Button>
-            )}
-          </div>
-        }
-      >
-        {gateReason === "noPlan" ? (
-          <div className="text-sm text-[color:var(--muted)]">
-            L’accès au terminal nécessite un abonnement.
-            <div className="mt-3 rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-3 text-[color:var(--gold)]">
-              Plan actuel : <b>{getPlan()}</b>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <InputCompact
+                  label="Lots à clôturer (vide = tout)"
+                  value={closeLots}
+                  onChange={setCloseLots}
+                  placeholder={fmt2(closeLotsTotal)}
+                />
+
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs text-white/60">Prévisualisation PnL (est.)</div>
+                    <div
+                      className={[
+                        "text-sm font-semibold",
+                        closeEstPnl == null
+                          ? "text-white/70"
+                          : closeEstPnl >= 0
+                          ? "text-[color:var(--success)]"
+                          : "text-[color:var(--danger)]",
+                      ].join(" ")}
+                    >
+                      {closeEstPnl == null ? "—" : `${fmt(closeEstPnl)} $`}
+                    </div>
+                  </div>
+                  <div className="mt-2 text-[11px] text-white/40">* Estimation sur le prix actuel et le lot saisi.</div>
+                </div>
+              </div>
+
+              {closeTooHigh ? (
+                <div className="text-sm rounded-2xl border border-[color:var(--danger)]/25 bg-[color:var(--danger)]/10 text-[color:var(--danger)] p-3">
+                  Volume trop élevé. Max = <b>{fmt2(closeLotsTotal)}</b> lots.
+                  <div className="mt-2">
+                    <Button variant="secondary" onClick={fillMaxCloseLots}>
+                      Mettre le max
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <Button
+                    variant="secondary"
+                    onClick={fillMaxCloseLots}
+                    disabled={!Number.isFinite(closeLotsTotal) || closeLotsTotal <= 0}
+                  >
+                    Max
+                  </Button>
+                  <div className="text-xs text-white/40">
+                    Si tu mets un lot, ça fera une <b>clôture partielle</b>.
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        ) : (
-          <div className="text-sm text-[color:var(--muted)]">
-            Aucun compte MT5 connecté. Va sur Comptes et clique “Tester”.
-          </div>
-        )}
-      </Modal>
-    </div>
+          </Modal>
+
+          {/* ✅ BULK CLOSE ALL */}
+          <Modal
+            open={openCloseAll}
+            title="Clôturer toutes les positions ?"
+            onClose={() => setOpenCloseAll(false)}
+            footer={
+              <div className="flex justify-end gap-3">
+                <Button variant="ghost" onClick={() => setOpenCloseAll(false)}>
+                  Annuler
+                </Button>
+                <Button variant="danger" onClick={confirmCloseAll} disabled={busy}>
+                  {busy ? "..." : "Confirmer"}
+                </Button>
+              </div>
+            }
+          >
+            <div className="text-sm text-[color:var(--muted)]">
+              Tu es sur le point de clôturer <b>{positions.length}</b> position(s). Action irréversible.
+            </div>
+          </Modal>
+
+          {/* ✅ BULK CANCEL ALL */}
+          <Modal
+            open={openCancelAll}
+            title="Annuler tous les ordres en attente ?"
+            onClose={() => setOpenCancelAll(false)}
+            footer={
+              <div className="flex justify-end gap-3">
+                <Button variant="ghost" onClick={() => setOpenCancelAll(false)}>
+                  Annuler
+                </Button>
+                <Button variant="secondary" onClick={confirmCancelAll} disabled={busy}>
+                  {busy ? "..." : "Confirmer"}
+                </Button>
+              </div>
+            }
+          >
+            <div className="text-sm text-[color:var(--muted)]">
+              Tu es sur le point d’annuler <b>{orders.length}</b> ordre(s) en attente.
+            </div>
+          </Modal>
+
+          {/* Gate modal */}
+          <Modal
+            open={openGateModal}
+            title="Accès requis"
+            onClose={() => setOpenGateModal(false)}
+            footer={
+              <div className="flex items-center justify-end gap-3">
+                <Button variant="ghost" onClick={() => setOpenGateModal(false)}>
+                  Fermer
+                </Button>
+                {gateReason === "noPlan" ? (
+                  <Button onClick={() => (window.location.href = "/dashboard/abonnement")}>Voir abonnement</Button>
+                ) : (
+                  <Button onClick={() => (window.location.href = "/dashboard/comptes")}>Ajouter un compte</Button>
+                )}
+              </div>
+            }
+          >
+            {gateReason === "noPlan" ? (
+              <div className="text-sm text-[color:var(--muted)]">
+                L’accès au terminal nécessite un abonnement.
+                <div className="mt-3 rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-3 text-[color:var(--gold)]">
+                  Plan actuel : <b>{getPlan()}</b>
+                </div>
+              </div>
+            ) : (
+              <div className="text-sm text-[color:var(--muted)]">
+                Aucun compte MT5 connecté. Va sur Comptes et clique “Tester”.
+              </div>
+            )}
+          </Modal>
+        </div>
+      </div>
+    </>
   );
 }

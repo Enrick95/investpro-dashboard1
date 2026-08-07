@@ -13,6 +13,10 @@ import {
   toggleMute,
 } from "../lib/notifyStore";
 
+// ✅ Maintenance LED ticker
+import MaintenanceTicker from "./ui/MaintenanceTicker";
+import { useAllMaintenance } from "../lib/adminStore";
+
 import {
   Bell,
   X,
@@ -118,11 +122,19 @@ export default function Header() {
   // notifs
   const { inbox, unread, settings } = useNotifs();
 
+  // ✅ maintenance (nouveau système)
+  const maint = useAllMaintenance();
+  const maintTerminal = maint.terminal.enabled && maint.terminal.endsAt > Date.now();
+  const maintCopier = maint.copieur.enabled && maint.copieur.endsAt > Date.now();
+  const showMaintBar = maintTerminal || maintCopier;
+
   // 🔔 Notifications dropdown
   const [notifOpen, setNotifOpen] = useState(false);
   const notifBtnRef = useRef<HTMLButtonElement | null>(null);
   const notifPanelRef = useRef<HTMLDivElement | null>(null);
-  const [notifPos, setNotifPos] = useState<{ top: number; right: number } | null>(null);
+  const [notifPos, setNotifPos] = useState<{ top: number; right: number } | null>(
+    null
+  );
   const NOTIF_W = 360;
   const NOTIF_H = 560;
 
@@ -130,7 +142,9 @@ export default function Header() {
   const [userOpen, setUserOpen] = useState(false);
   const avatarRef = useRef<HTMLButtonElement | null>(null);
   const userPanelRef = useRef<HTMLDivElement | null>(null);
-  const [userPos, setUserPos] = useState<{ top: number; right: number } | null>(null);
+  const [userPos, setUserPos] = useState<{ top: number; right: number } | null>(
+    null
+  );
   const USER_W = 320;
   const USER_H = 440;
 
@@ -185,6 +199,7 @@ export default function Header() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Theme init
   useEffect(() => {
     const saved =
       typeof window !== "undefined"
@@ -197,7 +212,8 @@ export default function Header() {
     const mq = window.matchMedia?.("(prefers-color-scheme: dark)");
     if (!mq) return;
     const onChange = () => {
-      const current = (localStorage.getItem("ip_theme") as ThemeMode | null) || "dark";
+      const current =
+        (localStorage.getItem("ip_theme") as ThemeMode | null) || "dark";
       if (current === "system") applyTheme("system");
     };
     mq.addEventListener?.("change", onChange);
@@ -441,13 +457,17 @@ export default function Header() {
   }
 
   const iconMuted = "text-[color:var(--muted)]";
-
-  // ✅ IMPORTANT: valeurs stables SSR -> CSR (badge + textes)
   const safeUnread = mounted ? unread : 0;
   const safeInbox = mounted ? inbox : [];
 
   return (
     <>
+      {/* ✅ Ticker au-dessus du header (scroll avec la page) */}
+      {showMaintBar ? (
+        <MaintenanceTicker maintTerminal={maintTerminal} maintCopier={maintCopier} />
+      ) : null}
+
+      {/* ✅ Header NORMAL : il scroll avec la page (tu dois remonter pour le revoir) */}
       <header className="h-16 border-b border-[color:var(--border)] bg-[color:var(--panel)] backdrop-blur flex items-center px-6 relative z-[50]">
         {/* LEFT (vide) */}
         <div className="flex items-center gap-3" />
@@ -486,7 +506,6 @@ export default function Header() {
           >
             <Bell size={18} className={iconMuted} />
 
-            {/* ✅ badge seulement après montage client -> plus de mismatch */}
             {safeUnread > 0 ? (
               <span
                 className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full
@@ -555,7 +574,9 @@ export default function Header() {
               >
                 <div className="p-4 border-b border-[color:var(--border)] flex items-center justify-between">
                   <div>
-                    <div className="text-sm font-semibold text-[color:var(--text)]">Notifications</div>
+                    <div className="text-sm font-semibold text-[color:var(--text)]">
+                      Notifications
+                    </div>
                     <div className="text-xs text-[color:var(--muted)] mt-0.5">
                       {safeUnread > 0 ? `${safeUnread} non lue(s)` : "Tout est lu"}
                     </div>
@@ -619,7 +640,9 @@ export default function Header() {
                       Chargement…
                     </div>
                   ) : safeInbox.length === 0 ? (
-                    <div className="p-6 text-sm text-[color:var(--muted)]">Aucune notification.</div>
+                    <div className="p-6 text-sm text-[color:var(--muted)]">
+                      Aucune notification.
+                    </div>
                   ) : (
                     safeInbox.slice(0, 30).map((n: any) => (
                       <button
@@ -652,10 +675,8 @@ export default function Header() {
                               </div>
                             ) : null}
 
-                            {/* ✅ toLocaleString peut varier SSR/CSR -> on le montre seulement après mounted */}
                             <div className="mt-2 text-[10px] text-[color:var(--muted)] uppercase tracking-wide">
-                              {n.kind} •{" "}
-                              {new Date(n.createdAt).toLocaleString("fr-FR")}
+                              {n.kind} • {new Date(n.createdAt).toLocaleString("fr-FR")}
                             </div>
                           </div>
 
@@ -820,7 +841,9 @@ export default function Header() {
 
                       <div className="flex-1">
                         <div className="text-sm font-semibold text-[color:var(--text)]">Thème</div>
-                        <div className="text-xs text-[color:var(--muted)] mt-0.5">Clair / Foncé / Système</div>
+                        <div className="text-xs text-[color:var(--muted)] mt-0.5">
+                          Clair / Foncé / Système
+                        </div>
                       </div>
 
                       <div className="flex items-center gap-1">
@@ -836,6 +859,7 @@ export default function Header() {
                         >
                           Clair
                         </button>
+
                         <button
                           onClick={() => setThemeAndPersist("dark")}
                           className={[
@@ -848,6 +872,7 @@ export default function Header() {
                         >
                           Foncé
                         </button>
+
                         <button
                           onClick={() => setThemeAndPersist("system")}
                           className={[

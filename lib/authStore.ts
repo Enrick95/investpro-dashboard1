@@ -1,22 +1,19 @@
+// lib/authStore.ts
 type MediaTransform = {
   zoom: number; // 1..3
   panX: number; // -1..1
   panY: number; // -1..1
 };
 
-type Account = {
+export type Account = {
   username: string;
-  password: string; // DEMO ONLY (pas sécurisé). Plus tard: backend + hash.
-  tag: string; // généré, non modifiable
+  password: string; // DEMO ONLY
+  tag: string;
 
-  // Legacy (dataURL)
   avatarDataUrl?: string;
-
-  // ✅ New (no-loss via IndexedDB)
   avatarMediaId?: string;
   avatarTransform?: MediaTransform;
 
-  // (si tu gères aussi la bannière dans le store)
   bannerDataUrl?: string;
   bannerMediaId?: string;
   bannerTransform?: MediaTransform;
@@ -24,16 +21,12 @@ type Account = {
   bio?: string;
   showOnLeaderboard?: boolean;
   profitUsd?: number;
-
-  // selon ton app (tu l'utilises dans la page profil)
   hideTrades?: boolean;
 
-  // ✅ stats publics (pour classement + profil public)
   tradesTotal?: number;
   winrate?: number;
   rrAvg?: number;
 
-  // vérification/plan (Header l’utilise)
   verified?: boolean;
   plan?: string;
   subscription?: string;
@@ -42,16 +35,13 @@ type Account = {
 
 const KEY_ACCOUNTS = "investpro_accounts_v1";
 const KEY_SESSION = "investpro_session_v1";
-
 const ACCOUNT_UPDATED_EVENT = "investpro:account_updated";
 
 function emitAccountUpdated(acc: Account | null) {
   try {
     if (typeof window === "undefined") return;
     window.dispatchEvent(new CustomEvent(ACCOUNT_UPDATED_EVENT, { detail: acc }));
-  } catch {
-    // ignore
-  }
+  } catch {}
 }
 
 function loadAccounts(): Account[] {
@@ -91,7 +81,9 @@ export function setSession(username: string | null) {
 export function getCurrentAccount(): Account | null {
   const s = getSession();
   if (!s) return null;
-  const acc = loadAccounts().find((a) => a.username.toLowerCase() === s.username.toLowerCase());
+  const acc = loadAccounts().find(
+    (a) => a.username.toLowerCase() === s.username.toLowerCase()
+  );
   return acc ?? null;
 }
 
@@ -100,6 +92,7 @@ function genTag() {
   return "#" + String(n).padStart(4, "0");
 }
 
+/* -------------------- AUTH -------------------- */
 export function signUp(username: string, password: string) {
   const u = username.trim();
   if (!u || !password) return { ok: false, error: "Pseudo/mot de passe requis" };
@@ -119,8 +112,6 @@ export function signUp(username: string, password: string) {
   accounts.push(acc);
   saveAccounts(accounts);
   setSession(u);
-
-  // ✅ informer l'app
   emitAccountUpdated(acc);
 
   return { ok: true };
@@ -134,17 +125,12 @@ export function signIn(username: string, password: string) {
   if (acc.password !== password) return { ok: false, error: "Mot de passe incorrect" };
 
   setSession(acc.username);
-
-  // ✅ informer l'app
   emitAccountUpdated(acc);
-
   return { ok: true };
 }
 
 export function signOut() {
   setSession(null);
-
-  // ✅ informer l'app
   emitAccountUpdated(null);
 }
 
@@ -158,13 +144,36 @@ export function updateAccount(patch: Partial<Account>) {
 
   accounts[idx] = { ...accounts[idx], ...patch };
   saveAccounts(accounts);
-
-  // ✅ informer l'app (Header/Menu/Profile etc.)
   emitAccountUpdated(accounts[idx]);
-
   return accounts[idx];
 }
 
 export function setLeaderboardVisibility(isPublic: boolean) {
   return updateAccount({ showOnLeaderboard: isPublic });
+}
+
+/* -------------------- ADMIN PERMS (DEV) -------------------- */
+export function isAdmin(acc?: Account | null): boolean {
+  const a = acc ?? getCurrentAccount();
+  if (!a) return false;
+
+  // 1) Tag contient ADMIN
+  const tag = String(a.tag || "").toUpperCase();
+  if (tag.includes("ADMIN")) return true;
+
+  // 2) Username match env
+  const envUser = (process.env.NEXT_PUBLIC_ADMIN_USER || "").trim().toLowerCase();
+  if (envUser && a.username.toLowerCase() === envUser) return true;
+
+  return false;
+}
+
+/** DEV: te donne le tag ADMIN sur ton compte connecté */
+export function grantAdminToCurrent() {
+  const a = getCurrentAccount();
+  if (!a) return null;
+  if (String(a.tag || "").toUpperCase().includes("ADMIN")) return a;
+
+  const nextTag = `${a.tag} ADMIN`.replace(/\s+/g, " ").trim();
+  return updateAccount({ tag: nextTag });
 }

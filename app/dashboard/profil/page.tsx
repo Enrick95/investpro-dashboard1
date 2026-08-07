@@ -10,8 +10,9 @@ import { loadTrades } from "../../../lib/tradesStore";
 import { pushNotif } from "../../../lib/notifyStore";
 import { getPlan } from "../../../lib/subscriptionStore";
 
+import { usePrefs } from "../../../lib/prefsStore";
+
 import {
-  Eye,
   EyeOff,
   Paperclip,
   Smile,
@@ -66,6 +67,8 @@ type AccountMediaFields = {
   avatarDataUrl?: string;
 
   bio?: string;
+
+  // legacy (ne sert plus à la visibilité publique)
   hideTrades?: boolean;
 };
 
@@ -110,7 +113,6 @@ function computePublicStats(tradesList: any[]): PublicStats {
   const total = Array.isArray(tradesList) ? tradesList.length : 0;
 
   let wins = 0;
-
   let rrSum = 0;
   let rrCount = 0;
 
@@ -238,20 +240,37 @@ async function idbGetBlob(id: string): Promise<Blob | null> {
     req.onerror = () => reject(req.error || new Error("idb_get_failed"));
   });
 }
+
 /* ---------------------------- Attachments render ---------------------------- */
 function renderAttachment(a: Att) {
   if (!a.dataUrl) {
-    return <div className="text-xs text-white/50">Fichier non conservé après refresh (stockage local).</div>;
+    return (
+      <div className="text-xs text-white/50">
+        Fichier non conservé après refresh (stockage local).
+      </div>
+    );
   }
 
   if (a.kind === "gif") {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={a.dataUrl} alt={a.name} className="max-h-[260px] w-auto rounded-xl border border-white/10" />;
+    return (
+      <img
+        src={a.dataUrl}
+        alt={a.name}
+        className="max-h-[260px] w-auto rounded-xl border border-white/10"
+      />
+    );
   }
 
   if (a.kind === "video") {
     // eslint-disable-next-line jsx-a11y/media-has-caption
-    return <video src={a.dataUrl} controls className="max-h-[260px] w-full rounded-xl border border-white/10" />;
+    return (
+      <video
+        src={a.dataUrl}
+        controls
+        className="max-h-[260px] w-full rounded-xl border border-white/10"
+      />
+    );
   }
 
   // eslint-disable-next-line jsx-a11y/media-has-caption
@@ -498,13 +517,18 @@ function MediaEditorModal(props: {
           <span className="text-xs text-white/50 w-12 text-right">{Math.round(t.zoom * 100)}%</span>
         </div>
 
-        <div className="text-xs text-white/40">Astuce : clique/glisse pour repositionner. (GIF animé supporté)</div>
+        <div className="text-xs text-white/40">
+          Astuce : clique/glisse pour repositionner. (GIF animé supporté)
+        </div>
       </div>
     </Modal>
   );
 }
+
 /* --------------------------------- Page ----------------------------------- */
 export default function ProfilPage() {
+  const { profile: profilePrefs } = usePrefs();
+
   const [me, setMe] = useState<any>(null);
 
   // ✅ Hydration guard
@@ -536,6 +560,9 @@ export default function ProfilPage() {
     if (tradesPage < 1) setTradesPage(1);
   }, [tradesPage, totalTradesPages]);
 
+  // ✅ visibilité publique des trades pilotée par Paramètres
+  const publicTradesEnabled = !!profilePrefs.profilePublic && !!profilePrefs.showTrades;
+
   // Editor
   const [editor, setEditor] = useState<EditorState>({
     open: false,
@@ -546,18 +573,17 @@ export default function ProfilPage() {
   });
   const [busyMedia, setBusyMedia] = useState(false);
 
-  // header measured sizes (kept, not mandatory)
+  // header measured sizes
   const bannerFrameRef = useRef<HTMLDivElement | null>(null);
   const avatarFrameRef = useRef<HTMLLabelElement | null>(null);
 
   const [bannerFrameSize, setBannerFrameSize] = useState({ w: 0, h: 0 });
   const [avatarFrameSize, setAvatarFrameSize] = useState({ w: 0, h: 0 });
 
-  // bio + privacy
+  // bio
   const [bio, setBio] = useState("");
-  const [hideTrades, setHideTrades] = useState(false);
 
-  // comments (synced)
+  // comments
   const [comments, setComments] = useState<Comment[]>([]);
   const [text, setText] = useState("");
   const [atts, setAtts] = useState<Att[]>([]);
@@ -590,7 +616,6 @@ export default function ProfilPage() {
     }
   }, []);
 
-  // ✅ pagination computed
   const totalCommentPages = useMemo(() => {
     const n = Math.ceil((comments?.length || 0) / COMMENTS_PER_PAGE);
     return Math.max(1, n);
@@ -624,14 +649,13 @@ export default function ProfilPage() {
     return () => ro.disconnect();
   }, []);
 
-  // load account + comments (✅ key per username)
+  // load account + comments
   useEffect(() => {
     const acc = getCurrentAccount();
     setMe(acc);
     setBio(String(acc?.bio ?? ""));
-    setHideTrades(!!acc?.hideTrades);
 
-    // ✅ publish profile snapshot once on load (bio sync)
+    // sync bio/tag vers la page classement/[username]
     try {
       const u = String(acc?.username || "");
       if (u) {
@@ -652,7 +676,7 @@ export default function ProfilPage() {
     }
   }, []);
 
-  // ✅ load trades after mount (keep full list => pagination)
+  // ✅ load trades after mount
   useEffect(() => {
     if (!mounted) return;
     try {
@@ -667,8 +691,9 @@ export default function ProfilPage() {
 
   /**
    * ✅ PUBLISH public trades + stats for classement/[username]
-   * - hideTrades === false => publish
-   * - hideTrades === true  => remove
+   * piloté par Paramètres:
+   * - profilePublic ON + showTrades ON => publish
+   * - sinon => remove
    */
   useEffect(() => {
     if (!mounted) return;
@@ -679,13 +704,12 @@ export default function ProfilPage() {
     const sKey = publicStatsKeyFor(u);
 
     try {
-      if (hideTrades) {
+      if (!publicTradesEnabled) {
         localStorage.removeItem(tKey);
         localStorage.removeItem(sKey);
         return;
       }
 
-      // publish from ALL trades, store light(50)
       const all = loadTrades();
       const allTrades = Array.isArray(all) ? all : [];
 
@@ -697,7 +721,7 @@ export default function ProfilPage() {
     } catch {
       // ignore
     }
-  }, [mounted, me?.username, hideTrades]);
+  }, [mounted, me?.username, publicTradesEnabled]);
 
   // close popovers on outside click
   useEffect(() => {
@@ -714,7 +738,7 @@ export default function ProfilPage() {
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
 
-  // persist comments (✅ key per username + strip attachments dataUrl)
+  // persist comments
   function persist(next: Comment[]) {
     next.sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned) || b.createdAt - a.createdAt);
     const pruned = next.slice(0, 120);
@@ -734,9 +758,7 @@ export default function ProfilPage() {
     try {
       const key = commentsKeyFor(me?.username || "unknown");
       localStorage.setItem(key, JSON.stringify(light));
-    } catch {
-      // ignore
-    }
+    } catch {}
   }
 
   // Load media from IndexedDB whenever account fields change
@@ -746,7 +768,6 @@ export default function ProfilPage() {
     async function run() {
       const acc: AccountMediaFields = (me || {}) as any;
 
-      // banner
       if (acc.bannerMediaId) {
         const blob = await idbGetBlob(acc.bannerMediaId);
         if (!alive) return;
@@ -756,7 +777,6 @@ export default function ProfilPage() {
           return;
         }
       }
-      // legacy fallback
       setBannerUrl(acc.bannerDataUrl || "");
     }
 
@@ -772,7 +792,6 @@ export default function ProfilPage() {
     async function run() {
       const acc: AccountMediaFields = (me || {}) as any;
 
-      // avatar
       if (acc.avatarMediaId) {
         const blob = await idbGetBlob(acc.avatarMediaId);
         if (!alive) return;
@@ -782,7 +801,6 @@ export default function ProfilPage() {
           return;
         }
       }
-      // legacy fallback
       setAvatarUrl(acc.avatarDataUrl || "");
     }
 
@@ -793,10 +811,10 @@ export default function ProfilPage() {
   }, [me?.avatarMediaId, me?.avatarDataUrl]);
 
   function saveBio() {
-    const updated = updateAccount({ bio, hideTrades } as any);
+    const updated = updateAccount({ bio } as any);
     setMe(updated);
 
-    // ✅ sync bio vers la page classement/[username]
+    // sync bio vers classement/[username]
     try {
       const u = String(updated?.username || me?.username || "");
       if (u) {
@@ -859,13 +877,6 @@ export default function ProfilPage() {
       const updated = updateAccount(patch);
       if (updated) setMe(updated);
 
-      setMe((prev: any) => ({
-        ...(prev || {}),
-        ...(mode === "banner"
-          ? { bannerMediaId: fileId, bannerTransform: transform }
-          : { avatarMediaId: fileId, avatarTransform: transform, avatarDataUrl: "" }),
-      }));
-
       setEditor({ open: false, mode, objectUrl: "", fileId: "", transform: defaultTransform() });
 
       pushNotif({
@@ -880,6 +891,7 @@ export default function ProfilPage() {
       setBusyMedia(false);
     }
   }
+
   async function addAttachments(files: FileList | null) {
     if (!files) return;
     const next = [...atts];
@@ -930,7 +942,6 @@ export default function ProfilPage() {
       author: {
         username: me?.username || "User",
         tag: me?.tag,
-        // ✅ use avatarUrl (objectURL) if available so comments show correct avatar
         avatarDataUrl: avatarUrl || me?.avatarDataUrl || "",
       },
       text: t,
@@ -1001,11 +1012,18 @@ export default function ProfilPage() {
 
   return (
     <div className="space-y-6">
-      {/* Media editor modal */}
       <MediaEditorModal
         state={editor}
         busy={busyMedia}
-        onClose={() => setEditor((p) => ({ ...p, open: false, objectUrl: "", fileId: "", transform: defaultTransform() }))}
+        onClose={() =>
+          setEditor((p) => ({
+            ...p,
+            open: false,
+            objectUrl: "",
+            fileId: "",
+            transform: defaultTransform(),
+          }))
+        }
         onApply={(fileId, transform) => applyMedia(editor.mode, fileId, transform)}
       />
 
@@ -1014,7 +1032,10 @@ export default function ProfilPage() {
         <CardBody className="p-0">
           <div className="relative overflow-visible">
             {/* Banner */}
-            <div ref={bannerFrameRef} className="relative w-full aspect-[3/1] max-h-[220px] bg-black/30 border-b border-white/10">
+            <div
+              ref={bannerFrameRef}
+              className="relative w-full aspect-[3/1] max-h-[220px] bg-black/30 border-b border-white/10"
+            >
               <div className="absolute inset-0 overflow-hidden">
                 {bannerUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -1047,7 +1068,7 @@ export default function ProfilPage() {
               <div className="absolute top-4 right-4 z-20">
                 <label
                   className="w-10 h-10 rounded-full border border-white/15 bg-black/35 hover:bg-black/50 transition flex items-center justify-center text-white text-xl cursor-pointer"
-                  title="Changer bannière (GIF/PNG/JPG/WebP)"
+                  title="Changer bannière (image)"
                 >
                   +
                   <input
@@ -1064,14 +1085,14 @@ export default function ProfilPage() {
                 </label>
               </div>
 
-              {/* Avatar block */}
+              {/* Avatar */}
               <div className="absolute left-6 -bottom-10 flex items-end gap-4 z-30">
                 <div className="relative group">
                   <label
                     ref={avatarFrameRef}
                     className="relative w-24 h-24 rounded-full border-2 border-[color:var(--gold-border)] bg-[color:var(--panel-2)]
                               flex items-center justify-center overflow-hidden shadow-xl cursor-pointer"
-                    title="Changer avatar (GIF/PNG/JPG/WebP)"
+                    title="Changer avatar (image)"
                   >
                     {avatarUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -1087,7 +1108,9 @@ export default function ProfilPage() {
                         }}
                       />
                     ) : (
-                      <span className="text-2xl font-semibold text-[color:var(--gold)]">{initials}</span>
+                      <span className="text-2xl font-semibold text-[color:var(--gold)]">
+                        {initials}
+                      </span>
                     )}
 
                     <input
@@ -1103,14 +1126,12 @@ export default function ProfilPage() {
                     />
                   </label>
 
-                  {/* Hover + */}
                   <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center pointer-events-none">
                     <div className="w-9 h-9 rounded-full border border-white/15 bg-black/40 text-white flex items-center justify-center text-xl">
                       +
                     </div>
                   </div>
 
-                  {/* Online dot */}
                   <div
                     className="absolute bottom-2 right-2 w-4 h-4 rounded-full border-2 border-[color:var(--panel)]"
                     style={{ background: "var(--success)" }}
@@ -1167,15 +1188,17 @@ export default function ProfilPage() {
                       <span className="text-[color:var(--gold)] font-semibold">{plan}</span>
                     </div>
                   </div>
-
-                  <div className="mt-3 text-xs text-white/40">Ces infos ne sont visibles que par toi.</div>
+                  <div className="mt-3 text-xs text-white/40">
+                    Ces infos ne sont visibles que par toi.
+                  </div>
                 </CardSubCard>
               </div>
             </div>
           </div>
         </CardBody>
       </Card>
-           {/* STACK layout */}
+
+      {/* Trades + Comments */}
       <div className="space-y-4">
         {/* Trades */}
         <Card>
@@ -1185,47 +1208,32 @@ export default function ProfilPage() {
                 <div className="text-lg font-semibold text-white flex items-center gap-2">
                   Historique trades <span className="text-xs text-white/40">(10 par page)</span>
                 </div>
-                <div className="text-xs text-[color:var(--muted)] mt-1">Pour voir plus ➜ journal.</div>
+                <div className="text-xs text-[color:var(--muted)] mt-1">
+                  Pour voir plus ➜ journal.
+                </div>
               </div>
 
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const next = !hideTrades;
-                    setHideTrades(next);
-                    setTradesPage(1);
-
-                    // ✅ persiste dans le compte (et déclenche publish/unpublish via useEffect)
-                    try {
-                      const updated = updateAccount({ hideTrades: next } as any);
-                      if (updated) setMe(updated);
-                    } catch {
-                      // ignore
-                    }
-                  }}
-                  className={cx(
-                    "h-10 px-3 rounded-2xl border text-sm transition inline-flex items-center gap-2",
-                    hideTrades
-                      ? "border-white/10 bg-black/25 text-white/70 hover:bg-white/5"
-                      : "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]"
-                  )}
-                  title={hideTrades ? "Privé" : "Public"}
+                <Button
+                  variant="secondary"
+                  onClick={() => (window.location.href = "/dashboard/journal")}
                 >
-                  {hideTrades ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  <span className="text-xs">{hideTrades ? "Privé" : "Public"}</span>
-                </button>
+                  Voir plus
+                </Button>
 
-                {!hideTrades ? (
-                  <Button variant="secondary" onClick={() => (window.location.href = "/dashboard/journal")}>
-                    Voir plus
-                  </Button>
-                ) : null}
+                <Button
+                  variant="ghost"
+                  onClick={() => (window.location.href = "/dashboard/parametres")}
+                  title="Paramètres → Profil public"
+                >
+                  Paramètres
+                </Button>
               </div>
             </div>
 
             <div className="mt-4 relative overflow-x-auto">
-              <div className={hideTrades ? "pointer-events-none select-none blur-[6px] opacity-70" : ""}>
+              {/* blur si trades non publics */}
+              <div className={!publicTradesEnabled ? "pointer-events-none select-none blur-[6px] opacity-70" : ""}>
                 <table className="w-full text-sm">
                   <thead className="text-white/70">
                     <tr className="border-b border-white/10">
@@ -1270,7 +1278,6 @@ export default function ProfilPage() {
                   </tbody>
                 </table>
 
-                {/* ✅ mini pagination trades */}
                 {mounted && allTrades.length > TRADES_PER_PAGE ? (
                   <div className="mt-3 flex items-center justify-between">
                     <div className="text-xs text-white/40">
@@ -1310,25 +1317,29 @@ export default function ProfilPage() {
                 ) : null}
               </div>
 
-              {hideTrades ? (
+              {!publicTradesEnabled ? (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="px-4 py-3 rounded-2xl border border-white/10 bg-black/35 backdrop-blur-md text-white/80 inline-flex items-center gap-3 shadow-xl">
                     <EyeOff className="w-5 h-5 text-white/70" />
                     <div className="text-sm">
                       <div className="font-semibold text-white">Privé</div>
-                      <div className="text-xs text-white/50">Historique masqué</div>
+                      <div className="text-xs text-white/50">
+                        Réglage dans Paramètres → Profil public
+                      </div>
                     </div>
                   </div>
                 </div>
               ) : null}
             </div>
 
-            {!hideTrades ? (
+            {publicTradesEnabled ? (
               <div className="mt-3 text-xs text-white/40">
-                ✅ Historique publié : visible depuis le classement (RR moyen, winrate, nb trades + 50 derniers).
+                ✅ Historique publié : visible depuis le classement (50 derniers + stats).
               </div>
             ) : (
-              <div className="mt-3 text-xs text-white/40">🔒 Historique privé : invisible depuis le classement.</div>
+              <div className="mt-3 text-xs text-white/40">
+                🔒 Historique privé : invisible depuis le classement.
+              </div>
             )}
           </CardBody>
         </Card>
@@ -1341,7 +1352,6 @@ export default function ProfilPage() {
               <div className="text-xs text-white/40">{comments.length}/120</div>
             </div>
 
-            {/* composer */}
             <div ref={composerRef} className="rounded-2xl border border-white/10 bg-black/20 p-3 md:p-4 relative">
               <textarea
                 ref={taRef}
@@ -1372,7 +1382,11 @@ export default function ProfilPage() {
                     >
                       <span className="text-white/60">{a.kind.toUpperCase()}</span>
                       <span className="text-white/50 truncate max-w-[180px]">{a.name}</span>
-                      <button onClick={() => removeAtt(a.id)} className="ml-2 text-white/50 hover:text-white" type="button">
+                      <button
+                        onClick={() => removeAtt(a.id)}
+                        className="ml-2 text-white/50 hover:text-white"
+                        type="button"
+                      >
                         ✕
                       </button>
                     </div>
@@ -1418,10 +1432,10 @@ export default function ProfilPage() {
               </div>
 
               <div className="mt-2 text-[11px] text-white/40">
-                Commentaires synchronisés avec la page profil (même navigateur).
+                Commentaires synchronisés avec la page profil public.
               </div>
             </div>
-                        {/* list */}
+
             <div className="space-y-2">
               <div ref={commentsTopRef} />
 
@@ -1581,7 +1595,6 @@ export default function ProfilPage() {
                 ))
               )}
 
-              {/* pagination */}
               {comments.length > COMMENTS_PER_PAGE ? (
                 <div className="flex items-center justify-between pt-2">
                   <div className="text-xs text-white/40">
@@ -1593,10 +1606,7 @@ export default function ProfilPage() {
                       type="button"
                       onClick={() => {
                         setCommentsPage((p) => Math.max(1, p - 1));
-                        setTimeout(
-                          () => commentsTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
-                          0
-                        );
+                        setTimeout(() => commentsTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
                       }}
                       disabled={commentsPage <= 1}
                       className={[
@@ -1613,10 +1623,7 @@ export default function ProfilPage() {
                       type="button"
                       onClick={() => {
                         setCommentsPage((p) => Math.min(totalCommentPages, p + 1));
-                        setTimeout(
-                          () => commentsTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
-                          0
-                        );
+                        setTimeout(() => commentsTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
                       }}
                       disabled={commentsPage >= totalCommentPages}
                       className={[
@@ -1638,5 +1645,3 @@ export default function ProfilPage() {
     </div>
   );
 }
-     
-  

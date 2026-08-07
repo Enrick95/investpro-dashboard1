@@ -1,251 +1,173 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import type { ReactNode } from "react";
-
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardBody, CardSubCard } from "../../../components/ui/Card";
 import { Button } from "../../../components/ui/Button";
 import Modal from "../../../components/ui/Modal";
+import GoldSelect from "../../../components/ui/GoldSelect";
+
+import { pushNotif } from "../../../lib/notifyStore";
 import {
   Mt5Account,
+  MtPlatform,
+  MT5_EVT,
   loadMt5Accounts,
   removeMt5Account,
   upsertMt5Account,
 } from "../../../lib/mt5Store";
 
 /* =========================================================
-   BROKERS + SERVERS (EDIT HERE)
+   ✅ BROKERS séparés MT4 / MT5
 ========================================================= */
-const BROKER_PRESETS = [
+
+type BrokerPreset = { broker: string; servers: string[] };
+
+const BROKER_PRESETS_MT4: BrokerPreset[] = [
+  // 👇 Mets tes serveurs MT4 ici
+  // { broker: "FTMO Global Markets Ltd", servers: ["FTMO-MT4-Server", "FTMO-MT4-Demo"] },
+];
+
+/* =========================================================
+   BROKERS + SERVERS (MT5)
+========================================================= */
+const BROKER_PRESETS_MT5 = [
   // MetaQuotes Ltd.
   {
-    broker: "MetaQuotes Ltd.",
-    servers: ["MetaQuotes-Demo"],
+    broker: "MetaQuotes Ltd.",servers: ["MetaQuotes-Demo"],
   },
 
   // BLUEBERRY MARKETS EXEMPLE
   {
-    broker: "Blueberry Markets Pty Ltd",
-    servers: [
-      "BlueberryMarkets-Live",
-      "BlueberryMarkets-Live02",
-      "BlueberryMarkets-Demo",
-      "BlueberryMarkets-Demo02",
-    ],
+    broker: "Blueberry Markets Pty Ltd",servers: ["BlueberryMarkets-Live","BlueberryMarkets-Live02","BlueberryMarkets-Demo","BlueberryMarkets-Demo02",],
   },
   {
-    broker: "Blueberry Markets (V) Ltd",
-    servers: ["BlueberryMarketsV-Live3"],
+    broker: "Blueberry Markets (V) Ltd",servers: ["BlueberryMarketsV-Live3"],
   },
   {
-    broker: "Blueberry Markets (SVG) LLC",
-    servers: ["BlueberryMarketsSVG-Live"],
+    broker: "Blueberry Markets (SVG) LLC",servers: ["BlueberryMarketsSVG-Live"],
   },
 
   // RAISE GLOBAL
   {
-    broker: "Raise Global SA (Pty) Ltd",
-    servers: ["RaiseGlobal-Live"],
+    broker: "Raise Global SA (Pty) Ltd",servers: ["RaiseGlobal-Live"],
   },
   {
-    broker: "Raise Global SA (Pty) Limited",
-    servers: ["RaiseGlobalSA-Live"],
+    broker: "Raise Global SA (Pty) Limited",servers: ["RaiseGlobalSA-LIVE"],
   },
 
   // FTMO
   {
-    broker: "FTMO Global Markets Ltd",
-    servers: [
-      "FTMO-Server",
-      "FTMO-Server2",
-      "FTMO-Server3",
-      "FTMO-Server4",
-      "FTMO-Server5",
-      "FTMO-Demo",
-      "FTMO-Demo2",
-    ],
+    broker: "FTMO Global Markets Ltd",servers: ["FTMO-Server","FTMO-Server2","FTMO-Server3","FTMO-Server4","FTMO-Server5","FTMO-Demo","FTMO-Demo2",],
   },
 
   // Fusion Markets
   {
-    broker: "Fusion Markets Pty Ltd",
-    servers: ["FusionMarkets-Live", "FusionMarkets-Demo"],
+    broker: "Fusion Markets Pty Ltd",servers: ["FusionMarkets-Live", "FusionMarkets-Demo"],
   },
   {
-    broker: "Fusion Markets International Ltd",
-    servers: ["FusionMarketInternational-MT5_2"],
+    broker: "Fusion Markets International Ltd",servers: ["FusionMarketInternational-MT5_2"],
   },
 
   // VT Markets
   {
-    broker: "VT Markets Pty Ltd",
-    servers: [
-      "VTMarkets-Live",
-      "VTMarkets-Live 2",
-      "VTMarkets-Live 3",
-      "VTMarkets-Live 4",
-      "VTMarkets-Live 5",
-      "VTMarkets-Live 6",
-      "VTMarkets-Demo",
-    ],
+    broker: "VT Markets Pty Ltd",servers: ["VTMarkets-Live","VTMarkets-Live 2","VTMarkets-Live 3","VTMarkets-Live 4", "VTMarkets-Live 5","VTMarkets-Live 6","VTMarkets-Demo",],
   },
 
   // FundingPips
   {
-    broker: "FundingPips Corp",
-    servers: ["FundingPips-SIM"],
+    broker: "FundingPips Corp",servers: ["FundingPips-SIM"],
   },
   {
-    broker: "FundingPips Corp (2)",
-    servers: ["FundingPips2-SIM"],
+    broker: "FundingPips Corp (2)",servers: ["FundingPips2-SIM"],
   },
 
   // PuPrime
   {
-    broker: "Pu Prime Ltd",
-    servers: [
-      "PuPrime-Live",
-      "PuPrime-Live2",
-      "PuPrime-Live 4",
-      "PuPrime-Live 5",
-      "PuPrime-Live 6",
-      "PuPrime-Demo",
-    ],
+    broker: "Pu Prime Ltd",servers: ["PuPrime-Live","PuPrime-Live2","PuPrime-Live 4","PuPrime-Live 5","PuPrime-Live 6","PuPrime-Demo",],
   },
   {
-    broker: "PuPrime Trading Pty Ltd",
-    servers: ["PuPrimeTrading-Live"],
+    broker: "PuPrime Trading Pty Ltd",servers: ["PuPrimeTrading-Live"],
   },
 
   // Notesco (IronFX)
   {
-    broker: "Notesco Limited",
-    servers: ["IronFX-Real1", "IronFX-Demo1"],
+    broker: "Notesco Limited",servers: ["IronFX-Real1", "IronFX-Demo1"],
   },
 
   // RoboForex
   {
-    broker: "RoboForex Ltd",
-    servers: ["RoboForex-Pro", "RoboForex-ECN"],
+    broker: "RoboForex Ltd",servers: ["RoboForex-Pro", "RoboForex-ECN"],
   },
 
   // Vantage
   {
-    broker: "Vantage Fx Pty Ltd.",
-    servers: [
-      "VantageFX-Live",
-      "VantageFX-Live 3",
-      "VantageFX-Live 4",
-      "VantageFX-Live 5",
-      "VantageFX-Live 6",
-      "VantageFX-Live 7",
-      "VantageFX-Live 8",
-      "VantageFX-Live 9",
-      "VantageFX-Live 10",
-      "VantageFX-Live 11",
-      "VantageFX-Live 12",
-      "VantageFX-Live 14",
-      "VantageFX-Live 15",
-      "VantageFX-Live 17",
-      "VantageFX-Live 19",
-      "VantageFX-Live 21",
-      "VantageFX-Demo",
-    ],
+    broker: "Vantage Fx Pty Ltd.",servers: ["VantageFX-Live","VantageFX-Live 3","VantageFX-Live 4","VantageFX-Live 5","VantageFX-Live 6","VantageFX-Live 7","VantageFX-Live 8","VantageFX-Live 9","VantageFX-Live 10","VantageFX-Live 11","VantageFX-Live 12","VantageFX-Live 14","VantageFX-Live 15","VantageFX-Live 17","VantageFX-Live 19","VantageFX-Live 21","VantageFX-Demo",],
   },
 
   // Eightcap
   {
-    broker: "Eightcap Pty Ltd",
-    servers: ["Eightcap-Live", "Eightcap-Demo"],
+    broker: "Eightcap Pty Ltd",servers: ["Eightcap-Live", "Eightcap-Demo"],
   },
   {
-    broker: "Eightcap Global Limited",
-    servers: ["EightcapGlobal-Live"],
+    broker: "Eightcap Global Limited",servers: ["EightcapGlobal-Live"],
   },
   {
-    broker: "Eightcap EU Ltd",
-    servers: ["EightcapEU-Live"],
+    broker: "Eightcap EU Ltd",servers: ["EightcapEU-Live"],
   },
 
   // IC Markets variants
   {
-    broker: "IC Markets (EU) Ltd",
-    servers: ["ICMarketsEU-MT5-5", "ICMarketsEU-Demo"],
+    broker: "IC Markets (EU) Ltd",servers: ["ICMarketsEU-MT5-5", "ICMarketsEU-Demo"],
   },
   {
-    broker: "Ic Markets Ltd",
-    servers: [
-      "ICMarketsInternational-Demo",
-      "ICMarketsInternational-MT5",
-      "ICMarketsInternational-MT5-4",
-      "ICMarketsInternational-MT5-2",
-    ],
+    broker: "Ic Markets Ltd",servers: ["ICMarketsInternational-Demo","ICMarketsInternational-MT5","ICMarketsInternational-MT5-4","ICMarketsInternational-MT5-2",],
   },
   {
-    broker: "IC Markets Group Ltd",
-    servers: ["ICMarketsGRP-MT5", "ICMarketsGRP-Demo"],
+    broker: "IC Markets Group Ltd",servers: ["ICMarketsGRP-MT5", "ICMarketsGRP-Demo"],
   },
   {
-    broker: "IC Markets (KE) limited",
-    servers: ["ICMarketsKE-MT5-7", "ICMarketsKE-Demo"],
+    broker: "IC Markets (KE) limited",servers: ["ICMarketsKE-MT5-7", "ICMarketsKE-Demo"],
   },
   {
-    broker: "International Capital Markets Pty. Ltd.",
-    servers: ["ICMarkets-MT5", "ICMarkets-MT5-2", "ICMarkets-MT5-4", "ICMarkets-Demo"],
+    broker: "International Capital Markets Pty. Ltd.",servers: ["ICMarkets-MT5", "ICMarkets-MT5-2", "ICMarkets-MT5-4", "ICMarkets-Demo"],
   },
 
   // OANDA
   {
-    broker: "OANDA Corporation",
-    servers: [
-      "OANDA-Live-1",
-      "OANDA-Demo-1",
-      "OANDA-Prop Trader",
-      "Oanda-Japan MT5 Live",
-      "Oanda-Japan MT5 Demo",
-    ],
+    broker: "OANDA Corporation",servers: ["OANDA-Live-1","OANDA-Demo-1","OANDA-Prop Trader","Oanda-Japan MT5 Live","Oanda-Japan MT5 Demo"],
   },
   {
-    broker: "Oanda Europe Limited",
-    servers: ["OANDA_UK-Demo-1", "OANDA_UK-Live-1"],
+    broker: "Oanda Europe Limited",servers: ["OANDA_UK-Demo-1", "OANDA_UK-Live-1"],
   },
   {
-    broker: "Oanda Asia Pacific Pte Ltd",
-    servers: ["OANDA_SG-Demo-1", "OANDA_SG-Live-1"],
+    broker: "Oanda Asia Pacific Pte Ltd",servers: ["OANDA_SG-Demo-1", "OANDA_SG-Live-1"],
   },
   {
-    broker: "OANDA (Canada) Corporation ULC",
-    servers: ["OANDA_Canada-Demo-1"],
+    broker: "OANDA (Canada) Corporation ULC",servers: ["OANDA_Canada-Demo-1"],
   },
   {
-    broker: "OANDA Global Markets Limited",
-    servers: ["OANDA_Global-Demo-1", "OANDA_Global-Live-1"],
+    broker: "OANDA Global Markets Limited",servers: ["OANDA_Global-Demo-1", "OANDA_Global-Live-1"],
   },
   {
-    broker: "OANDA TMS Brokers S.A.",
-    servers: ["OANDATMS-MT5"],
+    broker: "OANDA TMS Brokers S.A.",servers: ["OANDATMS-MT5"],
   },
 
   // AvaTrade
   {
-    broker: "Ava Trade Markets Ltd.",
-    servers: ["AvaTradeMarkets-Demo 1-MT5", "AvaTradeMarkets-Real 1-MT5"],
+    broker: "Ava Trade Markets Ltd.",servers: ["AvaTradeMarkets-Demo 1-MT5", "AvaTradeMarkets-Real 1-MT5"],
   },
 
   // --- ADD NEW BROKERS/SERVERS ABOVE THIS LINE ---
-] as const;
+];
 
-type BrokerName = (typeof BROKER_PRESETS)[number]["broker"];
-type ServerName = (typeof BROKER_PRESETS)[number]["servers"][number];
+function presetsFor(platform: MtPlatform): BrokerPreset[] {
+  if (platform === "MT4") return BROKER_PRESETS_MT4.length ? BROKER_PRESETS_MT4 : BROKER_PRESETS_MT5;
+  return BROKER_PRESETS_MT5;
+}
 
-type FormState = {
-  label: string;
-  broker: BrokerName;
-  server: ServerName | "__OTHER__" | "";
-  serverOther: string;
-  login: string;
-  password: string;
-};
+function fmt(n: number) {
+  return n.toLocaleString("fr-FR", { maximumFractionDigits: 2 });
+}
 
 function Input({
   label,
@@ -253,24 +175,21 @@ function Input({
   onChange,
   placeholder,
   type,
-  readOnly,
 }: {
   label: string;
   value: string;
-  onChange?: (v: string) => void;
+  onChange: (v: string) => void;
   placeholder?: string;
   type?: string;
-  readOnly?: boolean;
 }) {
   return (
     <label className="block">
       <div className="text-sm text-white/70 mb-2">{label}</div>
       <input
         value={value}
-        onChange={(e) => onChange?.(e.target.value)}
+        onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         type={type ?? "text"}
-        readOnly={readOnly}
         className="w-full px-4 py-3 rounded-2xl bg-black/20 border border-[color:var(--border)]
                    text-white placeholder:text-white/30 outline-none
                    focus:border-[color:var(--gold-border)]
@@ -280,97 +199,79 @@ function Input({
   );
 }
 
-function Select({
-  label,
-  value,
-  onChange,
-  children,
-}: {
+type AddForm = {
+  platform: MtPlatform;
   label: string;
-  value: string;
-  onChange: (v: string) => void;
-  children: ReactNode;
-}) {
-  return (
-    <label className="block">
-      <div className="text-sm text-white/70 mb-2">{label}</div>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full px-4 py-3 rounded-2xl bg-black/20 border border-[color:var(--border)]
-                   text-white outline-none
-                   focus:border-[color:var(--gold-border)]
-                   focus:ring-2 focus:ring-[color:var(--gold-soft)] transition"
-      >
-        {children}
-      </select>
-    </label>
-  );
-}
-
-function fmt(n: number) {
-  return n.toLocaleString("fr-FR", { maximumFractionDigits: 2 });
-}
+  broker: string;
+  server: string | "__OTHER__" | "";
+  serverOther: string;
+  login: string;
+  password: string;
+};
 
 export default function ComptesPage() {
-  const [accounts, setAccounts] = useState<Mt5Account[]>(() => loadMt5Accounts());
+  const [mtAccounts, setMtAccounts] = useState<Mt5Account[]>(() => loadMt5Accounts());
   const [open, setOpen] = useState(false);
 
-  const defaultBroker = BROKER_PRESETS[0]?.broker ?? ("" as BrokerName);
-  const defaultServer = (BROKER_PRESETS[0]?.servers?.[0] ?? "") as ServerName | "";
+  // ✅ refresh quand le store change (et multi-onglets)
+  useEffect(() => {
+    const onEvt = () => setMtAccounts(loadMt5Accounts());
+    window.addEventListener(MT5_EVT as any, onEvt);
+    window.addEventListener("storage", onEvt);
+    return () => {
+      window.removeEventListener(MT5_EVT as any, onEvt);
+      window.removeEventListener("storage", onEvt);
+    };
+  }, []);
 
-  const [form, setForm] = useState<FormState>({
-    label: "",
-    broker: defaultBroker as BrokerName,
-    server: defaultServer,
-    serverOther: "",
-    login: "",
-    password: "",
-  });
-
-  const selectedPreset = useMemo(() => {
-    return BROKER_PRESETS.find((b) => b.broker === form.broker) ?? BROKER_PRESETS[0];
-  }, [form.broker]);
-
-  const serverOptions = selectedPreset?.servers ?? [];
-
-  function onBrokerChange(b: BrokerName) {
-    const preset = BROKER_PRESETS.find((x) => x.broker === b) ?? BROKER_PRESETS[0];
-    setForm((p) => ({
-      ...p,
-      broker: b,
-      server: ((preset.servers[0] ?? "") as ServerName) || "",
-      serverOther: "",
-    }));
-  }
-
-  const totals = useMemo(() => {
-    const connected = accounts.filter((a) => a.status === "CONNECTED").length;
-    const totalBalance = accounts.reduce((s, a) => s + (a.snapshot?.balance ?? 0), 0);
-    const totalProfit = accounts.reduce((s, a) => s + (a.snapshot?.profit ?? 0), 0);
-    return { connected, totalBalance, totalProfit };
-  }, [accounts]);
-
-  function resetForm() {
-    const b = BROKER_PRESETS[0]?.broker ?? ("" as BrokerName);
-    const s = (BROKER_PRESETS[0]?.servers?.[0] ?? "") as ServerName | "";
-    setForm({
+  const [form, setForm] = useState<AddForm>(() => {
+    const p: MtPlatform = "MT5";
+    const list = presetsFor(p);
+    return {
+      platform: p,
       label: "",
-      broker: b as BrokerName,
-      server: s,
+      broker: list[0]?.broker ?? "",
+      server: list[0]?.servers?.[0] ?? "",
       serverOther: "",
       login: "",
       password: "",
-    });
-  }
+    };
+  });
+
+  const activePresets = useMemo(() => presetsFor(form.platform), [form.platform]);
+
+  const brokerPreset = useMemo(
+    () => activePresets.find((b) => b.broker === form.broker) ?? activePresets[0],
+    [activePresets, form.broker]
+  );
+
+  const brokerOptions = useMemo(
+    () => activePresets.map((b) => ({ value: b.broker, label: b.broker })),
+    [activePresets]
+  );
+
+  const serverOptions = useMemo(() => {
+    const base = (brokerPreset?.servers ?? []).map((s) => ({ value: s, label: s }));
+    return [...base, { value: "__OTHER__", label: "Autre (écrire le serveur)" }];
+  }, [brokerPreset]);
+
+  const totals = useMemo(() => {
+    const connected = mtAccounts.filter((a) => a.status === "CONNECTED").length;
+    const bal = mtAccounts.reduce((s, a) => s + (a.snapshot?.balance ?? 0), 0);
+    const prof = mtAccounts.reduce((s, a) => s + (a.snapshot?.profit ?? 0), 0);
+    return { connected, bal, prof };
+  }, [mtAccounts]);
 
   function addAccount() {
     const label = form.label.trim() || `Compte ${form.login}`;
-    const broker = form.broker;
+    const broker = form.broker.trim();
     const server = form.server === "__OTHER__" ? form.serverOther.trim() : String(form.server).trim();
     const login = form.login.trim();
 
-    if (!broker || !server || !login) return;
+    if (!broker || !server || !login) {
+      pushNotif({ kind: "error", title: "Champs manquants", message: "Broker, serveur et login requis." });
+      return;
+    }
 
     const acc: Mt5Account = {
       id: `${Date.now()}_${Math.random().toString(16).slice(2)}`,
@@ -378,21 +279,24 @@ export default function ComptesPage() {
       broker,
       server,
       login,
-      password: form.password, // demo only
+      password: form.password,
       status: "DISCONNECTED",
+      platform: form.platform,
     };
 
-    const next = upsertMt5Account(acc);
-    setAccounts(next);
+    setMtAccounts(upsertMt5Account(acc));
     setOpen(false);
-    resetForm();
+    pushNotif({ kind: "success", title: "Compte ajouté", message: `${form.platform} • ${label}` });
   }
 
   async function testConnection(acc: Mt5Account) {
+    const platform = acc.platform ?? "MT5";
+    const endpoint = platform === "MT4" ? "/api/mt4/test" : "/api/mt5/test";
+
     const updated: Mt5Account = { ...acc, status: "DISCONNECTED", lastError: undefined };
 
     try {
-      const r = await fetch("/api/mt5/test", {
+      const r = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -400,6 +304,7 @@ export default function ComptesPage() {
           server: acc.server,
           login: acc.login,
           password: acc.password ?? "",
+          platform,
         }),
       });
 
@@ -408,221 +313,244 @@ export default function ComptesPage() {
 
       updated.status = "CONNECTED";
       updated.snapshot = j.snapshot;
+      pushNotif({ kind: "success", title: "Connexion OK", message: `${platform} • ${acc.label}` });
     } catch (e: any) {
       updated.status = "ERROR";
       updated.lastError = String(e?.message ?? e);
+      pushNotif({ kind: "error", title: "Connexion échouée", message: updated.lastError });
     }
 
-    const next = upsertMt5Account(updated);
-    setAccounts(next);
+    setMtAccounts(upsertMt5Account(updated));
   }
 
-  function remove(id: string) {
-    const next = removeMt5Account(id);
-    setAccounts(next);
+  function removeAcc(id: string) {
+    setMtAccounts(removeMt5Account(id));
+    pushNotif({ kind: "info", title: "Compte supprimé" });
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+      <div className="flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-semibold">
-            Comptes <span className="text-[color:var(--gold)]">MT5</span>
-          </h1>
-          <p className="text-[color:var(--muted)] mt-1">
-            Ajoute tes comptes MT5. Serveurs proposés selon le broker.
-          </p>
+          <div className="text-2xl font-semibold text-white">Comptes</div>
+          <div className="text-white/60 text-sm mt-1">MetaTrader MT4/MT5 (brokers séparés).</div>
         </div>
-
-        <div className="flex gap-3">
-          <Button variant="secondary" onClick={() => setOpen(true)}>
-            + Ajouter un compte MT5
-          </Button>
-        </div>
+        <Button onClick={() => setOpen(true)}>+ Ajouter un compte</Button>
       </div>
 
-      {/* Summary */}
+      {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <CardSubCard>
-          <div className="text-xs text-[color:var(--muted)]">Comptes connectés</div>
-          <div className="mt-2 text-xl font-bold text-[color:var(--gold)]">{totals.connected}</div>
-        </CardSubCard>
-
-        <CardSubCard>
-          <div className="text-xs text-[color:var(--muted)]">Balance totale</div>
-          <div className="mt-2 text-xl font-bold text-white">{fmt(totals.totalBalance)}</div>
-        </CardSubCard>
-
-        <CardSubCard>
-          <div className="text-xs text-[color:var(--muted)]">Profit total</div>
-          <div
-            className={[
-              "mt-2 text-xl font-bold",
-              totals.totalProfit >= 0 ? "text-[color:var(--success)]" : "text-[color:var(--danger)]",
-            ].join(" ")}
-          >
-            {fmt(totals.totalProfit)}
-          </div>
-        </CardSubCard>
+        <Card>
+          <CardBody>
+            <div className="text-white/60 text-sm">Connectés</div>
+            <div className="text-white text-2xl font-semibold mt-1">{totals.connected}</div>
+          </CardBody>
+        </Card>
+        <Card>
+          <CardBody>
+            <div className="text-white/60 text-sm">Balance totale</div>
+            <div className="text-white text-2xl font-semibold mt-1">{fmt(totals.bal)}</div>
+          </CardBody>
+        </Card>
+        <Card>
+          <CardBody>
+            <div className="text-white/60 text-sm">Profit total</div>
+            <div className="text-white text-2xl font-semibold mt-1">{fmt(totals.prof)}</div>
+          </CardBody>
+        </Card>
       </div>
 
-      {/* Accounts list */}
+      {/* Liste comptes */}
       <Card>
-        <CardBody>
+        <CardBody className="space-y-3">
           <div className="flex items-center justify-between">
-            <div className="text-lg font-semibold">Mes comptes</div>
-            <div className="text-xs text-[color:var(--muted)]">* Test connexion (bridge local)</div>
+            <div className="text-white font-semibold">MetaTrader</div>
+            <div className="text-white/50 text-sm">{mtAccounts.length} compte(s)</div>
           </div>
 
-          <div className="mt-4 space-y-3">
-            {accounts.length === 0 ? (
-              <div className="text-sm text-[color:var(--muted)]">
-                Aucun compte MT5. Clique sur “Ajouter un compte MT5”.
-              </div>
-            ) : (
-              accounts.map((a) => (
-                <CardSubCard
-                  key={a.id}
-                  className="flex flex-col md:flex-row md:items-center md:justify-between gap-4"
-                >
-                  <div className="min-w-[260px]">
-                    <div className="font-semibold text-white">
-                      {a.label}{" "}
-                      <span className="text-xs text-[color:var(--muted)]">• {a.broker}</span>
-                    </div>
-                    <div className="text-xs text-[color:var(--muted)] mt-1">
-                      Login: {a.login} • Server: {a.server}
-                    </div>
+          {mtAccounts.length === 0 ? (
+            <div className="text-white/50 text-sm">Aucun compte ajouté.</div>
+          ) : (
+            <div className="space-y-3">
+              {mtAccounts.map((a) => {
+                const p = a.platform ?? "MT5";
+                const bal = a.snapshot?.balance ?? null;
+                const eq = a.snapshot?.equity ?? null;
+                const pr = a.snapshot?.profit ?? null;
+                const cur = a.snapshot?.currency ?? "";
 
-                    {a.status === "ERROR" && a.lastError ? (
-                      <div className="mt-2 text-xs text-[color:var(--danger)]">{a.lastError}</div>
-                    ) : null}
-                  </div>
+                const profitClass =
+                  pr == null ? "text-white/70" : pr > 0 ? "text-emerald-300" : pr < 0 ? "text-red-300" : "text-white/70";
 
-                  <div className="grid grid-cols-3 gap-3 text-xs min-w-[260px]">
-                    <div className="text-right">
-                      <div className="text-[color:var(--muted)]">Balance</div>
-                      <div className="text-white/90">{a.snapshot ? fmt(a.snapshot.balance) : "—"}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-[color:var(--muted)]">Equity</div>
-                      <div className="text-white/90">{a.snapshot ? fmt(a.snapshot.equity) : "—"}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-[color:var(--muted)]">Profit</div>
-                      <div
-                        className={
-                          (a.snapshot?.profit ?? 0) >= 0
-                            ? "text-[color:var(--success)] font-semibold"
-                            : "text-[color:var(--danger)] font-semibold"
-                        }
-                      >
-                        {a.snapshot ? fmt(a.snapshot.profit) : "—"}
+                const statusPill =
+                  a.status === "CONNECTED"
+                    ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/25"
+                    : a.status === "ERROR"
+                    ? "bg-red-500/15 text-red-300 border-red-500/25"
+                    : "bg-white/5 text-white/60 border-white/10";
+
+                const statusLabel =
+                  a.status === "CONNECTED" ? "Connecté" : a.status === "ERROR" ? "Erreur" : "Déconnecté";
+
+                return (
+                  <CardSubCard key={a.id}>
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-1 rounded-full text-xs font-semibold bg-[color:var(--gold-soft)]/15 text-[color:var(--gold)] border border-[color:var(--gold-border)]/30">
+                              {p}
+                            </span>
+                            <div className="text-white font-semibold truncate">{a.label}</div>
+                            <span className={`px-2 py-1 rounded-full text-xs border ${statusPill}`}>{statusLabel}</span>
+                          </div>
+
+                          <div className="text-white/50 text-sm truncate mt-1">
+                            {a.broker} — {a.server} — {a.login}
+                          </div>
+
+                          {a.status === "ERROR" && a.lastError ? (
+                            <div className="text-red-300 text-xs mt-2">{a.lastError}</div>
+                          ) : null}
+                        </div>
+
+                        <div className="flex gap-2 shrink-0">
+                          <Button variant="ghost" onClick={() => testConnection(a)}>Tester</Button>
+                          <Button variant="danger" onClick={() => removeAcc(a.id)}>Suppr.</Button>
+                        </div>
                       </div>
+
+                      {a.snapshot ? (
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="rounded-2xl bg-black/20 border border-white/10 px-3 py-2">
+                            <div className="text-[11px] text-white/50">Balance</div>
+                            <div className="text-white font-semibold text-sm mt-0.5">
+                              {bal == null ? "—" : fmt(bal)} <span className="text-white/40">{cur}</span>
+                            </div>
+                          </div>
+                          <div className="rounded-2xl bg-black/20 border border-white/10 px-3 py-2">
+                            <div className="text-[11px] text-white/50">Equity</div>
+                            <div className="text-white font-semibold text-sm mt-0.5">
+                              {eq == null ? "—" : fmt(eq)} <span className="text-white/40">{cur}</span>
+                            </div>
+                          </div>
+                          <div className="rounded-2xl bg-black/20 border border-white/10 px-3 py-2">
+                            <div className="text-[11px] text-white/50">Profit</div>
+                            <div className={`font-semibold text-sm mt-0.5 ${profitClass}`}>
+                              {pr == null ? "—" : fmt(pr)} <span className="text-white/40">{cur}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-xs text-white/40">
+                          Aucune donnée — clique sur “Tester” pour récupérer balance/equity/profit.
+                        </div>
+                      )}
                     </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <span
-                      className={[
-                        "text-[10px] px-2 py-0.5 rounded-full border",
-                        a.status === "CONNECTED"
-                          ? "border-[color:var(--success)]/25 bg-[color:var(--success)]/10 text-[color:var(--success)]"
-                          : a.status === "ERROR"
-                          ? "border-[color:var(--danger)]/25 bg-[color:var(--danger)]/10 text-[color:var(--danger)]"
-                          : "border-white/10 bg-white/5 text-[color:var(--muted)]",
-                      ].join(" ")}
-                    >
-                      {a.status}
-                    </span>
-
-                    <Button variant="secondary" onClick={() => testConnection(a)}>
-                      Tester
-                    </Button>
-
-                    <Button variant="danger" onClick={() => remove(a.id)}>
-                      Supprimer
-                    </Button>
-                  </div>
-                </CardSubCard>
-              ))
-            )}
-          </div>
+                  </CardSubCard>
+                );
+              })}
+            </div>
+          )}
         </CardBody>
       </Card>
 
-      {/* Add account modal */}
-      <Modal
-        open={open}
-        title="Ajouter un compte MT5"
-        onClose={() => {
-          setOpen(false);
-          resetForm();
-        }}
-        footer={
-          <div className="flex items-center justify-end gap-3">
-            <Button variant="ghost" onClick={() => setOpen(false)}>
-              Annuler
-            </Button>
-            <Button onClick={addAccount}>Ajouter</Button>
-          </div>
-        }
-      >
+      {/* Modal Add */}
+      <Modal open={open} onClose={() => setOpen(false)} title="Ajouter un compte MetaTrader">
         <div className="space-y-4">
-          <Input
-            label="Nom du compte"
-            value={form.label}
-            onChange={(v) => setForm((p) => ({ ...p, label: v }))}
-            placeholder="Ex: Master MT5"
-          />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <div className="text-sm text-white/70 mb-2">Plateforme</div>
+              <GoldSelect
+                value={form.platform}
+                onChange={(v) => {
+                  const platform = v as MtPlatform;
+                  const list = presetsFor(platform);
+                  setForm((p) => ({
+                    ...p,
+                    platform,
+                    broker: list[0]?.broker ?? "",
+                    server: list[0]?.servers?.[0] ?? "",
+                    serverOther: "",
+                  }));
+                }}
+                options={[
+                  { value: "MT4", label: "MT4" },
+                  { value: "MT5", label: "MT5" },
+                ]}
+              />
+            </div>
 
-          <Select label="Broker" value={form.broker} onChange={(v) => onBrokerChange(v as BrokerName)}>
-            {BROKER_PRESETS.map((b) => (
-              <option key={b.broker} value={b.broker}>
-                {b.broker}
-              </option>
-            ))}
-          </Select>
+            <Input
+              label="Nom du compte"
+              value={form.label}
+              onChange={(v) => setForm((p) => ({ ...p, label: v }))}
+              placeholder="Ex: Challenge 50k"
+            />
+          </div>
 
-          <Select
-            label="Serveur MT5 (selon broker)"
-            value={form.server}
-            onChange={(v) => setForm((p) => ({ ...p, server: v as FormState["server"] }))}
-          >
-            {serverOptions.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-            <option value="__OTHER__">Autre…</option>
-          </Select>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <div className="text-sm text-white/70 mb-2">Broker ({form.platform})</div>
+              <GoldSelect
+                value={form.broker}
+                onChange={(v) => {
+                  const preset = activePresets.find((x) => x.broker === v) ?? activePresets[0];
+                  setForm((p) => ({
+                    ...p,
+                    broker: v,
+                    server: preset?.servers?.[0] ?? "",
+                    serverOther: "",
+                  }));
+                }}
+                options={brokerOptions}
+              />
+            </div>
+
+            <div>
+              <div className="text-sm text-white/70 mb-2">Serveur</div>
+              <GoldSelect
+                value={String(form.server)}
+                onChange={(v) =>
+                  setForm((p) => ({
+                    ...p,
+                    server: v as any,
+                    serverOther: v === "__OTHER__" ? p.serverOther : "",
+                  }))
+                }
+                options={serverOptions}
+              />
+            </div>
+          </div>
 
           {form.server === "__OTHER__" ? (
             <Input
               label="Serveur (autre)"
               value={form.serverOther}
               onChange={(v) => setForm((p) => ({ ...p, serverOther: v }))}
-              placeholder="Ex: BlueberryMarkets-Live05"
+              placeholder="Ex: MonBroker-Live01"
             />
           ) : null}
 
-          <Input
-            label="Login"
-            value={form.login}
-            onChange={(v) => setForm((p) => ({ ...p, login: v }))}
-            placeholder="Ex: 12345678"
-          />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Login"
+              value={form.login}
+              onChange={(v) => setForm((p) => ({ ...p, login: v }))}
+              placeholder="Ex: 12345678"
+            />
+            <Input
+              label="Mot de passe (démo)"
+              value={form.password}
+              onChange={(v) => setForm((p) => ({ ...p, password: v }))}
+              type="password"
+              placeholder="(optionnel / démo)"
+            />
+          </div>
 
-          <Input
-            label="Mot de passe (démo)"
-            value={form.password}
-            onChange={(v) => setForm((p) => ({ ...p, password: v }))}
-            placeholder="(démo)"
-            type="password"
-          />
-
-          <div className="text-xs text-[color:var(--muted)]">
-            * En prod : le mot de passe ne sera pas stocké ici. Il sera géré par l’agent MT5 sur VPS.
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <Button variant="ghost" onClick={() => setOpen(false)}>Annuler</Button>
+            <Button onClick={addAccount}>Ajouter</Button>
           </div>
         </div>
       </Modal>
