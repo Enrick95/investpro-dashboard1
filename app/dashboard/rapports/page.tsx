@@ -1,931 +1,2613 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-import { Card, CardBody } from "../../../components/ui/Card";
-import { Button } from "../../../components/ui/Button";
-import Modal from "../../../components/ui/Modal";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
-import { Trade, loadTrades } from "../../../lib/tradesStore";
-import { loadMt5Accounts, Mt5Account } from "../../../lib/mt5Store";
-import { syncMt5HistoryToTrades } from "../../../lib/mt5sync";
-import { pushNotif } from "../../../lib/notifyStore";
+import {
+  Activity,
+  BarChart3,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  CircleDollarSign,
+  Gauge,
+  LineChart,
+  Search,
+  ShieldCheck,
+  Target,
+  TrendingDown,
+  TrendingUp,
+  WalletCards,
+} from "lucide-react";
 
-/* -------------------------------- Helpers -------------------------------- */
-function fmt(n: number) {
-  return n.toLocaleString("fr-FR", { maximumFractionDigits: 2 });
-}
-function clamp(v: number, a: number, b: number) {
-  return Math.max(a, Math.min(b, v));
-}
-function safeNum(v: any) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-}
-function safeStr(v: any) {
-  if (v === null || v === undefined) return "";
-  return String(v);
-}
-function ymd(d: Date) {
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
-function monthLabel(d: Date) {
-  return d.toLocaleString("fr-FR", { month: "long", year: "numeric" });
-}
-function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
-  const rad = ((angleDeg - 90) * Math.PI) / 180.0;
-  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
-}
-function radarPoint(
-  cx: number,
-  cy: number,
-  r: number,
-  axisIndex: number,
-  axisCount: number,
-  t01: number
+import { createClient } from "@/lib/supabase/client";
+
+/* =========================================================
+   TYPES
+========================================================= */
+
+type TradingAccount = {
+  id: number;
+  name: string;
+  broker: string | null;
+  account_type: "real" | "demo" | "prop";
+  platform: "MT4" | "MT5" | "OTHER" | null;
+  currency: string;
+  initial_balance: number;
+  current_balance: number;
+};
+
+type Trade = {
+  id: number;
+  account_id: number | null;
+  trade_date: string;
+  symbol: string;
+  direction: "buy" | "sell";
+  risk_percent: number;
+  result_amount: number;
+  result_r: number;
+  status: "open" | "win" | "loss" | "breakeven" | "cancelled";
+  setup: string | null;
+  session: string | null;
+  timeframe: string | null;
+  notes: string | null;
+  screenshot_url: string | null;
+};
+
+type Period =
+  | "7d"
+  | "30d"
+  | "90d"
+  | "year"
+  | "all";
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+function clamp(
+  value: number,
+  min: number,
+  max: number
 ) {
-  const a = (360 / axisCount) * axisIndex - 90;
-  return polarToCartesian(cx, cy, r * clamp(t01, 0, 1), a);
-}
-function relSince(ms: number) {
-  const diff = Date.now() - ms;
-  if (diff < 0) return "à l’instant";
-  const m = Math.floor(diff / 60000);
-  if (m < 1) return "à l’instant";
-  if (m < 60) return `il y a ${m} min`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `il y a ${h} h`;
-  const d = Math.floor(h / 24);
-  return `il y a ${d} j`;
-}
-function Spinner() {
-  return (
-    <span
-      className="inline-block h-4 w-4 rounded-full border-2 border-white/20 border-t-white/80 animate-spin"
-      aria-label="Chargement"
-    />
+  return Math.max(
+    min,
+    Math.min(
+      max,
+      value
+    )
   );
 }
 
-/* ------------------------------ Widgets ------------------------------ */
-function MiniStat({
+function fmt(
+  value: number,
+  digits = 2
+) {
+  return Number(
+    value || 0
+  ).toLocaleString(
+    "fr-FR",
+    {
+      maximumFractionDigits:
+        digits,
+      minimumFractionDigits:
+        digits,
+    }
+  );
+}
+
+function fmtMoney(
+  value: number,
+  currency: string
+) {
+  try {
+    return new Intl.NumberFormat(
+      "fr-FR",
+      {
+        style:
+          "currency",
+        currency:
+          currency ||
+          "EUR",
+        maximumFractionDigits:
+          2,
+      }
+    ).format(
+      Number(
+        value ||
+          0
+      )
+    );
+  } catch {
+    return `${fmt(
+      value
+    )} ${currency}`;
+  }
+}
+
+function ymd(
+  date: Date
+) {
+  const year =
+    date.getFullYear();
+
+  const month =
+    String(
+      date.getMonth() +
+        1
+    ).padStart(
+      2,
+      "0"
+    );
+
+  const day =
+    String(
+      date.getDate()
+    ).padStart(
+      2,
+      "0"
+    );
+
+  return `${year}-${month}-${day}`;
+}
+
+function monthLabel(
+  date: Date
+) {
+  return date.toLocaleDateString(
+    "fr-FR",
+    {
+      month:
+        "long",
+      year:
+        "numeric",
+    }
+  );
+}
+
+function signed(
+  value: number,
+  suffix = ""
+) {
+  const n =
+    Number(
+      value ||
+        0
+    );
+
+  return `${n > 0 ? "+" : ""}${fmt(
+    n
+  )}${suffix}`;
+}
+
+function periodStart(
+  period: Period
+) {
+  const now =
+    new Date();
+
+  if (
+    period ===
+    "all"
+  ) {
+    return null;
+  }
+
+  if (
+    period ===
+    "year"
+  ) {
+    return new Date(
+      now.getFullYear(),
+      0,
+      1
+    );
+  }
+
+  const days =
+    period ===
+    "7d"
+      ? 7
+      : period ===
+        "30d"
+      ? 30
+      : 90;
+
+  const start =
+    new Date();
+
+  start.setDate(
+    start.getDate() -
+      days +
+      1
+  );
+
+  start.setHours(
+    0,
+    0,
+    0,
+    0
+  );
+
+  return start;
+}
+
+/* =========================================================
+   PAGE
+========================================================= */
+
+export default function RapportsPage() {
+  const supabase =
+    useMemo(
+      () =>
+        createClient(),
+      []
+    );
+
+  const [
+    accounts,
+    setAccounts,
+  ] =
+    useState<
+      TradingAccount[]
+    >([]);
+
+  const [
+    trades,
+    setTrades,
+  ] =
+    useState<
+      Trade[]
+    >([]);
+
+  const [
+    loading,
+    setLoading,
+  ] =
+    useState(
+      true
+    );
+
+  const [
+    selectedAccountId,
+    setSelectedAccountId,
+  ] =
+    useState<
+      "all" | number
+    >("all");
+
+  const [
+    period,
+    setPeriod,
+  ] =
+    useState<Period>(
+      "30d"
+    );
+
+  const [
+    search,
+    setSearch,
+  ] =
+    useState("");
+
+  const [
+    viewDate,
+    setViewDate,
+  ] =
+    useState(
+      new Date()
+    );
+
+  /* =======================================================
+     LOAD
+  ======================================================= */
+
+  useEffect(() => {
+    loadPage();
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function loadPage() {
+    try {
+      setLoading(
+        true
+      );
+
+      const {
+        data: {
+          user,
+        },
+        error:
+          userError,
+      } =
+        await supabase.auth.getUser();
+
+      if (
+        userError ||
+        !user
+      ) {
+        window.location.href =
+          "/login";
+
+        return;
+      }
+
+      const [
+        accountsResult,
+        tradesResult,
+      ] =
+        await Promise.all([
+          supabase
+            .from(
+              "trading_accounts"
+            )
+            .select(
+              `
+                id,
+                name,
+                broker,
+                account_type,
+                platform,
+                currency,
+                initial_balance,
+                current_balance
+              `
+            )
+            .eq(
+              "user_id",
+              user.id
+            )
+            .order(
+              "created_at",
+              {
+                ascending:
+                  true,
+              }
+            ),
+
+          supabase
+            .from(
+              "trading_journal"
+            )
+            .select(
+              `
+                id,
+                account_id,
+                trade_date,
+                symbol,
+                direction,
+                risk_percent,
+                result_amount,
+                result_r,
+                status,
+                setup,
+                session,
+                timeframe,
+                notes,
+                screenshot_url
+              `
+            )
+            .eq(
+              "user_id",
+              user.id
+            )
+            .order(
+              "trade_date",
+              {
+                ascending:
+                  true,
+              }
+            ),
+        ]);
+
+      if (
+        accountsResult.error
+      ) {
+        console.error(
+          "Erreur comptes rapports :",
+          accountsResult.error
+        );
+      } else {
+        setAccounts(
+          (
+            accountsResult.data as TradingAccount[]
+          )?.map(
+            (
+              account
+            ) => ({
+              ...account,
+              initial_balance:
+                Number(
+                  account.initial_balance ||
+                    0
+                ),
+
+              current_balance:
+                Number(
+                  account.current_balance ||
+                    0
+                ),
+            })
+          ) ||
+            []
+        );
+      }
+
+      if (
+        tradesResult.error
+      ) {
+        console.error(
+          "Erreur trades rapports :",
+          tradesResult.error
+        );
+      } else {
+        setTrades(
+          (
+            tradesResult.data as Trade[]
+          )?.map(
+            (
+              trade
+            ) => ({
+              ...trade,
+              risk_percent:
+                Number(
+                  trade.risk_percent ||
+                    0
+                ),
+
+              result_amount:
+                Number(
+                  trade.result_amount ||
+                    0
+                ),
+
+              result_r:
+                Number(
+                  trade.result_r ||
+                    0
+                ),
+            })
+          ) ||
+            []
+        );
+      }
+    } finally {
+      setLoading(
+        false
+      );
+    }
+  }
+
+  /* =======================================================
+     FILTERS
+  ======================================================= */
+
+  const selectedAccount =
+    useMemo(() => {
+      if (
+        selectedAccountId ===
+        "all"
+      ) {
+        return null;
+      }
+
+      return (
+        accounts.find(
+          (
+            account
+          ) =>
+            account.id ===
+            selectedAccountId
+        ) ||
+        null
+      );
+    }, [
+      accounts,
+      selectedAccountId,
+    ]);
+
+  const accountCurrency =
+    selectedAccount?.currency ||
+    accounts[0]?.currency ||
+    "EUR";
+
+  const filteredTrades =
+    useMemo(() => {
+      const start =
+        periodStart(
+          period
+        );
+
+      const query =
+        search
+          .trim()
+          .toLowerCase();
+
+      return trades.filter(
+        (
+          trade
+        ) => {
+          if (
+            selectedAccountId !==
+              "all" &&
+            trade.account_id !==
+              selectedAccountId
+          ) {
+            return false;
+          }
+
+          if (
+            start &&
+            new Date(
+              trade.trade_date
+            ) <
+              start
+          ) {
+            return false;
+          }
+
+          if (
+            trade.status ===
+            "cancelled"
+          ) {
+            return false;
+          }
+
+          if (
+            query
+          ) {
+            const haystack =
+              [
+                trade.symbol,
+                trade.setup,
+                trade.session,
+                trade.timeframe,
+              ]
+                .filter(
+                  Boolean
+                )
+                .join(
+                  " "
+                )
+                .toLowerCase();
+
+            if (
+              !haystack.includes(
+                query
+              )
+            ) {
+              return false;
+            }
+          }
+
+          return true;
+        }
+      );
+    }, [
+      trades,
+      selectedAccountId,
+      period,
+      search,
+    ]);
+
+  /* =======================================================
+     KPI
+  ======================================================= */
+
+  const kpi =
+    useMemo(() => {
+      const closed =
+        filteredTrades.filter(
+          (
+            trade
+          ) =>
+            [
+              "win",
+              "loss",
+              "breakeven",
+            ].includes(
+              trade.status
+            )
+        );
+
+      const wins =
+        closed.filter(
+          (
+            trade
+          ) =>
+            trade.status ===
+            "win"
+        );
+
+      const losses =
+        closed.filter(
+          (
+            trade
+          ) =>
+            trade.status ===
+            "loss"
+        );
+
+      const bes =
+        closed.filter(
+          (
+            trade
+          ) =>
+            trade.status ===
+            "breakeven"
+        );
+
+      const totalR =
+        closed.reduce(
+          (
+            sum,
+            trade
+          ) =>
+            sum +
+            Number(
+              trade.result_r ||
+                0
+            ),
+          0
+        );
+
+      const pnl =
+        closed.reduce(
+          (
+            sum,
+            trade
+          ) =>
+            sum +
+            Number(
+              trade.result_amount ||
+                0
+            ),
+          0
+        );
+
+      const winrate =
+        wins.length +
+          losses.length >
+        0
+          ? (
+              wins.length /
+              (
+                wins.length +
+                losses.length
+              )
+            ) *
+            100
+          : 0;
+
+      const positiveR =
+        wins.reduce(
+          (
+            sum,
+            trade
+          ) =>
+            sum +
+            Math.max(
+              0,
+              trade.result_r
+            ),
+          0
+        );
+
+      const negativeRAbs =
+        Math.abs(
+          losses.reduce(
+            (
+              sum,
+              trade
+            ) =>
+              sum +
+              Math.min(
+                0,
+                trade.result_r
+              ),
+            0
+          )
+        );
+
+      const profitFactor =
+        negativeRAbs >
+        0
+          ? positiveR /
+            negativeRAbs
+          : positiveR >
+            0
+          ? positiveR
+          : 0;
+
+      const avgWinR =
+        wins.length >
+        0
+          ? positiveR /
+            wins.length
+          : 0;
+
+      const avgLossR =
+        losses.length >
+        0
+          ? negativeRAbs /
+            losses.length
+          : 0;
+
+      const avgRisk =
+        closed.length >
+        0
+          ? closed.reduce(
+              (
+                sum,
+                trade
+              ) =>
+                sum +
+                Number(
+                  trade.risk_percent ||
+                    0
+                ),
+              0
+            ) /
+            closed.length
+          : 0;
+
+      const dayMap =
+        new Map<
+          string,
+          number
+        >();
+
+      closed.forEach(
+        (
+          trade
+        ) => {
+          const key =
+            ymd(
+              new Date(
+                trade.trade_date
+              )
+            );
+
+          dayMap.set(
+            key,
+            (
+              dayMap.get(
+                key
+              ) ||
+              0
+            ) +
+              Number(
+                trade.result_r ||
+                  0
+              )
+          );
+        }
+      );
+
+      const days =
+        Array.from(
+          dayMap.entries()
+        ).map(
+          ([
+            date,
+            resultR,
+          ]) => ({
+            date,
+            resultR,
+          })
+        );
+
+      const positiveDays =
+        days.filter(
+          (
+            day
+          ) =>
+            day.resultR >
+            0
+        );
+
+      const negativeDays =
+        days.filter(
+          (
+            day
+          ) =>
+            day.resultR <
+            0
+        );
+
+      const dayWinrate =
+        positiveDays.length +
+          negativeDays.length >
+        0
+          ? (
+              positiveDays.length /
+              (
+                positiveDays.length +
+                negativeDays.length
+              )
+            ) *
+            100
+          : 0;
+
+      const bestDay =
+        days.length >
+        0
+          ? [...days].sort(
+              (
+                a,
+                b
+              ) =>
+                b.resultR -
+                a.resultR
+            )[0]
+          : null;
+
+      return {
+        closed:
+          closed.length,
+
+        wins:
+          wins.length,
+
+        losses:
+          losses.length,
+
+        bes:
+          bes.length,
+
+        totalR,
+
+        pnl,
+
+        winrate,
+
+        profitFactor,
+
+        avgWinR,
+
+        avgLossR,
+
+        avgRisk,
+
+        positiveDays:
+          positiveDays.length,
+
+        negativeDays:
+          negativeDays.length,
+
+        dayWinrate,
+
+        bestDay,
+      };
+    }, [
+      filteredTrades,
+    ]);
+
+  /* =======================================================
+     EQUITY CURVE IN R
+  ======================================================= */
+
+  const equityCurve =
+    useMemo(() => {
+      let cumulative =
+        0;
+
+      return filteredTrades
+        .filter(
+          (
+            trade
+          ) =>
+            [
+              "win",
+              "loss",
+              "breakeven",
+            ].includes(
+              trade.status
+            )
+        )
+        .map(
+          (
+            trade,
+            index
+          ) => {
+            cumulative +=
+              Number(
+                trade.result_r ||
+                  0
+              );
+
+            return {
+              index,
+              value:
+                cumulative,
+              date:
+                trade.trade_date,
+            };
+          }
+        );
+    }, [
+      filteredTrades,
+    ]);
+
+  const curveSvg =
+    useMemo(() => {
+      const width =
+        1000;
+
+      const height =
+        260;
+
+      if (
+        equityCurve.length ===
+        0
+      ) {
+        return {
+          path: "",
+          width,
+          height,
+          min: 0,
+          max: 0,
+        };
+      }
+
+      const values =
+        equityCurve.map(
+          (
+            point
+          ) =>
+            point.value
+        );
+
+      let min =
+        Math.min(
+          0,
+          ...values
+        );
+
+      let max =
+        Math.max(
+          0,
+          ...values
+        );
+
+      if (
+        min ===
+        max
+      ) {
+        min -= 1;
+        max += 1;
+      }
+
+      const xFor =
+        (
+          index: number
+        ) =>
+          equityCurve.length ===
+          1
+            ? width /
+              2
+            : 30 +
+              (
+                index /
+                (
+                  equityCurve.length -
+                  1
+                )
+              ) *
+                (
+                  width -
+                  60
+                );
+
+      const yFor =
+        (
+          value: number
+        ) =>
+          25 +
+          (
+            1 -
+            (
+              value -
+              min
+            ) /
+              (
+                max -
+                min
+              )
+          ) *
+            (
+              height -
+              50
+            );
+
+      const path =
+        equityCurve
+          .map(
+            (
+              point,
+              index
+            ) =>
+              `${index === 0 ? "M" : "L"} ${xFor(
+                index
+              )} ${yFor(
+                point.value
+              )}`
+          )
+          .join(
+            " "
+          );
+
+      return {
+        path,
+        width,
+        height,
+        min,
+        max,
+      };
+    }, [
+      equityCurve,
+    ]);
+
+  /* =======================================================
+     BREAKDOWNS
+  ======================================================= */
+
+  const breakdowns =
+    useMemo(() => {
+      function aggregate(
+        key:
+          | "symbol"
+          | "session"
+          | "timeframe"
+          | "setup"
+      ) {
+        const map =
+          new Map<
+            string,
+            {
+              count: number;
+              totalR: number;
+              wins: number;
+              losses: number;
+            }
+          >();
+
+        filteredTrades.forEach(
+          (
+            trade
+          ) => {
+            if (
+              ![
+                "win",
+                "loss",
+                "breakeven",
+              ].includes(
+                trade.status
+              )
+            ) {
+              return;
+            }
+
+            const label =
+              String(
+                trade[
+                  key
+                ] ||
+                  "Non renseigné"
+              );
+
+            const current =
+              map.get(
+                label
+              ) || {
+                count: 0,
+                totalR: 0,
+                wins: 0,
+                losses: 0,
+              };
+
+            current.count +=
+              1;
+
+            current.totalR +=
+              Number(
+                trade.result_r ||
+                  0
+              );
+
+            if (
+              trade.status ===
+              "win"
+            ) {
+              current.wins +=
+                1;
+            }
+
+            if (
+              trade.status ===
+              "loss"
+            ) {
+              current.losses +=
+                1;
+            }
+
+            map.set(
+              label,
+              current
+            );
+          }
+        );
+
+        return Array.from(
+          map.entries()
+        )
+          .map(
+            ([
+              label,
+              data,
+            ]) => ({
+              label,
+              ...data,
+
+              winrate:
+                data.wins +
+                  data.losses >
+                0
+                  ? (
+                      data.wins /
+                      (
+                        data.wins +
+                        data.losses
+                      )
+                    ) *
+                    100
+                  : 0,
+            })
+          )
+          .sort(
+            (
+              a,
+              b
+            ) =>
+              b.totalR -
+              a.totalR
+          );
+      }
+
+      return {
+        symbols:
+          aggregate(
+            "symbol"
+          ),
+
+        sessions:
+          aggregate(
+            "session"
+          ),
+
+        timeframes:
+          aggregate(
+            "timeframe"
+          ),
+
+        setups:
+          aggregate(
+            "setup"
+          ),
+      };
+    }, [
+      filteredTrades,
+    ]);
+
+  /* =======================================================
+     CALENDAR
+  ======================================================= */
+
+  const calendar =
+    useMemo(() => {
+      const firstDay =
+        new Date(
+          viewDate.getFullYear(),
+          viewDate.getMonth(),
+          1
+        );
+
+      const startWeekday =
+        (
+          firstDay.getDay() +
+          6
+        ) %
+        7;
+
+      const gridStart =
+        new Date(
+          firstDay
+        );
+
+      gridStart.setDate(
+        firstDay.getDate() -
+          startWeekday
+      );
+
+      const monthTrades =
+        filteredTrades.filter(
+          (
+            trade
+          ) => {
+            const date =
+              new Date(
+                trade.trade_date
+              );
+
+            return (
+              date.getFullYear() ===
+                viewDate.getFullYear() &&
+              date.getMonth() ===
+                viewDate.getMonth()
+            );
+          }
+        );
+
+      const days:
+        {
+          date: Date;
+          key: string;
+          resultR: number;
+          count: number;
+        }[] = [];
+
+      for (
+        let index =
+          0;
+        index <
+        42;
+        index +=
+          1
+      ) {
+        const date =
+          new Date(
+            gridStart
+          );
+
+        date.setDate(
+          gridStart.getDate() +
+            index
+        );
+
+        const key =
+          ymd(
+            date
+          );
+
+        const dayTrades =
+          monthTrades.filter(
+            (
+              trade
+            ) =>
+              ymd(
+                new Date(
+                  trade.trade_date
+                )
+              ) ===
+              key
+          );
+
+        days.push({
+          date,
+          key,
+
+          resultR:
+            dayTrades.reduce(
+              (
+                sum,
+                trade
+              ) =>
+                sum +
+                Number(
+                  trade.result_r ||
+                    0
+                ),
+              0
+            ),
+
+          count:
+            dayTrades.length,
+        });
+      }
+
+      return {
+        days,
+        monthR:
+          monthTrades.reduce(
+            (
+              sum,
+              trade
+            ) =>
+              sum +
+              Number(
+                trade.result_r ||
+                  0
+              ),
+            0
+          ),
+      };
+    }, [
+      viewDate,
+      filteredTrades,
+    ]);
+
+  const weeks =
+    useMemo(() => {
+      const rows:
+        typeof calendar.days[] =
+        [];
+
+      for (
+        let index =
+          0;
+        index <
+        6;
+        index +=
+          1
+      ) {
+        rows.push(
+          calendar.days.slice(
+            index *
+              7,
+            index *
+              7 +
+              7
+          )
+        );
+      }
+
+      return rows;
+    }, [
+      calendar.days,
+    ]);
+
+  /* =======================================================
+     CAPITAL
+  ======================================================= */
+
+  const capital =
+    useMemo(() => {
+      if (
+        selectedAccount
+      ) {
+        return {
+          initial:
+            selectedAccount.initial_balance,
+
+          current:
+            selectedAccount.current_balance,
+
+          currency:
+            selectedAccount.currency,
+        };
+      }
+
+      const sameCurrency =
+        accounts.every(
+          (
+            account
+          ) =>
+            account.currency ===
+            accountCurrency
+        );
+
+      if (
+        !sameCurrency
+      ) {
+        return {
+          initial: 0,
+          current: 0,
+          currency:
+            accountCurrency,
+        };
+      }
+
+      return {
+        initial:
+          accounts.reduce(
+            (
+              sum,
+              account
+            ) =>
+              sum +
+              account.initial_balance,
+            0
+          ),
+
+        current:
+          accounts.reduce(
+            (
+              sum,
+              account
+            ) =>
+              sum +
+              account.current_balance,
+            0
+          ),
+
+        currency:
+          accountCurrency,
+      };
+    }, [
+      selectedAccount,
+      accounts,
+      accountCurrency,
+    ]);
+
+  if (
+    loading
+  ) {
+    return (
+      <div className="flex min-h-[70vh] items-center justify-center text-sm text-[color:var(--muted)]">
+        Chargement des rapports…
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5 pb-10">
+      {/* =====================================================
+          HEADER
+      ===================================================== */}
+
+      <div>
+        <div
+          className="
+            mb-3
+            inline-flex
+            items-center
+            gap-2
+            rounded-full
+            border
+            border-[color:var(--gold-border)]
+            bg-[color:var(--gold-soft)]
+            px-3
+            py-1.5
+            text-[10px]
+            font-semibold
+            uppercase
+            tracking-[0.13em]
+            text-[color:var(--gold)]
+          "
+        >
+          <BarChart3
+            size={12}
+          />
+
+          Analytics InvestPro
+        </div>
+
+        <h1 className="text-2xl font-semibold text-white">
+          Rapports de performance
+        </h1>
+
+        <p className="mt-1 max-w-2xl text-sm leading-6 text-[color:var(--muted)]">
+          Analyse tes performances réelles à partir de tes comptes et des trades enregistrés dans ton Journal.
+        </p>
+      </div>
+
+      {/* =====================================================
+          FILTERS
+      ===================================================== */}
+
+      <section
+        className="
+          rounded-[22px]
+          border
+          border-[color:var(--border)]
+          bg-[color:var(--panel)]
+          p-4
+        "
+      >
+        <div className="grid grid-cols-1 gap-3 xl:grid-cols-12">
+          <div className="xl:col-span-4">
+            <div className="mb-2 text-[9px] font-medium uppercase tracking-[0.08em] text-white/35">
+              Compte
+            </div>
+
+            <select
+              value={
+                selectedAccountId
+              }
+              onChange={(
+                event
+              ) =>
+                setSelectedAccountId(
+                  event.target.value ===
+                    "all"
+                    ? "all"
+                    : Number(
+                        event.target.value
+                      )
+                )
+              }
+              className={inputClass}
+            >
+              <option value="all">
+                Tous les comptes
+              </option>
+
+              {accounts.map(
+                (
+                  account
+                ) => (
+                  <option
+                    key={
+                      account.id
+                    }
+                    value={
+                      account.id
+                    }
+                  >
+                    {account.name}
+                    {account.broker
+                      ? ` • ${account.broker}`
+                      : ""}
+                  </option>
+                )
+              )}
+            </select>
+          </div>
+
+          <div className="xl:col-span-5">
+            <div className="mb-2 text-[9px] font-medium uppercase tracking-[0.08em] text-white/35">
+              Période
+            </div>
+
+            <div className="grid grid-cols-5 gap-2">
+              {(
+                [
+                  [
+                    "7d",
+                    "7 jours",
+                  ],
+                  [
+                    "30d",
+                    "30 jours",
+                  ],
+                  [
+                    "90d",
+                    "3 mois",
+                  ],
+                  [
+                    "year",
+                    "Année",
+                  ],
+                  [
+                    "all",
+                    "Tout",
+                  ],
+                ] as [
+                  Period,
+                  string
+                ][]
+              ).map(
+                ([
+                  key,
+                  label,
+                ]) => (
+                  <button
+                    key={
+                      key
+                    }
+                    type="button"
+                    onClick={() =>
+                      setPeriod(
+                        key
+                      )
+                    }
+                    className={[
+                      "h-11 rounded-xl border px-2 text-[10px] font-semibold transition",
+
+                      period ===
+                      key
+                        ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]"
+                        : "border-white/10 bg-black/20 text-white/45",
+                    ].join(
+                      " "
+                    )}
+                  >
+                    {
+                      label
+                    }
+                  </button>
+                )
+              )}
+            </div>
+          </div>
+
+          <div className="xl:col-span-3">
+            <div className="mb-2 text-[9px] font-medium uppercase tracking-[0.08em] text-white/35">
+              Recherche
+            </div>
+
+            <div className="relative">
+              <Search
+                size={14}
+                className="
+                  absolute
+                  left-3
+                  top-1/2
+                  -translate-y-1/2
+                  text-white/30
+                "
+              />
+
+              <input
+                value={
+                  search
+                }
+                onChange={(
+                  event
+                ) =>
+                  setSearch(
+                    event.target.value
+                  )
+                }
+                placeholder="GOLD, London, OTE..."
+                className={`${inputClass} pl-9`}
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* =====================================================
+          KPI
+      ===================================================== */}
+
+      <section
+        className="
+          grid
+          grid-cols-2
+          gap-3
+          md:grid-cols-3
+          xl:grid-cols-6
+        "
+      >
+        <KpiCard
+          icon={
+            <Activity
+              size={17}
+            />
+          }
+          label="Trades"
+          value={String(
+            kpi.closed
+          )}
+        />
+
+        <KpiCard
+          icon={
+            <Target
+              size={17}
+            />
+          }
+          label="Winrate"
+          value={`${fmt(
+            kpi.winrate,
+            1
+          )}%`}
+        />
+
+        <KpiCard
+          icon={
+            <TrendingUp
+              size={17}
+            />
+          }
+          label="Résultat"
+          value={signed(
+            kpi.totalR,
+            "R"
+          )}
+          tone={
+            kpi.totalR >
+            0
+              ? "success"
+              : kpi.totalR <
+                0
+              ? "danger"
+              : "neutral"
+          }
+        />
+
+        <KpiCard
+          icon={
+            <Gauge
+              size={17}
+            />
+          }
+          label="Profit Factor"
+          value={fmt(
+            kpi.profitFactor
+          )}
+          tone="gold"
+        />
+
+        <KpiCard
+          icon={
+            <ShieldCheck
+              size={17}
+            />
+          }
+          label="Risque moyen"
+          value={`${fmt(
+            kpi.avgRisk
+          )}%`}
+        />
+
+        <KpiCard
+          icon={
+            <CircleDollarSign
+              size={17}
+            />
+          }
+          label="P&L"
+          value={fmtMoney(
+            kpi.pnl,
+            accountCurrency
+          )}
+          tone={
+            kpi.pnl >
+            0
+              ? "success"
+              : kpi.pnl <
+                0
+              ? "danger"
+              : "neutral"
+          }
+        />
+      </section>
+
+      {/* =====================================================
+          CAPITAL + CURVE
+      ===================================================== */}
+
+      <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+        <div
+          className="
+            rounded-[24px]
+            border
+            border-[color:var(--border)]
+            bg-[color:var(--panel)]
+            p-5
+            xl:col-span-4
+          "
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]">
+              <WalletCards
+                size={17}
+              />
+            </div>
+
+            <div>
+              <div className="text-sm font-semibold text-white">
+                Capital
+              </div>
+
+              <div className="mt-1 text-[9px] text-[color:var(--muted)]">
+                {selectedAccount
+                  ? selectedAccount.name
+                  : "Vue globale"}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6">
+            <div className="text-[9px] uppercase tracking-[0.08em] text-white/30">
+              Capital actuel
+            </div>
+
+            <div className="mt-2 text-3xl font-semibold text-white">
+              {fmtMoney(
+                capital.current,
+                capital.currency
+              )}
+            </div>
+          </div>
+
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <SmallMetric
+              label="Initial"
+              value={fmtMoney(
+                capital.initial,
+                capital.currency
+              )}
+            />
+
+            <SmallMetric
+              label="Écart"
+              value={fmtMoney(
+                capital.current -
+                  capital.initial,
+                capital.currency
+              )}
+              gold
+            />
+          </div>
+
+          {selectedAccountId ===
+            "all" &&
+          accounts.some(
+            (
+              account
+            ) =>
+              account.currency !==
+              accountCurrency
+          ) ? (
+            <div className="mt-4 rounded-xl border border-amber-500/15 bg-amber-500/[0.04] p-3 text-[9px] leading-4 text-amber-200/70">
+              Plusieurs devises sont présentes. Sélectionne un compte pour obtenir un capital exact dans sa devise.
+            </div>
+          ) : null}
+        </div>
+
+        <div
+          className="
+            rounded-[24px]
+            border
+            border-[color:var(--border)]
+            bg-[color:var(--panel)]
+            p-5
+            xl:col-span-8
+          "
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold text-white">
+                Évolution de la performance
+              </div>
+
+              <div className="mt-1 text-[9px] text-[color:var(--muted)]">
+                Résultat cumulé en R sur la période sélectionnée.
+              </div>
+            </div>
+
+            <div
+              className={[
+                "text-lg font-semibold",
+                kpi.totalR >
+                0
+                  ? "text-emerald-400"
+                  : kpi.totalR <
+                    0
+                  ? "text-red-400"
+                  : "text-white",
+              ].join(
+                " "
+              )}
+            >
+              {signed(
+                kpi.totalR,
+                "R"
+              )}
+            </div>
+          </div>
+
+          <div className="mt-5 h-[285px] overflow-hidden rounded-2xl border border-white/[0.06] bg-black/20">
+            {curveSvg.path ? (
+              <svg
+                viewBox={`0 0 ${curveSvg.width} ${curveSvg.height}`}
+                className="h-full w-full"
+                preserveAspectRatio="none"
+              >
+                {[0.25, 0.5, 0.75].map(
+                  (
+                    ratio
+                  ) => (
+                    <line
+                      key={
+                        ratio
+                      }
+                      x1="0"
+                      x2={
+                        curveSvg.width
+                      }
+                      y1={
+                        curveSvg.height *
+                        ratio
+                      }
+                      y2={
+                        curveSvg.height *
+                        ratio
+                      }
+                      stroke="rgba(255,255,255,.06)"
+                    />
+                  )
+                )}
+
+                <path
+                  d={
+                    curveSvg.path
+                  }
+                  fill="none"
+                  stroke="rgba(214,179,95,.95)"
+                  strokeWidth="4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            ) : (
+              <div className="flex h-full items-center justify-center text-xs text-[color:var(--muted)]">
+                Ajoute des trades clôturés pour afficher la courbe.
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* =====================================================
+          ADVANCED KPI
+      ===================================================== */}
+
+      <section
+        className="
+          grid
+          grid-cols-1
+          gap-4
+          md:grid-cols-2
+          xl:grid-cols-4
+        "
+      >
+        <AdvancedCard
+          title="Avg Win"
+          value={signed(
+            kpi.avgWinR,
+            "R"
+          )}
+          subtitle="Gain moyen par trade gagnant"
+          icon={
+            <TrendingUp
+              size={17}
+            />
+          }
+          tone="success"
+        />
+
+        <AdvancedCard
+          title="Avg Loss"
+          value={`-${fmt(
+            kpi.avgLossR
+          )}R`}
+          subtitle="Perte moyenne par trade perdant"
+          icon={
+            <TrendingDown
+              size={17}
+            />
+          }
+          tone="danger"
+        />
+
+        <AdvancedCard
+          title="Day Win"
+          value={`${fmt(
+            kpi.dayWinrate,
+            1
+          )}%`}
+          subtitle={`${kpi.positiveDays} jours positifs • ${kpi.negativeDays} négatifs`}
+          icon={
+            <CalendarDays
+              size={17}
+            />
+          }
+          tone="gold"
+        />
+
+        <AdvancedCard
+          title="Meilleur jour"
+          value={
+            kpi.bestDay
+              ? signed(
+                  kpi.bestDay.resultR,
+                  "R"
+                )
+              : "—"
+          }
+          subtitle={
+            kpi.bestDay?.date ||
+            "Pas assez de données"
+          }
+          icon={
+            <LineChart
+              size={17}
+            />
+          }
+          tone="gold"
+        />
+      </section>
+
+      {/* =====================================================
+          BREAKDOWNS
+      ===================================================== */}
+
+      <section
+        className="
+          grid
+          grid-cols-1
+          gap-4
+          xl:grid-cols-2
+        "
+      >
+        <BreakdownCard
+          title="Performance par actif"
+          rows={
+            breakdowns.symbols
+          }
+        />
+
+        <BreakdownCard
+          title="Performance par session"
+          rows={
+            breakdowns.sessions
+          }
+        />
+
+        <BreakdownCard
+          title="Performance par timeframe"
+          rows={
+            breakdowns.timeframes
+          }
+        />
+
+        <BreakdownCard
+          title="Performance par setup"
+          rows={
+            breakdowns.setups
+          }
+        />
+      </section>
+
+      {/* =====================================================
+          CALENDAR
+      ===================================================== */}
+
+      <section
+        className="
+          rounded-[24px]
+          border
+          border-[color:var(--border)]
+          bg-[color:var(--panel)]
+          p-5
+        "
+      >
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-white">
+              Calendrier de performance
+            </h2>
+
+            <p className="mt-1 text-xs text-[color:var(--muted)]">
+              Résultat journalier en R.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() =>
+                setViewDate(
+                  new Date(
+                    viewDate.getFullYear(),
+                    viewDate.getMonth() -
+                      1,
+                    1
+                  )
+                )
+              }
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-black/20 text-white/60"
+            >
+              <ChevronLeft
+                size={15}
+              />
+            </button>
+
+            <div className="min-w-[160px] text-center text-sm font-semibold capitalize text-[color:var(--gold)]">
+              {monthLabel(
+                viewDate
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                setViewDate(
+                  new Date(
+                    viewDate.getFullYear(),
+                    viewDate.getMonth() +
+                      1,
+                    1
+                  )
+                )
+              }
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-black/20 text-white/60"
+            >
+              <ChevronRight
+                size={15}
+              />
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-5 grid grid-cols-7 gap-2 text-center text-[9px] font-semibold uppercase text-white/25">
+          {[
+            "Lun",
+            "Mar",
+            "Mer",
+            "Jeu",
+            "Ven",
+            "Sam",
+            "Dim",
+          ].map(
+            (
+              label
+            ) => (
+              <div
+                key={
+                  label
+                }
+              >
+                {
+                  label
+                }
+              </div>
+            )
+          )}
+        </div>
+
+        <div className="mt-2 space-y-2">
+          {weeks.map(
+            (
+              week,
+              weekIndex
+            ) => (
+              <div
+                key={
+                  weekIndex
+                }
+                className="grid grid-cols-7 gap-2"
+              >
+                {week.map(
+                  (
+                    day
+                  ) => {
+                    const inMonth =
+                      day.date.getMonth() ===
+                      viewDate.getMonth();
+
+                    return (
+                      <div
+                        key={
+                          day.key
+                        }
+                        className={[
+                          "min-h-[84px] rounded-xl border p-2 transition",
+
+                          day.resultR >
+                          0
+                            ? "border-emerald-500/15 bg-emerald-500/[0.05]"
+                            : day.resultR <
+                              0
+                            ? "border-red-500/15 bg-red-500/[0.05]"
+                            : "border-white/[0.06] bg-black/20",
+
+                          inMonth
+                            ? ""
+                            : "opacity-30",
+                        ].join(
+                          " "
+                        )}
+                      >
+                        <div className="text-[9px] text-white/40">
+                          {day.date.getDate()}
+                        </div>
+
+                        {day.count >
+                        0 ? (
+                          <>
+                            <div
+                              className={[
+                                "mt-3 text-xs font-semibold",
+
+                                day.resultR >
+                                0
+                                  ? "text-emerald-400"
+                                  : day.resultR <
+                                    0
+                                  ? "text-red-400"
+                                  : "text-white/55",
+                              ].join(
+                                " "
+                              )}
+                            >
+                              {signed(
+                                day.resultR,
+                                "R"
+                              )}
+                            </div>
+
+                            <div className="mt-1 text-[8px] text-white/25">
+                              {
+                                day.count
+                              }{" "}
+                              trade
+                              {day.count !==
+                              1
+                                ? "s"
+                                : ""}
+                            </div>
+                          </>
+                        ) : null}
+                      </div>
+                    );
+                  }
+                )}
+              </div>
+            )
+          )}
+        </div>
+
+        <div className="mt-4 flex items-center justify-between rounded-xl border border-white/[0.06] bg-black/20 px-4 py-3">
+          <span className="text-[10px] text-[color:var(--muted)]">
+            Résultat du mois affiché
+          </span>
+
+          <span
+            className={[
+              "text-sm font-semibold",
+
+              calendar.monthR >
+              0
+                ? "text-emerald-400"
+                : calendar.monthR <
+                  0
+                ? "text-red-400"
+                : "text-white",
+            ].join(
+              " "
+            )}
+          >
+            {signed(
+              calendar.monthR,
+              "R"
+            )}
+          </span>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+/* =========================================================
+   COMPONENTS
+========================================================= */
+
+const inputClass = `
+  h-11
+  w-full
+  rounded-xl
+  border
+  border-white/10
+  bg-black/30
+  px-3
+  text-sm
+  text-white
+  outline-none
+  focus:border-[color:var(--gold-border)]
+`;
+
+function KpiCard({
+  icon,
   label,
   value,
   tone = "neutral",
 }: {
-  label: string;
-  value: React.ReactNode;
-  tone?: "neutral" | "gold" | "success" | "danger";
+  icon:
+    React.ReactNode;
+
+  label:
+    string;
+
+  value:
+    string;
+
+  tone?:
+    | "neutral"
+    | "gold"
+    | "success"
+    | "danger";
 }) {
-  const vClass =
-    tone === "success"
-      ? "text-[color:var(--success)]"
-      : tone === "danger"
-      ? "text-[color:var(--danger)]"
-      : tone === "gold"
+  const valueClass =
+    tone ===
+    "success"
+      ? "text-emerald-400"
+      : tone ===
+        "danger"
+      ? "text-red-400"
+      : tone ===
+        "gold"
       ? "text-[color:var(--gold)]"
       : "text-white";
 
   return (
-    <div className="rounded-2xl border border-[color:var(--border)] bg-black/20 p-3 min-w-0">
-      <div className="text-xs text-[color:var(--muted)]">{label}</div>
-      <div className={["mt-1 text-lg font-bold truncate", vClass].join(" ")}>
-        {value}
-      </div>
-    </div>
-  );
-}
+    <div
+      className="
+        rounded-[20px]
+        border
+        border-[color:var(--border)]
+        bg-[color:var(--panel)]
+        p-4
+      "
+    >
+      <div className="flex items-center gap-2 text-[color:var(--gold)]">
+        {
+          icon
+        }
 
-function Ring({
-  label,
-  valueText,
-  subLeft,
-  subRight,
-  fill01,
-}: {
-  label: string;
-  valueText: string;
-  subLeft?: string;
-  subRight?: string;
-  fill01: number;
-}) {
-  const cx = 44;
-  const cy = 44;
-  const r = 26;
-  const c = 2 * Math.PI * r;
-  const dash = clamp(fill01, 0, 1) * c;
-
-  return (
-    <div className="rounded-2xl border border-[color:var(--border)] bg-black/20 p-4">
-      <div className="flex items-center justify-between gap-4">
-        <div className="min-w-0">
-          <div className="text-xs text-[color:var(--muted)]">{label}</div>
-          <div className="mt-1 text-2xl font-bold text-white">{valueText}</div>
-          {(subLeft || subRight) && (
-            <div className="mt-2 flex items-center gap-3 text-xs text-white/70">
-              {subLeft ? (
-                <span className="text-[color:var(--success)]">{subLeft}</span>
-              ) : null}
-              {subRight ? (
-                <span className="text-[color:var(--danger)]">{subRight}</span>
-              ) : null}
-            </div>
-          )}
-        </div>
-
-        <div className="shrink-0">
-          <svg width="88" height="88" viewBox="0 0 88 88">
-            <circle
-              cx={cx}
-              cy={cy}
-              r={r}
-              fill="none"
-              stroke="rgba(255,255,255,0.10)"
-              strokeWidth="10"
-            />
-            <circle
-              cx={cx}
-              cy={cy}
-              r={r}
-              fill="none"
-              stroke="rgba(214,179,95,0.95)"
-              strokeWidth="10"
-              strokeLinecap="round"
-              strokeDasharray={`${dash} ${c}`}
-              transform={`rotate(-90 ${cx} ${cy})`}
-            />
-          </svg>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function SemiGaugeCard({
-  title,
-  pct,
-  subLeft,
-  subRight,
-}: {
-  title: string;
-  pct: number;
-  subLeft?: string;
-  subRight?: string;
-}) {
-  const cx = 180;
-  const cy = 190;
-  const r = 112;
-  const semi = Math.PI * r;
-  const filled = (semi * clamp(pct, 0, 100)) / 100;
-  const d = `M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`;
-
-  return (
-    <Card>
-      <CardBody>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <div className="text-xs text-[color:var(--muted)]">{title}</div>
-            <div className="mt-1 text-2xl font-bold text-white">{fmt(pct)}%</div>
-          </div>
-          <div className="text-right text-xs text-white/70">
-            {subLeft ? (
-              <div className="text-[color:var(--success)]">{subLeft}</div>
-            ) : null}
-            {subRight ? (
-              <div className="text-[color:var(--danger)]">{subRight}</div>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="mt-3 w-full max-w-[520px] aspect-[3/2] mx-auto rounded-2xl border border-[color:var(--border)] bg-black/20 p-3 flex items-center justify-center">
-          <svg viewBox="0 0 360 240" className="w-full h-full block">
-            <path
-              d={d}
-              fill="none"
-              stroke="rgba(255,255,255,0.10)"
-              strokeWidth="18"
-              strokeLinecap="round"
-            />
-            <path
-              d={d}
-              fill="none"
-              stroke="rgba(214,179,95,0.95)"
-              strokeWidth="18"
-              strokeLinecap="round"
-              strokeDasharray={`${filled} ${semi}`}
-            />
-            <text
-              x={cx}
-              y={cy - 26}
-              textAnchor="middle"
-              fill="rgba(255,255,255,0.92)"
-              fontSize="28"
-              fontWeight="700"
-            >
-              {Math.round(pct)}%
-            </text>
-            <text
-              x={cx}
-              y={cy - 6}
-              textAnchor="middle"
-              fill="rgba(255,255,255,0.45)"
-              fontSize="12"
-            >
-              {title}
-            </text>
-          </svg>
-        </div>
-      </CardBody>
-    </Card>
-  );
-}
-
-function AvgBar({
-  rrText,
-  avgWin,
-  avgLossAbs,
-}: {
-  rrText: string;
-  avgWin: number;
-  avgLossAbs: number;
-}) {
-  const sum = Math.max(1e-9, avgWin + avgLossAbs);
-  const winW = clamp((avgWin / sum) * 100, 0, 100);
-
-  return (
-    <div className="rounded-2xl border border-[color:var(--border)] bg-black/20 p-4">
-      <div className="text-xs text-[color:var(--muted)]">Avg Win / Avg Loss</div>
-      <div className="mt-1 text-2xl font-bold text-white">{rrText}</div>
-
-      <div className="mt-3 h-3 rounded-full bg-white/10 overflow-hidden border border-[color:var(--border)] flex">
-        <div
-          className="h-full bg-[color:var(--success)]"
-          style={{ width: `${winW}%` }}
-        />
-        <div
-          className="h-full bg-[color:var(--danger)]"
-          style={{ width: `${100 - winW}%` }}
-        />
+        <span className="text-[9px] text-[color:var(--muted)]">
+          {
+            label
+          }
+        </span>
       </div>
 
-      <div className="mt-3 flex items-center justify-between text-sm">
-        <div className="font-semibold text-[color:var(--success)]">{fmt(avgWin)}</div>
-        <div className="font-semibold text-[color:var(--danger)]">-{fmt(avgLossAbs)}</div>
-      </div>
-    </div>
-  );
-}
-
-/* -------------------------------- Page -------------------------------- */
-export default function RapportsPage() {
-  const [accounts, setAccounts] = useState<Mt5Account[]>(() => loadMt5Accounts());
-  const [openAccounts, setOpenAccounts] = useState(false);
-  const [trades, setTrades] = useState<Trade[]>(() => loadTrades());
-
-  const accountKey = (a: any) => safeStr(a.login ?? a.accountLogin ?? a.accountId ?? a.id);
-  const accountLabel = (a: any) => {
-    const k = accountKey(a);
-    const server = safeStr(a.server ?? a.broker ?? "");
-    return `${k}${server ? ` - ${server}` : ""}`.trim();
-  };
-
-  // ✅ pas de sélection auto : on garde seulement la dernière (si existe), sinon vide
-  const [selectedKey, setSelectedKey] = useState<string>(() => {
-    if (typeof window !== "undefined") return localStorage.getItem("investpro_selected_mt5_account") || "";
-    return "";
-  });
-
-  // ✅ bouton Synchroniser + loader + badge
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncingKey, setSyncingKey] = useState("");
-  const [lastSyncMs, setLastSyncMs] = useState<number>(() => {
-    if (typeof window === "undefined") return 0;
-    const v = Number(localStorage.getItem("investpro_mt5_last_sync_ms") || "0");
-    return Number.isFinite(v) ? v : 0;
-  });
-
-  const selectedAccount = useMemo(() => {
-    if (!selectedKey) return null;
-    return (accounts as any[]).find((a) => accountKey(a) === selectedKey) ?? null;
-  }, [accounts, selectedKey]);
-
-  // start balance depuis le compte
-  const start = useMemo(() => {
-    const a: any = selectedAccount;
-    if (!a) return 10000;
-    const s = safeNum(a.startBalance ?? a.start ?? a.initialBalance);
-    if (s > 0) return s;
-    const b = safeNum(a.balance ?? a.equity ?? a.currentBalance);
-    if (b > 0) return b;
-    return 10000;
-  }, [selectedAccount]);
-
-  useEffect(() => {
-    const a = loadMt5Accounts();
-    setAccounts(a);
-    setTrades(loadTrades());
-    // ❌ plus d’auto-select du 1er compte
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // ✅ Sync uniquement via le bouton "Synchroniser"
-  async function syncSelected() {
-    const a: any = selectedAccount;
-    if (!a) {
-      pushNotif({
-        kind: "warning",
-        title: "Aucun compte",
-        message: "Sélectionne un compte MT5 avant de synchroniser.",
-        ttlMs: 2500,
-      });
-      return;
-    }
-
-    const broker = safeStr(a.broker ?? a.brokerName ?? a.company ?? "");
-    const server = safeStr(a.server ?? a.serverName ?? "");
-    const login = safeStr(a.login ?? a.accountLogin ?? "");
-    const password = safeStr(a.password ?? a.pass ?? a.mt5Password ?? "");
-
-    if (!broker || !server || !login || !password) {
-      pushNotif({
-        kind: "error",
-        title: "Sync MT5 impossible",
-        message: `Champs manquants: ${!broker ? "broker " : ""}${!server ? "server " : ""}${!login ? "login " : ""}${!password ? "password" : ""}`.trim(),
-        ttlMs: 5000,
-      });
-      return;
-    }
-
-    const to_ts = Math.floor(Date.now() / 1000);
-    const from_ts = to_ts - 365 * 24 * 60 * 60;
-
-    setIsSyncing(true);
-    setSyncingKey(accountKey(a));
-
-    pushNotif({
-      kind: "pending",
-      title: "Synchronisation MT5",
-      message: `Récupération de l'historique pour ${login}...`,
-      ttlMs: 2500,
-    });
-
-    try {
-      const added = await syncMt5HistoryToTrades({
-        broker,
-        server,
-        login,
-        password,
-        from_ts,
-        to_ts,
-      });
-
-      const next = loadTrades();
-      setTrades(next);
-
-      const now = Date.now();
-      setLastSyncMs(now);
-      try {
-        localStorage.setItem("investpro_mt5_last_sync_ms", String(now));
-      } catch {}
-
-      pushNotif({
-        kind: "success",
-        title: "MT5 synchronisé",
-        message: `Trades ajoutés: ${added} • Total: ${next.length}`,
-        ttlMs: 3000,
-      });
-    } catch (e: any) {
-      pushNotif({
-        kind: "error",
-        title: "Sync MT5 échouée",
-        message: e?.message ? String(e.message) : "Impossible de synchroniser.",
-        ttlMs: 4500,
-      });
-      setTrades(loadTrades());
-    } finally {
-      setIsSyncing(false);
-      setSyncingKey("");
-    }
-  }
-
-  // KPIs
-  const kpi = useMemo(() => {
-    const total = trades.length;
-    const pnl = trades.reduce((s: number, t: any) => s + (Number(t.pnl) || 0), 0);
-
-    const wins = trades.filter((t: any) => t.result === "WIN").length;
-    const losses = trades.filter((t: any) => t.result === "LOSS").length;
-    const winrate = total > 0 ? (wins / total) * 100 : 0;
-
-    const grossProfit = trades.filter((t: any) => Number(t.pnl) > 0).reduce((s: number, t: any) => s + Number(t.pnl || 0), 0);
-    const grossLossAbs = Math.abs(trades.filter((t: any) => Number(t.pnl) < 0).reduce((s: number, t: any) => s + Number(t.pnl || 0), 0));
-    const profitFactor = grossLossAbs > 0 ? grossProfit / grossLossAbs : grossProfit > 0 ? 999 : 0;
-
-    const avgWin = wins > 0 ? grossProfit / wins : 0;
-    const avgLossAbs = losses > 0 ? grossLossAbs / losses : 0;
-
-    const dayMap = new Map<string, number>();
-    for (const t of trades as any[]) {
-      const d = safeStr(t.date);
-      if (!d) continue;
-      dayMap.set(d, (dayMap.get(d) ?? 0) + (Number(t.pnl) || 0));
-    }
-    const days = Array.from(dayMap.entries()).map(([d, dayPnl]) => ({ d, dayPnl }));
-    const dayWins = days.filter((x) => x.dayPnl > 0).length;
-    const dayLosses = days.filter((x) => x.dayPnl < 0).length;
-    const dayTotal = days.length;
-    const dayWinPct = dayTotal > 0 ? (dayWins / dayTotal) * 100 : 0;
-
-    const posDays = days.filter((x) => x.dayPnl > 0);
-    const totalPos = posDays.reduce((s, x) => s + x.dayPnl, 0);
-    const bestDay = posDays.length ? posDays.reduce((a, b) => (b.dayPnl > a.dayPnl ? b : a), posDays[0]) : null;
-    const bestDayPctOfProfit = totalPos > 0 && bestDay ? (bestDay.dayPnl / totalPos) * 100 : 0;
-
-    return {
-      total,
-      pnl,
-      wins,
-      losses,
-      winrate,
-      grossProfit,
-      grossLossAbs,
-      profitFactor,
-      avgWin,
-      avgLossAbs,
-      dayWins,
-      dayLosses,
-      dayWinPct,
-      bestDay,
-      bestDayPctOfProfit,
-    };
-  }, [trades]);
-
-  // Social radar
-  const social = useMemo(() => {
-    const you = {
-      winrate01: clamp(kpi.winrate / 100, 0, 1),
-      pf01: clamp(kpi.profitFactor / 6, 0, 1),
-      dd01: 0.55,
-      pos01: clamp(kpi.total / 200, 0, 1),
-      day01: clamp(kpi.dayWinPct / 100, 0, 1),
-    };
-    const avg = { winrate01: 0.52, pf01: 0.45, dd01: 0.55, pos01: 0.35, day01: 0.5 };
-    return { you, avg };
-  }, [kpi.winrate, kpi.profitFactor, kpi.total, kpi.dayWinPct]);
-
-  const radarSvg = useMemo(() => {
-    const w = 520;
-    const h = 360;
-    const cx = w / 2;
-    const cy = 190;
-    const r = 120;
-
-    const axes = ["Winrate", "PF", "DD", "Positions", "Day%"];
-    const axisCount = axes.length;
-    const gridLevels = [0.2, 0.4, 0.6, 0.8, 1];
-
-    const youVals = [social.you.winrate01, social.you.pf01, social.you.dd01, social.you.pos01, social.you.day01];
-    const avgVals = [social.avg.winrate01, social.avg.pf01, social.avg.dd01, social.avg.pos01, social.avg.day01];
-
-    const polyPath = (vals: number[]) => {
-      const pts = vals.map((t, i) => radarPoint(cx, cy, r, i, axisCount, t));
-      return pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ") + " Z";
-    };
-
-    const youPath = polyPath(youVals);
-    const avgPath = polyPath(avgVals);
-
-    const axisLines = axes.map((_, i) => {
-      const p = radarPoint(cx, cy, r, i, axisCount, 1);
-      return { x1: cx, y1: cy, x2: p.x, y2: p.y };
-    });
-
-    const labels = axes.map((name, i) => {
-      const p = radarPoint(cx, cy, r + 36, i, axisCount, 1);
-      let anchor: "start" | "middle" | "end" = "middle";
-      if (p.x < cx - 16) anchor = "end";
-      else if (p.x > cx + 16) anchor = "start";
-      return { name, x: p.x, y: p.y, anchor };
-    });
-
-    return { w, h, cx, cy, r, gridLevels, axisLines, labels, youPath, avgPath };
-  }, [social]);
-
-  // Calendar + Σ semaine
-  const [viewDate, setViewDate] = useState(() => new Date());
-
-  const calendar = useMemo(() => {
-    const d = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
-    const firstDay = new Date(d);
-    const startWeekday = (firstDay.getDay() + 6) % 7;
-    const gridStart = new Date(firstDay);
-    gridStart.setDate(firstDay.getDate() - startWeekday);
-
-    const days: { date: Date; key: string; pnl: number; count: number }[] = [];
-    for (let i = 0; i < 42; i++) {
-      const day = new Date(gridStart);
-      day.setDate(gridStart.getDate() + i);
-      const key = ymd(day);
-
-      const dayTrades = trades.filter((t: any) => safeStr(t.date) === key);
-      const pnl = dayTrades.reduce((s: number, t: any) => s + (Number(t.pnl) || 0), 0);
-
-      days.push({ date: day, key, pnl, count: dayTrades.length });
-    }
-    return days;
-  }, [viewDate, trades]);
-
-  const weeks = useMemo(() => {
-    const out: { date: Date; key: string; pnl: number; count: number }[][] = [];
-    for (let w = 0; w < 6; w++) out.push(calendar.slice(w * 7, w * 7 + 7));
-    return out;
-  }, [calendar]);
-
-  const weekTotals = useMemo(() => {
-    return weeks.map((wk) => wk.reduce((s, d) => s + (Number(d.pnl) || 0), 0));
-  }, [weeks]);
-
-  const monthPnl = useMemo(() => {
-    const ym = `${viewDate.getFullYear()}-${String(viewDate.getMonth() + 1).padStart(2, "0")}`;
-    return trades
-      .filter((t: any) => safeStr(t.date).startsWith(ym))
-      .reduce((s: number, t: any) => s + (Number(t.pnl) || 0), 0);
-  }, [viewDate, trades]);
-
-  const selectedLabel = selectedAccount ? accountLabel(selectedAccount) : "Choisir un compte MT5";
-
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-semibold">
-            Rapports <span className="text-[color:var(--gold)]">de performance</span>
-          </h1>
-          <p className="text-[color:var(--muted)] mt-1">
-            Sélectionne un compte, puis clique sur Synchroniser.
-          </p>
-        </div>
-
-        {/* ✅ align fix : le bouton sync a un label/badge fantôme */}
-        <div className="flex items-end gap-3">
-          <div className="min-w-[320px]">
-            <div className="text-xs text-white/70 mb-1">Compte (MT5)</div>
-            <Button
-              variant="secondary"
-              className="w-full justify-between"
-              onClick={() => setOpenAccounts(true)}
-              disabled={isSyncing}
-            >
-              <span className="truncate">{selectedLabel}</span>
-              <span className="text-white/60">▾</span>
-            </Button>
-
-            <div className="mt-1 text-[11px] text-[color:var(--muted)]">
-              Dernière sync :{" "}
-              <span className="text-white/70 font-semibold">
-                {lastSyncMs ? relSince(lastSyncMs) : "jamais"}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex flex-col">
-            <div className="text-xs text-white/70 mb-1 opacity-0 select-none">
-              Compte (MT5)
-            </div>
-
-            <Button
-              variant="secondary"
-              onClick={syncSelected}
-              disabled={!selectedAccount || isSyncing}
-              className="self-end"
-            >
-              <span className="inline-flex items-center gap-2">
-                {isSyncing ? <Spinner /> : null}
-                Synchroniser
-              </span>
-            </Button>
-
-            <div className="mt-1 text-[11px] opacity-0 select-none">
-              Dernière sync : —
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Modal compte (sélection manuelle, PAS de sync ici) */}
-      <Modal
-        open={openAccounts}
-        onClose={() => (isSyncing ? null : setOpenAccounts(false))}
-        title="Choisir le compte MT5"
+      <div
+        className={[
+          "mt-3 truncate text-lg font-semibold",
+          valueClass,
+        ].join(
+          " "
+        )}
       >
-        <div className="space-y-3">
-          {accounts.length === 0 ? (
-            <div className="text-sm text-[color:var(--muted)]">Aucun compte trouvé.</div>
-          ) : (
-            <div className="space-y-2">
-              {accounts.map((a: any) => {
-                const k = accountKey(a);
-                const isOn = selectedAccount && accountKey(selectedAccount) === k;
-                const isLoading = isSyncing && syncingKey === k;
+        {
+          value
+        }
+      </div>
+    </div>
+  );
+}
 
-                return (
-                  <button
-                    key={k || Math.random()}
-                    onClick={() => {
-                      setSelectedKey(k);
-                      try {
-                        localStorage.setItem("investpro_selected_mt5_account", k);
-                      } catch {}
-                      setOpenAccounts(false);
-                    }}
-                    disabled={isSyncing}
-                    className={[
-                      "w-full text-left rounded-2xl border p-4 transition flex items-center justify-between gap-4",
-                      isOn
-                        ? "border-[color:var(--gold-border)] bg-[color:var(--gold)]/12"
-                        : "border-[color:var(--border)] bg-black/20 hover:bg-black/30",
-                      isSyncing ? "opacity-80 cursor-not-allowed" : "",
-                    ].join(" ")}
-                  >
-                    <div className="min-w-0">
-                      <div className="text-sm font-semibold text-white truncate">
-                        {accountLabel(a) || "Compte"}
-                      </div>
-                      <div className="text-xs text-[color:var(--muted)] truncate">
-                        {safeStr(a.broker ?? a.server ?? "")}
-                      </div>
-                    </div>
+function SmallMetric({
+  label,
+  value,
+  gold = false,
+}: {
+  label:
+    string;
 
-                    <div className="flex items-center gap-3">
-                      {isLoading ? <Spinner /> : null}
-                      <div
-                        className={[
-                          "h-6 w-6 rounded-md border flex items-center justify-center",
-                          isOn
-                            ? "border-[color:var(--gold-border)] bg-[color:var(--gold)]/20"
-                            : "border-[color:var(--border)] bg-black/20",
-                        ].join(" ")}
-                      >
-                        {isOn ? (
-                          <span className="text-[color:var(--success)]">✓</span>
-                        ) : null}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
+  value:
+    string;
 
-          <div className="flex justify-end pt-2">
-            <Button
-              variant="secondary"
-              onClick={() => setOpenAccounts(false)}
-              disabled={isSyncing}
-            >
-              Fermer
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* LIGNE 1 : 3 cards */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        {/* WINRATE */}
-        <Card>
-          <CardBody>
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="text-xs text-[color:var(--muted)]">WINRATE %</div>
-                <div className="mt-1 text-sm text-white/70">{kpi.total} positions</div>
-              </div>
-              <div className="text-right">
-                <div className="text-sm font-semibold text-[color:var(--gold)]">
-                  {fmt(kpi.winrate)}%
-                </div>
-                <div className="text-xs">
-                  <span className="text-[color:var(--success)]">{kpi.wins} gagnantes</span>
-                  <span className="text-white/40"> / </span>
-                  <span className="text-[color:var(--danger)]">{kpi.losses} perdantes</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-3 rounded-2xl border border-[color:var(--border)] bg-black/20 p-3 flex items-center justify-center">
-              <div className="w-full max-w-[520px] aspect-[3/2]">
-                {(() => {
-                  const cx = 180;
-                  const cy = 190;
-                  const r = 112;
-                  const semi = Math.PI * r;
-                  const pct = Math.max(0, Math.min(100, Math.round(kpi.winrate)));
-                  const filled = (semi * pct) / 100;
-                  const d = `M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`;
-                  return (
-                    <svg viewBox="0 0 360 240" className="w-full h-full block">
-                      <path d={d} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="18" strokeLinecap="round" />
-                      <path d={d} fill="none" stroke="rgba(214,179,95,0.95)" strokeWidth="18" strokeLinecap="round" strokeDasharray={`${filled} ${semi}`} />
-                      <text x={cx} y={cy - 26} textAnchor="middle" fill="rgba(255,255,255,0.92)" fontSize="28" fontWeight="700">
-                        {pct}%
-                      </text>
-                      <text x={cx} y={cy - 6} textAnchor="middle" fill="rgba(255,255,255,0.45)" fontSize="12">
-                        Winrate
-                      </text>
-                    </svg>
-                  );
-                })()}
-              </div>
-            </div>
-
-            <div className="mt-3 text-[11px] text-[color:var(--muted)]">
-              Compte:{" "}
-              <span className="text-white/70">{selectedAccount ? accountKey(selectedAccount) : "—"}</span>{" "}
-              • Trades: <span className="text-white/70">{trades.length}</span>
-            </div>
-          </CardBody>
-        </Card>
-
-        {/* DAY WIN */}
-        <SemiGaugeCard
-          title="Day Win %"
-          pct={kpi.dayWinPct}
-          subLeft={`${kpi.dayWins} jours +`}
-          subRight={`${kpi.dayLosses} jours -`}
-        />
-
-        {/* HEXAGONE */}
-        <Card>
-          <CardBody>
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="text-lg font-semibold">Hexagone social</div>
-                <div className="text-xs mt-1 text-white/70">Winrate / PF / Day% / Positions</div>
-              </div>
-              <div className="text-xs text-[color:var(--muted)]">
-                Start: <span className="text-white">{fmt(start)}</span>
-              </div>
-            </div>
-
-            <div className="mt-3 rounded-2xl border border-[color:var(--border)] bg-black/20 p-3 relative">
-              <div className="w-full aspect-[4/3]">
-                <svg viewBox={`0 0 ${radarSvg.w} ${radarSvg.h}`} className="w-full h-full block">
-                  {radarSvg.gridLevels.map((lv) => {
-                    const pts = Array.from({ length: 5 }).map((_, i) =>
-                      radarPoint(radarSvg.cx, radarSvg.cy, radarSvg.r, i, 5, lv)
-                    );
-                    const d = pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ") + " Z";
-                    return <path key={lv} d={d} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="1" />;
-                  })}
-
-                  {radarSvg.axisLines.map((l, i) => (
-                    <line key={i} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2} stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
-                  ))}
-
-                  <path d={radarSvg.avgPath} fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.16)" strokeWidth="1.2" />
-                  <path d={radarSvg.youPath} fill="rgba(214,179,95,0.18)" stroke="rgba(214,179,95,0.95)" strokeWidth="2" />
-
-                  {radarSvg.labels.map((lb) => (
-                    <text key={lb.name} x={lb.x} y={lb.y} textAnchor={lb.anchor} dominantBaseline="middle" fill="rgba(255,255,255,0.78)" fontSize="12" fontWeight="600">
-                      {lb.name}
-                    </text>
-                  ))}
-                </svg>
-              </div>
-
-              <div className="absolute top-3 left-3 text-[11px] px-2 py-1 rounded-full border border-[color:var(--border)] bg-black/55 text-[color:var(--gold)]">
-                WR: {fmt(kpi.winrate)}%
-              </div>
-              <div className="absolute top-3 right-3 text-[11px] px-2 py-1 rounded-full border border-[color:var(--border)] bg-black/55 text-[color:var(--gold)]">
-                PF: {fmt(kpi.profitFactor)}
-              </div>
-              <div className="absolute bottom-3 left-3 text-[11px] px-2 py-1 rounded-full border border-[color:var(--border)] bg-black/55 text-[color:var(--gold)]">
-                Day: {fmt(kpi.dayWinPct)}%
-              </div>
-              <div className="absolute bottom-3 right-3 text-[11px] px-2 py-1 rounded-full border border-[color:var(--border)] bg-black/55 text-[color:var(--gold)]">
-                Pos: {kpi.total}
-              </div>
-            </div>
-
-            <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
-              <MiniStat label="P&L" value={fmt(kpi.pnl)} tone={kpi.pnl >= 0 ? "success" : "danger"} />
-              <MiniStat label="Best Day %" value={`${fmt(kpi.bestDayPctOfProfit)}%`} tone="gold" />
-            </div>
-          </CardBody>
-        </Card>
+  gold?:
+    boolean;
+}) {
+  return (
+    <div className="rounded-xl border border-white/[0.06] bg-black/20 p-3">
+      <div className="text-[8px] text-[color:var(--muted)]">
+        {
+          label
+        }
       </div>
 
-      {/* LIGNE 2 : widgets */}
-      <Card>
-        <CardBody>
-          <div className="text-lg font-semibold">Best Day % / Profit Factor / Avg Win / Avg Loss</div>
-          <div className="text-xs text-[color:var(--muted)] mt-1">Bloc unique (compact, sans vide).</div>
+      <div
+        className={[
+          "mt-1 text-xs font-semibold",
 
-          <div className="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <Ring
-              label="Profit Factor"
-              valueText={fmt(kpi.profitFactor)}
-              subLeft={kpi.grossProfit ? `+${fmt(kpi.grossProfit)}` : undefined}
-              subRight={kpi.grossLossAbs ? `-${fmt(kpi.grossLossAbs)}` : undefined}
-              fill01={clamp(kpi.profitFactor / 5, 0, 1)}
-            />
+          gold
+            ? "text-[color:var(--gold)]"
+            : "text-white",
+        ].join(
+          " "
+        )}
+      >
+        {
+          value
+        }
+      </div>
+    </div>
+  );
+}
 
-            <Ring
-              label="Best Day % of Total Profit"
-              valueText={`${fmt(kpi.bestDayPctOfProfit)}%`}
-              subLeft={kpi.bestDay ? kpi.bestDay.d : undefined}
-              subRight={kpi.bestDay ? `+${fmt(kpi.bestDay.dayPnl)}` : undefined}
-              fill01={clamp(kpi.bestDayPctOfProfit / 100, 0, 1)}
-            />
+function AdvancedCard({
+  title,
+  value,
+  subtitle,
+  icon,
+  tone,
+}: {
+  title:
+    string;
 
-            <AvgBar
-              rrText={kpi.avgLossAbs > 0 ? fmt(kpi.avgWin / kpi.avgLossAbs) : "—"}
-              avgWin={kpi.avgWin}
-              avgLossAbs={kpi.avgLossAbs}
-            />
+  value:
+    string;
+
+  subtitle:
+    string;
+
+  icon:
+    React.ReactNode;
+
+  tone:
+    | "success"
+    | "danger"
+    | "gold";
+}) {
+  const valueClass =
+    tone ===
+    "success"
+      ? "text-emerald-400"
+      : tone ===
+        "danger"
+      ? "text-red-400"
+      : "text-[color:var(--gold)]";
+
+  return (
+    <div className="rounded-[20px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5">
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]">
+          {
+            icon
+          }
+        </div>
+
+        <div>
+          <div className="text-[9px] text-[color:var(--muted)]">
+            {
+              title
+            }
           </div>
-        </CardBody>
-      </Card>
 
-      {/* LIGNE 3 : calendrier + total semaine */}
-      <Card>
-        <CardBody>
-          <div className="flex items-center justify-between gap-3">
-            <div className="text-lg font-semibold">
-              Calendrier P&L —{" "}
-              <span className="text-[color:var(--gold)]">{monthLabel(viewDate)}</span>
-            </div>
-            <div className="text-sm text-[color:var(--muted)]">
-              Monthly P/L:{" "}
-              <span className={monthPnl >= 0 ? "text-[color:var(--success)] font-semibold" : "text-[color:var(--danger)] font-semibold"}>
-                {fmt(monthPnl)}
-              </span>
-            </div>
+          <div
+            className={[
+              "mt-1 text-lg font-semibold",
+              valueClass,
+            ].join(
+              " "
+            )}
+          >
+            {
+              value
+            }
           </div>
+        </div>
+      </div>
 
-          <div className="mt-4 grid grid-cols-8 gap-2 text-xs text-[color:var(--muted)]">
-            {["Lu","Ma","Me","Je","Ve","Sa","Di"].map((d) => (
-              <div key={d} className="px-2">{d}</div>
-            ))}
-            <div className="px-2 text-right">Σ Semaine</div>
+      <div className="mt-4 text-[9px] leading-4 text-white/30">
+        {
+          subtitle
+        }
+      </div>
+    </div>
+  );
+}
+
+function BreakdownCard({
+  title,
+  rows,
+}: {
+  title:
+    string;
+
+  rows:
+    {
+      label: string;
+      count: number;
+      totalR: number;
+      wins: number;
+      losses: number;
+      winrate: number;
+    }[];
+}) {
+  return (
+    <div className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5">
+      <div className="text-sm font-semibold text-white">
+        {
+          title
+        }
+      </div>
+
+      <div className="mt-4 space-y-2">
+        {rows.length ===
+        0 ? (
+          <div className="rounded-xl border border-dashed border-white/[0.07] bg-black/20 p-5 text-center text-[10px] text-[color:var(--muted)]">
+            Pas assez de données.
           </div>
+        ) : (
+          rows.slice(
+            0,
+            6
+          ).map(
+            (
+              row
+            ) => (
+              <div
+                key={
+                  row.label
+                }
+                className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 rounded-xl border border-white/[0.05] bg-black/20 px-3 py-3"
+              >
+                <div className="min-w-0">
+                  <div className="truncate text-[10px] font-semibold text-white">
+                    {
+                      row.label
+                    }
+                  </div>
 
-          <div className="mt-2 space-y-2">
-            {weeks.map((week, wi) => {
-              const total = weekTotals[wi] ?? 0;
-              const totalClass =
-                total > 0 ? "text-[color:var(--success)]" : total < 0 ? "text-[color:var(--danger)]" : "text-white/60";
-
-              return (
-                <div key={wi} className="grid grid-cols-8 gap-2">
-                  {week.map((c) => {
-                    const inMonth = c.date.getMonth() === viewDate.getMonth();
-                    const bg =
-                      c.pnl > 0
-                        ? "bg-[color:var(--success)]/12 border-[color:var(--success)]/25"
-                        : c.pnl < 0
-                        ? "bg-[color:var(--danger)]/12 border-[color:var(--danger)]/25"
-                        : "bg-black/20 border-[color:var(--border)]";
-
-                    return (
-                      <div key={c.key} className={["min-h-[78px] rounded-2xl border p-2", bg, inMonth ? "" : "opacity-40"].join(" ")}>
-                        <div className="text-xs text-white/70">{c.date.getDate()}</div>
-                        <div className={["mt-2 text-sm font-semibold", c.pnl >= 0 ? "text-[color:var(--success)]" : "text-[color:var(--danger)]"].join(" ")}>
-                          {c.count ? fmt(c.pnl) : ""}
-                        </div>
-                        <div className="text-[11px] text-[color:var(--muted)]">{c.count ? `${c.count} trades` : ""}</div>
-                      </div>
-                    );
-                  })}
-
-                  <div className="min-h-[78px] rounded-2xl border border-[color:var(--border)] bg-black/25 p-3 flex flex-col justify-between">
-                    <div className="text-xs text-white/70 text-right">Total</div>
-                    <div className={["text-lg font-bold text-right", totalClass].join(" ")}>{fmt(total)}</div>
-                    <div className="text-[11px] text-[color:var(--muted)] text-right">S{wi + 1}</div>
+                  <div className="mt-1 text-[8px] text-white/25">
+                    {
+                      row.count
+                    }{" "}
+                    trade
+                    {row.count !==
+                    1
+                      ? "s"
+                      : ""}
                   </div>
                 </div>
-              );
-            })}
-          </div>
 
-          <div className="mt-4 flex gap-3">
-            <Button
-              variant="secondary"
-              onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))}
-            >
-              ← Mois précédent
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))}
-            >
-              Mois suivant →
-            </Button>
-          </div>
-        </CardBody>
-      </Card>
+                <div className="text-[9px] text-white/45">
+                  {fmt(
+                    row.winrate,
+                    0
+                  )}
+                  %
+                </div>
+
+                <div
+                  className={[
+                    "text-[10px] font-semibold",
+
+                    row.totalR >
+                    0
+                      ? "text-emerald-400"
+                      : row.totalR <
+                        0
+                      ? "text-red-400"
+                      : "text-white/40",
+                  ].join(
+                    " "
+                  )}
+                >
+                  {signed(
+                    row.totalR,
+                    "R"
+                  )}
+                </div>
+
+                <div
+                  className="
+                    h-1.5
+                    w-16
+                    overflow-hidden
+                    rounded-full
+                    bg-white/5
+                  "
+                >
+                  <div
+                    className="h-full rounded-full bg-[color:var(--gold)]"
+                    style={{
+                      width: `${clamp(
+                        row.winrate,
+                        0,
+                        100
+                      )}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            )
+          )
+        )}
+      </div>
     </div>
   );
 }

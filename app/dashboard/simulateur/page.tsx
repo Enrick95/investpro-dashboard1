@@ -1,61 +1,1164 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Card, CardBody, CardSubCard } from "../../../components/ui/Card";
-import { Button } from "../../../components/ui/Button";
+import { useMemo, useState } from "react";
 
-type Market = "forex" | "indices" | "commodities" | "crypto";
+import {
+  AlertTriangle,
+  Calculator,
+  CheckCircle2,
+  RotateCcw,
+  ShieldCheck,
+  Target,
+  TrendingUp,
+  WalletCards,
+} from "lucide-react";
+
 type RiskMode = "percent" | "amount";
-type Side = "BUY" | "SELL";
 
-function Input({
+function safeNumber(value: string) {
+  const number = Number(String(value).replace(",", "."));
+
+  return Number.isFinite(number) ? number : 0;
+}
+
+function formatNumber(value: number, digits = 2) {
+  if (!Number.isFinite(value)) {
+    return "—";
+  }
+
+  return value.toLocaleString("fr-FR", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: digits,
+  });
+}
+
+export default function SimulateurRisquePage() {
+  const [currency, setCurrency] = useState("EUR");
+
+  const [balance, setBalance] = useState("10000");
+
+  const [riskMode, setRiskMode] =
+    useState<RiskMode>("percent");
+
+  const [riskPercent, setRiskPercent] =
+    useState("1");
+
+  const [riskAmount, setRiskAmount] =
+    useState("100");
+
+  /*
+   * L'utilisateur entre maintenant directement :
+   * - son prix d'entrée
+   * - son Stop Loss
+   *
+   * Le simulateur calcule automatiquement
+   * la distance entre les deux.
+   */
+  const [entryPrice, setEntryPrice] =
+    useState("2350");
+
+  const [stopLossPrice, setStopLossPrice] =
+    useState("2340");
+
+  /*
+   * Valeur monétaire d'un mouvement de prix de 1.00
+   * pour 1 lot.
+   *
+   * Cette valeur dépend du symbole et du broker.
+   * Elle pourra être automatisée plus tard avec MT5.
+   */
+  const [valuePerPoint, setValuePerPoint] =
+    useState("10");
+
+  const [rr, setRr] = useState("2");
+
+  const calculated = useMemo(() => {
+    const capital = Math.max(
+      0,
+      safeNumber(balance)
+    );
+
+    const riskPercentage = Math.max(
+      0,
+      safeNumber(riskPercent)
+    );
+
+    const fixedRisk = Math.max(
+      0,
+      safeNumber(riskAmount)
+    );
+
+    const entry = Math.max(
+      0,
+      safeNumber(entryPrice)
+    );
+
+    const stopLoss = Math.max(
+      0,
+      safeNumber(stopLossPrice)
+    );
+
+    /*
+     * Exemple :
+     *
+     * Entrée : 2350
+     * SL : 2340
+     *
+     * Distance = 10
+     */
+    const stopDistance = Math.abs(
+      entry - stopLoss
+    );
+
+    const pointValue = Math.max(
+      0,
+      safeNumber(valuePerPoint)
+    );
+
+    const riskMoney =
+      riskMode === "percent"
+        ? capital *
+          (riskPercentage / 100)
+        : fixedRisk;
+
+    const effectiveRiskPercent =
+      capital > 0
+        ? (riskMoney / capital) * 100
+        : 0;
+
+    /*
+     * Perte avec 1 lot si le SL est touché
+     *
+     * Exemple :
+     * Distance = 10
+     * Valeur = 10€
+     *
+     * => 100€ pour 1 lot
+     */
+    const lossPerLot =
+      stopDistance * pointValue;
+
+    /*
+     * Taille de position permettant
+     * de respecter exactement le risque.
+     */
+    const lotSize =
+      lossPerLot > 0
+        ? riskMoney / lossPerLot
+        : 0;
+
+    const targetRR = Math.max(
+      0,
+      safeNumber(rr)
+    );
+
+    const gain1R = riskMoney;
+
+    const gain2R =
+      riskMoney * 2;
+
+    const gain3R =
+      riskMoney * 3;
+
+    const potentialGain =
+      riskMoney * targetRR;
+
+    /*
+     * Prix du TP calculé automatiquement.
+     *
+     * Si le SL est sous l'entrée :
+     * on considère un BUY.
+     *
+     * Si le SL est au-dessus :
+     * on considère un SELL.
+     */
+    const isBuy =
+      stopLoss < entry;
+
+    const takeProfit =
+      entry > 0 &&
+      stopDistance > 0 &&
+      targetRR > 0
+        ? isBuy
+          ? entry +
+            stopDistance *
+              targetRR
+          : entry -
+            stopDistance *
+              targetRR
+        : 0;
+
+    const capitalAfterLoss = Math.max(
+      0,
+      capital - riskMoney
+    );
+
+    const capitalAfterWin =
+      capital + potentialGain;
+
+    let riskLevel:
+      | "safe"
+      | "medium"
+      | "high" = "safe";
+
+    if (
+      effectiveRiskPercent > 2
+    ) {
+      riskLevel = "high";
+    } else if (
+      effectiveRiskPercent > 1
+    ) {
+      riskLevel = "medium";
+    }
+
+    return {
+      capital,
+
+      entry,
+
+      stopLoss,
+
+      stopDistance,
+
+      isBuy,
+
+      takeProfit,
+
+      riskMoney,
+
+      effectiveRiskPercent,
+
+      pointValue,
+
+      lossPerLot,
+
+      lotSize,
+
+      targetRR,
+
+      gain1R,
+
+      gain2R,
+
+      gain3R,
+
+      potentialGain,
+
+      capitalAfterLoss,
+
+      capitalAfterWin,
+
+      riskLevel,
+    };
+  }, [
+    balance,
+    riskMode,
+    riskPercent,
+    riskAmount,
+    entryPrice,
+    stopLossPrice,
+    valuePerPoint,
+    rr,
+  ]);
+
+  function resetSimulator() {
+    setCurrency("EUR");
+
+    setBalance("10000");
+
+    setRiskMode("percent");
+
+    setRiskPercent("1");
+
+    setRiskAmount("100");
+
+    setEntryPrice("2350");
+
+    setStopLossPrice("2340");
+
+    setValuePerPoint("10");
+
+    setRr("2");
+  }
+
+  function selectRisk(value: string) {
+    setRiskMode("percent");
+
+    setRiskPercent(value);
+  }
+
+  return (
+    <div className="space-y-5 pb-10">
+      {/* HEADER */}
+
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-white">
+            Simulateur de{" "}
+            <span className="text-[color:var(--gold)]">
+              risque
+            </span>
+          </h1>
+
+          <p className="mt-1 text-sm text-[color:var(--muted)]">
+            Entre ton prix d’entrée,
+            ton Stop Loss et ton risque.
+            InvestPro calcule automatiquement
+            ta taille de position.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={resetSimulator}
+          className="
+            inline-flex
+            h-10
+            items-center
+            gap-2
+            rounded-xl
+            border border-[color:var(--border)]
+            bg-[color:var(--panel)]
+            px-4
+            text-xs
+            text-white/70
+            transition
+            hover:bg-white/[0.04]
+            hover:text-white
+          "
+        >
+          <RotateCcw size={14} />
+
+          Réinitialiser
+        </button>
+      </div>
+
+      {/* KPI */}
+
+      <section className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          icon={
+            <ShieldCheck size={18} />
+          }
+          label="Risque maximum"
+          value={`${formatNumber(
+            calculated.riskMoney
+          )} ${currency}`}
+          sub={`${formatNumber(
+            calculated.effectiveRiskPercent
+          )}% du capital`}
+        />
+
+        <StatCard
+          icon={
+            <Calculator size={18} />
+          }
+          label="Taille de position"
+          value={
+            calculated.lotSize > 0
+              ? `${formatNumber(
+                  calculated.lotSize,
+                  4
+                )} lot`
+              : "—"
+          }
+          sub="Calculée avec Entrée + SL"
+        />
+
+        <StatCard
+          icon={
+            <Target size={18} />
+          }
+          label="Take Profit estimé"
+          value={
+            calculated.takeProfit > 0
+              ? formatNumber(
+                  calculated.takeProfit,
+                  5
+                )
+              : "—"
+          }
+          sub={`Objectif ${formatNumber(
+            calculated.targetRR
+          )}R`}
+        />
+
+        <StatCard
+          icon={
+            <TrendingUp size={18} />
+          }
+          label="Gain potentiel"
+          value={`+${formatNumber(
+            calculated.potentialGain
+          )} ${currency}`}
+          sub={`Risk / Reward 1:${formatNumber(
+            calculated.targetRR
+          )}`}
+        />
+      </section>
+
+      {/* MAIN */}
+
+      <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+        {/* CALCULATOR */}
+
+        <div
+          className="
+            xl:col-span-8
+            rounded-[22px]
+            border border-[color:var(--border)]
+            bg-[color:var(--panel)]
+            p-5
+          "
+        >
+          <div>
+            <h2 className="text-base font-semibold text-white">
+              Calcul de position
+            </h2>
+
+            <p className="mt-1 text-xs text-[color:var(--muted)]">
+              Renseigne les paramètres
+              du trade que tu veux prendre.
+            </p>
+          </div>
+
+          {/* RISK PRESETS */}
+
+          <div className="mt-6">
+            <div className="mb-2 text-xs text-white/60">
+              Risque rapide
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {[
+                "0.5",
+                "1",
+                "1.5",
+                "2",
+              ].map((value) => {
+                const active =
+                  riskMode ===
+                    "percent" &&
+                  riskPercent ===
+                    value;
+
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() =>
+                      selectRisk(value)
+                    }
+                    className={[
+                      "h-9 rounded-xl border px-4 text-xs font-semibold transition",
+
+                      active
+                        ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]"
+                        : "border-[color:var(--border)] bg-black/20 text-white/60 hover:text-white",
+                    ].join(" ")}
+                  >
+                    {value}%
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+            {/* CAPITAL */}
+
+            <Field
+              label="Capital"
+              value={balance}
+              onChange={setBalance}
+              suffix={currency}
+              placeholder="10000"
+            />
+
+            {/* CURRENCY */}
+
+            <SelectField
+              label="Devise du compte"
+              value={currency}
+              onChange={setCurrency}
+            >
+              <option value="EUR">
+                EUR
+              </option>
+
+              <option value="USD">
+                USD
+              </option>
+
+              <option value="GBP">
+                GBP
+              </option>
+            </SelectField>
+
+            {/* RISK MODE */}
+
+            <SelectField
+              label="Type de risque"
+              value={riskMode}
+              onChange={(value) =>
+                setRiskMode(
+                  value as RiskMode
+                )
+              }
+            >
+              <option value="percent">
+                Pourcentage du capital
+              </option>
+
+              <option value="amount">
+                Montant fixe
+              </option>
+            </SelectField>
+
+            {riskMode ===
+            "percent" ? (
+              <Field
+                label="Risque"
+                value={riskPercent}
+                onChange={
+                  setRiskPercent
+                }
+                suffix="%"
+                placeholder="1"
+              />
+            ) : (
+              <Field
+                label="Montant à risquer"
+                value={riskAmount}
+                onChange={
+                  setRiskAmount
+                }
+                suffix={currency}
+                placeholder="100"
+              />
+            )}
+
+            {/* ENTRY */}
+
+            <Field
+              label="Prix d’entrée"
+              value={entryPrice}
+              onChange={
+                setEntryPrice
+              }
+              placeholder="2350.50"
+            />
+
+            {/* STOP LOSS */}
+
+            <Field
+              label="Stop Loss"
+              value={stopLossPrice}
+              onChange={
+                setStopLossPrice
+              }
+              placeholder="2340.00"
+            />
+
+            {/* DISTANCE */}
+
+            <div
+              className="
+                md:col-span-2
+                flex
+                items-center
+                justify-between
+                rounded-xl
+                border border-white/[0.05]
+                bg-black/20
+                px-4 py-3
+              "
+            >
+              <div>
+                <div className="text-xs text-[color:var(--muted)]">
+                  Distance entrée → SL
+                </div>
+
+                <div className="mt-1 text-[10px] text-white/30">
+                  Calcul automatique
+                </div>
+              </div>
+
+              <div className="text-lg font-semibold text-[color:var(--gold)]">
+                {formatNumber(
+                  calculated.stopDistance,
+                  5
+                )}
+              </div>
+            </div>
+
+            {/* AUTO SIDE */}
+
+            <div
+              className="
+                md:col-span-2
+                flex
+                items-center
+                justify-between
+                rounded-xl
+                border border-white/[0.05]
+                bg-black/20
+                px-4 py-3
+              "
+            >
+              <span className="text-xs text-[color:var(--muted)]">
+                Sens détecté
+              </span>
+
+              <span
+                className={[
+                  "rounded-full border px-3 py-1 text-xs font-semibold",
+
+                  calculated.stopLoss <
+                  calculated.entry
+                    ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
+                    : calculated.stopLoss >
+                      calculated.entry
+                    ? "border-red-500/20 bg-red-500/10 text-red-400"
+                    : "border-white/10 bg-white/5 text-white/40",
+                ].join(" ")}
+              >
+                {calculated.stopLoss <
+                calculated.entry
+                  ? "ACHAT"
+                  : calculated.stopLoss >
+                    calculated.entry
+                  ? "VENTE"
+                  : "—"}
+              </span>
+            </div>
+
+            {/* POINT VALUE */}
+
+            <Field
+              label="Valeur d’un mouvement de prix de 1.00 pour 1 lot"
+              value={valuePerPoint}
+              onChange={
+                setValuePerPoint
+              }
+              suffix={currency}
+              placeholder="10"
+            />
+
+            {/* AUTO TP */}
+
+            <div>
+              <div className="mb-2 text-xs text-white/60">
+                Take Profit calculé
+              </div>
+
+              <div
+                className="
+                  flex
+                  h-11
+                  items-center
+                  rounded-xl
+                  border border-[color:var(--gold-border)]
+                  bg-[color:var(--gold-soft)]
+                  px-4
+                  text-sm
+                  font-semibold
+                  text-[color:var(--gold)]
+                "
+              >
+                {calculated.takeProfit >
+                0
+                  ? formatNumber(
+                      calculated.takeProfit,
+                      5
+                    )
+                  : "—"}
+              </div>
+            </div>
+
+            {/* RR */}
+
+            <div className="md:col-span-2">
+              <div className="mb-2 text-xs text-white/60">
+                Ratio visé
+              </div>
+
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  "1",
+                  "1.5",
+                  "2",
+                  "3",
+                ].map(
+                  (value) => {
+                    const active =
+                      rr === value;
+
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() =>
+                          setRr(
+                            value
+                          )
+                        }
+                        className={[
+                          "h-11 rounded-xl border text-sm font-semibold transition",
+
+                          active
+                            ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]"
+                            : "border-[color:var(--border)] bg-black/20 text-white/60 hover:text-white",
+                        ].join(
+                          " "
+                        )}
+                      >
+                        {value}R
+                      </button>
+                    );
+                  }
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* IMPORTANT */}
+
+          <div
+            className="
+              mt-6
+              flex gap-3
+              rounded-2xl
+              border border-[color:var(--gold-border)]
+              bg-[color:var(--gold-soft)]
+              p-4
+            "
+          >
+            <AlertTriangle
+              size={17}
+              className="mt-0.5 shrink-0 text-[color:var(--gold)]"
+            />
+
+            <div>
+              <div className="text-xs font-semibold text-white">
+                Calcul de la taille de position
+              </div>
+
+              <p className="mt-1 text-[11px] leading-5 text-[color:var(--muted)]">
+                Le risque en euros est calculé
+                automatiquement avec ton capital.
+                La taille de position dépend ensuite
+                de la distance entre ton entrée et ton
+                Stop Loss ainsi que de la valeur du
+                mouvement de prix pour ton broker.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT */}
+
+        <div className="xl:col-span-4 space-y-4">
+          {/* RISK HEALTH */}
+
+          <div
+            className="
+              rounded-[22px]
+              border border-[color:var(--border)]
+              bg-[color:var(--panel)]
+              p-5
+            "
+          >
+            <div className="flex items-center gap-2">
+              <ShieldCheck
+                size={17}
+                className="text-[color:var(--gold)]"
+              />
+
+              <h2 className="text-sm font-semibold text-white">
+                Gestion du risque
+              </h2>
+            </div>
+
+            <div
+              className={[
+                "mt-5 rounded-2xl border p-4",
+
+                calculated.riskLevel ===
+                "safe"
+                  ? "border-emerald-500/20 bg-emerald-500/[0.06]"
+                  : calculated.riskLevel ===
+                    "medium"
+                  ? "border-amber-500/20 bg-amber-500/[0.06]"
+                  : "border-red-500/20 bg-red-500/[0.06]",
+              ].join(" ")}
+            >
+              <div className="flex items-center gap-3">
+                {calculated.riskLevel ===
+                "safe" ? (
+                  <CheckCircle2
+                    size={19}
+                    className="text-emerald-400"
+                  />
+                ) : (
+                  <AlertTriangle
+                    size={19}
+                    className={
+                      calculated.riskLevel ===
+                      "medium"
+                        ? "text-amber-400"
+                        : "text-red-400"
+                    }
+                  />
+                )}
+
+                <div>
+                  <div className="text-sm font-semibold text-white">
+                    {calculated.riskLevel ===
+                    "safe"
+                      ? "Risque maîtrisé"
+                      : calculated.riskLevel ===
+                        "medium"
+                      ? "Risque modéré"
+                      : "Risque élevé"}
+                  </div>
+
+                  <div className="mt-1 text-[10px] text-[color:var(--muted)]">
+                    {formatNumber(
+                      calculated.effectiveRiskPercent
+                    )}
+                    % de ton capital
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 space-y-3">
+              <ResultRow
+                label="Perte au SL"
+                value={`-${formatNumber(
+                  calculated.riskMoney
+                )} ${currency}`}
+                type="loss"
+              />
+
+              <ResultRow
+                label="Gain à 1R"
+                value={`+${formatNumber(
+                  calculated.gain1R
+                )} ${currency}`}
+                type="win"
+              />
+
+              <ResultRow
+                label="Gain à 2R"
+                value={`+${formatNumber(
+                  calculated.gain2R
+                )} ${currency}`}
+                type="win"
+              />
+
+              <ResultRow
+                label="Gain à 3R"
+                value={`+${formatNumber(
+                  calculated.gain3R
+                )} ${currency}`}
+                type="win"
+              />
+            </div>
+          </div>
+
+          {/* ACCOUNT IMPACT */}
+
+          <div
+            className="
+              rounded-[22px]
+              border border-[color:var(--border)]
+              bg-[color:var(--panel)]
+              p-5
+            "
+          >
+            <div className="flex items-center gap-2">
+              <WalletCards
+                size={17}
+                className="text-[color:var(--gold)]"
+              />
+
+              <h2 className="text-sm font-semibold text-white">
+                Impact sur le compte
+              </h2>
+            </div>
+
+            <div className="mt-5 space-y-3">
+              <ResultRow
+                label="Capital actuel"
+                value={`${formatNumber(
+                  calculated.capital
+                )} ${currency}`}
+              />
+
+              <ResultRow
+                label="Après un SL"
+                value={`${formatNumber(
+                  calculated.capitalAfterLoss
+                )} ${currency}`}
+                type="loss"
+              />
+
+              <ResultRow
+                label={`Après TP ${formatNumber(
+                  calculated.targetRR
+                )}R`}
+                value={`${formatNumber(
+                  calculated.capitalAfterWin
+                )} ${currency}`}
+                type="win"
+              />
+            </div>
+          </div>
+
+          {/* POSITION */}
+
+          <div
+            className="
+              rounded-[22px]
+              border border-[color:var(--gold-border)]
+              bg-gradient-to-br
+              from-[color:var(--gold-soft)]
+              to-transparent
+              p-5
+            "
+          >
+            <div className="text-xs text-[color:var(--muted)]">
+              Taille recommandée
+            </div>
+
+            <div className="mt-2 text-3xl font-semibold text-[color:var(--gold)]">
+              {calculated.lotSize >
+              0
+                ? formatNumber(
+                    calculated.lotSize,
+                    4
+                  )
+                : "—"}
+            </div>
+
+            <div className="mt-1 text-xs text-white/50">
+              lot / contrat indicatif
+            </div>
+
+            <div className="mt-5 border-t border-white/[0.06] pt-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-[color:var(--muted)]">
+                  Entrée
+                </span>
+
+                <span className="text-xs font-semibold text-white">
+                  {formatNumber(
+                    calculated.entry,
+                    5
+                  )}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-[color:var(--muted)]">
+                  Stop Loss
+                </span>
+
+                <span className="text-xs font-semibold text-red-400">
+                  {formatNumber(
+                    calculated.stopLoss,
+                    5
+                  )}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-[color:var(--muted)]">
+                  Take Profit
+                </span>
+
+                <span className="text-xs font-semibold text-emerald-400">
+                  {calculated.takeProfit >
+                  0
+                    ? formatNumber(
+                        calculated.takeProfit,
+                        5
+                      )
+                    : "—"}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+/* =========================================================
+   COMPONENTS
+========================================================= */
+
+function StatCard({
+  icon,
   label,
-  suffix,
-  ...props
-}: React.InputHTMLAttributes<HTMLInputElement> & {
+  value,
+  sub,
+}: {
+  icon: React.ReactNode;
   label: string;
+  value: string;
+  sub: string;
+}) {
+  return (
+    <div
+      className="
+        rounded-2xl
+        border border-[color:var(--border)]
+        bg-[color:var(--panel)]
+        p-4
+      "
+    >
+      <div className="flex items-center gap-3">
+        <div
+          className="
+            flex h-10 w-10
+            shrink-0
+            items-center justify-center
+            rounded-xl
+            border border-[color:var(--gold-border)]
+            bg-[color:var(--gold-soft)]
+            text-[color:var(--gold)]
+          "
+        >
+          {icon}
+        </div>
+
+        <div>
+          <div className="text-[10px] text-[color:var(--muted)]">
+            {label}
+          </div>
+
+          <div className="mt-1 text-lg font-semibold text-white">
+            {value}
+          </div>
+
+          <div className="mt-1 text-[9px] text-white/35">
+            {sub}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  value,
+  onChange,
+  suffix,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (
+    value: string
+  ) => void;
   suffix?: string;
+  placeholder?: string;
 }) {
   return (
     <label className="block">
-      <div className="text-sm text-white/70 mb-2">{label}</div>
+      <div className="mb-2 text-xs text-white/60">
+        {label}
+      </div>
+
       <div className="relative">
         <input
-          {...props}
-          className="w-full px-4 py-3 rounded-2xl bg-black/20 border border-[color:var(--border)]
-                     text-white placeholder:text-white/30 outline-none
-                     focus:border-[color:var(--gold-border)]
-                     focus:ring-2 focus:ring-[color:var(--gold-soft)]
-                     transition pr-16"
+          value={value}
+          inputMode="decimal"
+          onChange={(event) =>
+            onChange(
+              event.target.value
+            )
+          }
+          placeholder={placeholder}
+          className="
+            h-11
+            w-full
+            rounded-xl
+            border border-[color:var(--border)]
+            bg-black/20
+            px-4
+            pr-20
+            text-sm
+            text-white
+            outline-none
+            placeholder:text-white/20
+            focus:border-[color:var(--gold-border)]
+          "
         />
+
         {suffix ? (
-          <div className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-[color:var(--muted)]">
+          <span
+            className="
+              pointer-events-none
+              absolute
+              right-4
+              top-1/2
+              -translate-y-1/2
+              text-[10px]
+              text-white/35
+            "
+          >
             {suffix}
-          </div>
+          </span>
         ) : null}
       </div>
     </label>
   );
 }
 
-function Select({
+function SelectField({
   label,
+  value,
+  onChange,
   children,
-  ...props
-}: React.SelectHTMLAttributes<HTMLSelectElement> & {
+}: {
   label: string;
+  value: string;
+  onChange: (
+    value: string
+  ) => void;
   children: React.ReactNode;
 }) {
   return (
     <label className="block">
-      <div className="text-sm text-white/70 mb-2">{label}</div>
+      <div className="mb-2 text-xs text-white/60">
+        {label}
+      </div>
+
       <select
-        {...props}
-        className="w-full px-4 py-3 rounded-2xl bg-black/20 border border-[color:var(--border)]
-                   text-white outline-none
-                   focus:border-[color:var(--gold-border)]
-                   focus:ring-2 focus:ring-[color:var(--gold-soft)]
-                   transition"
+        value={value}
+        onChange={(event) =>
+          onChange(
+            event.target.value
+          )
+        }
+        className="
+          h-11
+          w-full
+          rounded-xl
+          border border-[color:var(--border)]
+          bg-black/20
+          px-4
+          text-sm
+          text-white
+          outline-none
+          focus:border-[color:var(--gold-border)]
+        "
       >
         {children}
       </select>
@@ -63,391 +1166,42 @@ function Select({
   );
 }
 
-function fmt(n: number, max = 2) {
-  if (!Number.isFinite(n)) return "—";
-  return n.toLocaleString("fr-FR", { maximumFractionDigits: max });
-}
-
-type SymbolPreset = {
+function ResultRow({
+  label,
+  value,
+  type,
+}: {
   label: string;
-  symbol: string;
-  market: Market;
-
-  // interne (caché du visuel)
-  pointSize: number;         // taille d’un point en prix
-  valuePerPoint: number;     // valeur d’1 point pour 1 lot (approx V1)
-
-  // stop loss "facile"
-  defaultSLPoints: number;
-
-  // prix V1
-  priceProvider: "binance" | "demo";
-  priceSymbol?: string;      // ex: BTCUSDT
-  demoPrice: number;
-};
-
-const SYMBOLS: Record<Market, SymbolPreset[]> = {
-  crypto: [
-    {
-      label: "BTCUSD",
-      symbol: "BTCUSD",
-      market: "crypto",
-      pointSize: 1,
-      valuePerPoint: 1,
-      defaultSLPoints: 1500,
-      priceProvider: "binance",
-      priceSymbol: "BTCUSDT",
-      demoPrice: 94600,
-    },
-    {
-      label: "ETHUSD",
-      symbol: "ETHUSD",
-      market: "crypto",
-      pointSize: 1,
-      valuePerPoint: 1,
-      defaultSLPoints: 120,
-      priceProvider: "binance",
-      priceSymbol: "ETHUSDT",
-      demoPrice: 3500,
-    },
-  ],
-  commodities: [
-    {
-      label: "XAUUSD (Gold)",
-      symbol: "XAUUSD",
-      market: "commodities",
-      pointSize: 1,
-      valuePerPoint: 1,
-      defaultSLPoints: 100,
-      priceProvider: "demo",
-      demoPrice: 4578,
-    },
-    {
-      label: "USOIL (WTI)",
-      symbol: "USOIL",
-      market: "commodities",
-      pointSize: 0.01,
-      valuePerPoint: 1,
-      defaultSLPoints: 100,
-      priceProvider: "demo",
-      demoPrice: 78.35,
-    },
-  ],
-  indices: [
-    {
-      label: "NAS100",
-      symbol: "NAS100",
-      market: "indices",
-      pointSize: 1,
-      valuePerPoint: 1,
-      defaultSLPoints: 100,
-      priceProvider: "demo",
-      demoPrice: 18000,
-    },
-    {
-      label: "GER40",
-      symbol: "GER40",
-      market: "indices",
-      pointSize: 1,
-      valuePerPoint: 1,
-      defaultSLPoints: 80,
-      priceProvider: "demo",
-      demoPrice: 17000,
-    },
-  ],
-  forex: [
-    {
-      label: "EURUSD",
-      symbol: "EURUSD",
-      market: "forex",
-      pointSize: 0.0001,
-      valuePerPoint: 10,
-      defaultSLPoints: 20,
-      priceProvider: "demo",
-      demoPrice: 1.1,
-    },
-    {
-      label: "GBPUSD",
-      symbol: "GBPUSD",
-      market: "forex",
-      pointSize: 0.0001,
-      valuePerPoint: 10,
-      defaultSLPoints: 25,
-      priceProvider: "demo",
-      demoPrice: 1.27,
-    },
-  ],
-};
-
-async function fetchBinancePrice(binanceSymbol: string): Promise<number | null> {
-  try {
-    const r = await fetch(
-      `https://api.binance.com/api/v3/ticker/price?symbol=${encodeURIComponent(binanceSymbol)}`,
-      { cache: "no-store" }
-    );
-    if (!r.ok) return null;
-    const j = await r.json();
-    const p = Number(j?.price);
-    return Number.isFinite(p) ? p : null;
-  } catch {
-    return null;
-  }
-}
-
-export default function SimulateurRisquePage() {
-  const [currency, setCurrency] = useState("USD");
-  const [balance, setBalance] = useState("1000");
-
-  const [market, setMarket] = useState<Market>("crypto");
-  const presets = useMemo(() => SYMBOLS[market], [market]);
-
-  const [symbol, setSymbol] = useState(presets[0].symbol);
-  const preset = useMemo(
-    () => presets.find((p) => p.symbol === symbol) ?? presets[0],
-    [presets, symbol]
-  );
-
-  // reset symbol when market changes
-  const [marketKey, setMarketKey] = useState<Market>(market);
-  if (marketKey !== market) {
-    setMarketKey(market);
-    setSymbol(SYMBOLS[market][0].symbol);
-  }
-
-  const [side, setSide] = useState<Side>("BUY");
-
-  // Auto inputs
-  const [entry, setEntry] = useState(String(preset.demoPrice));
-  const [slPoints, setSlPoints] = useState(String(preset.defaultSLPoints));
-  const [stopLoss, setStopLoss] = useState(String(preset.demoPrice - preset.defaultSLPoints * preset.pointSize));
-
-  // Internal (hidden) specs
-  const pointSize = preset.pointSize;
-  const valuePerPoint = preset.valuePerPoint;
-
-  // when symbol changes, reset defaults
-  const [symbolKey, setSymbolKey] = useState(symbol);
-  if (symbolKey !== symbol) {
-    setSymbolKey(symbol);
-    setEntry(String(preset.demoPrice));
-    setSlPoints(String(preset.defaultSLPoints));
-    const e = preset.demoPrice;
-    const sl = side === "BUY" ? e - preset.defaultSLPoints * pointSize : e + preset.defaultSLPoints * pointSize;
-    setStopLoss(String(sl));
-  }
-
-  // auto SL price from entry + slPoints
-  useEffect(() => {
-    const e = Number(entry);
-    const pts = Number(slPoints);
-    if (!Number.isFinite(e) || !Number.isFinite(pts)) return;
-
-    const sl = side === "BUY" ? e - pts * pointSize : e + pts * pointSize;
-    setStopLoss(String(sl));
-  }, [entry, slPoints, side, pointSize]);
-
-  // Risk
-  const [riskMode, setRiskMode] = useState<RiskMode>("percent");
-  const [riskPercent, setRiskPercent] = useState("1");
-  const [riskAmount, setRiskAmount] = useState("10");
-
-  // RR
-  const [rr, setRr] = useState("2");
-
-  // Price status
-  const [priceStatus, setPriceStatus] = useState<"idle" | "loading" | "ok" | "fail">("idle");
-
-  async function refreshPrice() {
-    setPriceStatus("loading");
-
-    if (preset.priceProvider === "binance" && preset.priceSymbol) {
-      const p = await fetchBinancePrice(preset.priceSymbol);
-      if (p !== null) {
-        setEntry(String(p));
-        setPriceStatus("ok");
-        return;
-      }
-      setPriceStatus("fail");
-      return;
-    }
-
-    // demo fallback
-    setEntry(String(preset.demoPrice));
-    setPriceStatus("ok");
-  }
-
-  const computed = useMemo(() => {
-    const bal = Number(balance) || 0;
-    const e = Number(entry);
-    const sl = Number(stopLoss);
-
-    const pts = Math.abs(e - sl) / (pointSize > 0 ? pointSize : 1);
-
-    const riskMoney =
-      riskMode === "percent"
-        ? bal * ((Number(riskPercent) || 0) / 100)
-        : Number(riskAmount) || 0;
-
-    const riskPerLot = pts * valuePerPoint;
-    const lot = riskPerLot > 0 ? riskMoney / riskPerLot : 0;
-
-    const rrNum = Number(rr) || 0;
-    const tpDistance = Math.abs(e - sl) * rrNum;
-    const tp = rrNum > 0 ? (side === "BUY" ? e + tpDistance : e - tpDistance) : NaN;
-
-    const profitIfTP = (pts * rrNum) * valuePerPoint * lot;
-
-    return { pts, riskMoney, lot, tp, profitIfTP };
-  }, [balance, entry, stopLoss, riskMode, riskPercent, riskAmount, rr, side, pointSize, valuePerPoint]);
-
+  value: string;
+  type?: "win" | "loss";
+}) {
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-semibold">
-            Simulateur <span className="text-[color:var(--gold)]">de risque</span>
-          </h1>
-          <p className="text-[color:var(--muted)] mt-1">
-            Calcule le risque, la taille de position et les objectifs basés sur tes paramètres.
-          </p>
-        </div>
+    <div
+      className="
+        flex items-center justify-between
+        rounded-xl
+        border border-white/[0.05]
+        bg-black/20
+        px-3 py-3
+      "
+    >
+      <span className="text-[11px] text-[color:var(--muted)]">
+        {label}
+      </span>
 
-        <div className="flex gap-3">
-          <Button variant="secondary" onClick={refreshPrice}>
-            Rafraîchir prix
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              setCurrency("USD");
-              setBalance("1000");
-              setMarket("crypto");
-              setSide("BUY");
-              setRiskMode("percent");
-              setRiskPercent("1");
-              setRiskAmount("10");
-              setRr("2");
-            }}
-          >
-            Reset
-          </Button>
-        </div>
-      </div>
+      <span
+        className={[
+          "text-xs font-semibold",
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <Card className="xl:col-span-2">
-          <CardBody>
-            <div className="flex items-center justify-between gap-4">
-              <div className="text-lg font-semibold">Paramètres</div>
-              <div className="text-xs text-[color:var(--muted)]">
-                Prix:{" "}
-                {priceStatus === "loading"
-                  ? "chargement..."
-                  : priceStatus === "ok"
-                  ? "OK"
-                  : priceStatus === "fail"
-                  ? "échec (fallback démo)"
-                  : "—"}
-              </div>
-            </div>
-
-            <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input label="Balance" value={balance} onChange={(e) => setBalance(e.target.value)} suffix={currency} />
-              <Select label="Devise" value={currency} onChange={(e) => setCurrency(e.target.value)}>
-                <option value="USD">USD</option>
-                <option value="EUR">EUR</option>
-                <option value="GBP">GBP</option>
-              </Select>
-
-              <Select label="Marché" value={market} onChange={(e) => setMarket(e.target.value as Market)}>
-                <option value="crypto">Crypto</option>
-                <option value="commodities">Matières premières</option>
-                <option value="indices">Indices</option>
-                <option value="forex">Forex</option>
-              </Select>
-
-              <Select label="Symbole" value={symbol} onChange={(e) => setSymbol(e.target.value)}>
-                {presets.map((p) => (
-                  <option key={p.symbol} value={p.symbol}>
-                    {p.label}
-                  </option>
-                ))}
-              </Select>
-
-              <Select label="Sens" value={side} onChange={(e) => setSide(e.target.value as Side)}>
-                <option value="BUY">BUY</option>
-                <option value="SELL">SELL</option>
-              </Select>
-
-              <Input label="Prix d’entrée (auto)" value={entry} onChange={(e) => setEntry(e.target.value)} />
-
-              <Input label="Stop Loss (points)" value={slPoints} onChange={(e) => setSlPoints(e.target.value)} suffix="pts" />
-
-              <Input label="Stop Loss (prix) auto" value={stopLoss} readOnly />
-
-              <Select label="Risque" value={riskMode} onChange={(e) => setRiskMode(e.target.value as RiskMode)}>
-                <option value="percent">En % de la balance</option>
-                <option value="amount">Montant fixe</option>
-              </Select>
-
-              {riskMode === "percent" ? (
-                <Input label="Risque (%)" value={riskPercent} onChange={(e) => setRiskPercent(e.target.value)} suffix="%" />
-              ) : (
-                <Input label={`Risque (${currency})`} value={riskAmount} onChange={(e) => setRiskAmount(e.target.value)} suffix={currency} />
-              )}
-
-              <Input label="RR (Risk:Reward)" value={rr} onChange={(e) => setRr(e.target.value)} suffix="x" />
-            </div>
-
-            <div className="mt-4 text-xs text-[color:var(--muted)]">
-              * BTC/ETH utilisent un prix réel (Binance). Le reste est en “démo” jusqu’au branchement API/MT5.
-            </div>
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardBody>
-            <div className="text-lg font-semibold">Résultats</div>
-
-            <div className="mt-4 space-y-3">
-              <CardSubCard>
-                <div className="text-xs uppercase tracking-wide text-[color:var(--muted)]">Distance SL</div>
-                <div className="mt-2 text-lg font-semibold text-white">
-                  {fmt(computed.pts, 2)} points
-                </div>
-              </CardSubCard>
-
-              <CardSubCard>
-                <div className="text-xs uppercase tracking-wide text-[color:var(--muted)]">Montant risqué</div>
-                <div className="mt-2 text-2xl font-bold text-[color:var(--danger)]">
-                  {fmt(computed.riskMoney, 2)} {currency}
-                </div>
-              </CardSubCard>
-
-              <CardSubCard>
-                <div className="text-xs uppercase tracking-wide text-[color:var(--muted)]">Lot/Contrat conseillé</div>
-                <div className="mt-2 text-2xl font-bold text-[color:var(--gold)]">
-                  {fmt(computed.lot, 4)}
-                </div>
-              </CardSubCard>
-
-              <CardSubCard>
-                <div className="text-xs uppercase tracking-wide text-[color:var(--muted)]">TP estimé (prix)</div>
-                <div className="mt-2 text-lg font-semibold text-white">
-                  {Number.isFinite(computed.tp) ? fmt(computed.tp, 5) : "—"}
-                </div>
-              </CardSubCard>
-
-              <CardSubCard>
-                <div className="text-xs uppercase tracking-wide text-[color:var(--muted)]">Gain si TP</div>
-                <div className="mt-2 text-xl font-bold text-[color:var(--success)]">
-                  {fmt(computed.profitIfTP, 2)} {currency}
-                </div>
-              </CardSubCard>
-            </div>
-          </CardBody>
-        </Card>
-      </div>
+          type === "win"
+            ? "text-emerald-400"
+            : type === "loss"
+            ? "text-red-400"
+            : "text-white",
+        ].join(" ")}
+      >
+        {value}
+      </span>
     </div>
   );
 }

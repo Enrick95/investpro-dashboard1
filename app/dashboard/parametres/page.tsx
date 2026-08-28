@@ -2,13 +2,13 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Card, CardBody, CardSubCard } from "../../../components/ui/Card";
-import { Button } from "../../../components/ui/Button";
-import GoldSelect from "../../../components/ui/GoldSelect";
+import { Card, CardBody, CardSubCard } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import GoldSelect from "@/components/ui/GoldSelect";
 
-import { pushNotif } from "../../../lib/notifyStore";
-import { getCurrentAccount } from "../../../lib/authStore";
-import { loadMt5Accounts, Mt5Account, getMt5AccountUsd } from "../../../lib/mt5Store";
+import { pushNotif } from "@/lib/notifyStore";
+import { getCurrentAccount } from "@/lib/authStore";
+import { loadMt5Accounts, Mt5Account, getMt5AccountUsd } from "@/lib/mt5Store";
 
 
 import {
@@ -38,7 +38,7 @@ import {
   Language,
   NotifKind,
   BlockDuration,
-} from "../../../lib/prefsStore";
+} from "@/lib/prefsStore";
 
 /* ----------------------------- Helpers ----------------------------- */
 function clamp(n: number, a: number, b: number) {
@@ -784,39 +784,46 @@ export default function ParametresPage() {
                         </Button>
                       </div>
 
-                      <GoldSelect
-                        value={mt5SelectedId}
-                        onChange={(v: any) => {
-                          const id = String(v || "");
-                          patchPrefs({
-                            rules: {
-                              ...(rules as any),
-                              accountUsdMode: "mt5",
-                              accountUsdMt5Id: id,
-                            } as any,
-                          });
-                          if (id) {
-                            pushNotif({
-                              kind: "success",
-                              title: "MT5",
-                              message: "Compte sélectionné ✅",
-                            });
-                          }
-                        }}
-                        placeholder={
-                          mt5Loading
-                            ? "Chargement..."
-                            : mt5Options.length
-                            ? "Sélectionner un compte"
-                            : "Aucun compte MT5"
-                        }
-                        options={mt5Options}
-                        disabled={
+                      <div
+                        className={
                           !rules.enabled ||
                           mt5Loading ||
                           mt5Options.length === 0
+                            ? "pointer-events-none opacity-60"
+                            : ""
                         }
-                      />
+                      >
+                        <GoldSelect
+                          value={mt5SelectedId}
+                          onChange={(v: any) => {
+                            const id = String(v || "");
+
+                            patchPrefs({
+                              rules: {
+                                ...(rules as any),
+                                accountUsdMode: "mt5",
+                                accountUsdMt5Id: id,
+                              } as any,
+                            });
+
+                            if (id) {
+                              pushNotif({
+                                kind: "success",
+                                title: "MT5",
+                                message: "Compte sélectionné ✅",
+                              });
+                            }
+                          }}
+                          placeholder={
+                            mt5Loading
+                              ? "Chargement..."
+                              : mt5Options.length
+                              ? "Sélectionner un compte"
+                              : "Aucun compte MT5"
+                          }
+                          options={mt5Options}
+                        />
+                      </div>
 
                       <div className="mt-2 text-[11px] text-muted">
                         Valeur utilisée :{" "}

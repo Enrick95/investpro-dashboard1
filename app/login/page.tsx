@@ -3,27 +3,50 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
-import { signIn } from "../../lib/authStore";
+import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
-  const [username, setUsername] = useState("");
+  const supabase = createClient();
+
+  const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [err, setErr] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  function onLogin() {
+  async function onLogin() {
     setErr(null);
-    const r = signIn(username, pass);
-    if (!r.ok) {
-      setErr(r.error || "Erreur de connexion");
+
+    if (!email.trim()) {
+      return setErr("L’adresse e-mail est requise");
+    }
+
+    if (!pass) {
+      return setErr("Le mot de passe est requis");
+    }
+
+    setLoading(true);
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password: pass,
+    });
+
+    setLoading(false);
+
+    if (error) {
+      setErr("Adresse e-mail ou mot de passe incorrect");
       return;
     }
-    window.location.href = "/dashboard/comptes";
+
+    window.location.href = "/dashboard";
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-black">
-      <div className="w-full max-w-md p-8 rounded-3xl border border-white/10 bg-black/40 backdrop-blur-xl shadow-2xl">
-        
+    <div className="min-h-screen bg-black text-white flex items-center justify-center px-4 py-10">
+      <div
+        className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0c0c0f]
+                   p-8 shadow-2xl"
+      >
         {/* Logo */}
         <div className="flex justify-center mb-6">
           <Image
@@ -36,14 +59,17 @@ export default function LoginPage() {
         </div>
 
         <h1 className="text-2xl font-semibold text-center">
-          Connexion à votre compte <span className="text-[color:var(--gold)]">InvestPro</span>
+          Connexion à votre compte{" "}
+          <span className="text-[color:var(--gold)]">InvestPro</span>
         </h1>
+
         <p className="text-sm text-center text-[color:var(--muted)] mt-2">
-          Trackez et optimisez vos performances.
+          Retrouvez votre espace et suivez vos performances.
         </p>
 
-        {/* Google */}
+        {/* Google - on le branchera après */}
         <button
+          type="button"
           className="w-full mt-6 flex items-center justify-center gap-3 px-4 py-3
                      rounded-2xl bg-[#1f1f1f] hover:bg-[#2a2a2a]
                      border border-white/10 transition text-white"
@@ -60,7 +86,7 @@ export default function LoginPage() {
 
         {/* Erreur */}
         {err && (
-          <div className="mb-4 text-sm rounded-xl border border-red-500/30 bg-red-500/10 text-red-400 px-4 py-2">
+          <div className="mb-4 text-sm rounded-xl border border-red-500/30 bg-red-500/10 text-red-400 px-4 py-3">
             {err}
           </div>
         )}
@@ -68,9 +94,10 @@ export default function LoginPage() {
         {/* Form */}
         <div className="space-y-4">
           <input
-            placeholder="Pseudo"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            type="email"
+            placeholder="Adresse e-mail"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             className="w-full px-4 py-3 rounded-2xl bg-black/30 border border-white/10
                        text-white outline-none focus:border-[color:var(--gold-border)]"
           />
@@ -80,6 +107,11 @@ export default function LoginPage() {
             placeholder="Mot de passe"
             value={pass}
             onChange={(e) => setPass(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !loading) {
+                onLogin();
+              }
+            }}
             className="w-full px-4 py-3 rounded-2xl bg-black/30 border border-white/10
                        text-white outline-none focus:border-[color:var(--gold-border)]"
           />
@@ -95,16 +127,22 @@ export default function LoginPage() {
         </div>
 
         <button
+          type="button"
           onClick={onLogin}
+          disabled={loading}
           className="w-full mt-6 px-4 py-3 rounded-2xl bg-[color:var(--gold)]
-                     text-black font-semibold hover:bg-[color:var(--gold-2)] transition"
+                     text-black font-semibold hover:bg-[color:var(--gold-2)]
+                     transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Connexion
+          {loading ? "Connexion..." : "Connexion"}
         </button>
 
         <p className="text-sm text-center text-[color:var(--muted)] mt-6">
           Pas encore de compte ?{" "}
-          <Link href="/register" className="text-[color:var(--gold)] hover:underline">
+          <Link
+            href="/register"
+            className="text-[color:var(--gold)] hover:underline"
+          >
             Créer un compte
           </Link>
         </p>

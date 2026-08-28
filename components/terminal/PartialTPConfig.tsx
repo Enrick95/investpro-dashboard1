@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Card, CardBody } from "../../../components/ui/Card";
-import { Button } from "../../../components/ui/Button";
-import Modal from "../../../components/ui/Modal";
-import GoldSelect from "../../../components/ui/GoldSelect";
-import { getPlan, hasTradingTerminalAccess } from "../../../lib/subscriptionStore";
-import { loadMt5Accounts, Mt5Account } from "../../../lib/mt5Store";
-import { syncMt5HistoryToTrades } from "../../../lib/mt5sync";
+import { Card, CardBody } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import Modal from "@/components/ui/Modal";
+import GoldSelect from "@/components/ui/GoldSelect";
+import { getPlan, hasTradingTerminalAccess } from "@/lib/subscriptionStore";
+import { loadMt5Accounts, Mt5Account } from "@/lib/mt5Store";
+import { syncMt5HistoryToTrades } from "@/lib/mt5sync";
 
 type Mode3 = "" | "MARKET" | "LIMIT" | "STOP_LIMIT";
 type Side = "BUY" | "SELL";
@@ -655,21 +655,21 @@ export default function TerminalPage() {
               </button>
             </div>
 
-            <GoldSelect
-              label="Catégorie"
-              value={category}
-              onChange={(v) => setCategory(v as SymbolCat)}
-              options={[
-                { value: "all", label: "Tous" },
-                { value: "forex", label: "Forex" },
-                { value: "crypto", label: "Cryptomonnaie" },
-                { value: "indices", label: "Indices" },
-                { value: "metals", label: "Métaux" },
-                { value: "other", label: "Autres" },
-              ]}
-              searchable={false}
-              maxMenuHeight={320}
-            />
+            <div className="w-full">
+              <div className="text-xs text-white/70 mb-1">Catégorie</div>
+              <GoldSelect
+                value={category}
+                onChange={(v) => setCategory(v as SymbolCat)}
+                options={[
+                  { value: "all", label: "Tous" },
+                  { value: "forex", label: "Forex" },
+                  { value: "crypto", label: "Cryptomonnaie" },
+                  { value: "indices", label: "Indices" },
+                  { value: "metals", label: "Métaux" },
+                  { value: "other", label: "Autres" },
+                ]}
+              />
+            </div>
 
             <InputField
               label={`Symbol ${symbolsLoaded ? `(${filteredSymbols.length})` : "(non sync)"}`}
@@ -684,31 +684,31 @@ export default function TerminalPage() {
               ))}
             </datalist>
 
-            <GoldSelect
-              label="Ordre"
-              value={mode}
-              onChange={(v) => setMode(v as Mode3)}
-              searchable={false}
-              maxMenuHeight={260}
-              options={[
-                { value: "", label: "N/A (Choisir…)" },
-                { value: "MARKET", label: "Market" },
-                { value: "LIMIT", label: "Limit" },
-                { value: "STOP_LIMIT", label: "Stop-Limit" },
-              ]}
-            />
+            <div className="w-full">
+              <div className="text-xs text-white/70 mb-1">Ordre</div>
+              <GoldSelect
+                value={mode}
+                onChange={(v) => setMode(v as Mode3)}
+                options={[
+                  { value: "", label: "N/A (Choisir…)" },
+                  { value: "MARKET", label: "Market" },
+                  { value: "LIMIT", label: "Limit" },
+                  { value: "STOP_LIMIT", label: "Stop-Limit" },
+                ]}
+              />
+            </div>
 
-            <GoldSelect
-              label="Sens"
-              value={side}
-              onChange={(v) => setSide(v as Side)}
-              searchable={false}
-              maxMenuHeight={200}
-              options={[
-                { value: "BUY", label: "BUY" },
-                { value: "SELL", label: "SELL" },
-              ]}
-            />
+            <div className="w-full">
+              <div className="text-xs text-white/70 mb-1">Sens</div>
+              <GoldSelect
+                value={side}
+                onChange={(v) => setSide(v as Side)}
+                options={[
+                  { value: "BUY", label: "BUY" },
+                  { value: "SELL", label: "SELL" },
+                ]}
+              />
+            </div>
 
             <div className="flex gap-3 justify-end">
               <Button onClick={placeOrder} disabled={busy || mode === ""}>
@@ -878,17 +878,17 @@ export default function TerminalPage() {
             <div className="mt-5">
               <div className="text-xs text-white/70 mb-2">Calcul du risque</div>
               <div className="grid grid-cols-2 gap-3">
-                <GoldSelect
-                  label="Base"
-                  value={calcBase}
-                  onChange={(v) => setCalcBase(v as any)}
-                  searchable={false}
-                  maxMenuHeight={160}
-                  options={[
-                    { value: "BALANCE", label: "Balance" },
-                    { value: "EQUITY", label: "Equity" },
-                  ]}
-                />
+                <div className="w-full">
+                  <div className="text-xs text-white/70 mb-1">Base</div>
+                  <GoldSelect
+                    value={calcBase}
+                    onChange={(v) => setCalcBase(v as "BALANCE" | "EQUITY")}
+                    options={[
+                      { value: "BALANCE", label: "Balance" },
+                      { value: "EQUITY", label: "Equity" },
+                    ]}
+                  />
+                </div>
 
                 <div className="rounded-2xl border border-[color:var(--border)] bg-black/20 h-11 px-4 flex items-center justify-between">
                   <div className="text-xs text-white/70">Lots</div>

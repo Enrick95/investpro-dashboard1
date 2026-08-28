@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { Card, CardBody, CardSubCard } from "../../../components/ui/Card";
-import { Button } from "../../../components/ui/Button";
+import { Card, CardBody, CardSubCard } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
 
 // ✅ Nouveau: blocage maintenance piloté par la page Admin
-import MaintenanceGate from "../../../components/admin/MaintenanceGate";
+import MaintenanceGate from "@/components/admin/MaintenanceGate";
 
 type Account = {
   id: string;
@@ -173,7 +173,7 @@ export default function CopieurPage() {
                 <div className="flex items-center justify-between">
                   <div className="font-semibold">Followers</div>
                   <Pill>
-                    {Object.values(followers).filter(Boolean).length}/{followerList.length} actifs
+                    {`${Object.values(followers).filter(Boolean).length}/${followerList.length} actifs`}
                   </Pill>
                 </div>
 
@@ -210,10 +210,10 @@ export default function CopieurPage() {
                   label="Mode"
                   right={
                     <div className="flex gap-2">
-                      <Button variant={mode === "risk" ? "default" : "ghost"} onClick={() => setMode("risk")}>
+                      <Button variant={mode === "risk" ? "primary" : "ghost"} onClick={() => setMode("risk")}>
                         Risque %
                       </Button>
-                      <Button variant={mode === "mult" ? "default" : "ghost"} onClick={() => setMode("mult")}>
+                      <Button variant={mode === "mult" ? "primary" : "ghost"} onClick={() => setMode("mult")}>
                         Multiplicateur
                       </Button>
                     </div>

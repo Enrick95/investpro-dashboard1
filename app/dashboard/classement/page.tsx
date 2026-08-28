@@ -1,621 +1,994 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Card, CardBody, CardSubCard } from "../../../components/ui/Card";
-import Modal from "../../../components/ui/Modal";
-import { Button } from "../../../components/ui/Button";
+import {
+  Activity,
+  Award,
+  BarChart3,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  Medal,
+  RefreshCw,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  Target,
+  Trophy,
+  TrendingUp,
+  UserRound,
+} from "lucide-react";
 
-import { loadLeaderboard, upsertLeaderboardUser } from "../../../lib/uiStore";
-import { getCurrentAccount, setLeaderboardVisibility } from "../../../lib/authStore";
-import { loadTrades } from "../../../lib/tradesStore";
-import { pushNotif } from "../../../lib/notifyStore";
+import { createClient } from "@/lib/supabase/client";
 
-import { Lock, Unlock } from "lucide-react";
-
-/* -------------------------------- Types -------------------------------- */
-type MediaTransform = { zoom: number; panX: number; panY: number };
-
-type LeaderUser = {
+type LeaderRow = {
+  user_id: string;
   username: string;
-  tag?: string;
-  bio?: string;
-  profitUsd?: number;
-  showOnLeaderboard?: boolean;
+  avatar_url: string | null;
+  tag: string | null;
+  bio: string | null;
 
-  // stats public (optionnels)
-  tradesTotal?: number;
-  winrate?: number;
-  rrAvg?: number;
+  trades_count: number;
+  wins: number;
+  losses: number;
+  breakevens: number;
 
-  // legacy avatar
-  avatarDataUrl?: string;
+  winrate: number;
+  total_r: number;
+  avg_risk: number;
 
-  // ✅ new media (IndexedDB)
-  avatarMediaId?: string;
-  bannerMediaId?: string;
-  avatarTransform?: MediaTransform;
-  bannerTransform?: MediaTransform;
+  plan_compliance: number;
+  risk_compliance: number;
+  journal_quality: number;
 
-  // privacy (legacy)
-  hideTrades?: boolean;
+  score: number;
 };
 
-/* ----------------------------- Helpers UI ----------------------------- */
-function cx(...arr: Array<string | false | null | undefined>) {
-  return arr.filter(Boolean).join(" ");
-}
-function money(n: any) {
-  const v = Number(n ?? 0);
-  return `$${v.toFixed(2)}`;
-}
-function initialsOf(username: string) {
-  return (username || "IP").slice(0, 2).toUpperCase();
-}
-
-/* ------------------------- IndexedDB (avatars) ------------------------- */
-const IDB_DB = "investpro_media_db_v1";
-const IDB_STORE = "files";
-
-function idbOpen(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(IDB_DB, 1);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(IDB_STORE)) {
-        db.createObjectStore(IDB_STORE, { keyPath: "id" });
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error || new Error("idb_open_failed"));
-  });
-}
-
-async function idbGetBlob(id: string): Promise<Blob | null> {
-  const db = await idbOpen();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(IDB_STORE, "readonly");
-    const store = tx.objectStore(IDB_STORE);
-    const req = store.get(id);
-    req.onsuccess = () => resolve(req.result?.blob ?? null);
-    req.onerror = () => reject(req.error || new Error("idb_get_failed"));
-  });
-}
-
-/* ------------------------------ UI blocks ------------------------------ */
-function Avatar({
-  username,
-  avatarDataUrl,
-  avatarMediaId,
-  avatarSrc,
-  size = 44,
-}: {
+type MyProfile = {
+  id: string;
   username: string;
-  avatarDataUrl?: string;
-  avatarMediaId?: string;
-  avatarSrc?: string; // resolved objectURL from IDB (cache)
-  size?: number;
-}) {
-  const src = avatarSrc || avatarDataUrl || "";
-  return (
-    <div
-      className="relative rounded-full border border-[color:var(--gold-border)] bg-[color:var(--panel-2)]
-                 overflow-hidden flex items-center justify-center shrink-0"
-      style={{ width: size, height: size }}
-      title={username}
-    >
-      {src ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt="avatar" className="w-full h-full object-cover" />
-      ) : (
-        <span className="text-sm font-semibold text-[color:var(--gold)]">
-          {initialsOf(username)}
-        </span>
-      )}
-    </div>
-  );
+  avatar_url: string | null;
+  leaderboard_public: boolean;
+};
+
+const SCORE_HELP = [
+  {
+    title: "Discipline",
+    value: "40 pts",
+    text: "Respect des règles du plan de trading.",
+  },
+  {
+    title: "Gestion du risque",
+    value: "20 pts",
+    text: "Respect du risque maximum défini dans le plan.",
+  },
+  {
+    title: "Journal",
+    value: "15 pts",
+    text: "Trades documentés avec notes et capture.",
+  },
+  {
+    title: "Activité",
+    value: "10 pts",
+    text: "Régularité de l'utilisation du journal.",
+  },
+  {
+    title: "Performance",
+    value: "15 pts",
+    text: "Résultat en R, plafonné pour éviter de favoriser la prise de risque excessive.",
+  },
+];
+
+function initials(value: string) {
+  return (value || "IP").slice(0, 2).toUpperCase();
 }
 
-function RankPill({ rank }: { rank: number }) {
-  const top3 = rank <= 3;
-  return (
-    <span
-      className={cx(
-        "inline-flex items-center justify-center h-8 min-w-[56px] px-3 rounded-2xl border text-sm font-semibold",
-        top3
-          ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]"
-          : "border-white/10 bg-black/20 text-white/70"
-      )}
-    >
-      #{rank}
-    </span>
-  );
+function rankMedal(rank: number) {
+  if (rank === 1) return "🥇";
+  if (rank === 2) return "🥈";
+  if (rank === 3) return "🥉";
+  return null;
 }
 
-function TopBadge({ show }: { show: boolean }) {
-  if (!show) return null;
-  return (
-    <span
-      className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold
-                 border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]"
-    >
-      TOP 10
-    </span>
-  );
+function formatSigned(value: number, suffix = "") {
+  const n = Number(value || 0);
+  return `${n > 0 ? "+" : ""}${n.toFixed(2)}${suffix}`;
 }
 
-function ProfitPill({ profitUsd }: { profitUsd: number }) {
-  const v = Number(profitUsd ?? 0);
-  return (
-    <div className="text-right">
-      <div
-        className={cx(
-          "text-sm font-semibold",
-          v >= 0 ? "text-[color:var(--success)]" : "text-[color:var(--danger)]"
-        )}
-      >
-        {money(v)}
-      </div>
-      <div className="text-[10px] text-[color:var(--muted)]">profit</div>
-    </div>
-  );
+function clampPercent(value: number) {
+  return Math.max(0, Math.min(100, Number(value || 0)));
 }
 
-/* -------------------------- Stats from trades -------------------------- */
-function computePublicStatsFromTrades(trades: any[]) {
-  const list = Array.isArray(trades) ? trades : [];
-  const total = list.length;
-  const win = list.filter((t) => t.result === "WIN").length;
-  const winrate = total > 0 ? (win / total) * 100 : 0;
-
-  const rrVals = list
-    .map((t) => Number(t.rr))
-    .filter((x) => Number.isFinite(x));
-  const rrAvg = rrVals.length ? rrVals.reduce((a, b) => a + b, 0) / rrVals.length : undefined;
-
-  return { tradesTotal: total, winrate, rrAvg };
-}
-
-/* -------------------------------- Page -------------------------------- */
 export default function ClassementPage() {
-  const [refresh, setRefresh] = useState(0);
-  const [q, setQ] = useState("");
+  const supabase = useMemo(() => createClient(), []);
 
-  // ✅ reactive account (instant UI update)
-  const [me, setMe] = useState<any>(() => getCurrentAccount());
-  const isPublic = !!me?.showOnLeaderboard;
+  const [rows, setRows] = useState<LeaderRow[]>([]);
+  const [me, setMe] = useState<MyProfile | null>(null);
+
+  const [loading, setLoading] = useState(true);
+  const [visibilitySaving, setVisibilitySaving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
-    function onAccUpdated(e: any) {
-      const next = e?.detail ?? getCurrentAccount();
-      setMe(next);
-    }
-    window.addEventListener("investpro:account_updated", onAccUpdated as any);
-    return () => window.removeEventListener("investpro:account_updated", onAccUpdated as any);
+    loadPage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ✅ écoute l’event envoyé par Paramètres (profil public ON/OFF)
-  useEffect(() => {
-    function onLeaderboardUpdated(e: any) {
-      const d = e?.detail;
-      const username = String(d?.username || "");
-      const visible = !!d?.visible;
+  async function loadPage() {
+    try {
+      setLoading(true);
 
-      // refresh liste
-      setRefresh((v) => v + 1);
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-      // si c'est toi, update local state pour que le bouton Public/Privé reflète le changement
-      setMe((prev: any) => {
-        if (!prev?.username) return prev;
-        if (String(prev.username).toLowerCase() !== username.toLowerCase()) return prev;
-        return { ...prev, showOnLeaderboard: visible };
-      });
+      if (userError || !user) {
+        window.location.href = "/login";
+        return;
+      }
+
+      const [profileResult, leaderboardResult] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("id, username, avatar_url, leaderboard_public")
+          .eq("id", user.id)
+          .single(),
+
+        supabase.rpc("get_weekly_leaderboard"),
+      ]);
+
+      if (profileResult.error) {
+        console.error(
+          "Erreur profil classement :",
+          profileResult.error
+        );
+      } else if (profileResult.data) {
+        setMe({
+          id: profileResult.data.id,
+          username:
+            profileResult.data.username ||
+            user.email?.split("@")[0] ||
+            "Trader",
+          avatar_url: profileResult.data.avatar_url || null,
+          leaderboard_public:
+            !!profileResult.data.leaderboard_public,
+        });
+      }
+
+      if (leaderboardResult.error) {
+        console.error(
+          "Erreur leaderboard RPC :",
+          leaderboardResult.error
+        );
+
+        setRows([]);
+      } else {
+        setRows(
+          ((leaderboardResult.data || []) as LeaderRow[]).map(
+            (row) => ({
+              ...row,
+              trades_count: Number(row.trades_count || 0),
+              wins: Number(row.wins || 0),
+              losses: Number(row.losses || 0),
+              breakevens: Number(row.breakevens || 0),
+              winrate: Number(row.winrate || 0),
+              total_r: Number(row.total_r || 0),
+              avg_risk: Number(row.avg_risk || 0),
+              plan_compliance: Number(row.plan_compliance || 0),
+              risk_compliance: Number(row.risk_compliance || 0),
+              journal_quality: Number(row.journal_quality || 0),
+              score: Number(row.score || 0),
+            })
+          )
+        );
+      }
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }
+
+  async function refreshLeaderboard() {
+    setRefreshing(true);
+    await loadPage();
+  }
+
+  async function toggleVisibility() {
+    if (!me || visibilitySaving) {
+      return;
     }
 
-    // storage (si autre onglet)
-    function onStorage() {
-      setRefresh((v) => v + 1);
-      setMe(getCurrentAccount());
+    try {
+      setVisibilitySaving(true);
+
+      const next = !me.leaderboard_public;
+
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          leaderboard_public: next,
+        })
+        .eq("id", me.id);
+
+      if (error) {
+        throw error;
+      }
+
+      setMe((current) =>
+        current
+          ? {
+              ...current,
+              leaderboard_public: next,
+            }
+          : current
+      );
+
+      await loadPage();
+    } catch (error: any) {
+      console.error(
+        "Erreur visibilité classement :",
+        error
+      );
+
+      alert(
+        error?.message ||
+          "Impossible de modifier la visibilité du classement."
+      );
+    } finally {
+      setVisibilitySaving(false);
     }
-
-    window.addEventListener("investpro:leaderboard_updated", onLeaderboardUpdated as any);
-    window.addEventListener("storage", onStorage);
-
-    return () => {
-      window.removeEventListener("investpro:leaderboard_updated", onLeaderboardUpdated as any);
-      window.removeEventListener("storage", onStorage);
-    };
-  }, []);
-
-  const [openPrivacyModal, setOpenPrivacyModal] = useState(false);
-
-  const rows = useMemo(() => {
-    return loadLeaderboard()
-      .filter((u: any) => u?.showOnLeaderboard)
-      .map((u: any) => ({ ...u, profitUsd: Number(u?.profitUsd ?? 0) }))
-      .sort((a: any, b: any) => (b?.profitUsd ?? 0) - (a?.profitUsd ?? 0)) as LeaderUser[];
-  }, [refresh]);
+  }
 
   const filteredRows = useMemo(() => {
-    const s = q.trim().toLowerCase();
-    if (!s) return rows;
-    return rows.filter((u: any) => {
-      const hay = `${u.username ?? ""} ${u.tag ?? ""} ${u.bio ?? ""}`.toLowerCase();
-      return hay.includes(s);
-    });
-  }, [rows, q]);
+    const q = search.trim().toLowerCase();
 
-  const top3 = useMemo(() => rows.slice(0, 3), [rows]);
-
-  // ✅ cache avatar objectURL by avatarMediaId
-  const [avatarCache, setAvatarCache] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    let alive = true;
-
-    async function resolveVisibleAvatars() {
-      const ids = new Set<string>();
-      for (const u of top3) if (u?.avatarMediaId) ids.add(u.avatarMediaId);
-      for (const u of filteredRows.slice(0, 25)) if (u?.avatarMediaId) ids.add(u.avatarMediaId);
-
-      const toFetch = Array.from(ids).filter((id) => !avatarCache[id]);
-      if (!toFetch.length) return;
-
-      const next: Record<string, string> = {};
-      for (const id of toFetch) {
-        try {
-          const blob = await idbGetBlob(id);
-          if (!alive) return;
-          if (blob) next[id] = URL.createObjectURL(blob);
-        } catch {}
-      }
-
-      if (!alive) return;
-      if (Object.keys(next).length) setAvatarCache((p) => ({ ...p, ...next }));
+    if (!q) {
+      return rows;
     }
 
-    resolveVisibleAvatars();
-    return () => {
-      alive = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [top3, filteredRows]);
+    return rows.filter((row) => {
+      const haystack = [
+        row.username,
+        row.tag,
+        row.bio,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(q);
+    });
+  }, [rows, search]);
 
   const myRank = useMemo(() => {
-    if (!me?.username) return null;
-    const idx = rows.findIndex((x: any) => x.username === me.username);
-    return idx >= 0 ? idx + 1 : null;
-  }, [rows, me?.username]);
+    if (!me) return null;
 
-  function refreshList() {
-    setRefresh((v) => v + 1);
-    pushNotif({ kind: "info", title: "Classement", message: "Liste rafraîchie.", ttlMs: 4500 });
-  }
-
-  function togglePopup() {
-    if (!me) {
-      pushNotif({
-        kind: "warning",
-        title: "Classement",
-        message: "Connecte-toi pour changer la visibilité.",
-        ttlMs: 9000,
-      });
-      return;
-    }
-    setOpenPrivacyModal(true);
-  }
-
-  function setPublic(nextPublic: boolean) {
-    if (!me) {
-      pushNotif({
-        kind: "warning",
-        title: "Classement",
-        message: "Connecte-toi pour changer la visibilité.",
-        ttlMs: 9000,
-      });
-      return;
-    }
-
-    const updated = setLeaderboardVisibility(nextPublic);
-    if (!updated) {
-      pushNotif({
-        kind: "error",
-        title: "Classement",
-        message: "Impossible de modifier la visibilité.",
-        ttlMs: 10000,
-      });
-      return;
-    }
-
-    setMe(updated);
-
-    // ✅ stats (si pas déjà dans account, on calcule depuis trades)
-    const t = loadTrades();
-    const computed = computePublicStatsFromTrades(t);
-
-    const payload: any = {
-      ...updated,
-      showOnLeaderboard: nextPublic,
-      profitUsd: Number(updated.profitUsd ?? 0),
-      bio: updated.bio ?? "",
-      tag: updated.tag ?? "",
-      hideTrades: !!updated.hideTrades,
-
-      avatarDataUrl: updated.avatarDataUrl ?? "",
-      avatarMediaId: updated.avatarMediaId,
-      bannerMediaId: updated.bannerMediaId,
-      avatarTransform: updated.avatarTransform,
-      bannerTransform: updated.bannerTransform,
-
-      tradesTotal: typeof updated.tradesTotal === "number" ? updated.tradesTotal : computed.tradesTotal,
-      winrate: typeof updated.winrate === "number" ? updated.winrate : computed.winrate,
-      rrAvg: typeof updated.rrAvg === "number" ? updated.rrAvg : computed.rrAvg,
-    };
-
-    upsertLeaderboardUser(payload);
-
-    // ✅ ping instant (utile si d’autres pages écoutent)
-    window.dispatchEvent(
-      new CustomEvent("investpro:leaderboard_updated", {
-        detail: { username: updated.username, visible: nextPublic },
-      })
+    const index = rows.findIndex(
+      (row) => row.user_id === me.id
     );
 
-    pushNotif({
-      kind: "success",
-      title: "Visibilité",
-      message: nextPublic
-        ? "Ton profil est maintenant PUBLIC (visible dans le classement)."
-        : "Ton profil est maintenant PRIVÉ (masqué du classement).",
-      ttlMs: 9000,
-    });
+    return index >= 0 ? index + 1 : null;
+  }, [rows, me]);
 
-    setOpenPrivacyModal(false);
-    setRefresh((v) => v + 1);
+  const top3 = rows.slice(0, 3);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[70vh] items-center justify-center text-sm text-[color:var(--muted)]">
+        Chargement du classement InvestPro…
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6">
-      {/* HERO */}
-      <Card>
-        <CardBody className="relative overflow-hidden">
+    <div className="space-y-5 pb-10">
+      {/* HEADER */}
+
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+        <div>
           <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background:
-                "radial-gradient(900px 260px at 20% 0%, rgba(214,179,95,.18), transparent 60%), radial-gradient(700px 240px at 85% 10%, rgba(255,255,255,.06), transparent 55%)",
-            }}
-          />
-          <div className="relative flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
-            <div>
-              <div className="text-xs text-white/50">InvestPro • Classement</div>
-              <h1 className="text-3xl font-semibold text-white mt-1">
-                Classement <span className="text-[color:var(--gold)]">Profit</span>
-              </h1>
-              <div className="text-sm text-[color:var(--muted)] mt-2">
-                Active ton profil public pour apparaître. Clique sur un joueur pour ouvrir son profil.
-              </div>
-
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                <span className="px-3 py-1.5 rounded-2xl border border-white/10 bg-black/20 text-xs text-white/70">
-                  Membres publics : <b className="text-white">{rows.length}</b>
-                </span>
-
-                {me?.username ? (
-                  <span className="px-3 py-1.5 rounded-2xl border border-white/10 bg-black/20 text-xs text-white/70">
-                    Ton rang :{" "}
-                    <b className="text-white">{myRank ? `#${myRank}` : isPublic ? "—" : "Privé"}</b>
-                  </span>
-                ) : (
-                  <span className="px-3 py-1.5 rounded-2xl border border-white/10 bg-black/20 text-xs text-white/60">
-                    Connecte-toi pour afficher ton rang.
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
-              {/* Search */}
-              <div className="w-full sm:w-[340px]">
-                <div className="text-xs text-white/70 mb-1">Rechercher</div>
-                <div className="relative">
-                  <input
-                    value={q}
-                    onChange={(e) => setQ(e.target.value)}
-                    placeholder="Pseudo, tag, bio..."
-                    className="w-full px-4 py-3 pr-10 rounded-2xl bg-black/20 border border-[color:var(--border)]
-                               text-white placeholder:text-white/30 outline-none
-                               focus:border-[color:var(--gold-border)]
-                               focus:ring-2 focus:ring-[color:var(--gold-soft)] transition"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40">🔍</span>
-                </div>
-              </div>
-
-              {/* Controls */}
-              <div className="flex gap-3">
-                <Button variant="secondary" onClick={refreshList}>
-                  Rafraîchir
-                </Button>
-              </div>
-            </div>
-          </div>
-        </CardBody>
-      </Card>
-
-      {/* TOP 3 */}
-      <Card>
-        <CardBody>
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-lg font-semibold text-white">
-                Podium <span className="text-[color:var(--gold)]">Top 3</span>
-              </div>
-              <div className="text-xs text-[color:var(--muted)] mt-1">Les 3 meilleurs profits</div>
-            </div>
-            <div className="text-xs text-white/40">Clique pour ouvrir le profil</div>
+            className="
+              mb-3
+              inline-flex
+              items-center
+              gap-2
+              rounded-full
+              border border-[color:var(--gold-border)]
+              bg-[color:var(--gold-soft)]
+              px-3 py-1.5
+              text-[10px]
+              font-semibold
+              uppercase
+              tracking-[0.13em]
+              text-[color:var(--gold)]
+            "
+          >
+            <Trophy size={12} />
+            Classement hebdomadaire
           </div>
 
-          <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-3">
-            {top3.length === 0 ? (
-              <div className="text-sm text-[color:var(--muted)]">Personne dans le classement pour l’instant.</div>
+          <h1 className="text-2xl font-semibold text-white">
+            Score InvestPro
+          </h1>
+
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-[color:var(--muted)]">
+            Le classement récompense la discipline, la gestion du risque,
+            la régularité et la qualité du journal — pas seulement le profit.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={refreshLeaderboard}
+            disabled={refreshing}
+            className="
+              inline-flex h-11 items-center gap-2 rounded-xl
+              border border-white/10 bg-white/[0.03]
+              px-4 text-sm font-medium text-white
+              transition hover:bg-white/[0.06]
+              disabled:opacity-50
+            "
+          >
+            <RefreshCw
+              size={15}
+              className={refreshing ? "animate-spin" : ""}
+            />
+            Rafraîchir
+          </button>
+
+          <button
+            type="button"
+            onClick={toggleVisibility}
+            disabled={!me || visibilitySaving}
+            className={[
+              "inline-flex h-11 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition disabled:opacity-50",
+              me?.leaderboard_public
+                ? "border border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
+                : "border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]",
+            ].join(" ")}
+          >
+            {me?.leaderboard_public ? (
+              <Eye size={15} />
             ) : (
-              top3.map((u, idx) => {
-                const rank = idx + 1;
-                const medal = rank === 1 ? "👑" : rank === 2 ? "🥈" : "🥉";
-                const size = rank === 1 ? 72 : rank === 2 ? 60 : 56;
-
-                return (
-                  <Link
-                    key={u.username}
-                    href={`/dashboard/classement/${encodeURIComponent(u.username)}`}
-                    className="block"
-                  >
-                    <div
-                      className={cx(
-                        "rounded-3xl border border-white/10 bg-black/20 hover:bg-white/5 transition p-5 cursor-pointer",
-                        rank === 1 ? "ring-1 ring-[color:var(--gold-border)]" : ""
-                      )}
-                    >
-                      <div className="flex items-center justify-between">
-                        <RankPill rank={rank} />
-                        <span className="text-2xl">{medal}</span>
-                      </div>
-
-                      <div className="mt-4 flex items-center gap-4">
-                        <div className="relative">
-                          <Avatar
-                            username={u.username}
-                            avatarDataUrl={u.avatarDataUrl}
-                            avatarMediaId={u.avatarMediaId}
-                            avatarSrc={u.avatarMediaId ? avatarCache[u.avatarMediaId] : ""}
-                            size={size}
-                          />
-                          <div className="absolute -left-2 -top-2">
-                            <TopBadge show={true} />
-                          </div>
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-                          <div className="text-base font-semibold text-white truncate">{u.username}</div>
-                          <div className="text-xs text-[color:var(--muted)] truncate">{u.tag ?? ""}</div>
-                          <div className="mt-2">
-                            <ProfitPill profitUsd={u.profitUsd ?? 0} />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 text-xs text-white/40 line-clamp-2">{u.bio ?? "—"}</div>
-                    </div>
-                  </Link>
-                );
-              })
+              <EyeOff size={15} />
             )}
-          </div>
-        </CardBody>
-      </Card>
 
-      {/* LIST */}
-      <Card>
-        <CardBody>
-          <div className="flex items-center justify-between gap-3">
-            <div className="text-lg font-semibold text-white">Classement complet</div>
-            <div className="text-xs text-white/40">
-              {filteredRows.length} résultat{filteredRows.length > 1 ? "s" : ""}
+            {visibilitySaving
+              ? "Enregistrement..."
+              : me?.leaderboard_public
+              ? "Profil public"
+              : "Participer au classement"}
+          </button>
+        </div>
+      </div>
+
+      {/* HERO */}
+
+      <section
+        className="
+          relative overflow-hidden rounded-[26px]
+          border border-[color:var(--gold-border)]
+          bg-[#0b0b0d] p-6 md:p-7
+        "
+      >
+        <div
+          className="
+            pointer-events-none absolute
+            -right-20 -top-28 h-[340px] w-[340px]
+            rounded-full bg-[color:var(--gold)]
+            opacity-[0.08] blur-[100px]
+          "
+        />
+
+        <div className="relative z-10 grid grid-cols-1 gap-5 lg:grid-cols-12 lg:items-center">
+          <div className="lg:col-span-7">
+            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--gold)]">
+              Cette semaine
+            </div>
+
+            <h2 className="mt-2 text-xl font-semibold text-white md:text-2xl">
+              La discipline avant la prise de risque
+            </h2>
+
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[color:var(--muted)]">
+              Le Score InvestPro est limité à 100 points. Une grosse prise de
+              risque ne suffit pas pour monter dans le classement.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:col-span-5">
+            <MiniStat
+              label="Membres"
+              value={String(rows.length)}
+            />
+
+            <MiniStat
+              label="Ton rang"
+              value={
+                me?.leaderboard_public
+                  ? myRank
+                    ? `#${myRank}`
+                    : "—"
+                  : "Privé"
+              }
+            />
+
+            <MiniStat
+              label="Reset"
+              value="Lundi"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* SCORE EXPLANATION */}
+
+      <section className="grid grid-cols-1 gap-3 md:grid-cols-5">
+        {SCORE_HELP.map((item) => (
+          <div
+            key={item.title}
+            className="
+              rounded-[18px]
+              border border-[color:var(--border)]
+              bg-[color:var(--panel)]
+              p-4
+            "
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-white/45">
+                {item.title}
+              </div>
+
+              <div className="text-[10px] font-bold text-[color:var(--gold)]">
+                {item.value}
+              </div>
+            </div>
+
+            <div className="mt-2 text-[10px] leading-4 text-[color:var(--muted)]">
+              {item.text}
             </div>
           </div>
+        ))}
+      </section>
 
-          <div className="mt-4">
-            {filteredRows.length === 0 ? (
-              <div className="text-sm text-[color:var(--muted)]">Aucun résultat pour “{q}”.</div>
-            ) : (
-              <div className="space-y-2">
-                {filteredRows.map((u) => {
-                  const rank = rows.findIndex((x) => x.username === u.username) + 1;
-                  const isTop10 = rank > 0 && rank <= 10;
+      {/* PODIUM */}
+
+      <section
+        className="
+          rounded-[24px]
+          border border-[color:var(--border)]
+          bg-[color:var(--panel)]
+          p-5
+        "
+      >
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h2 className="text-sm font-semibold text-white">
+              Podium de la semaine
+            </h2>
+
+            <p className="mt-1 text-xs text-[color:var(--muted)]">
+              Les 3 meilleurs Score InvestPro.
+            </p>
+          </div>
+
+          <Medal
+            size={18}
+            className="text-[color:var(--gold)]"
+          />
+        </div>
+
+        {top3.length === 0 ? (
+          <EmptyState />
+        ) : (
+          <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
+            {top3.map((row, index) => (
+              <PodiumCard
+                key={row.user_id}
+                row={row}
+                rank={index + 1}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* LEADERBOARD */}
+
+      <section
+        className="
+          overflow-hidden rounded-[24px]
+          border border-[color:var(--border)]
+          bg-[color:var(--panel)]
+        "
+      >
+        <div className="flex flex-col gap-4 border-b border-[color:var(--border)] p-5 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-white">
+              Classement complet
+            </h2>
+
+            <p className="mt-1 text-xs text-[color:var(--muted)]">
+              {filteredRows.length} membre
+              {filteredRows.length !== 1 ? "s" : ""} affiché
+              {filteredRows.length !== 1 ? "s" : ""}
+            </p>
+          </div>
+
+          <div className="flex h-10 w-full items-center gap-2 rounded-xl border border-[color:var(--border)] bg-black/20 px-3 md:w-[300px]">
+            <Search
+              size={14}
+              className="text-white/30"
+            />
+
+            <input
+              value={search}
+              onChange={(event) =>
+                setSearch(event.target.value)
+              }
+              placeholder="Rechercher un membre..."
+              className="
+                w-full bg-transparent text-xs text-white
+                outline-none placeholder:text-white/25
+              "
+            />
+          </div>
+        </div>
+
+        {filteredRows.length === 0 ? (
+          <div className="p-5">
+            <EmptyState />
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1050px]">
+              <thead>
+                <tr className="border-b border-white/[0.05]">
+                  <Th>Rang</Th>
+                  <Th>Trader</Th>
+                  <Th>Score</Th>
+                  <Th>Discipline</Th>
+                  <Th>Risque</Th>
+                  <Th>Journal</Th>
+                  <Th>Trades</Th>
+                  <Th>Winrate</Th>
+                  <Th>Résultat</Th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {filteredRows.map((row) => {
+                  const rank =
+                    rows.findIndex(
+                      (item) => item.user_id === row.user_id
+                    ) + 1;
+
+                  const isMe =
+                    me?.id === row.user_id;
 
                   return (
-                    <Link
-                      key={u.username}
-                      href={`/dashboard/classement/${encodeURIComponent(u.username)}`}
-                      className="block"
+                    <tr
+                      key={row.user_id}
+                      className={[
+                        "border-b border-white/[0.04] transition last:border-b-0",
+                        isMe
+                          ? "bg-[color:var(--gold-soft)]"
+                          : "hover:bg-white/[0.02]",
+                      ].join(" ")}
                     >
-                      <CardSubCard className="p-3 hover:bg-white/5 transition cursor-pointer">
-                        <div className="flex items-center gap-3">
-                          <RankPill rank={rank} />
+                      <Td>
+                        <div className="flex items-center gap-2">
+                          <span className="text-base">
+                            {rankMedal(rank) || ""}
+                          </span>
 
+                          <span
+                            className={[
+                              "font-semibold",
+                              rank <= 3
+                                ? "text-[color:var(--gold)]"
+                                : "text-white",
+                            ].join(" ")}
+                          >
+                            #{rank}
+                          </span>
+                        </div>
+                      </Td>
+
+                      <Td>
+                        <div className="flex items-center gap-3">
                           <Avatar
-                            username={u.username}
-                            avatarDataUrl={u.avatarDataUrl}
-                            avatarMediaId={u.avatarMediaId}
-                            avatarSrc={u.avatarMediaId ? avatarCache[u.avatarMediaId] : ""}
-                            size={44}
+                            username={row.username}
+                            avatarUrl={row.avatar_url}
                           />
 
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <span className="font-semibold text-white truncate">{u.username}</span>
-                              <span className="text-[color:var(--muted)] text-sm shrink-0">{u.tag ?? ""}</span>
-                              <TopBadge show={isTop10} />
-                            </div>
-                            <div className="text-xs text-[color:var(--muted)] line-clamp-1">{u.bio ?? "—"}</div>
-                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="max-w-[180px] truncate font-semibold text-white">
+                                {row.username}
+                              </span>
 
-                          <ProfitPill profitUsd={u.profitUsd ?? 0} />
+                              {isMe ? (
+                                <span className="rounded-full border border-[color:var(--gold-border)] bg-black/20 px-2 py-0.5 text-[8px] font-bold text-[color:var(--gold)]">
+                                  TOI
+                                </span>
+                              ) : null}
+                            </div>
+
+                            <div className="mt-1 max-w-[240px] truncate text-[9px] text-[color:var(--muted)]">
+                              {row.tag || row.bio || "Membre InvestPro"}
+                            </div>
+                          </div>
                         </div>
-                      </CardSubCard>
-                    </Link>
+                      </Td>
+
+                      <Td>
+                        <ScorePill
+                          value={row.score}
+                        />
+                      </Td>
+
+                      <Td>
+                        <PercentCell
+                          value={row.plan_compliance}
+                        />
+                      </Td>
+
+                      <Td>
+                        <PercentCell
+                          value={row.risk_compliance}
+                        />
+                      </Td>
+
+                      <Td>
+                        <PercentCell
+                          value={row.journal_quality}
+                        />
+                      </Td>
+
+                      <Td>
+                        <span className="font-medium text-white">
+                          {row.trades_count}
+                        </span>
+                      </Td>
+
+                      <Td>
+                        <span className="font-medium text-white">
+                          {row.winrate.toFixed(1)}%
+                        </span>
+                      </Td>
+
+                      <Td>
+                        <span
+                          className={[
+                            "font-semibold",
+                            row.total_r > 0
+                              ? "text-emerald-400"
+                              : row.total_r < 0
+                              ? "text-red-400"
+                              : "text-white/50",
+                          ].join(" ")}
+                        >
+                          {formatSigned(row.total_r, "R")}
+                        </span>
+                      </Td>
+                    </tr>
                   );
                 })}
-              </div>
-            )}
+              </tbody>
+            </table>
           </div>
-        </CardBody>
-      </Card>
+        )}
+      </section>
 
-      {/* VISIBILITY MODAL */}
-      <Modal
-        open={openPrivacyModal}
-        title="Visibilité du profil"
-        onClose={() => setOpenPrivacyModal(false)}
-        footer={
-          <div className="flex items-center justify-end gap-3">
-            <Button variant="ghost" onClick={() => setOpenPrivacyModal(false)}>
-              Annuler
-            </Button>
+      {/* PRIVACY INFO */}
 
-            {isPublic ? (
-              <Button variant="secondary" onClick={() => setPublic(false)} title="Tu disparais du classement">
-                Rendre privé
-              </Button>
-            ) : (
-              <Button onClick={() => setPublic(true)} title="Tu apparais dans le classement">
-                Rendre public
-              </Button>
-            )}
-          </div>
-        }
+      <section
+        className="
+          flex flex-col gap-4 rounded-[20px]
+          border border-white/[0.07]
+          bg-black/20 p-5
+          md:flex-row md:items-center md:justify-between
+        "
       >
-        <div className="text-sm text-[color:var(--muted)]">
-          Un profil public est visible par tous les utilisateurs d’InvestPro via le classement.
+        <div className="flex items-start gap-3">
+          <div
+            className="
+              flex h-10 w-10 shrink-0 items-center justify-center
+              rounded-xl border border-[color:var(--gold-border)]
+              bg-[color:var(--gold-soft)]
+              text-[color:var(--gold)]
+            "
+          >
+            <ShieldCheck size={17} />
+          </div>
+
+          <div>
+            <div className="text-xs font-semibold text-white">
+              Participation volontaire
+            </div>
+
+            <p className="mt-1 max-w-2xl text-[10px] leading-5 text-[color:var(--muted)]">
+              Seuls les membres qui activent leur profil public apparaissent
+              dans le classement. Aucun montant de capital ni P&L en devise
+              n'est affiché publiquement.
+            </p>
+          </div>
         </div>
 
-        <div className="mt-4 rounded-2xl border border-[color:var(--border)] bg-black/20 p-4 text-sm">
-          <div className="text-white font-semibold">Statut actuel :</div>
-          <div className="mt-1">
-            {isPublic ? (
-              <span className="text-[color:var(--success)] font-semibold">PUBLIC</span>
-            ) : (
-              <span className="text-[color:var(--danger)] font-semibold">PRIVÉ</span>
-            )}
-          </div>
-          <div className="mt-2 text-xs text-white/40">
-            {isPublic ? "Ton profil apparaît dans le classement." : "Ton profil est masqué (tu n’apparais pas dans le classement)."}
-          </div>
-        </div>
-      </Modal>
+        <button
+          type="button"
+          onClick={toggleVisibility}
+          disabled={!me || visibilitySaving}
+          className="
+            h-10 rounded-xl
+            border border-[color:var(--gold-border)]
+            bg-[color:var(--gold-soft)]
+            px-4 text-xs font-semibold
+            text-[color:var(--gold)]
+            disabled:opacity-50
+          "
+        >
+          {me?.leaderboard_public
+            ? "Quitter le classement"
+            : "Participer au classement"}
+        </button>
+      </section>
     </div>
   );
 }
 
-// FORCE_DEPLOY_123
+function Avatar({
+  username,
+  avatarUrl,
+  large = false,
+}: {
+  username: string;
+  avatarUrl: string | null;
+  large?: boolean;
+}) {
+  const size = large
+    ? "h-16 w-16 text-base"
+    : "h-10 w-10 text-xs";
+
+  return (
+    <div
+      className={[
+        "flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] font-bold text-[color:var(--gold)]",
+        size,
+      ].join(" ")}
+    >
+      {avatarUrl ? (
+        <img
+          src={avatarUrl}
+          alt={username}
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        initials(username)
+      )}
+    </div>
+  );
+}
+
+function MiniStat({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-xl border border-white/[0.07] bg-black/20 px-4 py-3">
+      <div className="text-[9px] text-[color:var(--muted)]">
+        {label}
+      </div>
+
+      <div className="mt-1 text-sm font-semibold text-white">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function PodiumCard({
+  row,
+  rank,
+}: {
+  row: LeaderRow;
+  rank: number;
+}) {
+  return (
+    <div
+      className={[
+        "relative overflow-hidden rounded-[20px] border p-5",
+        rank === 1
+          ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]"
+          : "border-white/[0.07] bg-black/20",
+      ].join(" ")}
+    >
+      {rank === 1 ? (
+        <div className="pointer-events-none absolute -right-12 -top-14 h-36 w-36 rounded-full bg-[color:var(--gold)] opacity-[0.08] blur-[45px]" />
+      ) : null}
+
+      <div className="relative flex items-center justify-between">
+        <span className="text-2xl">
+          {rankMedal(rank)}
+        </span>
+
+        <ScorePill value={row.score} />
+      </div>
+
+      <div className="relative mt-5 flex items-center gap-3">
+        <Avatar
+          username={row.username}
+          avatarUrl={row.avatar_url}
+          large
+        />
+
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold text-white">
+            {row.username}
+          </div>
+
+          <div className="mt-1 text-[10px] text-[color:var(--muted)]">
+            {row.trades_count} trades cette semaine
+          </div>
+        </div>
+      </div>
+
+      <div className="relative mt-5 grid grid-cols-3 gap-2">
+        <SmallMetric
+          label="Discipline"
+          value={`${row.plan_compliance.toFixed(0)}%`}
+        />
+
+        <SmallMetric
+          label="Winrate"
+          value={`${row.winrate.toFixed(0)}%`}
+        />
+
+        <SmallMetric
+          label="Résultat"
+          value={formatSigned(row.total_r, "R")}
+        />
+      </div>
+    </div>
+  );
+}
+
+function ScorePill({
+  value,
+}: {
+  value: number;
+}) {
+  const score = Math.max(
+    0,
+    Math.min(100, Number(value || 0))
+  );
+
+  return (
+    <div
+      className="
+        inline-flex items-center gap-2 rounded-xl
+        border border-[color:var(--gold-border)]
+        bg-[color:var(--gold-soft)]
+        px-3 py-2
+      "
+    >
+      <Sparkles
+        size={12}
+        className="text-[color:var(--gold)]"
+      />
+
+      <span className="text-sm font-bold text-[color:var(--gold)]">
+        {score.toFixed(1)}
+      </span>
+
+      <span className="text-[8px] font-semibold uppercase text-white/35">
+        pts
+      </span>
+    </div>
+  );
+}
+
+function PercentCell({
+  value,
+}: {
+  value: number;
+}) {
+  const percent = clampPercent(value);
+
+  return (
+    <div className="min-w-[95px]">
+      <div className="flex items-center justify-between gap-2 text-[10px]">
+        <span className="font-medium text-white">
+          {percent.toFixed(0)}%
+        </span>
+
+        {percent >= 80 ? (
+          <CheckCircle2
+            size={11}
+            className="text-emerald-400"
+          />
+        ) : null}
+      </div>
+
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/5">
+        <div
+          className="h-full rounded-full bg-[color:var(--gold)]"
+          style={{
+            width: `${percent}%`,
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function SmallMetric({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2">
+      <div className="text-[8px] text-[color:var(--muted)]">
+        {label}
+      </div>
+
+      <div className="mt-1 text-[10px] font-semibold text-white">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="mt-5 rounded-2xl border border-dashed border-white/[0.08] bg-black/20 p-8 text-center">
+      <UserRound
+        size={24}
+        className="mx-auto text-white/20"
+      />
+
+      <div className="mt-3 text-sm font-semibold text-white">
+        Aucun membre classé pour l'instant
+      </div>
+
+      <div className="mt-1 text-xs text-[color:var(--muted)]">
+        Les membres apparaîtront après avoir activé leur participation.
+      </div>
+    </div>
+  );
+}
+
+function Th({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <th className="whitespace-nowrap px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-white/30">
+      {children}
+    </th>
+  );
+}
+
+function Td({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <td className="whitespace-nowrap px-5 py-4 text-xs text-white/60">
+      {children}
+    </td>
+  );
+}

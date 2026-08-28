@@ -2,21 +2,21 @@
 
 import { useEffect, useMemo, useState, useId } from "react";
 
-import { Card, CardBody } from "../../../components/ui/Card";
-import { Button } from "../../../components/ui/Button";
-import Modal from "../../../components/ui/Modal";
-import GoldSelect from "../../../components/ui/GoldSelect";
+import { Card, CardBody } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import Modal from "@/components/ui/Modal";
+import GoldSelect from "@/components/ui/GoldSelect";
 
-import { getPlan, hasTradingTerminalAccess } from "../../../lib/subscriptionStore";
-import { loadMt5Accounts, Mt5Account } from "../../../lib/mt5Store";
-import { syncMt5HistoryToTrades } from "../../../lib/mt5sync";
-import { loadTrades } from "../../../lib/tradesStore";
-import { pushNotif } from "../../../lib/notifyStore";
+import { getPlan, hasTradingTerminalAccess } from "@/lib/subscriptionStore";
+import { loadMt5Accounts, Mt5Account } from "@/lib/mt5Store";
+import { syncMt5HistoryToTrades } from "@/lib/mt5sync";
+import { loadTrades } from "@/lib/tradesStore";
+import { pushNotif } from "@/lib/notifyStore";
 
-import MaintenanceModal from "../../../components/ui/MaintenanceModal";
-import { useMaintenance } from "../../../lib/adminStore";
+import MaintenanceModal from "@/components/ui/MaintenanceModal";
+import { useMaintenance } from "@/lib/adminStore";
 
-import { usePrefs, lockTrading, unlockTrading, isTradeLocked } from "../../../lib/prefsStore";
+import { usePrefs, lockTrading, unlockTrading, isTradeLocked } from "@/lib/prefsStore";
 
 import { Lock, ShieldAlert } from "lucide-react";
 
@@ -413,7 +413,7 @@ export default function TerminalPage() {
   const [maintenanceTerminal, setMaintenanceTerminal] = useState(false);
 
   // ✅ FIX: on récupère la maintenance via le hook (plus de getAdminStatus undefined)
-  const maint = useMaintenance();
+  const maint = useMaintenance("terminal");
   useEffect(() => {
     const v =
       typeof maint === "boolean"

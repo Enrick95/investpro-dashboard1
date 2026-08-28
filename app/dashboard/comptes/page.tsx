@@ -1,559 +1,2171 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Card, CardBody, CardSubCard } from "../../../components/ui/Card";
-import { Button } from "../../../components/ui/Button";
-import Modal from "../../../components/ui/Modal";
-import GoldSelect from "../../../components/ui/GoldSelect";
-
-import { pushNotif } from "../../../lib/notifyStore";
 import {
-  Mt5Account,
-  MtPlatform,
-  MT5_EVT,
-  loadMt5Accounts,
-  removeMt5Account,
-  upsertMt5Account,
-} from "../../../lib/mt5Store";
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+import {
+  Clock3,
+  Database,
+  Edit3,
+  Link2,
+  Plus,
+  RefreshCw,
+  Server,
+  ShieldCheck,
+  Trash2,
+  WalletCards,
+  X,
+} from "lucide-react";
+
+import { createClient } from "@/lib/supabase/client";
+import { pushNotif } from "@/lib/notifyStore";
 
 /* =========================================================
-   ✅ BROKERS séparés MT4 / MT5
+   TYPES
 ========================================================= */
 
-type BrokerPreset = { broker: string; servers: string[] };
+type AccountType =
+  | "real"
+  | "demo"
+  | "prop";
 
-const BROKER_PRESETS_MT4: BrokerPreset[] = [
-  // 👇 Mets tes serveurs MT4 ici
-  // { broker: "FTMO Global Markets Ltd", servers: ["FTMO-MT4-Server", "FTMO-MT4-Demo"] },
-];
+type Platform =
+  | "MT4"
+  | "MT5"
+  | "OTHER";
+
+type TradingAccount = {
+  id: number;
+
+  user_id: string;
+
+  name: string;
+
+  account_type: AccountType;
+
+  platform:
+    | Platform
+    | null;
+
+  broker:
+    | string
+    | null;
+
+  currency: string;
+
+  initial_balance: number;
+
+  current_balance: number;
+
+  connection_type:
+    | "manual"
+    | "automatic";
+
+  created_at: string;
+
+  updated_at: string;
+};
+
+type AccountForm = {
+  name: string;
+
+  account_type:
+    AccountType;
+
+  platform:
+    Platform;
+
+  broker: string;
+
+  currency: string;
+
+  initial_balance: string;
+
+  current_balance: string;
+};
+
+const emptyForm: AccountForm = {
+  name: "",
+
+  account_type:
+    "real",
+
+  platform:
+    "MT5",
+
+  broker: "",
+
+  currency:
+    "EUR",
+
+  initial_balance:
+    "",
+
+  current_balance:
+    "",
+};
 
 /* =========================================================
-   BROKERS + SERVERS (MT5)
+   HELPERS
 ========================================================= */
-const BROKER_PRESETS_MT5 = [
-  // MetaQuotes Ltd.
-  {
-    broker: "MetaQuotes Ltd.",servers: ["MetaQuotes-Demo"],
-  },
 
-  // BLUEBERRY MARKETS EXEMPLE
-  {
-    broker: "Blueberry Markets Pty Ltd",servers: ["BlueberryMarkets-Live","BlueberryMarkets-Live02","BlueberryMarkets-Demo","BlueberryMarkets-Demo02",],
-  },
-  {
-    broker: "Blueberry Markets (V) Ltd",servers: ["BlueberryMarketsV-Live3"],
-  },
-  {
-    broker: "Blueberry Markets (SVG) LLC",servers: ["BlueberryMarketsSVG-Live"],
-  },
+function numberOrZero(
+  value: string
+) {
+  const clean = value
+    .trim()
+    .replace(",", ".");
 
-  // RAISE GLOBAL
-  {
-    broker: "Raise Global SA (Pty) Ltd",servers: ["RaiseGlobal-Live"],
-  },
-  {
-    broker: "Raise Global SA (Pty) Limited",servers: ["RaiseGlobalSA-LIVE"],
-  },
+  if (!clean) {
+    return 0;
+  }
 
-  // FTMO
-  {
-    broker: "FTMO Global Markets Ltd",servers: ["FTMO-Server","FTMO-Server2","FTMO-Server3","FTMO-Server4","FTMO-Server5","FTMO-Demo","FTMO-Demo2",],
-  },
+  const number =
+    Number(clean);
 
-  // Fusion Markets
-  {
-    broker: "Fusion Markets Pty Ltd",servers: ["FusionMarkets-Live", "FusionMarkets-Demo"],
-  },
-  {
-    broker: "Fusion Markets International Ltd",servers: ["FusionMarketInternational-MT5_2"],
-  },
-
-  // VT Markets
-  {
-    broker: "VT Markets Pty Ltd",servers: ["VTMarkets-Live","VTMarkets-Live 2","VTMarkets-Live 3","VTMarkets-Live 4", "VTMarkets-Live 5","VTMarkets-Live 6","VTMarkets-Demo",],
-  },
-
-  // FundingPips
-  {
-    broker: "FundingPips Corp",servers: ["FundingPips-SIM"],
-  },
-  {
-    broker: "FundingPips Corp (2)",servers: ["FundingPips2-SIM"],
-  },
-
-  // PuPrime
-  {
-    broker: "Pu Prime Ltd",servers: ["PuPrime-Live","PuPrime-Live2","PuPrime-Live 4","PuPrime-Live 5","PuPrime-Live 6","PuPrime-Demo",],
-  },
-  {
-    broker: "PuPrime Trading Pty Ltd",servers: ["PuPrimeTrading-Live"],
-  },
-
-  // Notesco (IronFX)
-  {
-    broker: "Notesco Limited",servers: ["IronFX-Real1", "IronFX-Demo1"],
-  },
-
-  // RoboForex
-  {
-    broker: "RoboForex Ltd",servers: ["RoboForex-Pro", "RoboForex-ECN"],
-  },
-
-  // Vantage
-  {
-    broker: "Vantage Fx Pty Ltd.",servers: ["VantageFX-Live","VantageFX-Live 3","VantageFX-Live 4","VantageFX-Live 5","VantageFX-Live 6","VantageFX-Live 7","VantageFX-Live 8","VantageFX-Live 9","VantageFX-Live 10","VantageFX-Live 11","VantageFX-Live 12","VantageFX-Live 14","VantageFX-Live 15","VantageFX-Live 17","VantageFX-Live 19","VantageFX-Live 21","VantageFX-Demo",],
-  },
-
-  // Eightcap
-  {
-    broker: "Eightcap Pty Ltd",servers: ["Eightcap-Live", "Eightcap-Demo"],
-  },
-  {
-    broker: "Eightcap Global Limited",servers: ["EightcapGlobal-Live"],
-  },
-  {
-    broker: "Eightcap EU Ltd",servers: ["EightcapEU-Live"],
-  },
-
-  // IC Markets variants
-  {
-    broker: "IC Markets (EU) Ltd",servers: ["ICMarketsEU-MT5-5", "ICMarketsEU-Demo"],
-  },
-  {
-    broker: "Ic Markets Ltd",servers: ["ICMarketsInternational-Demo","ICMarketsInternational-MT5","ICMarketsInternational-MT5-4","ICMarketsInternational-MT5-2",],
-  },
-  {
-    broker: "IC Markets Group Ltd",servers: ["ICMarketsGRP-MT5", "ICMarketsGRP-Demo"],
-  },
-  {
-    broker: "IC Markets (KE) limited",servers: ["ICMarketsKE-MT5-7", "ICMarketsKE-Demo"],
-  },
-  {
-    broker: "International Capital Markets Pty. Ltd.",servers: ["ICMarkets-MT5", "ICMarkets-MT5-2", "ICMarkets-MT5-4", "ICMarkets-Demo"],
-  },
-
-  // OANDA
-  {
-    broker: "OANDA Corporation",servers: ["OANDA-Live-1","OANDA-Demo-1","OANDA-Prop Trader","Oanda-Japan MT5 Live","Oanda-Japan MT5 Demo"],
-  },
-  {
-    broker: "Oanda Europe Limited",servers: ["OANDA_UK-Demo-1", "OANDA_UK-Live-1"],
-  },
-  {
-    broker: "Oanda Asia Pacific Pte Ltd",servers: ["OANDA_SG-Demo-1", "OANDA_SG-Live-1"],
-  },
-  {
-    broker: "OANDA (Canada) Corporation ULC",servers: ["OANDA_Canada-Demo-1"],
-  },
-  {
-    broker: "OANDA Global Markets Limited",servers: ["OANDA_Global-Demo-1", "OANDA_Global-Live-1"],
-  },
-  {
-    broker: "OANDA TMS Brokers S.A.",servers: ["OANDATMS-MT5"],
-  },
-
-  // AvaTrade
-  {
-    broker: "Ava Trade Markets Ltd.",servers: ["AvaTradeMarkets-Demo 1-MT5", "AvaTradeMarkets-Real 1-MT5"],
-  },
-
-  // --- ADD NEW BROKERS/SERVERS ABOVE THIS LINE ---
-];
-
-function presetsFor(platform: MtPlatform): BrokerPreset[] {
-  if (platform === "MT4") return BROKER_PRESETS_MT4.length ? BROKER_PRESETS_MT4 : BROKER_PRESETS_MT5;
-  return BROKER_PRESETS_MT5;
+  return Number.isFinite(
+    number
+  )
+    ? number
+    : 0;
 }
 
-function fmt(n: number) {
-  return n.toLocaleString("fr-FR", { maximumFractionDigits: 2 });
+function formatMoney(
+  value: number,
+  currency = "EUR"
+) {
+  try {
+    return new Intl.NumberFormat(
+      "fr-FR",
+      {
+        style:
+          "currency",
+
+        currency,
+
+        minimumFractionDigits:
+          2,
+
+        maximumFractionDigits:
+          2,
+      }
+    ).format(value);
+  } catch {
+    return `${value.toFixed(
+      2
+    )} ${currency}`;
+  }
 }
 
-function Input({
+function accountTypeLabel(
+  type: AccountType
+) {
+  switch (type) {
+    case "real":
+      return "Réel";
+
+    case "demo":
+      return "Démo";
+
+    case "prop":
+      return "Prop Firm";
+
+    default:
+      return type;
+  }
+}
+
+/* =========================================================
+   PAGE
+========================================================= */
+
+export default function ComptesPage() {
+  const supabase =
+    useMemo(
+      () =>
+        createClient(),
+      []
+    );
+
+  const [
+    userId,
+    setUserId,
+  ] =
+    useState<
+      string | null
+    >(null);
+
+  const [
+    accounts,
+    setAccounts,
+  ] =
+    useState<
+      TradingAccount[]
+    >([]);
+
+  const [
+    loading,
+    setLoading,
+  ] =
+    useState(true);
+
+  const [
+    saving,
+    setSaving,
+  ] =
+    useState(false);
+
+  const [
+    modalOpen,
+    setModalOpen,
+  ] =
+    useState(false);
+
+  const [
+    editingAccount,
+    setEditingAccount,
+  ] =
+    useState<
+      TradingAccount | null
+    >(null);
+
+  const [
+    form,
+    setForm,
+  ] =
+    useState<AccountForm>({
+      ...emptyForm,
+    });
+
+  /* =========================================================
+     LOAD ACCOUNTS
+  ========================================================= */
+
+  useEffect(() => {
+    loadAccounts();
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function loadAccounts() {
+    try {
+      setLoading(
+        true
+      );
+
+      const {
+        data: { user },
+        error:
+          userError,
+      } =
+        await supabase.auth.getUser();
+
+      if (
+        userError ||
+        !user
+      ) {
+        window.location.href =
+          "/login";
+
+        return;
+      }
+
+      setUserId(
+        user.id
+      );
+
+      const {
+        data,
+        error,
+      } =
+        await supabase
+          .from(
+            "trading_accounts"
+          )
+          .select("*")
+          .order(
+            "created_at",
+            {
+              ascending:
+                false,
+            }
+          );
+
+      if (error) {
+        console.error(
+          "Erreur chargement comptes :",
+          error
+        );
+
+        pushNotif({
+          kind:
+            "error",
+
+          title:
+            "Mes comptes",
+
+          message:
+            "Impossible de charger tes comptes.",
+
+          ttlMs:
+            8000,
+        });
+
+        return;
+      }
+
+      setAccounts(
+        (data as TradingAccount[]) ||
+          []
+      );
+    } finally {
+      setLoading(
+        false
+      );
+    }
+  }
+
+  /* =========================================================
+     STATS
+  ========================================================= */
+
+  const stats =
+    useMemo(() => {
+      const totalBalance =
+        accounts.reduce(
+          (
+            total,
+            account
+          ) =>
+            total +
+            Number(
+              account.current_balance ||
+                0
+            ),
+          0
+        );
+
+      const realAccounts =
+        accounts.filter(
+          (account) =>
+            account.account_type ===
+            "real"
+        ).length;
+
+      const propAccounts =
+        accounts.filter(
+          (account) =>
+            account.account_type ===
+            "prop"
+        ).length;
+
+      return {
+        total:
+          accounts.length,
+
+        totalBalance,
+
+        realAccounts,
+
+        propAccounts,
+      };
+    }, [accounts]);
+
+  /* =========================================================
+     MODALS
+  ========================================================= */
+
+  function openNewAccount() {
+    setEditingAccount(
+      null
+    );
+
+    setForm({
+      ...emptyForm,
+    });
+
+    setModalOpen(
+      true
+    );
+  }
+
+  function openEditAccount(
+    account: TradingAccount
+  ) {
+    setEditingAccount(
+      account
+    );
+
+    setForm({
+      name:
+        account.name,
+
+      account_type:
+        account.account_type,
+
+      platform:
+        account.platform ||
+        "MT5",
+
+      broker:
+        account.broker ||
+        "",
+
+      currency:
+        account.currency ||
+        "EUR",
+
+      initial_balance:
+        String(
+          account.initial_balance ??
+            0
+        ),
+
+      current_balance:
+        String(
+          account.current_balance ??
+            0
+        ),
+    });
+
+    setModalOpen(
+      true
+    );
+  }
+
+  /* =========================================================
+     SAVE
+  ========================================================= */
+
+  async function saveAccount() {
+    if (!userId) {
+      return;
+    }
+
+    const name =
+      form.name.trim();
+
+    if (!name) {
+      pushNotif({
+        kind:
+          "warning",
+
+        title:
+          "Mes comptes",
+
+        message:
+          "Donne un nom à ton compte.",
+
+        ttlMs:
+          6000,
+      });
+
+      return;
+    }
+
+    const initialBalance =
+      numberOrZero(
+        form.initial_balance
+      );
+
+    const currentBalance =
+      form.current_balance.trim()
+        ? numberOrZero(
+            form.current_balance
+          )
+        : initialBalance;
+
+    if (
+      initialBalance <
+        0 ||
+      currentBalance <
+        0
+    ) {
+      pushNotif({
+        kind:
+          "warning",
+
+        title:
+          "Mes comptes",
+
+        message:
+          "Le capital ne peut pas être négatif.",
+
+        ttlMs:
+          6000,
+      });
+
+      return;
+    }
+
+    try {
+      setSaving(
+        true
+      );
+
+      const payload = {
+        user_id:
+          userId,
+
+        name,
+
+        account_type:
+          form.account_type,
+
+        platform:
+          form.platform,
+
+        broker:
+          form.broker.trim() ||
+          null,
+
+        currency:
+          form.currency
+            .trim()
+            .toUpperCase() ||
+          "EUR",
+
+        initial_balance:
+          initialBalance,
+
+        current_balance:
+          currentBalance,
+
+        connection_type:
+          "manual",
+
+        updated_at:
+          new Date().toISOString(),
+      };
+
+      if (
+        editingAccount
+      ) {
+        const {
+          error,
+        } =
+          await supabase
+            .from(
+              "trading_accounts"
+            )
+            .update(
+              payload
+            )
+            .eq(
+              "id",
+              editingAccount.id
+            );
+
+        if (error) {
+          throw error;
+        }
+
+        pushNotif({
+          kind:
+            "success",
+
+          title:
+            "Mes comptes",
+
+          message:
+            "Compte modifié avec succès.",
+
+          ttlMs:
+            6000,
+        });
+      } else {
+        const {
+          error,
+        } =
+          await supabase
+            .from(
+              "trading_accounts"
+            )
+            .insert(
+              payload
+            );
+
+        if (error) {
+          throw error;
+        }
+
+        pushNotif({
+          kind:
+            "success",
+
+          title:
+            "Mes comptes",
+
+          message:
+            "Compte ajouté avec succès.",
+
+          ttlMs:
+            6000,
+        });
+      }
+
+      setModalOpen(
+        false
+      );
+
+      await loadAccounts();
+    } catch (
+      error: any
+    ) {
+      console.error(
+        "Erreur sauvegarde compte :",
+        error
+      );
+
+      pushNotif({
+        kind:
+          "error",
+
+        title:
+          "Mes comptes",
+
+        message:
+          error?.message ||
+          "Impossible d’enregistrer ce compte.",
+
+        ttlMs:
+          10000,
+      });
+    } finally {
+      setSaving(
+        false
+      );
+    }
+  }
+
+  /* =========================================================
+     DELETE
+  ========================================================= */
+
+  async function deleteAccount(
+    account: TradingAccount
+  ) {
+    const confirmed =
+      window.confirm(
+        `Supprimer le compte "${account.name}" ?`
+      );
+
+    if (
+      !confirmed
+    ) {
+      return;
+    }
+
+    const {
+      error,
+    } =
+      await supabase
+        .from(
+          "trading_accounts"
+        )
+        .delete()
+        .eq(
+          "id",
+          account.id
+        );
+
+    if (error) {
+      console.error(
+        "Erreur suppression compte :",
+        error
+      );
+
+      pushNotif({
+        kind:
+          "error",
+
+        title:
+          "Mes comptes",
+
+        message:
+          "Impossible de supprimer ce compte.",
+
+        ttlMs:
+          8000,
+      });
+
+      return;
+    }
+
+    setAccounts(
+      (current) =>
+        current.filter(
+          (item) =>
+            item.id !==
+            account.id
+        )
+    );
+
+    pushNotif({
+      kind:
+        "success",
+
+      title:
+        "Mes comptes",
+
+      message:
+        "Compte supprimé.",
+
+      ttlMs:
+        5000,
+    });
+  }
+
+  /* =========================================================
+     LOADING
+  ========================================================= */
+
+  if (loading) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center text-sm text-[color:var(--muted)]">
+        Chargement de tes
+        comptes…
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="space-y-5 pb-10">
+        {/* =====================================================
+            HEADER
+        ===================================================== */}
+
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-white">
+              Mes{" "}
+              <span className="text-[color:var(--gold)]">
+                comptes
+              </span>
+            </h1>
+
+            <p className="mt-1 text-sm text-[color:var(--muted)]">
+              Ajoute tes
+              comptes de
+              trading pour
+              centraliser ton
+              capital et
+              alimenter ton
+              journal.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={
+              openNewAccount
+            }
+            className="
+              inline-flex
+              h-11
+              items-center
+              justify-center
+              gap-2
+              rounded-xl
+              bg-[color:var(--gold)]
+              px-4
+              text-sm
+              font-semibold
+              text-black
+              transition
+              hover:bg-[color:var(--gold-2)]
+            "
+          >
+            <Plus
+              size={16}
+            />
+
+            Ajouter un compte
+          </button>
+        </div>
+
+        {/* =====================================================
+            STATS
+        ===================================================== */}
+
+        <section className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <StatCard
+            icon={
+              <WalletCards
+                size={18}
+              />
+            }
+            label="Mes comptes"
+            value={String(
+              stats.total
+            )}
+            sub={
+              stats.total ===
+              0
+                ? "Aucun compte"
+                : `${stats.realAccounts} réel • ${stats.propAccounts} prop firm`
+            }
+          />
+
+          <StatCard
+            icon={
+              <WalletCards
+                size={18}
+              />
+            }
+            label="Capital total"
+            value={formatMoney(
+              stats.totalBalance,
+              accounts[0]
+                ?.currency ||
+                "EUR"
+            )}
+            sub="Capital actuel déclaré"
+          />
+
+          <StatCard
+            icon={
+              <RefreshCw
+                size={18}
+              />
+            }
+            label="Synchronisation"
+            value="Manuelle"
+            sub="MT4 / MT5 auto bientôt"
+          />
+        </section>
+
+        {/* =====================================================
+            ACCOUNTS
+        ===================================================== */}
+
+        <section
+          className="
+            overflow-hidden
+            rounded-[22px]
+            border border-[color:var(--border)]
+            bg-[color:var(--panel)]
+          "
+        >
+          <div
+            className="
+              flex
+              items-center
+              justify-between
+              gap-4
+              border-b border-[color:var(--border)]
+              px-5 py-4
+            "
+          >
+            <div>
+              <h2 className="text-sm font-semibold text-white">
+                Comptes de
+                trading
+              </h2>
+
+              <p className="mt-1 text-[10px] text-[color:var(--muted)]">
+                Ces comptes
+                pourront être
+                sélectionnés
+                dans ton
+                journal.
+              </p>
+            </div>
+
+            <span
+              className="
+                rounded-full
+                border border-[color:var(--gold-border)]
+                bg-[color:var(--gold-soft)]
+                px-3 py-1
+                text-[9px]
+                font-semibold
+                text-[color:var(--gold)]
+              "
+            >
+              {stats.total}{" "}
+              COMPTE
+              {stats.total !==
+              1
+                ? "S"
+                : ""}
+            </span>
+          </div>
+
+          {accounts.length ===
+          0 ? (
+            <div
+              className="
+                m-5
+                flex
+                min-h-[210px]
+                flex-col
+                items-center
+                justify-center
+                rounded-2xl
+                border border-dashed border-white/[0.08]
+                bg-black/20
+                px-6
+                text-center
+              "
+            >
+              <div
+                className="
+                  flex
+                  h-12
+                  w-12
+                  items-center
+                  justify-center
+                  rounded-xl
+                  border border-[color:var(--gold-border)]
+                  bg-[color:var(--gold-soft)]
+                "
+              >
+                <WalletCards
+                  size={20}
+                  className="text-[color:var(--gold)]"
+                />
+              </div>
+
+              <div className="mt-4 text-sm font-semibold text-white">
+                Aucun compte
+                ajouté
+              </div>
+
+              <p className="mt-2 max-w-md text-xs leading-5 text-[color:var(--muted)]">
+                Ajoute ton
+                compte une
+                seule fois.
+                Son capital
+                pourra ensuite
+                être utilisé
+                automatiquement
+                dans ton
+                journal.
+              </p>
+
+              <button
+                type="button"
+                onClick={
+                  openNewAccount
+                }
+                className="
+                  mt-5
+                  inline-flex
+                  h-10
+                  items-center
+                  gap-2
+                  rounded-xl
+                  border border-[color:var(--gold-border)]
+                  bg-[color:var(--gold-soft)]
+                  px-4
+                  text-xs
+                  font-semibold
+                  text-[color:var(--gold)]
+                  transition
+                  hover:bg-white/[0.05]
+                "
+              >
+                <Plus
+                  size={14}
+                />
+
+                Ajouter mon
+                premier compte
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 p-5 lg:grid-cols-2">
+              {accounts.map(
+                (account) => (
+                  <AccountCard
+                    key={
+                      account.id
+                    }
+                    account={
+                      account
+                    }
+                    onEdit={() =>
+                      openEditAccount(
+                        account
+                      )
+                    }
+                    onDelete={() =>
+                      deleteAccount(
+                        account
+                      )
+                    }
+                  />
+                )
+              )}
+            </div>
+          )}
+        </section>
+
+        {/* =====================================================
+            METATRADER FUTURE
+        ===================================================== */}
+
+        <section
+          className="
+            relative
+            overflow-hidden
+            rounded-[24px]
+            border border-[color:var(--gold-border)]
+            bg-[color:var(--panel)]
+            p-6
+            md:p-7
+          "
+        >
+          <div
+            className="
+              pointer-events-none
+              absolute
+              right-[-100px]
+              top-[-150px]
+              h-[360px]
+              w-[420px]
+              rounded-full
+              bg-[color:var(--gold)]
+              opacity-[0.07]
+              blur-[100px]
+            "
+          />
+
+          <div className="relative z-10 grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-center">
+            <div className="lg:col-span-8">
+              <div
+                className="
+                  inline-flex
+                  items-center
+                  gap-2
+                  rounded-full
+                  border border-[color:var(--gold-border)]
+                  bg-[color:var(--gold-soft)]
+                  px-3 py-1
+                  text-[10px]
+                  font-semibold
+                  uppercase
+                  tracking-[0.12em]
+                  text-[color:var(--gold)]
+                "
+              >
+                <Clock3
+                  size={12}
+                />
+
+                Prochaine étape
+              </div>
+
+              <h2 className="mt-4 text-xl font-semibold text-white md:text-2xl">
+                Connexion
+                automatique{" "}
+                <span className="text-[color:var(--gold)]">
+                  MetaTrader
+                </span>
+              </h2>
+
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-[color:var(--muted)]">
+                Pour le moment,
+                tes comptes
+                sont gérés
+                manuellement.
+                Plus tard,
+                InvestPro pourra
+                synchroniser
+                automatiquement
+                la balance et
+                les trades MT4 /
+                MT5.
+              </p>
+
+              <div className="mt-5 flex flex-wrap gap-2">
+                <FeaturePill
+                  text="MetaTrader 4"
+                />
+
+                <FeaturePill
+                  text="MetaTrader 5"
+                />
+
+                <FeaturePill
+                  text="Balance automatique"
+                />
+
+                <FeaturePill
+                  text="Journal automatique"
+                />
+              </div>
+            </div>
+
+            <div className="lg:col-span-4">
+              <div
+                className="
+                  rounded-2xl
+                  border border-white/[0.06]
+                  bg-black/25
+                  p-5
+                "
+              >
+                <div
+                  className="
+                    mx-auto
+                    flex
+                    h-16
+                    w-16
+                    items-center
+                    justify-center
+                    rounded-2xl
+                    border border-[color:var(--gold-border)]
+                    bg-[color:var(--gold-soft)]
+                  "
+                >
+                  <Server
+                    size={27}
+                    className="text-[color:var(--gold)]"
+                  />
+                </div>
+
+                <div className="mt-4 text-center">
+                  <div className="text-sm font-semibold text-white">
+                    Bridge
+                    MetaTrader
+                  </div>
+
+                  <div className="mt-1 text-[11px] text-[color:var(--muted)]">
+                    En cours de
+                    développement
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* =====================================================
+            FUTURE FEATURES
+        ===================================================== */}
+
+        <section
+          className="
+            overflow-hidden
+            rounded-[22px]
+            border border-[color:var(--border)]
+            bg-[color:var(--panel)]
+          "
+        >
+          <div className="border-b border-[color:var(--border)] px-5 py-4">
+            <h2 className="text-sm font-semibold text-white">
+              Synchronisation
+              MetaTrader
+            </h2>
+
+            <p className="mt-1 text-[10px] text-[color:var(--muted)]">
+              Fonctionnalités
+              prévues lors de
+              l’activation de
+              la connexion.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-px bg-white/[0.04] md:grid-cols-2 xl:grid-cols-4">
+            <FutureFeature
+              icon={
+                <Database
+                  size={18}
+                />
+              }
+              title="Historique automatique"
+              text="Tes trades clôturés seront automatiquement ajoutés à ton journal."
+            />
+
+            <FutureFeature
+              icon={
+                <RefreshCw
+                  size={18}
+                />
+              }
+              title="Capital synchronisé"
+              text="La balance et l’equity pourront être récupérées automatiquement."
+            />
+
+            <FutureFeature
+              icon={
+                <WalletCards
+                  size={18}
+                />
+              }
+              title="Plusieurs comptes"
+              text="Regroupe tes brokers, comptes personnels et prop firms."
+            />
+
+            <FutureFeature
+              icon={
+                <ShieldCheck
+                  size={18}
+                />
+              }
+              title="Journal connecté"
+              text="Tes trades pourront alimenter automatiquement tes statistiques."
+            />
+          </div>
+        </section>
+      </div>
+
+      {/* =====================================================
+          ACCOUNT MODAL
+      ===================================================== */}
+
+      {modalOpen ? (
+        <div
+          className="
+            fixed
+            inset-0
+            z-[999999]
+            flex
+            items-center
+            justify-center
+            bg-black/75
+            p-4
+            backdrop-blur-sm
+          "
+          onMouseDown={(
+            event
+          ) => {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              setModalOpen(
+                false
+              );
+            }
+          }}
+        >
+          <div
+            className="
+              relative
+              max-h-[92vh]
+              w-full
+              max-w-[650px]
+              overflow-y-auto
+              rounded-[24px]
+              border border-[color:var(--gold-border)]
+              bg-[#0d0e11]
+              shadow-2xl
+            "
+          >
+            <div
+              className="
+                pointer-events-none
+                absolute
+                left-1/2
+                top-[-170px]
+                h-[350px]
+                w-[350px]
+                -translate-x-1/2
+                rounded-full
+                bg-[color:var(--gold)]
+                opacity-[0.08]
+                blur-[100px]
+              "
+            />
+
+            <div className="relative z-10">
+              {/* HEADER */}
+
+              <div
+                className="
+                  flex
+                  items-center
+                  justify-between
+                  border-b border-white/[0.06]
+                  px-6 py-5
+                "
+              >
+                <div>
+                  <div className="text-base font-semibold text-white">
+                    {editingAccount
+                      ? "Modifier le compte"
+                      : "Ajouter un compte"}
+                  </div>
+
+                  <div className="mt-1 text-[10px] text-[color:var(--muted)]">
+                    Connexion
+                    manuelle
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setModalOpen(
+                      false
+                    )
+                  }
+                  className="
+                    flex
+                    h-9
+                    w-9
+                    items-center
+                    justify-center
+                    rounded-xl
+                    border border-white/[0.08]
+                    bg-black/20
+                    text-white/50
+                    transition
+                    hover:bg-white/[0.05]
+                    hover:text-white
+                  "
+                >
+                  <X
+                    size={16}
+                  />
+                </button>
+              </div>
+
+              {/* BODY */}
+
+              <div className="p-6">
+                <div
+                  className="
+                    mb-5
+                    flex
+                    items-start
+                    gap-3
+                    rounded-2xl
+                    border border-[color:var(--gold-border)]
+                    bg-[color:var(--gold-soft)]
+                    p-4
+                  "
+                >
+                  <ShieldCheck
+                    size={17}
+                    className="mt-0.5 shrink-0 text-[color:var(--gold)]"
+                  />
+
+                  <div>
+                    <div className="text-xs font-semibold text-white">
+                      Compte manuel
+                    </div>
+
+                    <p className="mt-1 text-[10px] leading-5 text-[color:var(--muted)]">
+                      Aucun mot de
+                      passe MT4 ou
+                      MT5 n’est
+                      nécessaire.
+                      Tu renseignes
+                      simplement
+                      les
+                      informations
+                      de ton
+                      compte.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <InputField
+                    label="Nom du compte"
+                    placeholder="Compte principal"
+                    value={
+                      form.name
+                    }
+                    onChange={(
+                      value
+                    ) =>
+                      setForm({
+                        ...form,
+
+                        name:
+                          value,
+                      })
+                    }
+                  />
+
+                  <SelectField
+                    label="Type de compte"
+                    value={
+                      form.account_type
+                    }
+                    onChange={(
+                      value
+                    ) =>
+                      setForm({
+                        ...form,
+
+                        account_type:
+                          value as AccountType,
+                      })
+                    }
+                    options={[
+                      {
+                        value:
+                          "real",
+
+                        label:
+                          "Compte réel",
+                      },
+
+                      {
+                        value:
+                          "demo",
+
+                        label:
+                          "Compte démo",
+                      },
+
+                      {
+                        value:
+                          "prop",
+
+                        label:
+                          "Prop Firm",
+                      },
+                    ]}
+                  />
+
+                  <SelectField
+                    label="Plateforme"
+                    value={
+                      form.platform
+                    }
+                    onChange={(
+                      value
+                    ) =>
+                      setForm({
+                        ...form,
+
+                        platform:
+                          value as Platform,
+                      })
+                    }
+                    options={[
+                      {
+                        value:
+                          "MT5",
+
+                        label:
+                          "MetaTrader 5",
+                      },
+
+                      {
+                        value:
+                          "MT4",
+
+                        label:
+                          "MetaTrader 4",
+                      },
+
+                      {
+                        value:
+                          "OTHER",
+
+                        label:
+                          "Autre",
+                      },
+                    ]}
+                  />
+
+                  <InputField
+                    label="Broker / Prop Firm"
+                    placeholder="RaiseFX, FTMO, Tradeify..."
+                    value={
+                      form.broker
+                    }
+                    onChange={(
+                      value
+                    ) =>
+                      setForm({
+                        ...form,
+
+                        broker:
+                          value,
+                      })
+                    }
+                  />
+
+                  <SelectField
+                    label="Devise"
+                    value={
+                      form.currency
+                    }
+                    onChange={(
+                      value
+                    ) =>
+                      setForm({
+                        ...form,
+
+                        currency:
+                          value,
+                      })
+                    }
+                    options={[
+                      {
+                        value:
+                          "EUR",
+
+                        label:
+                          "EUR (€)",
+                      },
+
+                      {
+                        value:
+                          "USD",
+
+                        label:
+                          "USD ($)",
+                      },
+
+                      {
+                        value:
+                          "GBP",
+
+                        label:
+                          "GBP (£)",
+                      },
+
+                      {
+                        value:
+                          "CHF",
+
+                        label:
+                          "CHF",
+                      },
+                    ]}
+                  />
+
+                  <InputField
+                    label="Capital initial"
+                    placeholder="10000"
+                    value={
+                      form.initial_balance
+                    }
+                    onChange={(
+                      value
+                    ) =>
+                      setForm({
+                        ...form,
+
+                        initial_balance:
+                          value,
+
+                        current_balance:
+                          editingAccount
+                            ? form.current_balance
+                            : value,
+                      })
+                    }
+                  />
+
+                  <div className="md:col-span-2">
+                    <InputField
+                      label="Capital actuel"
+                      placeholder="10000"
+                      value={
+                        form.current_balance
+                      }
+                      onChange={(
+                        value
+                      ) =>
+                        setForm({
+                          ...form,
+
+                          current_balance:
+                            value,
+                        })
+                      }
+                    />
+
+                    <p className="mt-2 text-[9px] leading-4 text-[color:var(--muted)]">
+                      Tu pourras
+                      modifier ce
+                      montant plus
+                      tard. Quand
+                      la connexion
+                      MetaTrader
+                      sera prête,
+                      cette valeur
+                      pourra être
+                      synchronisée
+                      automatiquement.
+                    </p>
+                  </div>
+                </div>
+
+                {/* BUTTONS */}
+
+                <div
+                  className="
+                    mt-6
+                    flex
+                    flex-col-reverse
+                    gap-3
+                    border-t border-white/[0.06]
+                    pt-5
+                    sm:flex-row
+                    sm:justify-end
+                  "
+                >
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setModalOpen(
+                        false
+                      )
+                    }
+                    className="
+                      h-11
+                      rounded-xl
+                      border border-[color:var(--border)]
+                      bg-black/20
+                      px-5
+                      text-sm
+                      text-white/70
+                    "
+                  >
+                    Annuler
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={
+                      saveAccount
+                    }
+                    disabled={
+                      saving
+                    }
+                    className="
+                      h-11
+                      rounded-xl
+                      bg-[color:var(--gold)]
+                      px-6
+                      text-sm
+                      font-semibold
+                      text-black
+                      transition
+                      hover:bg-[color:var(--gold-2)]
+                      disabled:opacity-50
+                    "
+                  >
+                    {saving
+                      ? "Enregistrement..."
+                      : editingAccount
+                      ? "Enregistrer les modifications"
+                      : "Ajouter le compte"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+/* =========================================================
+   ACCOUNT CARD
+========================================================= */
+
+function AccountCard({
+  account,
+  onEdit,
+  onDelete,
+}: {
+  account:
+    TradingAccount;
+
+  onEdit:
+    () => void;
+
+  onDelete:
+    () => void;
+}) {
+  return (
+    <div
+      className="
+        relative
+        overflow-hidden
+        rounded-[20px]
+        border border-white/[0.07]
+        bg-black/20
+        p-5
+      "
+    >
+      <div
+        className="
+          pointer-events-none
+          absolute
+          right-[-50px]
+          top-[-70px]
+          h-[160px]
+          w-[160px]
+          rounded-full
+          bg-[color:var(--gold)]
+          opacity-[0.05]
+          blur-[55px]
+        "
+      />
+
+      <div className="relative z-10">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div
+              className="
+                flex
+                h-11
+                w-11
+                items-center
+                justify-center
+                rounded-xl
+                border border-[color:var(--gold-border)]
+                bg-[color:var(--gold-soft)]
+                text-[color:var(--gold)]
+              "
+            >
+              <WalletCards
+                size={19}
+              />
+            </div>
+
+            <div>
+              <div className="text-sm font-semibold text-white">
+                {
+                  account.name
+                }
+              </div>
+
+              <div className="mt-1 text-[9px] uppercase tracking-[0.08em] text-[color:var(--muted)]">
+                {accountTypeLabel(
+                  account.account_type
+                )}
+                {" • "}
+                {account.platform ||
+                  "AUTRE"}
+              </div>
+            </div>
+          </div>
+
+          <span
+            className="
+              rounded-full
+              border border-[color:var(--gold-border)]
+              bg-[color:var(--gold-soft)]
+              px-2.5 py-1
+              text-[8px]
+              font-bold
+              uppercase
+              text-[color:var(--gold)]
+            "
+          >
+            Manuel
+          </span>
+        </div>
+
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <div
+            className="
+              rounded-xl
+              border border-white/[0.05]
+              bg-black/20
+              p-3
+            "
+          >
+            <div className="text-[9px] text-[color:var(--muted)]">
+              Capital actuel
+            </div>
+
+            <div className="mt-1 text-base font-semibold text-white">
+              {formatMoney(
+                Number(
+                  account.current_balance ||
+                    0
+                ),
+                account.currency
+              )}
+            </div>
+          </div>
+
+          <div
+            className="
+              rounded-xl
+              border border-white/[0.05]
+              bg-black/20
+              p-3
+            "
+          >
+            <div className="text-[9px] text-[color:var(--muted)]">
+              Capital initial
+            </div>
+
+            <div className="mt-1 text-base font-semibold text-white">
+              {formatMoney(
+                Number(
+                  account.initial_balance ||
+                    0
+                ),
+                account.currency
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div
+          className="
+            mt-4
+            flex
+            items-center
+            justify-between
+            gap-3
+            border-t border-white/[0.05]
+            pt-4
+          "
+        >
+          <div>
+            <div className="text-[9px] text-[color:var(--muted)]">
+              Broker /
+              Prop Firm
+            </div>
+
+            <div className="mt-1 text-xs text-white">
+              {account.broker ||
+                "Non renseigné"}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={
+                onEdit
+              }
+              className="
+                flex
+                h-9
+                w-9
+                items-center
+                justify-center
+                rounded-xl
+                border border-white/[0.08]
+                bg-white/[0.03]
+                text-white/50
+                transition
+                hover:text-[color:var(--gold)]
+              "
+              title="Modifier"
+            >
+              <Edit3
+                size={14}
+              />
+            </button>
+
+            <button
+              type="button"
+              onClick={
+                onDelete
+              }
+              className="
+                flex
+                h-9
+                w-9
+                items-center
+                justify-center
+                rounded-xl
+                border border-red-500/20
+                bg-red-500/[0.04]
+                text-red-400/70
+                transition
+                hover:bg-red-500/10
+                hover:text-red-400
+              "
+              title="Supprimer"
+            >
+              <Trash2
+                size={14}
+              />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   COMPONENTS
+========================================================= */
+
+function StatCard({
+  icon,
+  label,
+  value,
+  sub,
+}: {
+  icon:
+    React.ReactNode;
+
+  label:
+    string;
+
+  value:
+    string;
+
+  sub:
+    string;
+}) {
+  return (
+    <div
+      className="
+        min-h-[100px]
+        rounded-2xl
+        border border-[color:var(--border)]
+        bg-[color:var(--panel)]
+        p-4
+      "
+    >
+      <div className="flex h-full items-center gap-3">
+        <div
+          className="
+            flex
+            h-10
+            w-10
+            shrink-0
+            items-center
+            justify-center
+            rounded-xl
+            border border-[color:var(--gold-border)]
+            bg-[color:var(--gold-soft)]
+            text-[color:var(--gold)]
+          "
+        >
+          {icon}
+        </div>
+
+        <div>
+          <div className="text-[10px] text-[color:var(--muted)]">
+            {label}
+          </div>
+
+          <div className="mt-1 text-lg font-semibold text-white">
+            {value}
+          </div>
+
+          <div className="mt-1 text-[9px] text-white/35">
+            {sub}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FeaturePill({
+  text,
+}: {
+  text: string;
+}) {
+  return (
+    <span
+      className="
+        rounded-full
+        border border-white/[0.07]
+        bg-black/20
+        px-3 py-1.5
+        text-[10px]
+        text-white/55
+      "
+    >
+      {text}
+    </span>
+  );
+}
+
+function FutureFeature({
+  icon,
+  title,
+  text,
+}: {
+  icon:
+    React.ReactNode;
+
+  title:
+    string;
+
+  text:
+    string;
+}) {
+  return (
+    <div className="bg-[color:var(--panel)] p-5">
+      <div
+        className="
+          flex
+          h-10
+          w-10
+          items-center
+          justify-center
+          rounded-xl
+          border border-[color:var(--gold-border)]
+          bg-[color:var(--gold-soft)]
+          text-[color:var(--gold)]
+        "
+      >
+        {icon}
+      </div>
+
+      <div className="mt-4 text-xs font-semibold text-white">
+        {title}
+      </div>
+
+      <p className="mt-2 text-[10px] leading-5 text-[color:var(--muted)]">
+        {text}
+      </p>
+    </div>
+  );
+}
+
+/* =========================================================
+   INPUT
+========================================================= */
+
+function InputField({
   label,
   value,
   onChange,
   placeholder,
-  type,
 }: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  type?: string;
+  label:
+    string;
+
+  value:
+    string;
+
+  onChange: (
+    value: string
+  ) => void;
+
+  placeholder?:
+    string;
 }) {
   return (
     <label className="block">
-      <div className="text-sm text-white/70 mb-2">{label}</div>
+      <div className="mb-2 text-xs text-white/60">
+        {label}
+      </div>
+
       <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        type={type ?? "text"}
-        className="w-full px-4 py-3 rounded-2xl bg-black/20 border border-[color:var(--border)]
-                   text-white placeholder:text-white/30 outline-none
-                   focus:border-[color:var(--gold-border)]
-                   focus:ring-2 focus:ring-[color:var(--gold-soft)] transition"
+        value={
+          value
+        }
+        onChange={(
+          event
+        ) =>
+          onChange(
+            event.target.value
+          )
+        }
+        placeholder={
+          placeholder
+        }
+        className="
+          h-11
+          w-full
+          rounded-xl
+          border border-[color:var(--border)]
+          bg-black/20
+          px-4
+          text-sm
+          text-white
+          outline-none
+          placeholder:text-white/20
+          focus:border-[color:var(--gold-border)]
+        "
       />
     </label>
   );
 }
 
-type AddForm = {
-  platform: MtPlatform;
-  label: string;
-  broker: string;
-  server: string | "__OTHER__" | "";
-  serverOther: string;
-  login: string;
-  password: string;
-};
+/* =========================================================
+   SELECT
+========================================================= */
 
-export default function ComptesPage() {
-  const [mtAccounts, setMtAccounts] = useState<Mt5Account[]>(() => loadMt5Accounts());
-  const [open, setOpen] = useState(false);
+function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label:
+    string;
 
-  // ✅ refresh quand le store change (et multi-onglets)
-  useEffect(() => {
-    const onEvt = () => setMtAccounts(loadMt5Accounts());
-    window.addEventListener(MT5_EVT as any, onEvt);
-    window.addEventListener("storage", onEvt);
-    return () => {
-      window.removeEventListener(MT5_EVT as any, onEvt);
-      window.removeEventListener("storage", onEvt);
-    };
-  }, []);
+  value:
+    string;
 
-  const [form, setForm] = useState<AddForm>(() => {
-    const p: MtPlatform = "MT5";
-    const list = presetsFor(p);
-    return {
-      platform: p,
-      label: "",
-      broker: list[0]?.broker ?? "",
-      server: list[0]?.servers?.[0] ?? "",
-      serverOther: "",
-      login: "",
-      password: "",
-    };
-  });
+  onChange: (
+    value: string
+  ) => void;
 
-  const activePresets = useMemo(() => presetsFor(form.platform), [form.platform]);
+  options: {
+    value:
+      string;
 
-  const brokerPreset = useMemo(
-    () => activePresets.find((b) => b.broker === form.broker) ?? activePresets[0],
-    [activePresets, form.broker]
-  );
-
-  const brokerOptions = useMemo(
-    () => activePresets.map((b) => ({ value: b.broker, label: b.broker })),
-    [activePresets]
-  );
-
-  const serverOptions = useMemo(() => {
-    const base = (brokerPreset?.servers ?? []).map((s) => ({ value: s, label: s }));
-    return [...base, { value: "__OTHER__", label: "Autre (écrire le serveur)" }];
-  }, [brokerPreset]);
-
-  const totals = useMemo(() => {
-    const connected = mtAccounts.filter((a) => a.status === "CONNECTED").length;
-    const bal = mtAccounts.reduce((s, a) => s + (a.snapshot?.balance ?? 0), 0);
-    const prof = mtAccounts.reduce((s, a) => s + (a.snapshot?.profit ?? 0), 0);
-    return { connected, bal, prof };
-  }, [mtAccounts]);
-
-  function addAccount() {
-    const label = form.label.trim() || `Compte ${form.login}`;
-    const broker = form.broker.trim();
-    const server = form.server === "__OTHER__" ? form.serverOther.trim() : String(form.server).trim();
-    const login = form.login.trim();
-
-    if (!broker || !server || !login) {
-      pushNotif({ kind: "error", title: "Champs manquants", message: "Broker, serveur et login requis." });
-      return;
-    }
-
-    const acc: Mt5Account = {
-      id: `${Date.now()}_${Math.random().toString(16).slice(2)}`,
-      label,
-      broker,
-      server,
-      login,
-      password: form.password,
-      status: "DISCONNECTED",
-      platform: form.platform,
-    };
-
-    setMtAccounts(upsertMt5Account(acc));
-    setOpen(false);
-    pushNotif({ kind: "success", title: "Compte ajouté", message: `${form.platform} • ${label}` });
-  }
-
-  async function testConnection(acc: Mt5Account) {
-    const platform = acc.platform ?? "MT5";
-    const endpoint = platform === "MT4" ? "/api/mt4/test" : "/api/mt5/test";
-
-    const updated: Mt5Account = { ...acc, status: "DISCONNECTED", lastError: undefined };
-
-    try {
-      const r = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          broker: acc.broker,
-          server: acc.server,
-          login: acc.login,
-          password: acc.password ?? "",
-          platform,
-        }),
-      });
-
-      const j = await r.json().catch(() => null);
-      if (!r.ok || !j?.ok) throw new Error(j?.error || "Erreur connexion");
-
-      updated.status = "CONNECTED";
-      updated.snapshot = j.snapshot;
-      pushNotif({ kind: "success", title: "Connexion OK", message: `${platform} • ${acc.label}` });
-    } catch (e: any) {
-      updated.status = "ERROR";
-      updated.lastError = String(e?.message ?? e);
-      pushNotif({ kind: "error", title: "Connexion échouée", message: updated.lastError });
-    }
-
-    setMtAccounts(upsertMt5Account(updated));
-  }
-
-  function removeAcc(id: string) {
-    setMtAccounts(removeMt5Account(id));
-    pushNotif({ kind: "info", title: "Compte supprimé" });
-  }
-
+    label:
+      string;
+  }[];
+}) {
   return (
-    <div className="space-y-6">
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <div className="text-2xl font-semibold text-white">Comptes</div>
-          <div className="text-white/60 text-sm mt-1">MetaTrader MT4/MT5 (brokers séparés).</div>
-        </div>
-        <Button onClick={() => setOpen(true)}>+ Ajouter un compte</Button>
+    <label className="block">
+      <div className="mb-2 text-xs text-white/60">
+        {label}
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardBody>
-            <div className="text-white/60 text-sm">Connectés</div>
-            <div className="text-white text-2xl font-semibold mt-1">{totals.connected}</div>
-          </CardBody>
-        </Card>
-        <Card>
-          <CardBody>
-            <div className="text-white/60 text-sm">Balance totale</div>
-            <div className="text-white text-2xl font-semibold mt-1">{fmt(totals.bal)}</div>
-          </CardBody>
-        </Card>
-        <Card>
-          <CardBody>
-            <div className="text-white/60 text-sm">Profit total</div>
-            <div className="text-white text-2xl font-semibold mt-1">{fmt(totals.prof)}</div>
-          </CardBody>
-        </Card>
-      </div>
-
-      {/* Liste comptes */}
-      <Card>
-        <CardBody className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="text-white font-semibold">MetaTrader</div>
-            <div className="text-white/50 text-sm">{mtAccounts.length} compte(s)</div>
-          </div>
-
-          {mtAccounts.length === 0 ? (
-            <div className="text-white/50 text-sm">Aucun compte ajouté.</div>
-          ) : (
-            <div className="space-y-3">
-              {mtAccounts.map((a) => {
-                const p = a.platform ?? "MT5";
-                const bal = a.snapshot?.balance ?? null;
-                const eq = a.snapshot?.equity ?? null;
-                const pr = a.snapshot?.profit ?? null;
-                const cur = a.snapshot?.currency ?? "";
-
-                const profitClass =
-                  pr == null ? "text-white/70" : pr > 0 ? "text-emerald-300" : pr < 0 ? "text-red-300" : "text-white/70";
-
-                const statusPill =
-                  a.status === "CONNECTED"
-                    ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/25"
-                    : a.status === "ERROR"
-                    ? "bg-red-500/15 text-red-300 border-red-500/25"
-                    : "bg-white/5 text-white/60 border-white/10";
-
-                const statusLabel =
-                  a.status === "CONNECTED" ? "Connecté" : a.status === "ERROR" ? "Erreur" : "Déconnecté";
-
-                return (
-                  <CardSubCard key={a.id}>
-                    <div className="space-y-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="px-2 py-1 rounded-full text-xs font-semibold bg-[color:var(--gold-soft)]/15 text-[color:var(--gold)] border border-[color:var(--gold-border)]/30">
-                              {p}
-                            </span>
-                            <div className="text-white font-semibold truncate">{a.label}</div>
-                            <span className={`px-2 py-1 rounded-full text-xs border ${statusPill}`}>{statusLabel}</span>
-                          </div>
-
-                          <div className="text-white/50 text-sm truncate mt-1">
-                            {a.broker} — {a.server} — {a.login}
-                          </div>
-
-                          {a.status === "ERROR" && a.lastError ? (
-                            <div className="text-red-300 text-xs mt-2">{a.lastError}</div>
-                          ) : null}
-                        </div>
-
-                        <div className="flex gap-2 shrink-0">
-                          <Button variant="ghost" onClick={() => testConnection(a)}>Tester</Button>
-                          <Button variant="danger" onClick={() => removeAcc(a.id)}>Suppr.</Button>
-                        </div>
-                      </div>
-
-                      {a.snapshot ? (
-                        <div className="grid grid-cols-3 gap-2">
-                          <div className="rounded-2xl bg-black/20 border border-white/10 px-3 py-2">
-                            <div className="text-[11px] text-white/50">Balance</div>
-                            <div className="text-white font-semibold text-sm mt-0.5">
-                              {bal == null ? "—" : fmt(bal)} <span className="text-white/40">{cur}</span>
-                            </div>
-                          </div>
-                          <div className="rounded-2xl bg-black/20 border border-white/10 px-3 py-2">
-                            <div className="text-[11px] text-white/50">Equity</div>
-                            <div className="text-white font-semibold text-sm mt-0.5">
-                              {eq == null ? "—" : fmt(eq)} <span className="text-white/40">{cur}</span>
-                            </div>
-                          </div>
-                          <div className="rounded-2xl bg-black/20 border border-white/10 px-3 py-2">
-                            <div className="text-[11px] text-white/50">Profit</div>
-                            <div className={`font-semibold text-sm mt-0.5 ${profitClass}`}>
-                              {pr == null ? "—" : fmt(pr)} <span className="text-white/40">{cur}</span>
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="text-xs text-white/40">
-                          Aucune donnée — clique sur “Tester” pour récupérer balance/equity/profit.
-                        </div>
-                      )}
-                    </div>
-                  </CardSubCard>
-                );
-              })}
-            </div>
-          )}
-        </CardBody>
-      </Card>
-
-      {/* Modal Add */}
-      <Modal open={open} onClose={() => setOpen(false)} title="Ajouter un compte MetaTrader">
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <div className="text-sm text-white/70 mb-2">Plateforme</div>
-              <GoldSelect
-                value={form.platform}
-                onChange={(v) => {
-                  const platform = v as MtPlatform;
-                  const list = presetsFor(platform);
-                  setForm((p) => ({
-                    ...p,
-                    platform,
-                    broker: list[0]?.broker ?? "",
-                    server: list[0]?.servers?.[0] ?? "",
-                    serverOther: "",
-                  }));
-                }}
-                options={[
-                  { value: "MT4", label: "MT4" },
-                  { value: "MT5", label: "MT5" },
-                ]}
-              />
-            </div>
-
-            <Input
-              label="Nom du compte"
-              value={form.label}
-              onChange={(v) => setForm((p) => ({ ...p, label: v }))}
-              placeholder="Ex: Challenge 50k"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <div className="text-sm text-white/70 mb-2">Broker ({form.platform})</div>
-              <GoldSelect
-                value={form.broker}
-                onChange={(v) => {
-                  const preset = activePresets.find((x) => x.broker === v) ?? activePresets[0];
-                  setForm((p) => ({
-                    ...p,
-                    broker: v,
-                    server: preset?.servers?.[0] ?? "",
-                    serverOther: "",
-                  }));
-                }}
-                options={brokerOptions}
-              />
-            </div>
-
-            <div>
-              <div className="text-sm text-white/70 mb-2">Serveur</div>
-              <GoldSelect
-                value={String(form.server)}
-                onChange={(v) =>
-                  setForm((p) => ({
-                    ...p,
-                    server: v as any,
-                    serverOther: v === "__OTHER__" ? p.serverOther : "",
-                  }))
-                }
-                options={serverOptions}
-              />
-            </div>
-          </div>
-
-          {form.server === "__OTHER__" ? (
-            <Input
-              label="Serveur (autre)"
-              value={form.serverOther}
-              onChange={(v) => setForm((p) => ({ ...p, serverOther: v }))}
-              placeholder="Ex: MonBroker-Live01"
-            />
-          ) : null}
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="Login"
-              value={form.login}
-              onChange={(v) => setForm((p) => ({ ...p, login: v }))}
-              placeholder="Ex: 12345678"
-            />
-            <Input
-              label="Mot de passe (démo)"
-              value={form.password}
-              onChange={(v) => setForm((p) => ({ ...p, password: v }))}
-              type="password"
-              placeholder="(optionnel / démo)"
-            />
-          </div>
-
-          <div className="flex items-center justify-end gap-2 pt-2">
-            <Button variant="ghost" onClick={() => setOpen(false)}>Annuler</Button>
-            <Button onClick={addAccount}>Ajouter</Button>
-          </div>
-        </div>
-      </Modal>
-    </div>
+      <select
+        value={
+          value
+        }
+        onChange={(
+          event
+        ) =>
+          onChange(
+            event.target.value
+          )
+        }
+        className="
+          h-11
+          w-full
+          rounded-xl
+          border border-[color:var(--border)]
+          bg-black/20
+          px-4
+          text-sm
+          text-white
+          outline-none
+          focus:border-[color:var(--gold-border)]
+        "
+      >
+        {options.map(
+          (
+            option
+          ) => (
+            <option
+              key={
+                option.value
+              }
+              value={
+                option.value
+              }
+            >
+              {
+                option.label
+              }
+            </option>
+          )
+        )}
+      </select>
+    </label>
   );
 }

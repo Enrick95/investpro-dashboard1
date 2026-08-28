@@ -3,18 +3,28 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 type CountryStat = {
-  name: string;          // ex: "France"
-  visitors: number;      // ex: 44123
-  pageViews?: number;    // ex: 523000 (optionnel)
+  name?: string;
+  iso2?: string;
+  label?: string;
+  visitors: number;
+  pageViews?: number;
 };
 
 type Props = {
-  /** Tu peux passer soit un tableau, soit un objet {key: CountryStat} */
+  /** Titre affiché au-dessus de la carte */
+  title?: string;
+  /** Sous-titre affiché sous le titre */
+  subtitle?: string;
+  /** Total des pages vues */
+  pageViews?: number;
+  /** Pays à mettre en avant depuis la page admin */
+  highlights?: CountryStat[];
+  /** Tu peux aussi passer directement des stats */
   stats?: CountryStat[] | Record<string, CountryStat>;
   /** Chemin du geojson (doit exister dans /public) */
-  geoJsonUrl?: string; // default: "/maps/countries.geojson"
+  geoJsonUrl?: string;
   /** Hauteur de la carte */
-  height?: number; // default: 420
+  height?: number;
 };
 
 type GeoJSONFeature = {
@@ -33,6 +43,10 @@ function fmt(n: number) {
 }
 
 export default function AdminWorldVisitorsMap({
+  title = "Répartition visiteurs",
+  subtitle = "Carte monde (drag + zoom)",
+  pageViews,
+  highlights,
   stats,
   geoJsonUrl = "/maps/countries.geojson",
   height = 420,
@@ -60,20 +74,25 @@ export default function AdminWorldVisitorsMap({
     pageViews?: number;
   } | null>(null);
 
-  // ✅ normalize stats -> array safe
+  // ✅ normalise highlights/stats vers un tableau unique
   const statsArray: CountryStat[] = useMemo(() => {
+    if (highlights?.length) return highlights;
     if (!stats) return [];
     if (Array.isArray(stats)) return stats;
     return Object.values(stats);
-  }, [stats]);
+  }, [highlights, stats]);
 
-  // map by lowercase name
+  // map par nom/label en minuscules
   const byName = useMemo(() => {
     const m = new Map<string, CountryStat>();
+
     for (const s of statsArray) {
-      if (!s?.name) continue;
-      m.set(String(s.name).toLowerCase(), s);
+      const displayName = s.name || s.label;
+      if (!displayName) continue;
+
+      m.set(String(displayName).toLowerCase(), s);
     }
+
     return m;
   }, [statsArray]);
 
@@ -215,6 +234,16 @@ export default function AdminWorldVisitorsMap({
       className="relative w-full rounded-2xl border border-white/10 bg-black/30 p-4"
       style={{ height }}
     >
+      <div className="absolute left-4 top-4 z-20 max-w-[65%]">
+        <div className="text-sm font-semibold text-white">
+          {title}
+        </div>
+
+        <div className="mt-1 text-xs text-white/50">
+          {subtitle}
+        </div>
+      </div>
+
       {/* Top actions */}
       <div className="absolute right-4 top-4 z-20 flex gap-2">
         <button
@@ -319,9 +348,9 @@ export default function AdminWorldVisitorsMap({
                     setHover({
                       x: e.clientX - rect.left,
                       y: e.clientY - rect.top,
-                      name: stat.name,
+                      name: stat.name || stat.label || name,
                       visitors: stat.visitors,
-                      pageViews: stat.pageViews,
+                      pageViews: stat.pageViews ?? pageViews,
                     });
                   }}
                   onMouseMove={(e) => {
@@ -338,9 +367,9 @@ export default function AdminWorldVisitorsMap({
                         : {
                             x: e.clientX - rect.left,
                             y: e.clientY - rect.top,
-                            name: stat.name,
+                            name: stat.name || stat.label || name,
                             visitors: stat.visitors,
-                            pageViews: stat.pageViews,
+                            pageViews: stat.pageViews ?? pageViews,
                           }
                     );
                   }}

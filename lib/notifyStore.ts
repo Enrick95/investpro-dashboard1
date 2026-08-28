@@ -34,14 +34,12 @@ export type Notif = {
   title: string;
   message?: string;
   url?: string;
-  createdAt: number; // ms
+  createdAt: number;
   ttlMs: number;
   read: boolean;
 };
 
 export type NotifSettings = {
-  // ✅ maintenant on garde ici uniquement le mapping son par type
-  // mute/volume viennent de prefsStore
   soundByKind: Partial<Record<NotifKind, string>>;
 };
 
@@ -50,7 +48,6 @@ export type NotifsSnapshot = {
   inbox: Notif[];
   unread: number;
 
-  // exposé pour compat (header etc)
   settings: {
     muted: boolean;
     volume: number;
@@ -69,8 +66,8 @@ let state: NotifsSnapshot = {
   inbox: [],
   unread: 0,
   settings: {
-    muted: false, // sera sync depuis prefsStore
-    volume: 0.8, // sera sync depuis prefsStore
+    muted: false,
+    volume: 0.8,
     soundByKind: {
       live: "/sounds/live.mp3",
       video: "/sounds/video.mp3",
@@ -88,6 +85,7 @@ let state: NotifsSnapshot = {
 };
 
 type Listener = (s: NotifsSnapshot) => void;
+
 const listeners = new Set<Listener>();
 
 function isBrowser() {
@@ -99,34 +97,57 @@ function uid() {
 }
 
 function recomputeUnread() {
-  state.unread = state.inbox.reduce((n, x) => n + (x.read ? 0 : 1), 0);
+  state.unread = state.inbox.reduce(
+    (n, x) => n + (x.read ? 0 : 1),
+    0
+  );
 }
 
 function emit() {
   recomputeUnread();
-  for (const l of listeners) l(state);
+
+  for (const l of listeners) {
+    l(state);
+  }
 }
 
 function saveSoundByKind() {
   if (!isBrowser()) return;
+
   try {
-    localStorage.setItem(LS_SOUNDBY, JSON.stringify(state.settings.soundByKind));
+    localStorage.setItem(
+      LS_SOUNDBY,
+      JSON.stringify(state.settings.soundByKind)
+    );
   } catch {}
 }
 
 function saveInbox() {
   if (!isBrowser()) return;
+
   try {
-    localStorage.setItem(LS_INBOX, JSON.stringify(state.inbox));
+    localStorage.setItem(
+      LS_INBOX,
+      JSON.stringify(state.inbox)
+    );
   } catch {}
 }
 
 function syncFromPrefs() {
   if (!isBrowser()) return;
+
   try {
     const p = getPrefs();
+
     state.settings.muted = !!p.notif.muted;
-    state.settings.volume = Math.max(0, Math.min(1, Number(p.notif.volume ?? 0.8)));
+
+    state.settings.volume = Math.max(
+      0,
+      Math.min(
+        1,
+        Number(p.notif.volume ?? 0.8)
+      )
+    );
   } catch {
     // si prefsStore pas prêt, on garde les valeurs actuelles
   }
@@ -135,14 +156,14 @@ function syncFromPrefs() {
 function safeLoad() {
   if (!isBrowser()) return;
 
-  // sync prefs (mute/volume)
   syncFromPrefs();
 
-  // soundByKind
   try {
     const raw = localStorage.getItem(LS_SOUNDBY);
+
     if (raw) {
       const parsed = JSON.parse(raw);
+
       state.settings.soundByKind = {
         ...state.settings.soundByKind,
         ...(parsed || {}),
@@ -150,44 +171,57 @@ function safeLoad() {
     }
   } catch {}
 
-  // inbox
   try {
     const raw = localStorage.getItem(LS_INBOX);
+
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) state.inbox = parsed;
+
+      if (Array.isArray(parsed)) {
+        state.inbox = parsed;
+      }
     }
   } catch {}
 
-  // expire + clamp
   const now = Date.now();
-  state.inbox = state.inbox.filter((n) => now - n.createdAt <= EXPIRE_MS);
-  if (state.inbox.length > MAX_INBOX) state.inbox = state.inbox.slice(0, MAX_INBOX);
+
+  state.inbox = state.inbox.filter(
+    (n) => now - n.createdAt <= EXPIRE_MS
+  );
+
+  if (state.inbox.length > MAX_INBOX) {
+    state.inbox = state.inbox.slice(0, MAX_INBOX);
+  }
 
   emit();
 }
 
 let loadedOnce = false;
+
 function ensureLoaded() {
   if (!isBrowser()) return;
   if (loadedOnce) return;
+
   loadedOnce = true;
 
   safeLoad();
 
-  // ✅ écoute les changements de prefs (Paramètres)
-  window.addEventListener("investpro:prefs_updated", () => {
-    syncFromPrefs();
-    emit();
-  });
+  window.addEventListener(
+    "investpro:prefs_updated",
+    () => {
+      syncFromPrefs();
+      emit();
+    }
+  );
 }
 
 function kindEnabled(kind: NotifKind) {
   if (!isBrowser()) return true;
+
   try {
     const p = getPrefs();
     const enabled = p?.notif?.enabled?.[kind];
-    // par défaut true si absent
+
     return enabled !== false;
   } catch {
     return true;
@@ -197,19 +231,24 @@ function kindEnabled(kind: NotifKind) {
 function playSound(kind: NotifKind) {
   if (!isBrowser()) return;
 
-  // ✅ sync prefs avant de jouer
   syncFromPrefs();
 
   if (state.settings.muted) return;
 
   const src = state.settings.soundByKind[kind];
+
   if (!src) return;
 
   try {
     const a = new Audio(src);
-    // ✅ volume vient des paramètres
-    a.volume = Math.max(0, Math.min(1, state.settings.volume));
+
+    a.volume = Math.max(
+      0,
+      Math.min(1, state.settings.volume)
+    );
+
     a.currentTime = 0;
+
     a.play().catch(() => {});
   } catch {}
 }
@@ -227,10 +266,10 @@ export function pushNotif(input: {
 
   const kind = (input.kind ?? "info") as NotifKind;
 
-  // ✅ filtre par type (Paramètres)
   if (!kindEnabled(kind)) return;
 
   const now = Date.now();
+
   const n: Notif = {
     id: uid(),
     kind,
@@ -238,58 +277,96 @@ export function pushNotif(input: {
     message: input.message,
     url: input.url,
     createdAt: now,
-    ttlMs: typeof input.ttlMs === "number" ? input.ttlMs : 15000,
+    ttlMs:
+      typeof input.ttlMs === "number"
+        ? input.ttlMs
+        : 15000,
     read: false,
   };
 
-  // visible toasts (max 4)
-  state.toasts = [n, ...state.toasts].slice(0, 4);
+  state.toasts = [
+    n,
+    ...state.toasts,
+  ].slice(0, 4);
 
-  // inbox
-  state.inbox = [n, ...state.inbox];
-  state.inbox = state.inbox.filter((x) => now - x.createdAt <= EXPIRE_MS).slice(0, MAX_INBOX);
+  state.inbox = [
+    n,
+    ...state.inbox,
+  ];
+
+  state.inbox = state.inbox
+    .filter(
+      (x) =>
+        now - x.createdAt <= EXPIRE_MS
+    )
+    .slice(0, MAX_INBOX);
 
   playSound(n.kind);
 
   saveInbox();
   emit();
 
-  // auto dismiss toast after ttl
-  const ttl = Math.max(2000, Math.min(60000, n.ttlMs));
+  const ttl = Math.max(
+    2000,
+    Math.min(60000, n.ttlMs)
+  );
+
   if (isBrowser()) {
-    window.setTimeout(() => dismissToast(n.id), ttl);
+    window.setTimeout(
+      () => dismissToast(n.id),
+      ttl
+    );
   }
 }
 
 export function dismissToast(id: string) {
   ensureLoaded();
-  state.toasts = state.toasts.filter((t) => t.id !== id);
+
+  state.toasts = state.toasts.filter(
+    (t) => t.id !== id
+  );
+
   emit();
 }
 
-// ✅ compat ToastHub: removeNotif = dismissToast
 export function removeNotif(id: string) {
   dismissToast(id);
 }
 
 export function markRead(id: string) {
   ensureLoaded();
-  state.inbox = state.inbox.map((n) => (n.id === id ? { ...n, read: true } : n));
+
+  state.inbox = state.inbox.map(
+    (n) =>
+      n.id === id
+        ? { ...n, read: true }
+        : n
+  );
+
   saveInbox();
   emit();
 }
 
 export function markAllRead() {
   ensureLoaded();
-  state.inbox = state.inbox.map((n) => ({ ...n, read: true }));
+
+  state.inbox = state.inbox.map(
+    (n) => ({
+      ...n,
+      read: true,
+    })
+  );
+
   saveInbox();
   emit();
 }
 
 export function clearInbox() {
   ensureLoaded();
+
   state.inbox = [];
   state.toasts = [];
+
   saveInbox();
   emit();
 }
@@ -298,45 +375,85 @@ export function clearInbox() {
 
 export function toggleMute() {
   ensureLoaded();
+
   try {
     const p = getPrefs();
-    patchPrefs({ notif: { ...p.notif, muted: !p.notif.muted } });
+
+    patchPrefs({
+      notif: {
+        ...p.notif,
+        muted: !p.notif.muted,
+      },
+    });
   } catch {
-    state.settings.muted = !state.settings.muted;
+    state.settings.muted =
+      !state.settings.muted;
+
     emit();
   }
 }
 
 export function setMuted(muted: boolean) {
   ensureLoaded();
+
   try {
     const p = getPrefs();
-    patchPrefs({ notif: { ...p.notif, muted: !!muted } });
+
+    patchPrefs({
+      notif: {
+        ...p.notif,
+        muted: !!muted,
+      },
+    });
   } catch {
     state.settings.muted = !!muted;
+
     emit();
   }
 }
 
 export function setVolume(v: number) {
   ensureLoaded();
-  const vol = Math.max(0, Math.min(1, v));
+
+  const vol = Math.max(
+    0,
+    Math.min(1, v)
+  );
+
   try {
     const p = getPrefs();
-    patchPrefs({ notif: { ...p.notif, volume: vol } });
+
+    patchPrefs({
+      notif: {
+        ...p.notif,
+        volume: vol,
+      },
+    });
   } catch {
     state.settings.volume = vol;
+
     emit();
   }
 }
 
-/* son par type reste géré ici */
-export function setSoundForKind(kind: NotifKind, src: string | null) {
+export function setSoundForKind(
+  kind: NotifKind,
+  src: string | null
+) {
   ensureLoaded();
-  const next = { ...state.settings.soundByKind };
-  if (!src) delete next[kind];
-  else next[kind] = src;
+
+  const next = {
+    ...state.settings.soundByKind,
+  };
+
+  if (!src) {
+    delete next[kind];
+  } else {
+    next[kind] = src;
+  }
+
   state.settings.soundByKind = next;
+
   saveSoundByKind();
   emit();
 }
@@ -344,24 +461,30 @@ export function setSoundForKind(kind: NotifKind, src: string | null) {
 export function getSettings() {
   ensureLoaded();
   syncFromPrefs();
+
   return state.settings;
 }
 
 export function getNotifsSnapshot(): NotifsSnapshot {
   ensureLoaded();
   syncFromPrefs();
+
   return state;
 }
 
 /**
- * ✅ IMPORTANT (hydration-safe):
- * - Pas de ensureLoaded() ici, pour éviter tout chargement pendant un render React.
- * - Le hook useNotifs() fera ensureLoaded() dans un useEffect après montage.
+ * ✅ IMPORTANT:
+ * La fonction de cleanup doit retourner void.
+ * Set.delete() retourne un boolean, donc on l'encapsule dans un bloc.
  */
 export function subscribeNotifs(fn: Listener) {
   listeners.add(fn);
+
   fn(state);
-  return () => listeners.delete(fn);
+
+  return () => {
+    listeners.delete(fn);
+  };
 }
 
 /* React hook (hydration-safe) */
@@ -370,10 +493,19 @@ export function useNotifs() {
 
   useEffect(() => {
     ensureLoaded();
-    // sync prefs immédiatement
+
     syncFromPrefs();
 
-    return subscribeNotifs(() => bump((x) => x + 1));
+    const unsubscribe = subscribeNotifs(
+      () =>
+        bump(
+          (x) => x + 1
+        )
+    );
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   return state;

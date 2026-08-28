@@ -1,100 +1,634 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Card, CardBody, CardSubCard } from "../../../components/ui/Card";
-import { Button } from "../../../components/ui/Button";
+
+import {
+  AlertTriangle,
+  CalendarDays,
+  ChevronRight,
+  Clock3,
+  Globe2,
+  RefreshCw,
+  Search,
+  TrendingUp,
+} from "lucide-react";
+
 import GoldSelect from "../../../components/ui/GoldSelect";
 import { pushNotif } from "../../../lib/notifyStore";
 
 type Stars = 1 | 2 | 3;
 type StarsFilter = "ALL" | "23" | Stars;
 
+type CurrencyFilter =
+  | "ALL"
+  | "USD"
+  | "EUR"
+  | "GBP"
+  | "JPY"
+  | "CNY";
+
 type EconEvent = {
   id: string;
-  dateParisYMD: string; // YYYY-MM-DD (Paris)
-  time: string; // HH:mm
-  currency: string; // USD/EUR/GBP/JPY/CNY
-  countryLabel: string; // label humain
+  dateParisYMD: string;
+  time: string;
+  currency: string;
+  countryLabel: string;
   title: string;
   actual?: string;
   forecast?: string;
   previous?: string;
-  stars: Stars; // 1..3
+  stars: Stars;
 };
 
-const ALLOWED = new Set(["USD", "EUR", "GBP", "JPY", "CNY"]);
+const ALLOWED = new Set([
+  "USD",
+  "EUR",
+  "GBP",
+  "JPY",
+  "CNY",
+]);
 
-/* -------------------- Date helpers -------------------- */
+const FLAG: Record<string, string> = {
+  USD: "🇺🇸",
+  EUR: "🇪🇺",
+  GBP: "🇬🇧",
+  JPY: "🇯🇵",
+  CNY: "🇨🇳",
+};
+
+/* =========================================================
+   DATES
+========================================================= */
+
 function todayParisYMD() {
   const now = new Date();
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/Paris",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(now);
-  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
-  return `${get("year")}-${get("month")}-${get("day")}`;
+
+  const parts =
+    new Intl.DateTimeFormat(
+      "en-CA",
+      {
+        timeZone:
+          "Europe/Paris",
+
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }
+    ).formatToParts(now);
+
+  const get = (
+    type: string
+  ) =>
+    parts.find(
+      (part) =>
+        part.type === type
+    )?.value ?? "";
+
+  return `${get(
+    "year"
+  )}-${get(
+    "month"
+  )}-${get("day")}`;
 }
 
-function addDaysYMD(ymd: string, add: number) {
-  const [y, m, d] = ymd.split("-").map(Number);
-  const base = new Date(Date.UTC(y, m - 1, d, 12, 0, 0)); // midi UTC anti-DST
-  base.setUTCDate(base.getUTCDate() + add);
-  const yy = base.getUTCFullYear();
-  const mm = String(base.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(base.getUTCDate()).padStart(2, "0");
-  return `${yy}-${mm}-${dd}`;
+function addDaysYMD(
+  ymd: string,
+  add: number
+) {
+  const [year, month, day] =
+    ymd
+      .split("-")
+      .map(Number);
+
+  const base =
+    new Date(
+      Date.UTC(
+        year,
+        month - 1,
+        day,
+        12
+      )
+    );
+
+  base.setUTCDate(
+    base.getUTCDate() +
+      add
+  );
+
+  return `${base.getUTCFullYear()}-${String(
+    base.getUTCMonth() + 1
+  ).padStart(
+    2,
+    "0"
+  )}-${String(
+    base.getUTCDate()
+  ).padStart(2, "0")}`;
 }
 
-function startOfWeekMonday(ymd: string) {
-  const [y, m, d] = ymd.split("-").map(Number);
-  const base = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
-  const dow = base.getUTCDay(); // 0=Sun..6=Sat
-  const mondayOffset = (dow + 6) % 7; // Mon=0 ... Sun=6
-  base.setUTCDate(base.getUTCDate() - mondayOffset);
-  const yy = base.getUTCFullYear();
-  const mm = String(base.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(base.getUTCDate()).padStart(2, "0");
-  return `${yy}-${mm}-${dd}`;
+function startOfWeekMonday(
+  ymd: string
+) {
+  const [year, month, day] =
+    ymd
+      .split("-")
+      .map(Number);
+
+  const base =
+    new Date(
+      Date.UTC(
+        year,
+        month - 1,
+        day,
+        12
+      )
+    );
+
+  const dayOfWeek =
+    base.getUTCDay();
+
+  const mondayOffset =
+    (dayOfWeek + 6) % 7;
+
+  base.setUTCDate(
+    base.getUTCDate() -
+      mondayOffset
+  );
+
+  return `${base.getUTCFullYear()}-${String(
+    base.getUTCMonth() + 1
+  ).padStart(
+    2,
+    "0"
+  )}-${String(
+    base.getUTCDate()
+  ).padStart(2, "0")}`;
 }
 
-function formatDayHeaderFR(ymd: string) {
-  const [y, m, d] = ymd.split("-").map(Number);
-  const dt = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
-  return new Intl.DateTimeFormat("fr-FR", {
-    timeZone: "Europe/Paris",
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "2-digit",
-  }).format(dt);
+function formatDayHeaderFR(
+  ymd: string
+) {
+  const [year, month, day] =
+    ymd
+      .split("-")
+      .map(Number);
+
+  const date =
+    new Date(
+      Date.UTC(
+        year,
+        month - 1,
+        day,
+        12
+      )
+    );
+
+  return new Intl.DateTimeFormat(
+    "fr-FR",
+    {
+      timeZone:
+        "Europe/Paris",
+
+      weekday: "long",
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    }
+  ).format(date);
 }
 
-/* -------------------- UI helpers -------------------- */
-function StarsBadge({ stars }: { stars: Stars }) {
-  const cls =
-    stars === 3
-      ? "border-[color:var(--danger)]/25 bg-[color:var(--danger)]/10 text-[color:var(--danger)]"
-      : stars === 2
-      ? "border-[color:var(--warning)]/25 bg-[color:var(--warning)]/10 text-[color:var(--warning)]"
-      : "border-white/10 bg-white/5 text-[color:var(--muted)]";
+/* =========================================================
+   PARSING INVESTING
+========================================================= */
 
-  const label = stars === 3 ? "★★★" : stars === 2 ? "★★" : "★";
+function normalizeCurrency(
+  raw: string
+): {
+  currency: string;
+  label: string;
+} | null {
+  const value =
+    (raw || "").trim();
+
+  if (!value) {
+    return null;
+  }
+
+  if (
+    ALLOWED.has(value)
+  ) {
+    return {
+      currency: value,
+
+      label:
+        value === "USD"
+          ? "États-Unis"
+          : value === "EUR"
+          ? "Zone Euro"
+          : value === "GBP"
+          ? "Royaume-Uni"
+          : value === "JPY"
+          ? "Japon"
+          : "Chine",
+    };
+  }
+
+  const upper =
+    value.toUpperCase();
+
+  if (
+    upper.includes(
+      "UNITED STATES"
+    ) ||
+    upper.includes("U.S") ||
+    upper === "US"
+  ) {
+    return {
+      currency: "USD",
+      label:
+        "États-Unis",
+    };
+  }
+
+  if (
+    upper.includes(
+      "EURO"
+    ) ||
+    upper.includes(
+      "EUROZONE"
+    ) ||
+    upper.includes(
+      "GERMANY"
+    ) ||
+    upper.includes(
+      "FRANCE"
+    )
+  ) {
+    return {
+      currency: "EUR",
+      label:
+        "Zone Euro",
+    };
+  }
+
+  if (
+    upper.includes(
+      "UNITED KINGDOM"
+    ) ||
+    upper.includes("UK") ||
+    upper.includes(
+      "BRITAIN"
+    )
+  ) {
+    return {
+      currency: "GBP",
+      label:
+        "Royaume-Uni",
+    };
+  }
+
+  if (
+    upper.includes("JAPAN")
+  ) {
+    return {
+      currency: "JPY",
+      label: "Japon",
+    };
+  }
+
+  if (
+    upper.includes("CHINA")
+  ) {
+    return {
+      currency: "CNY",
+      label: "Chine",
+    };
+  }
+
+  return null;
+}
+
+function parseInvestingHtml(
+  html: string,
+  startYMD: string
+): EconEvent[] {
+  if (!html?.trim()) {
+    return [];
+  }
+
+  const doc =
+    new DOMParser().parseFromString(
+      `<table><tbody>${html}</tbody></table>`,
+      "text/html"
+    );
+
+  const rows =
+    Array.from(
+      doc.querySelectorAll(
+        "tr"
+      )
+    );
+
+  let currentDay =
+    startYMD;
+
+  const output: EconEvent[] =
+    [];
+
+  for (const row of rows) {
+    const rowText =
+      (
+        row.textContent ||
+        ""
+      ).trim();
+
+    const hasEvent =
+      !!row.querySelector(
+        ".event"
+      ) ||
+      !!row.querySelector(
+        "td.event"
+      );
+
+    if (
+      !hasEvent &&
+      rowText.length > 8 &&
+      /20\d{2}/.test(
+        rowText
+      ) &&
+      /(Mon|Tue|Wed|Thu|Fri|Sat|Sun|Lundi|Mardi|Mercredi|Jeudi|Vendredi|Samedi|Dimanche)/i.test(
+        rowText
+      )
+    ) {
+      const date =
+        new Date(
+          rowText
+        );
+
+      if (
+        !Number.isNaN(
+          date.getTime()
+        )
+      ) {
+        const parts =
+          new Intl.DateTimeFormat(
+            "en-CA",
+            {
+              timeZone:
+                "Europe/Paris",
+
+              year:
+                "numeric",
+              month:
+                "2-digit",
+              day: "2-digit",
+            }
+          ).formatToParts(
+            date
+          );
+
+        const get = (
+          type: string
+        ) =>
+          parts.find(
+            (part) =>
+              part.type ===
+              type
+          )?.value ?? "";
+
+        currentDay = `${get(
+          "year"
+        )}-${get(
+          "month"
+        )}-${get(
+          "day"
+        )}`;
+      }
+
+      continue;
+    }
+
+    const title =
+      (
+        row.querySelector(
+          ".event"
+        )?.textContent ||
+        row.querySelector(
+          "td.event"
+        )?.textContent ||
+        row.querySelector(
+          ".event a"
+        )?.textContent ||
+        ""
+      ).trim();
+
+    if (!title) {
+      continue;
+    }
+
+    const time =
+      (
+        row.querySelector(
+          ".time"
+        )?.textContent ||
+        row.querySelector(
+          "td.time"
+        )?.textContent ||
+        ""
+      ).trim() || "—";
+
+    const rawCurrency =
+      (
+        row.querySelector(
+          ".flagCur"
+        )?.textContent ||
+        ""
+      ).trim();
+
+    const currency =
+      normalizeCurrency(
+        rawCurrency
+      ) ||
+      normalizeCurrency(
+        rowText
+      );
+
+    if (!currency) {
+      continue;
+    }
+
+    if (
+      !ALLOWED.has(
+        currency.currency
+      )
+    ) {
+      continue;
+    }
+
+    const actual =
+      (
+        row.querySelector(
+          ".act"
+        )?.textContent ||
+        ""
+      ).trim() ||
+      undefined;
+
+    const forecast =
+      (
+        row.querySelector(
+          ".fore"
+        )?.textContent ||
+        ""
+      ).trim() ||
+      undefined;
+
+    const previous =
+      (
+        row.querySelector(
+          ".prev"
+        )?.textContent ||
+        ""
+      ).trim() ||
+      undefined;
+
+    const sentiment =
+      row.querySelector(
+        ".sentiment"
+      );
+
+    let bulls =
+      row.querySelectorAll(
+        ".fullBullishIcon"
+      ).length +
+      row.querySelectorAll(
+        ".grayFullBullishIcon"
+      ).length +
+      row.querySelectorAll(
+        ".bullishIcon"
+      ).length;
+
+    if (
+      bulls === 0 &&
+      sentiment
+    ) {
+      bulls = Math.max(
+        sentiment.querySelectorAll(
+          "i"
+        ).length,
+
+        sentiment.querySelectorAll(
+          "svg"
+        ).length
+      );
+    }
+
+    bulls = Math.max(
+      0,
+      Math.min(
+        3,
+        bulls
+      )
+    );
+
+    const stars: Stars =
+      bulls >= 3
+        ? 3
+        : bulls === 2
+        ? 2
+        : 1;
+
+    const id =
+      row.getAttribute(
+        "data-event-id"
+      ) ||
+      row.getAttribute(
+        "event_attr_id"
+      ) ||
+      row.getAttribute(
+        "id"
+      ) ||
+      `evt_${Date.now()}_${Math.random()
+        .toString(16)
+        .slice(2)}`;
+
+    output.push({
+      id,
+
+      dateParisYMD:
+        currentDay,
+
+      time,
+
+      currency:
+        currency.currency,
+
+      countryLabel:
+        currency.label,
+
+      title,
+
+      actual,
+
+      forecast,
+
+      previous,
+
+      stars,
+    });
+  }
+
+  return output;
+}
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+function impactLabel(
+  stars: Stars
+) {
+  if (stars === 3) {
+    return "Élevé";
+  }
+
+  if (stars === 2) {
+    return "Moyen";
+  }
+
+  return "Faible";
+}
+
+function ImpactBadge({
+  stars,
+}: {
+  stars: Stars;
+}) {
   return (
-    <span className={["text-[11px] px-2 py-0.5 rounded-full border font-semibold", cls].join(" ")}>
-      {label}
+    <span
+      className={[
+        "inline-flex rounded-full border px-2.5 py-1 text-[9px] font-semibold",
+
+        stars === 3
+          ? "border-red-500/20 bg-red-500/10 text-red-400"
+          : stars === 2
+          ? "border-amber-500/20 bg-amber-500/10 text-amber-300"
+          : "border-white/10 bg-white/5 text-white/45",
+      ].join(" ")}
+    >
+      {impactLabel(
+        stars
+      )}
     </span>
   );
 }
 
-function SegBtn({
+function SegmentedButton({
   active,
   children,
   onClick,
 }: {
   active: boolean;
-  children: any;
+  children: React.ReactNode;
   onClick: () => void;
 }) {
   return (
@@ -102,10 +636,11 @@ function SegBtn({
       type="button"
       onClick={onClick}
       className={[
-        "h-10 px-4 rounded-2xl border text-sm transition",
+        "h-10 rounded-xl border px-4 text-xs font-semibold transition",
+
         active
-          ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)] font-semibold"
-          : "border-white/10 bg-black/20 text-white/80 hover:bg-white/5",
+          ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]"
+          : "border-[color:var(--border)] bg-black/20 text-white/55 hover:bg-white/[0.04] hover:text-white",
       ].join(" ")}
     >
       {children}
@@ -113,180 +648,200 @@ function SegBtn({
   );
 }
 
-/* -------------------- Investing parsing -------------------- */
-function normalizeCurrency(raw: string): { currency: string; label: string } | null {
-  const s = (raw || "").trim();
-  if (!s) return null;
-
-  if (ALLOWED.has(s)) {
-    const label =
-      s === "USD" ? "USA" : s === "EUR" ? "Euro Zone" : s === "GBP" ? "UK" : s === "JPY" ? "Japon" : "Chine";
-    return { currency: s, label };
+function eventTimestamp(
+  event: EconEvent
+) {
+  if (
+    !/^\d{2}:\d{2}$/.test(
+      event.time
+    )
+  ) {
+    return 0;
   }
 
-  const up = s.toUpperCase();
-  if (up.includes("UNITED STATES") || up.includes("U.S") || up === "US") return { currency: "USD", label: "USA" };
-  if (up.includes("EURO") || up.includes("EUROZONE") || up.includes("GERMANY") || up.includes("FRANCE"))
-    return { currency: "EUR", label: "Euro Zone" };
-  if (up.includes("UNITED KINGDOM") || up.includes("UK") || up.includes("BRITAIN")) return { currency: "GBP", label: "UK" };
-  if (up.includes("JAPAN")) return { currency: "JPY", label: "Japon" };
-  if (up.includes("CHINA")) return { currency: "CNY", label: "Chine" };
-
-  return null;
+  return new Date(
+    `${event.dateParisYMD}T${event.time}:00`
+  ).getTime();
 }
 
-function parseInvestingHtml(html: string, startYMD: string): EconEvent[] {
-  if (!html?.trim()) return [];
-  const doc = new DOMParser().parseFromString(`<table><tbody>${html}</tbody></table>`, "text/html");
-  const rows = Array.from(doc.querySelectorAll("tr"));
+/* =========================================================
+   PAGE
+========================================================= */
 
-  let currentDay = startYMD;
-  const out: EconEvent[] = [];
-
-  for (const tr of rows) {
-    const rowText = (tr.textContent || "").trim();
-
-    // --- Day header detection (best effort) ---
-    const hasEventCell = !!tr.querySelector(".event") || !!tr.querySelector("td.event");
-    if (
-      !hasEventCell &&
-      rowText.length > 8 &&
-      /20\d{2}/.test(rowText) &&
-      /(Mon|Tue|Wed|Thu|Fri|Sat|Sun|Lundi|Mardi|Mercredi|Jeudi|Vendredi|Samedi|Dimanche)/i.test(rowText)
-    ) {
-      const d = new Date(rowText);
-      if (!Number.isNaN(d.getTime())) {
-        const parts = new Intl.DateTimeFormat("en-CA", {
-          timeZone: "Europe/Paris",
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-        }).formatToParts(d);
-        const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
-        currentDay = `${get("year")}-${get("month")}-${get("day")}`;
-      }
-      continue;
-    }
-
-    // --- Event row parsing ---
-    const title =
-      (tr.querySelector(".event")?.textContent ||
-        tr.querySelector("td.event")?.textContent ||
-        tr.querySelector(".event a")?.textContent ||
-        "").trim();
-
-    if (!title) continue;
-
-    const time =
-      (tr.querySelector(".time")?.textContent || tr.querySelector("td.time")?.textContent || "").trim() || "—";
-
-    const rawCur = (tr.querySelector(".flagCur")?.textContent || "").trim();
-    const cur = normalizeCurrency(rawCur) || normalizeCurrency(rowText);
-    if (!cur) continue;
-    if (!ALLOWED.has(cur.currency)) continue;
-
-    const actual = (tr.querySelector(".act")?.textContent || "").trim() || undefined;
-    const forecast = (tr.querySelector(".fore")?.textContent || "").trim() || undefined;
-    const previous = (tr.querySelector(".prev")?.textContent || "").trim() || undefined;
-
-    // ✅ FIX STARS: robust sentiment parsing
-    const sent = tr.querySelector(".sentiment");
-
-    let bulls =
-      tr.querySelectorAll(".fullBullishIcon").length +
-      tr.querySelectorAll(".grayFullBullishIcon").length +
-      tr.querySelectorAll(".bullishIcon").length;
-
-    if (bulls === 0 && sent) {
-      const iCount = sent.querySelectorAll("i").length;
-      const svgCount = sent.querySelectorAll("svg").length;
-      bulls = Math.max(iCount, svgCount);
-    }
-
-    bulls = Math.max(0, Math.min(3, bulls));
-    const stars: Stars = bulls >= 3 ? 3 : bulls === 2 ? 2 : 1;
-
-    const id =
-      (tr.getAttribute("data-event-id") ||
-        tr.getAttribute("event_attr_id") ||
-        tr.getAttribute("id") ||
-        "")?.toString() ||
-      `evt_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-
-    out.push({
-      id,
-      dateParisYMD: currentDay,
-      time,
-      currency: cur.currency,
-      countryLabel: cur.label,
-      title,
-      actual,
-      forecast,
-      previous,
-      stars,
-    });
-  }
-
-  return out;
-}
-
-/* -------------------- Page -------------------- */
 export default function CalendrierPage() {
-  const today = useMemo(() => todayParisYMD(), []);
-  const tomorrow = useMemo(() => addDaysYMD(today, 1), [today]);
+  const today =
+    useMemo(
+      () =>
+        todayParisYMD(),
+      []
+    );
 
-  const [mode, setMode] = useState<"day" | "tomorrow" | "week">("day");
-  const [baseDate, setBaseDate] = useState(today);
+  const tomorrow =
+    useMemo(
+      () =>
+        addDaysYMD(
+          today,
+          1
+        ),
+      [today]
+    );
 
-  const start = useMemo(() => {
-    if (mode === "week") return startOfWeekMonday(baseDate);
-    if (mode === "tomorrow") return tomorrow;
-    return baseDate;
-  }, [mode, baseDate, tomorrow]);
+  const [
+    mode,
+    setMode,
+  ] = useState<
+    | "day"
+    | "tomorrow"
+    | "week"
+  >("day");
 
-  const end = useMemo(() => (mode === "week" ? addDaysYMD(start, 6) : start), [mode, start]);
+  const [
+    baseDate,
+    setBaseDate,
+  ] = useState(today);
 
-  // ✅ ici on met le nouveau type StarsFilter
-  const [starsFilter, setStarsFilter] = useState<StarsFilter>("ALL");
-  const [q, setQ] = useState("");
-  const [loading, setLoading] = useState(false);
+  const start =
+    useMemo(() => {
+      if (
+        mode === "week"
+      ) {
+        return startOfWeekMonday(
+          baseDate
+        );
+      }
 
-  const [events, setEvents] = useState<EconEvent[]>([]);
+      if (
+        mode ===
+        "tomorrow"
+      ) {
+        return tomorrow;
+      }
+
+      return baseDate;
+    }, [
+      mode,
+      baseDate,
+      tomorrow,
+    ]);
+
+  const end =
+    useMemo(
+      () =>
+        mode === "week"
+          ? addDaysYMD(
+              start,
+              6
+            )
+          : start,
+      [mode, start]
+    );
+
+  const [
+    starsFilter,
+    setStarsFilter,
+  ] =
+    useState<StarsFilter>(
+      "ALL"
+    );
+
+  const [
+    currencyFilter,
+    setCurrencyFilter,
+  ] =
+    useState<CurrencyFilter>(
+      "ALL"
+    );
+
+  const [query, setQuery] =
+    useState("");
+
+  const [
+    loading,
+    setLoading,
+  ] = useState(false);
+
+  const [
+    events,
+    setEvents,
+  ] =
+    useState<EconEvent[]>(
+      []
+    );
 
   async function loadCalendar() {
     setLoading(true);
+
     try {
-      const url = new URL("/api/calendar", window.location.origin);
-      url.searchParams.set("start", start);
-      url.searchParams.set("end", end);
+      const url =
+        new URL(
+          "/api/calendar",
+          window.location.origin
+        );
 
-      const r = await fetch(url.toString(), { cache: "no-store" });
-      const j = await r.json();
+      url.searchParams.set(
+        "start",
+        start
+      );
 
-      if (!j?.ok) {
+      url.searchParams.set(
+        "end",
+        end
+      );
+
+      const response =
+        await fetch(
+          url.toString(),
+          {
+            cache:
+              "no-store",
+          }
+        );
+
+      const json =
+        await response.json();
+
+      if (!json?.ok) {
+        setEvents([]);
+
         pushNotif({
           kind: "warning",
-          title: "Calendrier",
-          message: "Investing bloqué (Cloudflare) ou réponse invalide.",
-          ttlMs: 12000,
+          title:
+            "Calendrier",
+          message:
+            "La source du calendrier est momentanément indisponible.",
+          ttlMs: 10000,
         });
-        setEvents([]);
+
         return;
       }
 
-      const parsed = parseInvestingHtml(String(j.html ?? ""), start);
-      setEvents(parsed);
+      const parsed =
+        parseInvestingHtml(
+          String(
+            json.html ?? ""
+          ),
+          start
+        );
+
+      setEvents(
+        parsed
+      );
+    } catch (error) {
+      console.error(
+        "Erreur calendrier :",
+        error
+      );
+
+      setEvents([]);
 
       pushNotif({
-        kind: "success",
-        title: "Annonce éco",
-        message: `${parsed.length} annonce(s) • ${start} → ${end}`,
-        ttlMs: 7000,
+        kind: "error",
+        title:
+          "Calendrier",
+        message:
+          "Impossible de charger le calendrier économique.",
+        ttlMs: 10000,
       });
-    } catch (e: any) {
-      console.error(e);
-      pushNotif({ kind: "error", title: "Annonce éco", message: "Erreur chargement calendrier.", ttlMs: 12000 });
-      setEvents([]);
     } finally {
       setLoading(false);
     }
@@ -294,188 +849,1118 @@ export default function CalendrierPage() {
 
   useEffect(() => {
     loadCalendar();
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [start, end]);
 
-  const filtered = useMemo(() => {
-    const s = q.trim().toLowerCase();
-    return events
-      .filter((e) => {
-        if (starsFilter === "ALL") return true;
-        if (starsFilter === "23") return e.stars >= 2; // ✅ 2★ ou 3★
-        return e.stars === starsFilter; // 1 | 2 | 3
-      })
-      .filter((e) => (s ? e.title.toLowerCase().includes(s) || e.currency.toLowerCase().includes(s) : true));
-  }, [events, starsFilter, q]);
+  /* =====================================================
+     FILTERS
+  ===================================================== */
 
-  const stats = useMemo(() => {
-    const s3 = filtered.filter((e) => e.stars === 3).length;
-    const s2 = filtered.filter((e) => e.stars === 2).length;
-    const s1 = filtered.filter((e) => e.stars === 1).length;
-    return { total: filtered.length, s1, s2, s3 };
-  }, [filtered]);
+  const filtered =
+    useMemo(() => {
+      const search =
+        query
+          .trim()
+          .toLowerCase();
 
-  const grouped = useMemo(() => {
-    const map = new Map<string, EconEvent[]>();
-    for (const e of filtered) {
-      const k = e.dateParisYMD;
-      if (!map.has(k)) map.set(k, []);
-      map.get(k)!.push(e);
-    }
-    const arr = Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-    for (const [, list] of arr) list.sort((a, b) => a.time.localeCompare(b.time));
-    return arr;
-  }, [filtered]);
+      return events
+        .filter(
+          (event) => {
+            if (
+              starsFilter ===
+              "ALL"
+            ) {
+              return true;
+            }
+
+            if (
+              starsFilter ===
+              "23"
+            ) {
+              return (
+                event.stars >=
+                2
+              );
+            }
+
+            return (
+              event.stars ===
+              starsFilter
+            );
+          }
+        )
+        .filter(
+          (event) =>
+            currencyFilter ===
+              "ALL" ||
+            event.currency ===
+              currencyFilter
+        )
+        .filter(
+          (event) => {
+            if (!search) {
+              return true;
+            }
+
+            return `${event.title} ${event.currency} ${event.countryLabel}`
+              .toLowerCase()
+              .includes(
+                search
+              );
+          }
+        );
+    }, [
+      events,
+      starsFilter,
+      currencyFilter,
+      query,
+    ]);
+
+  /* =====================================================
+     STATS
+  ===================================================== */
+
+  const stats =
+    useMemo(() => {
+      return {
+        total:
+          filtered.length,
+
+        high:
+          filtered.filter(
+            (event) =>
+              event.stars ===
+              3
+          ).length,
+
+        medium:
+          filtered.filter(
+            (event) =>
+              event.stars ===
+              2
+          ).length,
+
+        low:
+          filtered.filter(
+            (event) =>
+              event.stars ===
+              1
+          ).length,
+      };
+    }, [filtered]);
+
+  /* =====================================================
+     GROUP
+  ===================================================== */
+
+  const grouped =
+    useMemo(() => {
+      const map =
+        new Map<
+          string,
+          EconEvent[]
+        >();
+
+      for (
+        const event of
+          filtered
+      ) {
+        if (
+          !map.has(
+            event.dateParisYMD
+          )
+        ) {
+          map.set(
+            event.dateParisYMD,
+            []
+          );
+        }
+
+        map
+          .get(
+            event.dateParisYMD
+          )!
+          .push(event);
+      }
+
+      const groups =
+        Array.from(
+          map.entries()
+        ).sort(
+          (a, b) =>
+            a[0].localeCompare(
+              b[0]
+            )
+        );
+
+      for (
+        const [, list] of
+          groups
+      ) {
+        list.sort(
+          (a, b) =>
+            a.time.localeCompare(
+              b.time
+            )
+        );
+      }
+
+      return groups;
+    }, [filtered]);
+
+  /* =====================================================
+     NEXT IMPORTANT EVENT
+  ===================================================== */
+
+  const nextImportant =
+    useMemo(() => {
+      const now =
+        Date.now();
+
+      return events
+        .filter(
+          (event) =>
+            event.stars ===
+              3 &&
+            eventTimestamp(
+              event
+            ) > now
+        )
+        .sort(
+          (a, b) =>
+            eventTimestamp(
+              a
+            ) -
+            eventTimestamp(
+              b
+            )
+        )[0];
+    }, [events]);
 
   return (
-    <div className="space-y-6">
-      {/* TOP */}
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col md:flex-row md:items-center gap-3">
-          <div className="flex gap-2">
-            <SegBtn active={mode === "day"} onClick={() => setMode("day")}>
-              Jour
-            </SegBtn>
-            <SegBtn active={mode === "tomorrow"} onClick={() => setMode("tomorrow")}>
-              Demain
-            </SegBtn>
-            <SegBtn active={mode === "week"} onClick={() => setMode("week")}>
-              Semaine
-            </SegBtn>
+    <div className="space-y-5 pb-10">
+      {/* =================================================
+          HEADER
+      ================================================= */}
+
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-white">
+            Calendrier{" "}
+            <span className="text-[color:var(--gold)]">
+              économique
+            </span>
+          </h1>
+
+          <p className="mt-1 text-sm text-[color:var(--muted)]">
+            Suis les annonces
+            macroéconomiques qui
+            peuvent impacter les
+            marchés.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          disabled={loading}
+          onClick={
+            loadCalendar
+          }
+          className="
+            inline-flex
+            h-10
+            items-center gap-2
+            rounded-xl
+            border border-[color:var(--border)]
+            bg-[color:var(--panel)]
+            px-4
+            text-xs
+            text-white/70
+            transition
+            hover:bg-white/[0.04]
+            hover:text-white
+            disabled:opacity-50
+          "
+        >
+          <RefreshCw
+            size={14}
+            className={
+              loading
+                ? "animate-spin"
+                : ""
+            }
+          />
+
+          {loading
+            ? "Actualisation..."
+            : "Actualiser"}
+        </button>
+      </div>
+
+      {/* =================================================
+          NEXT NEWS
+      ================================================= */}
+
+      <section
+        className="
+          relative
+          overflow-hidden
+          rounded-[22px]
+          border border-[color:var(--gold-border)]
+          bg-[color:var(--panel)]
+          p-5
+        "
+      >
+        <div
+          className="
+            pointer-events-none
+            absolute
+            right-[-120px]
+            top-[-150px]
+            h-[320px]
+            w-[380px]
+            rounded-full
+            bg-[color:var(--gold)]
+            opacity-[0.06]
+            blur-[90px]
+          "
+        />
+
+        <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-xs text-[color:var(--gold)]">
+              <AlertTriangle
+                size={14}
+              />
+
+              PROCHAINE NEWS
+              IMPORTANTE
+            </div>
+
+            {nextImportant ? (
+              <>
+                <h2 className="mt-3 text-xl font-semibold text-white">
+                  {
+                    nextImportant.title
+                  }
+                </h2>
+
+                <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-[color:var(--muted)]">
+                  <span>
+                    {
+                      FLAG[
+                        nextImportant
+                          .currency
+                      ]
+                    }{" "}
+                    {
+                      nextImportant.currency
+                    }
+                  </span>
+
+                  <span>
+                    {
+                      nextImportant
+                        .countryLabel
+                    }
+                  </span>
+
+                  <span>
+                    {
+                      nextImportant
+                        .dateParisYMD
+                    }
+                  </span>
+
+                  <span className="flex items-center gap-1">
+                    <Clock3
+                      size={12}
+                    />
+
+                    {
+                      nextImportant.time
+                    }
+                  </span>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 className="mt-3 text-lg font-semibold text-white">
+                  Aucune news majeure
+                  détectée
+                </h2>
+
+                <p className="mt-2 text-xs text-[color:var(--muted)]">
+                  Aucune annonce 3
+                  étoiles à venir dans
+                  la plage chargée.
+                </p>
+              </>
+            )}
           </div>
 
-          {/* IMPACT (GoldSelect) */}
-          <div className="min-w-[160px]">
-            <div className="text-xs text-white/60 mb-1">IMPACT</div>
+          {nextImportant ? (
+            <div className="flex items-center gap-5">
+              <DataValue
+                label="Précédent"
+                value={
+                  nextImportant.previous ??
+                  "—"
+                }
+              />
+
+              <DataValue
+                label="Prévision"
+                value={
+                  nextImportant.forecast ??
+                  "—"
+                }
+              />
+
+              <ImpactBadge
+                stars={3}
+              />
+            </div>
+          ) : null}
+        </div>
+      </section>
+
+      {/* =================================================
+          PERIOD
+      ================================================= */}
+
+      <section
+        className="
+          rounded-[22px]
+          border border-[color:var(--border)]
+          bg-[color:var(--panel)]
+          p-4
+        "
+      >
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-end">
+          {/* PERIOD */}
+
+          <div>
+            <div className="mb-2 text-[10px] uppercase tracking-[0.12em] text-white/35">
+              Période
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <SegmentedButton
+                active={
+                  mode ===
+                  "day"
+                }
+                onClick={() => {
+                  setBaseDate(
+                    today
+                  );
+                  setMode(
+                    "day"
+                  );
+                }}
+              >
+                Aujourd’hui
+              </SegmentedButton>
+
+              <SegmentedButton
+                active={
+                  mode ===
+                  "tomorrow"
+                }
+                onClick={() =>
+                  setMode(
+                    "tomorrow"
+                  )
+                }
+              >
+                Demain
+              </SegmentedButton>
+
+              <SegmentedButton
+                active={
+                  mode ===
+                  "week"
+                }
+                onClick={() =>
+                  setMode(
+                    "week"
+                  )
+                }
+              >
+                Cette semaine
+              </SegmentedButton>
+            </div>
+          </div>
+
+          {/* IMPACT */}
+
+          <div className="xl:w-[190px]">
+            <div className="mb-2 text-[10px] uppercase tracking-[0.12em] text-white/35">
+              Impact
+            </div>
 
             <GoldSelect
-              value={starsFilter === "ALL" ? "ALL" : String(starsFilter)}
-              onChange={(v: string) => {
-                if (v === "ALL") return setStarsFilter("ALL");
-                if (v === "23") return setStarsFilter("23");
-                setStarsFilter(Number(v) as Stars);
+              value={
+                starsFilter ===
+                "ALL"
+                  ? "ALL"
+                  : String(
+                      starsFilter
+                    )
+              }
+              onChange={(
+                value: string
+              ) => {
+                if (
+                  value ===
+                  "ALL"
+                ) {
+                  setStarsFilter(
+                    "ALL"
+                  );
+
+                  return;
+                }
+
+                if (
+                  value ===
+                  "23"
+                ) {
+                  setStarsFilter(
+                    "23"
+                  );
+
+                  return;
+                }
+
+                setStarsFilter(
+                  Number(
+                    value
+                  ) as Stars
+                );
               }}
               options={[
-                { value: "ALL", label: "Tous" },
-                { value: "23", label: "★★★ + ★★" }, // ✅ NOUVELLE OPTION
-                { value: "3", label: "★★★" },
-                { value: "2", label: "★★" },
-                { value: "1", label: "★" },
+                {
+                  value:
+                    "ALL",
+                  label:
+                    "Tous les impacts",
+                },
+
+                {
+                  value:
+                    "23",
+                  label:
+                    "Moyen + Élevé",
+                },
+
+                {
+                  value: "3",
+                  label:
+                    "Élevé",
+                },
+
+                {
+                  value: "2",
+                  label:
+                    "Moyen",
+                },
+
+                {
+                  value: "1",
+                  label:
+                    "Faible",
+                },
               ]}
               className="w-full"
             />
           </div>
 
-          <div className="flex-1">
-            <div className="text-xs text-white/60 mb-1">Recherche :</div>
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Ex: CPI / NFP / GDP..."
-              className="w-full px-4 py-3 rounded-2xl bg-black/20 border border-white/10 text-white placeholder:text-white/30 outline-none
-                         focus:border-[color:var(--gold-border)] focus:ring-2 focus:ring-[color:var(--gold-soft)] transition"
-            />
-          </div>
+          {/* CURRENCY */}
 
-          <div className="flex items-end gap-2">
-            <Button variant="secondary" onClick={loadCalendar} disabled={loading}>
-              {loading ? "..." : "Refresh"}
-            </Button>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 text-xs text-white/50">
-          <span>Plage :</span>
-          <span className="text-white/80 font-semibold">
-            {start} → {end}
-          </span>
-          <span className="ml-auto text-white/40">Pays filtrés : USD / EUR / GBP / JPY / CNY</span>
-        </div>
-      </div>
-
-      {/* STATS */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <CardSubCard>
-          <div className="text-xs text-white/60">TOTAL</div>
-          <div className="mt-2 text-2xl font-semibold text-white">{stats.total}</div>
-        </CardSubCard>
-
-        <CardSubCard>
-          <div className="text-xs text-white/60">3 étoiles</div>
-          <div className="mt-2 text-2xl font-semibold text-[color:var(--danger)]">{stats.s3}</div>
-        </CardSubCard>
-
-        <CardSubCard>
-          <div className="text-xs text-white/60">2 étoiles</div>
-          <div className="mt-2 text-2xl font-semibold text-[color:var(--warning)]">{stats.s2}</div>
-        </CardSubCard>
-
-        <CardSubCard>
-          <div className="text-xs text-white/60">1 étoile</div>
-          <div className="mt-2 text-2xl font-semibold text-white/70">{stats.s1}</div>
-        </CardSubCard>
-      </div>
-
-      {/* EVENTS */}
-      <Card>
-        <CardBody className="p-0">
-          <div className="rounded-[32px] border border-white/10 bg-black/15 overflow-hidden">
-            <div className="px-6 py-5 border-b border-white/10 flex items-center justify-between">
-              <div className="text-lg font-semibold text-white">Événements</div>
-              <div className="text-xs text-white/40">{loading ? "..." : `${filtered.length} annonce(s)`}</div>
+          <div className="xl:w-[180px]">
+            <div className="mb-2 text-[10px] uppercase tracking-[0.12em] text-white/35">
+              Devise
             </div>
 
-            <div className="p-6 space-y-6">
-              {grouped.length === 0 ? (
-                <div className="text-sm text-white/50">{loading ? "Chargement..." : "Aucune annonce."}</div>
-              ) : (
-                grouped.map(([day, list]) => (
-                  <div key={day} className="rounded-3xl border border-white/10 bg-black/10 overflow-hidden">
-                    <div className="px-5 py-3 border-b border-white/10 bg-black/20 text-center font-semibold text-white capitalize">
-                      {formatDayHeaderFR(day)}
+            <select
+              value={
+                currencyFilter
+              }
+              onChange={(
+                event
+              ) =>
+                setCurrencyFilter(
+                  event.target
+                    .value as CurrencyFilter
+                )
+              }
+              className="
+                h-11
+                w-full
+                rounded-xl
+                border border-[color:var(--border)]
+                bg-black/20
+                px-4
+                text-sm
+                text-white
+                outline-none
+                focus:border-[color:var(--gold-border)]
+              "
+            >
+              <option value="ALL">
+                Toutes
+              </option>
+
+              <option value="USD">
+                🇺🇸 USD
+              </option>
+
+              <option value="EUR">
+                🇪🇺 EUR
+              </option>
+
+              <option value="GBP">
+                🇬🇧 GBP
+              </option>
+
+              <option value="JPY">
+                🇯🇵 JPY
+              </option>
+
+              <option value="CNY">
+                🇨🇳 CNY
+              </option>
+            </select>
+          </div>
+
+          {/* SEARCH */}
+
+          <div className="relative flex-1">
+            <div className="mb-2 text-[10px] uppercase tracking-[0.12em] text-white/35">
+              Recherche
+            </div>
+
+            <Search
+              size={15}
+              className="
+                absolute
+                bottom-[13px]
+                left-4
+                text-white/25
+              "
+            />
+
+            <input
+              value={
+                query
+              }
+              onChange={(
+                event
+              ) =>
+                setQuery(
+                  event.target
+                    .value
+                )
+              }
+              placeholder="NFP, CPI, taux d’intérêt..."
+              className="
+                h-11
+                w-full
+                rounded-xl
+                border border-[color:var(--border)]
+                bg-black/20
+                pl-10 pr-4
+                text-sm
+                text-white
+                outline-none
+                placeholder:text-white/25
+                focus:border-[color:var(--gold-border)]
+              "
+            />
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-white/[0.05] pt-3 text-[10px] text-[color:var(--muted)]">
+          <CalendarDays
+            size={12}
+          />
+
+          <span>
+            {start}
+          </span>
+
+          <ChevronRight
+            size={11}
+          />
+
+          <span>
+            {end}
+          </span>
+
+          <span className="ml-auto">
+            Heure affichée :
+            Paris
+          </span>
+        </div>
+      </section>
+
+      {/* =================================================
+          STATS
+      ================================================= */}
+
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatCard
+          label="Événements"
+          value={
+            stats.total
+          }
+          icon={
+            <Globe2
+              size={17}
+            />
+          }
+        />
+
+        <StatCard
+          label="Impact élevé"
+          value={
+            stats.high
+          }
+          icon={
+            <AlertTriangle
+              size={17}
+            />
+          }
+          tone="danger"
+        />
+
+        <StatCard
+          label="Impact moyen"
+          value={
+            stats.medium
+          }
+          icon={
+            <TrendingUp
+              size={17}
+            />
+          }
+          tone="warning"
+        />
+
+        <StatCard
+          label="Impact faible"
+          value={
+            stats.low
+          }
+          icon={
+            <CalendarDays
+              size={17}
+            />
+          }
+        />
+      </section>
+
+      {/* =================================================
+          EVENTS
+      ================================================= */}
+
+      <section
+        className="
+          overflow-hidden
+          rounded-[22px]
+          border border-[color:var(--border)]
+          bg-[color:var(--panel)]
+        "
+      >
+        <div
+          className="
+            flex items-center
+            justify-between
+            border-b border-[color:var(--border)]
+            px-5 py-4
+          "
+        >
+          <div>
+            <h2 className="text-sm font-semibold text-white">
+              Événements
+              économiques
+            </h2>
+
+            <p className="mt-1 text-[10px] text-[color:var(--muted)]">
+              {
+                filtered.length
+              }{" "}
+              événement
+              {filtered.length !==
+              1
+                ? "s"
+                : ""}
+            </p>
+          </div>
+
+          {loading ? (
+            <RefreshCw
+              size={15}
+              className="animate-spin text-[color:var(--gold)]"
+            />
+          ) : null}
+        </div>
+
+        {grouped.length ===
+        0 ? (
+          <div className="py-16 text-center">
+            <div
+              className="
+                mx-auto
+                flex h-14 w-14
+                items-center
+                justify-center
+                rounded-2xl
+                border border-[color:var(--gold-border)]
+                bg-[color:var(--gold-soft)]
+              "
+            >
+              <CalendarDays
+                size={22}
+                className="text-[color:var(--gold)]"
+              />
+            </div>
+
+            <div className="mt-4 text-sm font-semibold text-white">
+              {loading
+                ? "Chargement du calendrier..."
+                : "Aucun événement"}
+            </div>
+
+            {!loading ? (
+              <p className="mt-2 text-xs text-[color:var(--muted)]">
+                Modifie les
+                filtres ou
+                actualise le
+                calendrier.
+              </p>
+            ) : null}
+          </div>
+        ) : (
+          <div className="p-4 space-y-4">
+            {grouped.map(
+              ([
+                day,
+                list,
+              ]) => (
+                <div
+                  key={day}
+                  className="
+                    overflow-hidden
+                    rounded-2xl
+                    border border-white/[0.06]
+                    bg-black/15
+                  "
+                >
+                  {/* DAY HEADER */}
+
+                  <div
+                    className="
+                      flex items-center
+                      justify-between
+                      border-b border-white/[0.06]
+                      bg-black/20
+                      px-5 py-3
+                    "
+                  >
+                    <div className="flex items-center gap-2">
+                      <CalendarDays
+                        size={14}
+                        className="text-[color:var(--gold)]"
+                      />
+
+                      <span className="text-xs font-semibold capitalize text-white">
+                        {formatDayHeaderFR(
+                          day
+                        )}
+                      </span>
                     </div>
 
-                    <div className="divide-y divide-white/10">
-                      {list.map((e) => (
-                        <div key={e.id} className="px-5 py-4 flex flex-col md:flex-row md:items-center gap-3">
-                          <div className="w-[90px] shrink-0">
-                            <div className="text-sm font-semibold text-white">{e.time}</div>
-                            <div className="text-[11px] text-white/40">{e.currency}</div>
-                          </div>
+                    <span className="text-[10px] text-[color:var(--muted)]">
+                      {
+                        list.length
+                      }{" "}
+                      annonce
+                      {list.length !==
+                      1
+                        ? "s"
+                        : ""}
+                    </span>
+                  </div>
 
-                          <div className="shrink-0">
-                            <StarsBadge stars={e.stars} />
-                          </div>
+                  {/* DESKTOP HEAD */}
 
-                          <div className="min-w-0 flex-1">
-                            <div className="text-white font-semibold truncate">{e.title}</div>
-                            <div className="text-xs text-white/50">{e.countryLabel}</div>
-                          </div>
+                  <div
+                    className="
+                      hidden
+                      border-b border-white/[0.05]
+                      px-5 py-2
+                      text-[9px]
+                      uppercase
+                      tracking-wider
+                      text-white/30
+                      lg:grid
+                      lg:grid-cols-12
+                      lg:gap-4
+                    "
+                  >
+                    <div className="lg:col-span-1">
+                      Heure
+                    </div>
 
-                          <div className="grid grid-cols-3 gap-3 text-xs w-full md:w-[300px]">
-                            <div className="text-right">
-                              <div className="text-white/40">Prev</div>
-                              <div className="text-white/80">{e.previous ?? "—"}</div>
+                    <div className="lg:col-span-1">
+                      Devise
+                    </div>
+
+                    <div className="lg:col-span-1">
+                      Impact
+                    </div>
+
+                    <div className="lg:col-span-5">
+                      Événement
+                    </div>
+
+                    <div className="text-right lg:col-span-1">
+                      Préc.
+                    </div>
+
+                    <div className="text-right lg:col-span-1">
+                      Prévision
+                    </div>
+
+                    <div className="text-right lg:col-span-2">
+                      Réel
+                    </div>
+                  </div>
+
+                  {/* EVENT ROWS */}
+
+                  <div className="divide-y divide-white/[0.05]">
+                    {list.map(
+                      (event) => (
+                        <div
+                          key={
+                            event.id
+                          }
+                          className="
+                            grid
+                            grid-cols-1
+                            gap-3
+                            px-5 py-4
+                            transition
+                            hover:bg-white/[0.02]
+                            lg:grid-cols-12
+                            lg:items-center
+                            lg:gap-4
+                          "
+                        >
+                          {/* TIME */}
+
+                          <div className="lg:col-span-1">
+                            <div className="text-sm font-semibold text-white">
+                              {
+                                event.time
+                              }
                             </div>
-                            <div className="text-right">
-                              <div className="text-white/40">Forecast</div>
-                              <div className="text-white/80">{e.forecast ?? "—"}</div>
+                          </div>
+
+                          {/* CURRENCY */}
+
+                          <div className="lg:col-span-1">
+                            <div className="flex items-center gap-2">
+                              <span>
+                                {
+                                  FLAG[
+                                    event
+                                      .currency
+                                  ]
+                                }
+                              </span>
+
+                              <span className="text-xs font-semibold text-white">
+                                {
+                                  event.currency
+                                }
+                              </span>
                             </div>
-                            <div className="text-right">
-                              <div className="text-white/40">Actual</div>
-                              <div className="text-[color:var(--gold)] font-semibold">{e.actual ?? "—"}</div>
+                          </div>
+
+                          {/* IMPACT */}
+
+                          <div className="lg:col-span-1">
+                            <ImpactBadge
+                              stars={
+                                event.stars
+                              }
+                            />
+                          </div>
+
+                          {/* EVENT */}
+
+                          <div className="min-w-0 lg:col-span-5">
+                            <div className="text-sm font-semibold text-white">
+                              {
+                                event.title
+                              }
+                            </div>
+
+                            <div className="mt-1 text-[10px] text-[color:var(--muted)]">
+                              {
+                                event.countryLabel
+                              }
+                            </div>
+                          </div>
+
+                          {/* PREVIOUS */}
+
+                          <DataCell
+                            label="Précédent"
+                            value={
+                              event.previous ??
+                              "—"
+                            }
+                          />
+
+                          {/* FORECAST */}
+
+                          <DataCell
+                            label="Prévision"
+                            value={
+                              event.forecast ??
+                              "—"
+                            }
+                          />
+
+                          {/* ACTUAL */}
+
+                          <div className="lg:col-span-2 lg:text-right">
+                            <div className="text-[9px] text-white/30 lg:hidden">
+                              Réel
+                            </div>
+
+                            <div className="text-sm font-semibold text-[color:var(--gold)]">
+                              {
+                                event.actual ??
+                                "—"
+                              }
                             </div>
                           </div>
                         </div>
-                      ))}
-                    </div>
+                      )
+                    )}
                   </div>
-                ))
-              )}
-            </div>
+                </div>
+              )
+            )}
           </div>
-        </CardBody>
-      </Card>
+        )}
+      </section>
+    </div>
+  );
+}
+
+/* =========================================================
+   COMPONENTS
+========================================================= */
+
+function StatCard({
+  label,
+  value,
+  icon,
+  tone = "normal",
+}: {
+  label: string;
+  value: number;
+  icon: React.ReactNode;
+  tone?:
+    | "normal"
+    | "warning"
+    | "danger";
+}) {
+  return (
+    <div
+      className="
+        rounded-2xl
+        border border-[color:var(--border)]
+        bg-[color:var(--panel)]
+        p-4
+      "
+    >
+      <div className="flex items-center gap-3">
+        <div
+          className={[
+            "flex h-10 w-10 items-center justify-center rounded-xl border",
+
+            tone ===
+            "danger"
+              ? "border-red-500/20 bg-red-500/10 text-red-400"
+              : tone ===
+                "warning"
+              ? "border-amber-500/20 bg-amber-500/10 text-amber-300"
+              : "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]",
+          ].join(" ")}
+        >
+          {icon}
+        </div>
+
+        <div>
+          <div className="text-[10px] text-[color:var(--muted)]">
+            {label}
+          </div>
+
+          <div className="mt-1 text-xl font-semibold text-white">
+            {value}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DataValue({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div>
+      <div className="text-[9px] text-white/30">
+        {label}
+      </div>
+
+      <div className="mt-1 text-sm font-semibold text-white">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function DataCell({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="lg:col-span-1 lg:text-right">
+      <div className="text-[9px] text-white/30 lg:hidden">
+        {label}
+      </div>
+
+      <div className="text-xs font-medium text-white/75">
+        {value}
+      </div>
     </div>
   );
 }
