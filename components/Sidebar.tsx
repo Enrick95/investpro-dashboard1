@@ -720,7 +720,7 @@ export default function Sidebar() {
           <div
             className="
               absolute left-0 right-0 bottom-0
-              max-h-[82vh]
+              h-[96vh] max-h-[96vh]
               rounded-t-[30px]
               border-t border-white/10
               bg-[#0a0b0d]
@@ -757,7 +757,7 @@ export default function Sidebar() {
 
             <div
               className={[
-                "px-4 pt-4 pb-28 overflow-y-auto max-h-[calc(82vh-72px)]",
+                "px-4 pt-4 pb-28 overflow-y-auto h-[calc(96vh-72px)]",
                 HIDE_SCROLLBAR,
               ].join(" ")}
             >
