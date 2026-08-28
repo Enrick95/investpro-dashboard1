@@ -1945,14 +1945,14 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-5 pb-8">
+    <div className="space-y-4 pb-4 md:space-y-5 md:pb-8">
       {/* =====================================================
           TOP
       ===================================================== */}
 
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-[22px] font-semibold text-white md:text-2xl">
+          <h1 className="text-[24px] font-semibold leading-tight text-white md:text-2xl">
             Bonjour,{" "}
             <span className="text-[color:var(--gold)]">
               {
@@ -1997,11 +1997,137 @@ export default function DashboardPage() {
       </div>
 
       {/* =====================================================
-          HERO
+          HERO MOBILE — style application
       ===================================================== */}
 
       <section
         className="
+          relative
+          overflow-hidden
+          rounded-[24px]
+          border border-[color:var(--gold-border)]
+          bg-[#0b0b0d]
+          p-5
+          lg:hidden
+        "
+      >
+        <div
+          className="
+            pointer-events-none
+            absolute -right-16 -top-20
+            h-[260px] w-[260px]
+            rounded-full
+            bg-[color:var(--gold)]
+            opacity-[0.10]
+            blur-[90px]
+          "
+        />
+
+        <div className="relative z-10">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-[11px] text-[color:var(--muted)]">
+                Capital total
+              </div>
+
+              <div className="mt-1 text-[28px] font-semibold leading-tight text-white">
+                {accounts.length === 0
+                  ? "—"
+                  : accountCurrency
+                  ? formatCurrency(
+                      dashboardStats.totalCapital,
+                      accountCurrency
+                    )
+                  : "Multi-devises"}
+              </div>
+            </div>
+
+            <div
+              className="
+                flex h-10 w-10 shrink-0 items-center justify-center
+                rounded-xl
+                border border-[color:var(--gold-border)]
+                bg-[color:var(--gold-soft)]
+                text-[color:var(--gold)]
+              "
+            >
+              <WalletCards size={18} />
+            </div>
+          </div>
+
+          <div className="mt-5 flex items-end justify-between gap-3">
+            <div>
+              <div className="text-[10px] text-[color:var(--muted)]">
+                Résultat du mois
+              </div>
+
+              <div
+                className={[
+                  "mt-1 text-[18px] font-semibold",
+                  dashboardStats.monthPnl >= 0
+                    ? "text-emerald-400"
+                    : "text-red-400",
+                ].join(" ")}
+              >
+                {monthTrades.length === 0
+                  ? "—"
+                  : accountCurrency
+                  ? formatCurrency(
+                      dashboardStats.monthPnl,
+                      accountCurrency
+                    )
+                  : "Multi-devises"}
+              </div>
+            </div>
+
+            <div className="relative h-[74px] w-[46%] min-w-[130px]">
+              <svg
+                viewBox="0 0 220 74"
+                className="absolute inset-0 h-full w-full"
+                preserveAspectRatio="none"
+              >
+                <defs>
+                  <linearGradient
+                    id="investproMobileLine"
+                    x1="0"
+                    x2="1"
+                    y1="0"
+                    y2="0"
+                  >
+                    <stop
+                      offset="0%"
+                      stopColor="#8b6a20"
+                      stopOpacity="0.2"
+                    />
+                    <stop
+                      offset="100%"
+                      stopColor="#f2c75b"
+                    />
+                  </linearGradient>
+                </defs>
+
+                <path
+                  d="M 0 62 C 25 62, 30 54, 46 56 S 72 49, 88 50 S 112 34, 130 38 S 154 31, 166 20 S 195 26, 220 8"
+                  fill="none"
+                  stroke="url(#investproMobileLine)"
+                  strokeWidth="2.5"
+                />
+
+                <circle cx="220" cy="8" r="4" fill="#f2c75b" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* =====================================================
+          HERO DESKTOP
+      ===================================================== */}
+
+      <section
+        className="
+          hidden
+          lg:block
           relative
           min-h-[205px]
           overflow-hidden
@@ -2330,14 +2456,15 @@ export default function DashboardPage() {
       <section
         className="
           grid
-          grid-cols-1
-          gap-3
-          sm:grid-cols-2
+          grid-cols-3
+          gap-2
           lg:grid-cols-3
+          lg:gap-3
           xl:grid-cols-5
         "
       >
         <StatCard
+          className="hidden lg:block"
           icon={
             <WalletCards
               size={18}
@@ -2369,6 +2496,7 @@ export default function DashboardPage() {
         />
 
         <StatCard
+          className="hidden lg:block"
           icon={
             <BarChart3
               size={18}
@@ -2463,7 +2591,7 @@ export default function DashboardPage() {
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
         {/* ACADEMY */}
 
-        <DashboardCard className="xl:col-span-5">
+        <DashboardCard className="order-2 xl:order-none xl:col-span-5">
           <CardHeader
             icon={
               <BookOpen
@@ -2614,7 +2742,7 @@ export default function DashboardPage() {
             ACTIVITY
         ================================================= */}
 
-        <DashboardCard className="xl:col-span-4">
+        <DashboardCard className="order-1 xl:order-none xl:col-span-4">
           <CardHeader
             icon={
               <Clock3
@@ -2693,7 +2821,7 @@ export default function DashboardPage() {
             CALENDAR
         ================================================= */}
 
-        <DashboardCard className="xl:col-span-3">
+        <DashboardCard className="order-3 xl:order-none xl:col-span-3">
           <CardHeader
             icon={
               <CalendarDays
@@ -2808,7 +2936,7 @@ export default function DashboardPage() {
           grid
           grid-cols-1
           gap-4
-          md:grid-cols-2
+          lg:grid-cols-2
           xl:grid-cols-4
         "
       >
@@ -3173,6 +3301,7 @@ function StatCard({
   value,
   sub,
   positive,
+  className = "",
 }: {
   icon:
     React.ReactNode;
@@ -3188,62 +3317,54 @@ function StatCard({
 
   positive?:
     boolean;
+
+  className?:
+    string;
 }) {
   return (
     <div
-      className="
-        group
-        min-h-[96px]
-        rounded-2xl
-        border border-[color:var(--border)]
-        bg-[color:var(--panel)]
-        p-4
-        transition
-        hover:border-[color:var(--gold-border)]
-      "
+      className={[
+        "group min-h-[108px] rounded-2xl",
+        "border border-[color:var(--border)]",
+        "bg-[color:var(--panel)]",
+        "p-3 lg:min-h-[96px] lg:p-4",
+        "transition hover:border-[color:var(--gold-border)]",
+        className,
+      ].join(" ")}
     >
-      <div className="flex h-full items-center gap-3">
+      <div className="flex h-full flex-col items-start gap-2 lg:flex-row lg:items-center lg:gap-3">
         <div
           className="
-            flex
-            h-10
-            w-10
-            shrink-0
-            items-center
-            justify-center
+            flex h-9 w-9 shrink-0 items-center justify-center
             rounded-xl
             border border-[color:var(--gold-border)]
             bg-[color:var(--gold-soft)]
             text-[color:var(--gold)]
+            lg:h-10 lg:w-10
           "
         >
           {icon}
         </div>
 
-        <div className="min-w-0">
-          <div className="text-[11px] text-[color:var(--muted)]">
+        <div className="min-w-0 w-full">
+          <div className="truncate text-[9px] text-[color:var(--muted)] lg:text-[11px]">
             {label}
           </div>
 
           <div
             className={[
-              "mt-1 text-lg font-semibold leading-none",
-
-              positive ===
-              true
+              "mt-1 truncate text-[15px] font-semibold leading-none lg:text-lg",
+              positive === true
                 ? "text-emerald-400"
-                : positive ===
-                  false
+                : positive === false
                 ? "text-red-400"
                 : "text-white",
-            ].join(
-              " "
-            )}
+            ].join(" ")}
           >
             {value}
           </div>
 
-          <div className="mt-2 text-[9px] text-[color:var(--muted)]">
+          <div className="mt-2 hidden text-[9px] text-[color:var(--muted)] sm:block">
             {sub}
           </div>
         </div>
@@ -3268,7 +3389,7 @@ function DashboardCard({
         "rounded-[22px]",
         "border border-[color:var(--border)]",
         "bg-[color:var(--panel)]",
-        "p-5",
+        "p-4 lg:p-5",
         className,
       ].join(" ")}
     >

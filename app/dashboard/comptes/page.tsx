@@ -734,12 +734,12 @@ export default function ComptesPage() {
 
   return (
     <>
-      <div className="space-y-5 pb-10">
+      <div className="investpro-mobile-page space-y-4 pb-4 lg:space-y-5 lg:pb-10">
         {/* =====================================================
             HEADER
         ===================================================== */}
 
-        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-white">
               Mes{" "}
@@ -792,7 +792,7 @@ export default function ComptesPage() {
             STATS
         ===================================================== */}
 
-        <section className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <section className="grid grid-cols-1 gap-3 lg:grid-cols-3">
           <StatCard
             icon={
               <WalletCards
@@ -858,7 +858,7 @@ export default function ComptesPage() {
               justify-between
               gap-4
               border-b border-[color:var(--border)]
-              px-5 py-4
+              px-4 py-4 lg:px-5
             "
           >
             <div>
@@ -1017,8 +1017,8 @@ export default function ComptesPage() {
             rounded-[24px]
             border border-[color:var(--gold-border)]
             bg-[color:var(--panel)]
-            p-6
-            md:p-7
+            p-4 lg:p-6
+            lg:p-4 lg:p-7
           "
         >
           <div
@@ -1061,7 +1061,7 @@ export default function ComptesPage() {
                 Prochaine étape
               </div>
 
-              <h2 className="mt-4 text-xl font-semibold text-white md:text-2xl">
+              <h2 className="mt-4 text-xl font-semibold text-white lg:text-2xl">
                 Connexion
                 automatique{" "}
                 <span className="text-[color:var(--gold)]">
@@ -1158,7 +1158,7 @@ export default function ComptesPage() {
             bg-[color:var(--panel)]
           "
         >
-          <div className="border-b border-[color:var(--border)] px-5 py-4">
+          <div className="border-b border-[color:var(--border)] px-4 py-4 lg:px-5">
             <h2 className="text-sm font-semibold text-white">
               Synchronisation
               MetaTrader
@@ -1172,7 +1172,7 @@ export default function ComptesPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-px bg-white/[0.04] md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-px bg-white/[0.04] lg:grid-cols-2 xl:grid-cols-4">
             <FutureFeature
               icon={
                 <Database
@@ -1284,7 +1284,7 @@ export default function ComptesPage() {
                   items-center
                   justify-between
                   border-b border-white/[0.06]
-                  px-6 py-5
+                  px-4 py-4 lg:px-6 lg:py-5
                 "
               >
                 <div>
@@ -1368,7 +1368,7 @@ export default function ComptesPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                   <InputField
                     label="Nom du compte"
                     placeholder="Compte principal"
@@ -1562,7 +1562,7 @@ export default function ComptesPage() {
                     }
                   />
 
-                  <div className="md:col-span-2">
+                  <div className="lg:col-span-2">
                     <InputField
                       label="Capital actuel"
                       placeholder="10000"

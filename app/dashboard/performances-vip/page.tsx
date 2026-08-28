@@ -1357,7 +1357,7 @@ export default function PerformancesVipPage() {
 
   return (
     <>
-      <div className="space-y-5 pb-10">
+      <div className="investpro-mobile-page space-y-4 pb-4 lg:space-y-5 lg:pb-10">
 
         {/* HEADER */}
 
@@ -1443,7 +1443,7 @@ export default function PerformancesVipPage() {
             bg-[#0b0b0d]
             px-6
             py-6
-            md:px-7
+            lg:px-7
           "
         >
           <div
@@ -1467,7 +1467,7 @@ export default function PerformancesVipPage() {
                 Bilan du groupe VIP
               </div>
 
-              <h2 className="mt-2 text-xl font-semibold text-white md:text-2xl">
+              <h2 className="mt-2 text-xl font-semibold text-white lg:text-2xl">
                 Suivi transparent des
                 performances
               </h2>
@@ -1705,7 +1705,8 @@ export default function PerformancesVipPage() {
             className="
               relative
               mt-6
-              h-[260px]
+              h-[220px]
+              lg:h-[260px]
               overflow-hidden
               rounded-2xl
               border
@@ -1793,9 +1794,9 @@ export default function PerformancesVipPage() {
               border-b
               border-[color:var(--border)]
               p-5
-              md:flex-row
-              md:items-center
-              md:justify-between
+              lg:flex-row
+              lg:items-center
+              lg:justify-between
             "
           >
             <div>
@@ -1829,7 +1830,7 @@ export default function PerformancesVipPage() {
                 border-[color:var(--border)]
                 bg-black/20
                 px-3
-                md:w-[280px]
+                lg:w-[280px]
               "
             >
               <Search
@@ -1865,7 +1866,75 @@ export default function PerformancesVipPage() {
 
           {filteredTrades.length >
           0 ? (
-            <div className="overflow-x-auto">
+            <>
+            <div className="lg:hidden divide-y divide-white/[0.06]">
+              {filteredTrades.map((trade) => (
+                <article key={trade.id} className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={[
+                        "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border",
+                        trade.direction === "buy"
+                          ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
+                          : "border-red-500/20 bg-red-500/10 text-red-400",
+                      ].join(" ")}>
+                        {trade.direction === "buy" ? <ArrowUpRight size={17} /> : <ArrowDownRight size={17} />}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-white">{trade.symbol}</span>
+                          <span className={["rounded-lg border px-2 py-1 text-[9px] font-bold", statusClass(trade.status)].join(" ")}>
+                            {statusLabel(trade.status)}
+                          </span>
+                        </div>
+                        <div className="mt-1 text-[10px] text-[color:var(--muted)]">
+                          {formatDate(trade.trade_date)} • {trade.setup || "Sans setup"}
+                        </div>
+                      </div>
+                    </div>
+                    <div className={["text-right text-base font-bold", trade.result_r > 0 ? "text-emerald-400" : trade.result_r < 0 ? "text-red-400" : "text-white/50"].join(" ")}>
+                      {trade.result_r > 0 ? "+" : ""}{Number(trade.result_r).toFixed(2)}R
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-3 gap-2">
+                    <div className="rounded-xl border border-white/[0.06] bg-black/20 p-3">
+                      <div className="text-[8px] text-white/30">Entrée</div>
+                      <div className="mt-1 truncate text-[10px] font-semibold text-white">{trade.entry_price ?? "—"}</div>
+                    </div>
+                    <div className="rounded-xl border border-white/[0.06] bg-black/20 p-3">
+                      <div className="text-[8px] text-white/30">SL</div>
+                      <div className="mt-1 truncate text-[10px] font-semibold text-red-400">{trade.stop_loss ?? "—"}</div>
+                    </div>
+                    <div className="rounded-xl border border-white/[0.06] bg-black/20 p-3">
+                      <div className="text-[8px] text-white/30">TP</div>
+                      <div className="mt-1 truncate text-[10px] font-semibold text-emerald-400">{trade.take_profit ?? "—"}</div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between gap-3 border-t border-white/[0.05] pt-3">
+                    <div className="text-[10px] text-[color:var(--muted)]">
+                      {trade.timeframe || "—"} • {trade.session || "—"} • {trade.pips > 0 ? "+" : ""}{trade.pips} pips
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {screenshotUrls[trade.id] ? (
+                        <button type="button" onClick={() => setViewingScreenshot(screenshotUrls[trade.id])} className="flex h-9 w-9 items-center justify-center rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]">
+                          <Eye size={14} />
+                        </button>
+                      ) : null}
+                      {isAdmin ? (
+                        <>
+                          <button type="button" onClick={() => openEditTrade(trade)} className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-white/60"><Edit3 size={14} /></button>
+                          <button type="button" onClick={() => deleteTrade(trade)} className="flex h-9 w-9 items-center justify-center rounded-xl border border-red-500/20 bg-red-500/[0.05] text-red-400"><Trash2 size={14} /></button>
+                        </>
+                      ) : null}
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            <div className="hidden lg:block overflow-x-auto">
               <table className="w-full min-w-[1000px]">
                 <thead>
                   <tr className="border-b border-white/[0.05]">
@@ -2162,6 +2231,7 @@ export default function PerformancesVipPage() {
                 </tbody>
               </table>
             </div>
+            </>
           ) : (
             <div className="px-5 py-16 text-center">
               <BarChart3
@@ -2270,7 +2340,7 @@ export default function PerformancesVipPage() {
 
             <div className="space-y-5 p-6">
 
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <Field
                   label="Date"
                 >
@@ -2397,7 +2467,7 @@ export default function PerformancesVipPage() {
                 </Field>
               </div>
 
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                 <Field
                   label="Prix d'entrée"
                 >
@@ -2474,7 +2544,7 @@ export default function PerformancesVipPage() {
                 </Field>
               </div>
 
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <Field
                   label="Résultat en R"
                 >
@@ -2526,7 +2596,7 @@ export default function PerformancesVipPage() {
                 </Field>
               </div>
 
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                 <Field
                   label="Setup"
                 >

@@ -558,12 +558,12 @@ export default function TradingPlanPage() {
   }
 
   return (
-    <div className="space-y-5 pb-10">
+    <div className="investpro-mobile-page space-y-4 pb-4 lg:space-y-5 lg:pb-10">
       {/* =========================================================
           HEADER
       ========================================================= */}
 
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-white">
             Plan de{" "}
@@ -651,7 +651,7 @@ export default function TradingPlanPage() {
           PLAN KPI
       ========================================================= */}
 
-      <section className="grid grid-cols-1 gap-3 md:grid-cols-3">
+      <section className="grid grid-cols-3 gap-2 lg:gap-3">
         <StatCard
           icon={
             <ShieldCheck
@@ -711,7 +711,7 @@ export default function TradingPlanPage() {
             title="Mes règles de risque"
           />
 
-          <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-3">
             <NumberField
               label="Risque max / trade"
               value={
@@ -1089,7 +1089,7 @@ export default function TradingPlanPage() {
           p-5
         "
       >
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <SectionTitle
             icon={
               <ClipboardCheck
@@ -1146,7 +1146,7 @@ export default function TradingPlanPage() {
 
         {/* TRADE INFO */}
 
-        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-4">
+        <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-4">
           <TextField
             label="Actif"
             value={
@@ -1254,7 +1254,7 @@ export default function TradingPlanPage() {
 
         {/* CHECKS */}
 
-        <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-6 grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">
           <ChecklistItem
             checked={
               checklist.trend_validated
@@ -1408,7 +1408,7 @@ export default function TradingPlanPage() {
 
         <div
           className={[
-            "mt-5 flex flex-col gap-4 rounded-2xl border p-4 md:flex-row md:items-center md:justify-between",
+            "mt-5 flex flex-col gap-4 rounded-2xl border p-4 lg:flex-row lg:items-center lg:justify-between",
 
             allValidated
               ? "border-emerald-500/20 bg-emerald-500/[0.06]"

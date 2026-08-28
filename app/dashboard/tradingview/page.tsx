@@ -148,12 +148,12 @@ export default function TradingViewPage() {
   }
 
   return (
-    <div className="min-h-screen w-full bg-[color:var(--bg)] text-[color:var(--text)]">
-      <div className="mx-auto max-w-[1400px] px-3 py-4 md:px-4">
+    <div className="investpro-mobile-page w-full bg-[color:var(--bg)] text-[color:var(--text)]">
+      <div className="mx-auto max-w-[1400px] px-3 py-4 lg:px-4">
         {/* ===== Ligne 1 : Horaires marchés ===== */}
         <Card className="mb-3">
           <CardBody className="py-4">
-            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
               <div className="text-sm font-semibold">
                 Horaires marché — Asia / London / New York
               </div>
@@ -163,7 +163,7 @@ export default function TradingViewPage() {
         </Card>
 
         {/* ===== Ligne 2 : Reset + Symbol + Timeframes ===== */}
-        <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-[160px_1fr_1fr]">
+        <div className="mb-4 grid grid-cols-1 gap-3 lg:grid-cols-[160px_1fr_1fr]">
           <Button variant="secondary" onClick={onReset} className="h-[52px]">
             Reset
           </Button>
@@ -238,7 +238,7 @@ export default function TradingViewPage() {
         </div>
 
         {/* ===== Corps : Watchlist gauche + Chart ===== */}
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-[240px_1fr]">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[240px_1fr]">
           {/* Watchlist */}
           <Card>
             <CardBody>
@@ -258,7 +258,7 @@ export default function TradingViewPage() {
                 />
               </CardSubCard>
 
-              <div className="max-h-[calc(100vh-260px)] overflow-auto pr-1">
+              <div className="max-h-[260px] overflow-auto pr-1 lg:max-h-[calc(100vh-260px)]">
                 {filtered.length === 0 ? (
                   <CardSubCard>
                     <div className="text-sm text-[color:var(--muted)]">
@@ -338,7 +338,7 @@ export default function TradingViewPage() {
                 <iframe
                   title="TradingView"
                   src={src}
-                  className="h-[78vh] min-h-[640px] w-full border-0"
+                  className="h-[58vh] min-h-[420px] w-full border-0 lg:h-[78vh] lg:min-h-[640px]"
                   loading="lazy"
                   allowFullScreen
                 />

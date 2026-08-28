@@ -6,9 +6,8 @@
    - Dark quand <html class="dark">
 =============================== */
 
-/* ---------- LIGHT (CORRIGÉ) ---------- */
+/* ---------- LIGHT ---------- */
 :root{
-  /* ✅ Soft light premium (pas blanc agressif, pas gris "disabled") */
   --bg: #f5f6f8;
   --panel: #ffffff;
   --panel-2: #f0f1f3;
@@ -17,7 +16,6 @@
   --muted: rgba(18,20,26,.62);
   --border: rgba(18,20,26,.12);
 
-  /* ✅ Gold reste cohérent avec le dark */
   --gold: #d6b35f;
   --gold-2: #b9923a;
   --gold-soft: rgba(214,179,95,.18);
@@ -27,12 +25,11 @@
   --danger: #e94b59;
   --warning: #d9a84a;
 
-  /* ✅ Ombres propres en light (facultatif mais utile) */
   --shadow-card: 0 12px 28px rgba(0,0,0,.08);
   --shadow-float: 0 18px 50px rgba(0,0,0,.12);
 }
 
-/* ---------- DARK (INCHANGÉ) ---------- */
+/* ---------- DARK ---------- */
 .dark{
   --bg: #07070a;
   --panel: #0d0e13;
@@ -51,18 +48,18 @@
   --warning: #f6c56c;
 }
 
-/* Native controls follow theme */
 :root { color-scheme: light; }
 .dark { color-scheme: dark; }
 
 html, body { height: 100%; }
+html { -webkit-text-size-adjust: 100%; }
 
 body{
   background: var(--bg);
   color: var(--text);
+  overflow-x: hidden;
 }
 
-/* Premium dark background only in dark */
 .dark body{
   background:
     radial-gradient(900px 500px at 15% -10%, rgba(214,179,95,.10), transparent 60%),
@@ -71,11 +68,10 @@ body{
 }
 
 *{ box-sizing: border-box; }
-
 a { text-decoration: none; }
 
 /* ===============================
-   GLOBAL FORM THEME (LIGHT + DARK)
+   GLOBAL FORM THEME
 =============================== */
 input, textarea, select {
   background-color: color-mix(in srgb, var(--panel) 75%, transparent);
@@ -95,10 +91,8 @@ input:focus, textarea:focus, select:focus {
   box-shadow: 0 0 0 4px var(--gold-soft);
 }
 
-/* Avoid blue outline */
 :focus-visible { outline: none; }
 
-/* Select styling */
 select {
   -webkit-appearance: none;
   -moz-appearance: none;
@@ -107,13 +101,11 @@ select {
   accent-color: var(--gold);
 }
 
-/* Dropdown options (theme-aware) */
 select option {
   background-color: var(--bg);
   color: var(--text);
 }
 
-/* Dark override for options */
 .dark select option {
   background-color: #0b0f14;
   color: #ffffff;
@@ -136,9 +128,6 @@ input:disabled, textarea:disabled, select:disabled {
   cursor: not-allowed;
 }
 
-/* ===============================
-   PREMIUM CONTROL CLASS (opt-in)
-=============================== */
 .control-gold {
   background-color: color-mix(in srgb, var(--panel) 80%, transparent) !important;
   color: var(--text) !important;
@@ -151,6 +140,60 @@ input:disabled, textarea:disabled, select:disabled {
   border-color: var(--gold) !important;
   box-shadow: 0 0 0 4px var(--gold-soft) !important;
 }
+
+/* ===============================
+   MOBILE APP EXPERIENCE
+   Tout ce qui est < 1024px = interface application
+=============================== */
+@media (max-width: 1023px) {
+  body {
+    overscroll-behavior-y: none;
+  }
+
+  .investpro-mobile-page {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .investpro-mobile-page h1 {
+    font-size: 1.35rem;
+    line-height: 1.75rem;
+    letter-spacing: -.02em;
+  }
+
+  .investpro-mobile-page h2 {
+    letter-spacing: -.01em;
+  }
+
+  .investpro-mobile-page button,
+  .investpro-mobile-page a {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  /* Empêche Safari iOS de zoomer automatiquement dans les champs. */
+  .investpro-mobile-page input,
+  .investpro-mobile-page textarea,
+  .investpro-mobile-page select {
+    font-size: 16px;
+  }
+
+  .investpro-mobile-page table {
+    font-size: 12px;
+  }
+
+  .investpro-mobile-page svg {
+    flex-shrink: 0;
+  }
+}
+
+/* Helpers pour les listes horizontales type app */
+.mobile-no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.mobile-no-scrollbar::-webkit-scrollbar { display: none; }
 
 /* ===============================
    Animations
@@ -171,7 +214,7 @@ input:disabled, textarea:disabled, select:disabled {
 }
 
 /* ===============================
-   Scrollbar (Chrome / Edge)
+   Scrollbar
 =============================== */
 *::-webkit-scrollbar { width: 10px; height: 10px; }
 *::-webkit-scrollbar-track {
@@ -189,21 +232,14 @@ input:disabled, textarea:disabled, select:disabled {
 .podium-pop { animation: popIn .45s ease-out both; }
 .crown-float { animation: floatCrown 1.8s ease-in-out infinite; }
 
-
 /* ===============================
-   LED STOCK TICKER — Full width, no jump
+   LED STOCK TICKER
 =============================== */
 @keyframes led-scroll {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-50%);
-  }
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
 }
 
 .animate-led-scroll {
   animation: led-scroll 35s linear infinite;
 }
-
-

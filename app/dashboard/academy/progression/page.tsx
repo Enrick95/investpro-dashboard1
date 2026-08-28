@@ -311,7 +311,7 @@ export default function AcademyProgressionPage() {
   }
 
   return (
-    <div className="space-y-5 pb-10">
+    <div className="investpro-mobile-page space-y-4 pb-4 lg:space-y-5 lg:pb-10">
       {/* =====================================================
           HEADER
       ===================================================== */}
@@ -348,7 +348,7 @@ export default function AcademyProgressionPage() {
         className="
           relative overflow-hidden rounded-[26px]
           border border-[color:var(--gold-border)]
-          bg-[#0b0b0d] p-6 md:p-8
+          bg-[#0b0b0d] p-6 lg:p-8
         "
       >
         <div
@@ -629,7 +629,7 @@ export default function AcademyProgressionPage() {
           />
         </div>
 
-        <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
+        <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
           {LEVELS.map((item) => {
             const unlocked =
               Number(profile?.xp || 0) >= item.xp;

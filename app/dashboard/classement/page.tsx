@@ -284,7 +284,7 @@ export default function ClassementPage() {
   }
 
   return (
-    <div className="space-y-5 pb-10">
+    <div className="investpro-mobile-page space-y-4 pb-4 lg:space-y-5 lg:pb-10">
       {/* HEADER */}
 
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
@@ -372,7 +372,7 @@ export default function ClassementPage() {
         className="
           relative overflow-hidden rounded-[26px]
           border border-[color:var(--gold-border)]
-          bg-[#0b0b0d] p-6 md:p-7
+          bg-[#0b0b0d] p-6 lg:p-4 lg:p-7
         "
       >
         <div
@@ -390,7 +390,7 @@ export default function ClassementPage() {
               Cette semaine
             </div>
 
-            <h2 className="mt-2 text-xl font-semibold text-white md:text-2xl">
+            <h2 className="mt-2 text-xl font-semibold text-white lg:text-2xl">
               La discipline avant la prise de risque
             </h2>
 
@@ -427,7 +427,7 @@ export default function ClassementPage() {
 
       {/* SCORE EXPLANATION */}
 
-      <section className="grid grid-cols-1 gap-3 md:grid-cols-5">
+      <section className="grid grid-cols-1 gap-3 lg:grid-cols-5">
         {SCORE_HELP.map((item) => (
           <div
             key={item.title}
@@ -485,7 +485,7 @@ export default function ClassementPage() {
         {top3.length === 0 ? (
           <EmptyState />
         ) : (
-          <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-3">
             {top3.map((row, index) => (
               <PodiumCard
                 key={row.user_id}
@@ -506,7 +506,7 @@ export default function ClassementPage() {
           bg-[color:var(--panel)]
         "
       >
-        <div className="flex flex-col gap-4 border-b border-[color:var(--border)] p-5 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-4 border-b border-[color:var(--border)] p-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="text-sm font-semibold text-white">
               Classement complet
@@ -519,7 +519,7 @@ export default function ClassementPage() {
             </p>
           </div>
 
-          <div className="flex h-10 w-full items-center gap-2 rounded-xl border border-[color:var(--border)] bg-black/20 px-3 md:w-[300px]">
+          <div className="flex h-10 w-full items-center gap-2 rounded-xl border border-[color:var(--border)] bg-black/20 px-3 lg:w-[300px]">
             <Search
               size={14}
               className="text-white/30"
@@ -544,7 +544,40 @@ export default function ClassementPage() {
             <EmptyState />
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="lg:hidden divide-y divide-white/[0.05]">
+            {filteredRows.map((row) => {
+              const rank = rows.findIndex((item) => item.user_id === row.user_id) + 1;
+              const isMe = me?.id === row.user_id;
+              return (
+                <article key={row.user_id} className={[
+                  "p-4",
+                  isMe ? "bg-[color:var(--gold-soft)]" : "",
+                ].join(" ")}>
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 text-center text-lg">{rankMedal(rank) || `#${rank}`}</div>
+                    <Avatar username={row.username} avatarUrl={row.avatar_url} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate text-sm font-semibold text-white">{row.username}</span>
+                        {isMe ? <span className="rounded-full border border-[color:var(--gold-border)] bg-black/20 px-2 py-0.5 text-[8px] font-bold text-[color:var(--gold)]">TOI</span> : null}
+                      </div>
+                      <div className="mt-1 truncate text-[9px] text-[color:var(--muted)]">{row.tag || row.bio || "Membre InvestPro"}</div>
+                    </div>
+                    <ScorePill value={row.score} />
+                  </div>
+                  <div className="mt-4 grid grid-cols-4 gap-2">
+                    <SmallMetric label="Discipline" value={`${row.plan_compliance.toFixed(0)}%`} />
+                    <SmallMetric label="Risque" value={`${row.risk_compliance.toFixed(0)}%`} />
+                    <SmallMetric label="Winrate" value={`${row.winrate.toFixed(0)}%`} />
+                    <SmallMetric label="Résultat" value={formatSigned(row.total_r, "R")} />
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+
+          <div className="hidden lg:block overflow-x-auto">
             <table className="w-full min-w-[1050px]">
               <thead>
                 <tr className="border-b border-white/[0.05]">
@@ -682,6 +715,7 @@ export default function ClassementPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </section>
 
@@ -692,7 +726,7 @@ export default function ClassementPage() {
           flex flex-col gap-4 rounded-[20px]
           border border-white/[0.07]
           bg-black/20 p-5
-          md:flex-row md:items-center md:justify-between
+          lg:flex-row lg:items-center lg:justify-between
         "
       >
         <div className="flex items-start gap-3">
@@ -987,7 +1021,7 @@ function Td({
   children: React.ReactNode;
 }) {
   return (
-    <td className="whitespace-nowrap px-5 py-4 text-xs text-white/60">
+    <td className="whitespace-nowrap px-4 py-4 lg:px-5 text-xs text-white/60">
       {children}
     </td>
   );

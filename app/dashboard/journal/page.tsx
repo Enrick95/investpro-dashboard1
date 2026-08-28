@@ -2531,7 +2531,7 @@ export default function JournalPage() {
 
   return (
     <>
-      <div className="space-y-5 pb-10">
+      <div className="investpro-mobile-page space-y-4 pb-4 lg:space-y-5 lg:pb-10">
         {/* =====================================================
             HEADER
         ===================================================== */}
@@ -2549,7 +2549,7 @@ export default function JournalPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 lg:gap-3">
             <div
               className="
                 rounded-xl
@@ -2605,7 +2605,7 @@ export default function JournalPage() {
               rounded-[22px]
               border border-[color:var(--gold-border)]
               bg-[color:var(--gold-soft)]
-              px-5 py-4
+              px-4 py-4 lg:px-5
               lg:flex-row
               lg:items-center
               lg:justify-between
@@ -2684,10 +2684,10 @@ export default function JournalPage() {
               rounded-[20px]
               border border-white/[0.07]
               bg-[color:var(--panel)]
-              px-5 py-4
-              md:flex-row
-              md:items-center
-              md:justify-between
+              px-4 py-4 lg:px-5
+              lg:flex-row
+              lg:items-center
+              lg:justify-between
             "
           >
             <div className="flex items-center gap-3">
@@ -2758,10 +2758,10 @@ export default function JournalPage() {
               rounded-[20px]
               border border-amber-500/20
               bg-amber-500/[0.04]
-              px-5 py-4
-              md:flex-row
-              md:items-center
-              md:justify-between
+              px-4 py-4 lg:px-5
+              lg:flex-row
+              lg:items-center
+              lg:justify-between
             "
           >
             <div>
@@ -2801,7 +2801,7 @@ export default function JournalPage() {
             KPI
         ===================================================== */}
 
-        <section className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
+        <section className="grid grid-cols-2 gap-2 lg:gap-3 xl:grid-cols-6">
           <StatCard
             icon={
               <BarChart3
@@ -3050,7 +3050,7 @@ export default function JournalPage() {
               items-center
               justify-between
               border-b border-[color:var(--border)]
-              px-5 py-4
+              px-4 py-4 lg:px-5
             "
           >
             <div>
@@ -3190,7 +3190,7 @@ export default function JournalPage() {
             className="
               max-h-[92vh]
               w-full
-              max-w-4xl
+              max-w-4xl w-full
               overflow-y-auto
               rounded-[24px]
               border border-[color:var(--border)]
@@ -3206,7 +3206,7 @@ export default function JournalPage() {
                 justify-between
                 border-b border-[color:var(--border)]
                 bg-[#0d0d10]
-                px-6 py-5
+                px-4 py-4 lg:px-6 lg:py-5
               "
             >
               <div>
@@ -3392,7 +3392,7 @@ export default function JournalPage() {
                   TRADE FORM
               ============================================= */}
 
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <InputField
                   label="Date"
                   type="date"
@@ -4130,7 +4130,7 @@ export default function JournalPage() {
                     </div>
                   </div>
 
-                  <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-2">
+                  <div className="mt-4 grid grid-cols-1 gap-2 lg:grid-cols-2">
                     {formPlanEvaluation.checks.map(
                       (
                         check
@@ -4149,7 +4149,7 @@ export default function JournalPage() {
                 </div>
               ) : null}
 
-              <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <TextAreaField
                   label="Erreur / point à améliorer"
                   placeholder="Entrée trop tôt, déplacement du SL..."
@@ -4661,7 +4661,7 @@ function TradeRow({
       className="
         grid grid-cols-1
         gap-4
-        px-5 py-4
+        px-4 py-4 lg:px-5
         transition
         hover:bg-white/[0.02]
         xl:grid-cols-12

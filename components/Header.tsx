@@ -664,13 +664,39 @@ export default function Header() {
           bg-[color:var(--panel)]
           backdrop-blur
           flex items-center
-          px-6
+          px-4 lg:px-6
           relative z-[50]
         "
       >
-        <div className="flex items-center gap-3" />
+        {/* Logo / marque sur mobile */}
+        <button
+          type="button"
+          onClick={() => go("/dashboard")}
+          className="lg:hidden flex items-center gap-2 min-w-0"
+          title="Accueil InvestPro"
+        >
+          <span
+            className="
+              w-9 h-9 rounded-full
+              border border-[color:var(--gold-border)]
+              bg-[color:var(--gold-soft)]
+              flex items-center justify-center
+              text-xs font-bold text-[color:var(--gold)]
+              shrink-0
+            "
+          >
+            IP
+          </span>
 
-        <div className="ml-auto flex items-center gap-3">
+          <span className="text-[17px] font-semibold tracking-tight truncate">
+            <span className="text-[color:var(--text)]">Invest</span>
+            <span className="text-[color:var(--gold)]">Pro</span>
+          </span>
+        </button>
+
+        <div className="hidden lg:flex items-center gap-3" />
+
+        <div className="ml-auto flex items-center gap-2 lg:gap-3">
           {/* LIVE */}
           {live.isLive ? (
             <a
@@ -696,7 +722,7 @@ export default function Header() {
                 LIVE
               </span>
 
-              <span className="text-xs text-red-700/80 dark:text-red-100/80 hidden md:inline">
+              <span className="text-xs text-red-700/80 dark:text-red-100/80 hidden xl:inline">
                 Enrick est en live
               </span>
             </a>
@@ -762,7 +788,7 @@ export default function Header() {
                   : openUser()
               }
               className="
-                hidden sm:flex
+                hidden lg:flex
                 items-center gap-3
                 px-3 py-1.5
                 rounded-2xl
@@ -798,7 +824,7 @@ export default function Header() {
             </button>
           ) : null}
 
-          <div className="text-xs text-[color:var(--muted)]">
+          <div className="hidden sm:block text-xs text-[color:var(--muted)]">
             FR
           </div>
 
@@ -860,8 +886,14 @@ export default function Header() {
                 position: "fixed",
                 top: notifPos.top,
                 right: notifPos.right,
-                width: NOTIF_W,
-                height: NOTIF_H,
+                width:
+                  typeof window !== "undefined"
+                    ? Math.min(NOTIF_W, window.innerWidth - 20)
+                    : NOTIF_W,
+                height:
+                  typeof window !== "undefined"
+                    ? Math.min(NOTIF_H, window.innerHeight - 20)
+                    : NOTIF_H,
                 zIndex: 999999,
               }}
             >
@@ -1111,8 +1143,14 @@ export default function Header() {
                 position: "fixed",
                 top: userPos.top,
                 right: userPos.right,
-                width: USER_W,
-                height: USER_H,
+                width:
+                  typeof window !== "undefined"
+                    ? Math.min(USER_W, window.innerWidth - 20)
+                    : USER_W,
+                height:
+                  typeof window !== "undefined"
+                    ? Math.min(USER_H, window.innerHeight - 20)
+                    : USER_H,
                 zIndex: 999999,
               }}
             >

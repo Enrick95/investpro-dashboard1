@@ -491,7 +491,7 @@ export default function AcademyBibliothequePage() {
   }
 
   return (
-    <div className="space-y-5 pb-10">
+    <div className="investpro-mobile-page space-y-4 pb-4 lg:space-y-5 lg:pb-10">
       {/* =====================================================
           HEADER
       ===================================================== */}
@@ -544,8 +544,8 @@ export default function AcademyBibliothequePage() {
           border
           border-[color:var(--gold-border)]
           bg-[#0b0b0d]
-          p-6
-          md:p-7
+          p-4 lg:p-6
+          lg:p-4 lg:p-7
         "
       >
         <div
@@ -569,7 +569,7 @@ export default function AcademyBibliothequePage() {
               Ressources pédagogiques
             </div>
 
-            <h2 className="mt-2 text-xl font-semibold text-white md:text-2xl">
+            <h2 className="mt-2 text-xl font-semibold text-white lg:text-2xl">
               Tout ce qu’il te faut pour progresser
             </h2>
 
@@ -773,8 +773,8 @@ export default function AcademyBibliothequePage() {
             className="
               grid
               grid-cols-1
-              gap-4
-              md:grid-cols-2
+              gap-3
+              lg:grid-cols-2
               xl:grid-cols-3
               2xl:grid-cols-4
             "

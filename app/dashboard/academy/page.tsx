@@ -757,7 +757,7 @@ export default function AcademyPage() {
     ).length;
 
   return (
-    <div className="space-y-5 pb-10">
+    <div className="investpro-mobile-page space-y-4 pb-4 lg:space-y-5 lg:pb-10">
       {/* HEADER */}
 
       <div className="flex items-start justify-between gap-4">
@@ -774,7 +774,7 @@ export default function AcademyPage() {
 
         <div
           className="
-            hidden md:flex
+            hidden lg:flex
             items-center gap-2
             rounded-xl
             border border-[color:var(--gold-border)]
@@ -1072,7 +1072,7 @@ export default function AcademyPage() {
         className="
           grid grid-cols-2
           gap-3
-          md:grid-cols-3
+          lg:grid-cols-3
           xl:grid-cols-5
         "
       >
@@ -1184,7 +1184,7 @@ export default function AcademyPage() {
 
           {filteredCourses.length >
           0 ? (
-            <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-4">
               {filteredCourses.map(
                 (course) => (
                   <CourseCard

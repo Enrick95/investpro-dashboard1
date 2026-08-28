@@ -1454,7 +1454,7 @@ export default function RapportsPage() {
   }
 
   return (
-    <div className="space-y-5 pb-10">
+    <div className="investpro-mobile-page space-y-4 pb-4 lg:space-y-5 lg:pb-10">
       {/* =====================================================
           HEADER
       ===================================================== */}
@@ -1563,7 +1563,7 @@ export default function RapportsPage() {
               Période
             </div>
 
-            <div className="grid grid-cols-5 gap-2">
+            <div className="flex gap-2 overflow-x-auto pb-1 lg:grid lg:grid-cols-5 lg:overflow-visible lg:pb-0">
               {(
                 [
                   [
@@ -1606,7 +1606,7 @@ export default function RapportsPage() {
                       )
                     }
                     className={[
-                      "h-11 rounded-xl border px-2 text-[10px] font-semibold transition",
+                      "h-11 shrink-0 min-w-[72px] rounded-xl border px-3 text-[10px] font-semibold transition lg:min-w-0 lg:px-2",
 
                       period ===
                       key
@@ -1669,8 +1669,8 @@ export default function RapportsPage() {
         className="
           grid
           grid-cols-2
-          gap-3
-          md:grid-cols-3
+          gap-2
+          lg:gap-3
           xl:grid-cols-6
         "
       >
@@ -1894,7 +1894,7 @@ export default function RapportsPage() {
             </div>
           </div>
 
-          <div className="mt-5 h-[285px] overflow-hidden rounded-2xl border border-white/[0.06] bg-black/20">
+          <div className="mt-5 h-[220px] lg:h-[285px] overflow-hidden rounded-2xl border border-white/[0.06] bg-black/20">
             {curveSvg.path ? (
               <svg
                 viewBox={`0 0 ${curveSvg.width} ${curveSvg.height}`}
@@ -1955,7 +1955,7 @@ export default function RapportsPage() {
           grid
           grid-cols-1
           gap-4
-          md:grid-cols-2
+          lg:grid-cols-2
           xl:grid-cols-4
         "
       >
@@ -2080,7 +2080,7 @@ export default function RapportsPage() {
           p-5
         "
       >
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="text-sm font-semibold text-white">
               Calendrier de performance

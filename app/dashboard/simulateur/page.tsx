@@ -288,7 +288,7 @@ export default function SimulateurRisquePage() {
   }
 
   return (
-    <div className="space-y-5 pb-10">
+    <div className="investpro-mobile-page space-y-4 pb-4 lg:space-y-5 lg:pb-10">
       {/* HEADER */}
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -335,7 +335,7 @@ export default function SimulateurRisquePage() {
 
       {/* KPI */}
 
-      <section className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid grid-cols-2 gap-2 lg:gap-3 xl:grid-cols-4">
         <StatCard
           icon={
             <ShieldCheck size={18} />
@@ -464,7 +464,7 @@ export default function SimulateurRisquePage() {
             </div>
           </div>
 
-          <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
             {/* CAPITAL */}
 
             <Field
@@ -564,7 +564,7 @@ export default function SimulateurRisquePage() {
 
             <div
               className="
-                md:col-span-2
+                lg:col-span-2
                 flex
                 items-center
                 justify-between
@@ -596,7 +596,7 @@ export default function SimulateurRisquePage() {
 
             <div
               className="
-                md:col-span-2
+                lg:col-span-2
                 flex
                 items-center
                 justify-between
@@ -678,7 +678,7 @@ export default function SimulateurRisquePage() {
 
             {/* RR */}
 
-            <div className="md:col-span-2">
+            <div className="lg:col-span-2">
               <div className="mb-2 text-xs text-white/60">
                 Ratio visé
               </div>

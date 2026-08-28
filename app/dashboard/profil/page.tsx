@@ -589,7 +589,7 @@ export default function ProfilPage() {
   }
 
   return (
-    <div className="space-y-5 pb-10">
+    <div className="investpro-mobile-page space-y-4 pb-4 lg:space-y-5 lg:pb-10">
       {/* =====================================================
           PROFILE HEADER
       ===================================================== */}
@@ -601,7 +601,7 @@ export default function ProfilPage() {
           bg-[color:var(--panel)]
         "
       >
-        <div className="relative h-[190px] overflow-hidden bg-black/30 md:h-[230px]">
+        <div className="relative h-[140px] lg:h-[230px] overflow-hidden bg-black/30 lg:h-[230px]">
           {profile.banner_url ? (
             <img
               src={profile.banner_url}
@@ -621,8 +621,8 @@ export default function ProfilPage() {
           <div className="absolute inset-0 bg-gradient-to-t from-[#0b0b0d] via-black/10 to-transparent" />
         </div>
 
-        <div className="relative px-6 pb-6 md:px-7">
-          <div className="-mt-12 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div className="relative px-6 pb-6 lg:px-7">
+          <div className="-mt-12 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div className="flex items-end gap-4">
               <Avatar
                 username={profile.username}
@@ -771,7 +771,7 @@ export default function ProfilPage() {
             />
           </div>
 
-          <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
             <Field label="Pseudo">
               <input
                 value={form.username}
@@ -992,7 +992,7 @@ export default function ProfilPage() {
         </div>
 
         {leaderboard ? (
-          <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+          <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
             <Metric
               label="Score"
               value={`${leaderboard.score.toFixed(1)} pts`}
@@ -1091,7 +1091,35 @@ export default function ProfilPage() {
             </div>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="lg:hidden divide-y divide-white/[0.05]">
+            {trades.map((trade) => (
+              <article key={trade.id} className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-white">{trade.symbol}</span>
+                      <span className={["inline-flex rounded-lg border px-2 py-1 text-[9px] font-bold", statusClass(trade.status)].join(" ")}>
+                        {statusLabel(trade.status)}
+                      </span>
+                    </div>
+                    <div className="mt-1 text-[10px] text-[color:var(--muted)]">
+                      {new Date(trade.trade_date).toLocaleDateString("fr-FR")} • {trade.direction === "buy" ? "BUY" : "SELL"} • {trade.setup || "Sans setup"}
+                    </div>
+                  </div>
+                  <div className={["text-base font-semibold", trade.result_r > 0 ? "text-emerald-400" : trade.result_r < 0 ? "text-red-400" : "text-white/50"].join(" ")}>
+                    {trade.result_r > 0 ? "+" : ""}{trade.result_r.toFixed(2)}R
+                  </div>
+                </div>
+                <div className="mt-3 flex items-center justify-between border-t border-white/[0.05] pt-3 text-[10px] text-[color:var(--muted)]">
+                  <span>Risque {trade.risk_percent.toFixed(2)}%</span>
+                  {trade.screenshot_url ? <span className="inline-flex items-center gap-1 text-[color:var(--gold)]"><Eye size={12}/> Graphique</span> : <span>Pas de capture</span>}
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <div className="hidden lg:block overflow-x-auto">
             <table className="w-full min-w-[850px]">
               <thead>
                 <tr className="border-b border-white/[0.05]">
@@ -1196,6 +1224,7 @@ export default function ProfilPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </section>
 
@@ -1208,7 +1237,7 @@ export default function ProfilPage() {
           flex flex-col gap-4 rounded-[20px]
           border border-white/[0.07]
           bg-black/20 p-5
-          md:flex-row md:items-center md:justify-between
+          lg:flex-row lg:items-center lg:justify-between
         "
       >
         <div className="flex items-start gap-3">
@@ -1471,7 +1500,7 @@ function Td({
   children: React.ReactNode;
 }) {
   return (
-    <td className="whitespace-nowrap px-5 py-4 text-xs text-white/60">
+    <td className="whitespace-nowrap px-4 py-4 lg:px-5 text-xs text-white/60">
       {children}
     </td>
   );
