@@ -1,5 +1,7 @@
 "use client";
 
+import VipTelegram from "@/components/telegram/VipTelegram";
+
 import {
   useEffect,
   useMemo,
@@ -1358,6 +1360,7 @@ export default function PerformancesVipPage() {
   return (
     <>
       <div className="investpro-mobile-page space-y-4 pb-4 lg:space-y-5 lg:pb-10">
+        <VipTelegram />
 
         {/* HEADER */}
 
