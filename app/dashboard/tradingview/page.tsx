@@ -1,4 +1,5 @@
 "use client";
+import MarketWidget from "@/components/markets/MarketWidget";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardBody, CardSubCard } from "../../../components/ui/Card";
@@ -35,7 +36,7 @@ function cx(...c: Array<string | false | undefined | null>) {
   return c.filter(Boolean).join(" ");
 }
 
-export default function TradingViewPage() {
+function TradingViewPage() {
   const [symbol, setSymbol] = useState("BTCUSD");
   const [tf, setTf] = useState<string>("15");
   const [query, setQuery] = useState("");
@@ -424,3 +425,5 @@ function MarketSessionsInline() {
     </div>
   );
 }
+
+export default function MarketPage(){return <><MarketWidget kind="tradingview"/><details className="mt-6"><summary className="cursor-pointer text-sm text-[color:var(--gold)]">Outils et affichage InvestPro</summary><div className="mt-5"><TradingViewPage/></div></details></>;}

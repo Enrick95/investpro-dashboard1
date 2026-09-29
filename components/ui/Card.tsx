@@ -11,7 +11,7 @@ export function Card({
     <div
       className={[
         // ✅ comportement stable en grid
-        "h-full min-w-0 flex flex-col",
+        "aura-surface h-full min-w-0 flex flex-col",
         // ✅ style (light clean + dark premium)
         "bg-[color:var(--panel)] border border-[color:var(--border)] rounded-2xl shadow-[var(--shadow-card)] dark:shadow-lg",
         // ✅ évite que des SVG/éléments dépassent et cassent l’alignement

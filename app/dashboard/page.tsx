@@ -3324,7 +3324,7 @@ function StatCard({
   return (
     <div
       className={[
-        "group min-h-[108px] rounded-2xl",
+        "aura-surface group min-h-[124px] rounded-2xl",
         "border border-[color:var(--border)]",
         "bg-[color:var(--panel)]",
         "p-3 lg:min-h-[96px] lg:p-4",
@@ -3386,7 +3386,7 @@ function DashboardCard({
   return (
     <div
       className={[
-        "rounded-[22px]",
+        "aura-surface rounded-[14px]",
         "border border-[color:var(--border)]",
         "bg-[color:var(--panel)]",
         "p-4 lg:p-5",
