@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import AuraLanding from "@/components/aura/Landing";
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 
@@ -166,177 +167,7 @@ export default function HomePage() {
           NAVBAR
       ===================================================== */}
 
-      <header
-        className="
-          sticky
-          top-0
-          z-50
-          border-b
-          border-white/[0.07]
-          bg-black/75
-          backdrop-blur-2xl
-        "
-      >
-        <div
-          className="
-            mx-auto
-            flex
-            h-[72px]
-            max-w-[1420px]
-            items-center
-            justify-between
-            px-5
-            lg:px-8
-          "
-        >
-          {/* LOGO */}
-
-          <Link
-            href="/"
-            className="
-              flex
-              items-center
-              gap-3
-              no-underline
-            "
-          >
-            <div
-              className="
-                flex
-                h-11
-                w-11
-                items-center
-                justify-center
-                overflow-hidden
-                rounded-full
-                border
-                border-[color:var(--gold-border)]
-                bg-[color:var(--gold-soft)]
-                shadow-[0_0_30px_rgba(218,176,71,.08)]
-              "
-            >
-              <Image
-                src="/brand/investpro.webp"
-                alt="InvestPro Trading"
-                width={44}
-                height={44}
-                className="h-full w-full object-cover"
-                priority
-              />
-            </div>
-
-            <div>
-              <div className="text-sm font-semibold leading-none text-white">
-                InvestPro{" "}
-                <span className="text-[color:var(--gold)]">
-                  Trading
-                </span>
-              </div>
-
-              <div className="mt-1 text-[9px] text-white/35">
-                Dashboard · Journal · Trading
-              </div>
-            </div>
-          </Link>
-
-          {/* NAV */}
-
-          <nav
-            className="
-              hidden
-              items-center
-              gap-7
-              text-xs
-              text-white/55
-              lg:flex
-            "
-          >
-            <a
-              href="#pourquoi"
-              className="transition hover:text-white"
-            >
-              Pourquoi InvestPro
-            </a>
-
-            <a
-              href="#fonctionnalites"
-              className="transition hover:text-white"
-            >
-              Fonctionnalités
-            </a>
-
-            <a
-              href="#beta"
-              className="transition hover:text-white"
-            >
-              Tarifs
-            </a>
-
-            <a
-              href="#faq"
-              className="transition hover:text-white"
-            >
-              FAQ
-            </a>
-          </nav>
-
-          {/* ACTIONS */}
-
-          <div className="flex items-center gap-2">
-            <Link
-              href="/login"
-              className="
-                hidden
-                h-10
-                items-center
-                justify-center
-                rounded-xl
-                border
-                border-white/[0.09]
-                bg-black/30
-                px-4
-                text-xs
-                font-medium
-                text-white/70
-                no-underline
-                transition
-                hover:bg-white/[0.04]
-                hover:text-white
-                sm:inline-flex
-              "
-            >
-              Se connecter
-            </Link>
-
-            <Link
-              href="/dashboard"
-              className="
-                inline-flex
-                h-10
-                items-center
-                justify-center
-                gap-2
-                rounded-xl
-                bg-[color:var(--gold)]
-                px-4
-                text-xs
-                font-bold
-                text-black
-                no-underline
-                shadow-[0_0_35px_rgba(218,176,71,.13)]
-                transition
-                hover:bg-[color:var(--gold-2)]
-              "
-            >
-              Ouvrir le dashboard
-
-              <ArrowRight
-                size={14}
-              />
-            </Link>
-          </div>
-        </div>
-      </header>
+      <div className="aura-faithful"><header className="landing-nav"><Link href="/" className="brand"><div className="brand-mark"><span/><span/><span/></div><div>investpro<span className="brand-sub">TRADING</span></div></Link><nav><a href="#pourquoi">Pourquoi InvestPro</a><a href="#fonctionnalites">Fonctionnalités</a><a href="#beta">Accès bêta</a><a href="#faq">FAQ</a></nav><Link className="btn primary" href="/dashboard">Explorer l’espace <ArrowRight size={17}/></Link></header></div>
 
       {/* =====================================================
           CONTENT
@@ -347,7 +178,7 @@ export default function HomePage() {
             HERO
         ===================================================== */}
 
-        <section className="aura-landing-hero"><span className="aura-landing-eyebrow">INVESTPRO TRADING · ACADEMY & TRADING HUB</span><h1>Votre trading.<br/><em>Une nouvelle dimension.</em></h1><p>Analysez les marchés, préparez vos plans et comprenez vos résultats. Tous vos outils réunis dans un espace pensé pour votre progression.</p><div className="aura-landing-actions"><Link href="/dashboard">Accéder à mon espace</Link><Link href="/register">Créer mon compte</Link></div><div className="aura-landing-tools"><Link href="/dashboard/journal"><span>01 / COMPRENDRE</span><h2>Votre journal de trading</h2><p>Retrouvez vos positions, vos résultats et les habitudes qui font la différence.</p></Link><Link href="/dashboard/plan"><span>02 / PRÉPARER</span><h2>Un plan avant chaque trade</h2><p>Structurez vos règles, votre risque et vos conditions d’entrée.</p></Link><Link href="/dashboard/analyse-fondamentale"><span>03 / ANALYSER</span><h2>Le contexte fondamental</h2><p>Les sources économiques de vos devises, réunies autour de votre paire.</p></Link></div></section>
+        <AuraLanding />
 
         {/* =====================================================
             STATS STRIP

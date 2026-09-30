@@ -1860,6 +1860,18 @@ export default function JournalPage() {
      MODAL
   ========================================================= */
 
+  useEffect(() => {
+    const openFromLink = () => {
+      if (!loading && window.location.hash === '#nouveau') {
+        openNewTrade();
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
+    };
+    openFromLink();
+    window.addEventListener('hashchange', openFromLink);
+    return () => window.removeEventListener('hashchange', openFromLink);
+  }, [loading]);
+
   function openNewTrade() {
     setEditingTrade(
       null
