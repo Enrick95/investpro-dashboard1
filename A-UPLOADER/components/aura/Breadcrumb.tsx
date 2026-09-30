@@ -1,0 +1,3 @@
+'use client';
+import {usePathname} from 'next/navigation';
+export default function Breadcrumb(){const path=usePathname();const names:Record<string,string>={'dashboard':'Dashboard','journal':'Journal','comptes':'Mes comptes','plan':'Plan de trading','performances-vip':'Performances VIP','analyse-fondamentale':'Analyse fondamentale','calendrier':'Calendrier éco','financialjuice':'FinancialJuice','tradingview':'TradingView','copieur':'Copieur'};const last=path.split('/').filter(Boolean).at(-1)||'dashboard';return <div className="aura-breadcrumb">Espace trader <b>› {names[last]||last.replaceAll('-',' ')}</b></div>}
