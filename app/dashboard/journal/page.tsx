@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
+import PerformanceCalendar from '@/components/performance/PerformanceCalendar';
 import { pushNotif } from "@/lib/notifyStore";
 
 /* =========================================================
@@ -3043,6 +3044,8 @@ export default function JournalPage() {
             </select>
           </div>
         </section>
+
+        <PerformanceCalendar trades={filteredTrades} accounts={accounts} accountPicker />
 
         {/* =====================================================
             HISTORY
