@@ -23,6 +23,8 @@ import {
   WalletCards,
 } from "lucide-react";
 
+import PerformanceCalendar from '@/components/performance/PerformanceCalendar';
+import {tradeDay} from '@/lib/performance';
 import { createClient } from "@/lib/supabase/client";
 
 /* =========================================================
@@ -284,7 +286,7 @@ export default function RapportsPage() {
     setPeriod,
   ] =
     useState<Period>(
-      "30d"
+      "all"
     );
 
   const [
@@ -293,13 +295,7 @@ export default function RapportsPage() {
   ] =
     useState("");
 
-  const [
-    viewDate,
-    setViewDate,
-  ] =
-    useState(
-      new Date()
-    );
+  const [loadError,setLoadError]=useState('');
 
   /* =======================================================
      LOAD
@@ -313,6 +309,7 @@ export default function RapportsPage() {
 
   async function loadPage() {
     try {
+      setLoadError('');
       setLoading(
         true
       );
@@ -404,6 +401,8 @@ export default function RapportsPage() {
             ),
         ]);
 
+      if(accountsResult.error || tradesResult.error)setLoadError('Impossible de charger toutes les données du journal. Réessayez avant d’interpréter les résultats.');
+
       if (
         accountsResult.error
       ) {
@@ -475,6 +474,8 @@ export default function RapportsPage() {
             []
         );
       }
+    } catch {
+      setLoadError('Connexion indisponible : impossible de charger les rapports.');
     } finally {
       setLoading(
         false
@@ -534,18 +535,15 @@ export default function RapportsPage() {
           if (
             selectedAccountId !==
               "all" &&
-            trade.account_id !==
-              selectedAccountId
+            String(trade.account_id) !==
+              String(selectedAccountId)
           ) {
             return false;
           }
 
           if (
             start &&
-            new Date(
-              trade.trade_date
-            ) <
-              start
+            tradeDay(trade.trade_date) < ymd(start)
           ) {
             return false;
           }
@@ -1207,173 +1205,6 @@ export default function RapportsPage() {
      CALENDAR
   ======================================================= */
 
-  const calendar =
-    useMemo(() => {
-      const firstDay =
-        new Date(
-          viewDate.getFullYear(),
-          viewDate.getMonth(),
-          1
-        );
-
-      const startWeekday =
-        (
-          firstDay.getDay() +
-          6
-        ) %
-        7;
-
-      const gridStart =
-        new Date(
-          firstDay
-        );
-
-      gridStart.setDate(
-        firstDay.getDate() -
-          startWeekday
-      );
-
-      const monthTrades =
-        filteredTrades.filter(
-          (
-            trade
-          ) => {
-            const date =
-              new Date(
-                trade.trade_date
-              );
-
-            return (
-              date.getFullYear() ===
-                viewDate.getFullYear() &&
-              date.getMonth() ===
-                viewDate.getMonth()
-            );
-          }
-        );
-
-      const days:
-        {
-          date: Date;
-          key: string;
-          resultR: number;
-          count: number;
-        }[] = [];
-
-      for (
-        let index =
-          0;
-        index <
-        42;
-        index +=
-          1
-      ) {
-        const date =
-          new Date(
-            gridStart
-          );
-
-        date.setDate(
-          gridStart.getDate() +
-            index
-        );
-
-        const key =
-          ymd(
-            date
-          );
-
-        const dayTrades =
-          monthTrades.filter(
-            (
-              trade
-            ) =>
-              ymd(
-                new Date(
-                  trade.trade_date
-                )
-              ) ===
-              key
-          );
-
-        days.push({
-          date,
-          key,
-
-          resultR:
-            dayTrades.reduce(
-              (
-                sum,
-                trade
-              ) =>
-                sum +
-                Number(
-                  trade.result_r ||
-                    0
-                ),
-              0
-            ),
-
-          count:
-            dayTrades.length,
-        });
-      }
-
-      return {
-        days,
-        monthR:
-          monthTrades.reduce(
-            (
-              sum,
-              trade
-            ) =>
-              sum +
-              Number(
-                trade.result_r ||
-                  0
-              ),
-            0
-          ),
-      };
-    }, [
-      viewDate,
-      filteredTrades,
-    ]);
-
-  const weeks =
-    useMemo(() => {
-      const rows:
-        typeof calendar.days[] =
-        [];
-
-      for (
-        let index =
-          0;
-        index <
-        6;
-        index +=
-          1
-      ) {
-        rows.push(
-          calendar.days.slice(
-            index *
-              7,
-            index *
-              7 +
-              7
-          )
-        );
-      }
-
-      return rows;
-    }, [
-      calendar.days,
-    ]);
-
-  /* =======================================================
-     CAPITAL
-  ======================================================= */
-
   const capital =
     useMemo(() => {
       if (
@@ -1661,6 +1492,10 @@ export default function RapportsPage() {
         </div>
       </section>
 
+      {loadError&&<div role="alert" className="rounded-xl border border-amber-400/30 p-4 text-sm">{loadError} <button onClick={()=>void loadPage()} className="ml-3 underline">Réessayer</button></div>}
+      {!loadError&&kpi.closed===0&&<div className="rounded-xl border border-white/10 p-4 text-sm text-white/70">Aucun trade clôturé pour ce compte et ces filtres. {trades.length>0?'Des trades sont présents dans le journal.':''} <button className="ml-2 text-[color:var(--gold)] underline" onClick={()=>{setPeriod('all');setSearch('');}}>Afficher tout l’historique du compte</button></div>}
+      <p className="text-xs text-white/50">Données du journal · {period==='all'?'Tout l’historique':'Période sélectionnée'} · {kpi.closed} trade(s) clôturé(s)</p>
+
       {/* =====================================================
           KPI
       ===================================================== */}
@@ -1939,7 +1774,7 @@ export default function RapportsPage() {
               </svg>
             ) : (
               <div className="flex h-full items-center justify-center text-xs text-[color:var(--muted)]">
-                Ajoute des trades clôturés pour afficher la courbe.
+                Aucun trade clôturé ne correspond aux filtres actuels.
               </div>
             )}
           </div>
@@ -2071,218 +1906,7 @@ export default function RapportsPage() {
           CALENDAR
       ===================================================== */}
 
-      <section
-        className="
-          rounded-[24px]
-          border
-          border-[color:var(--border)]
-          bg-[color:var(--panel)]
-          p-5
-        "
-      >
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h2 className="text-sm font-semibold text-white">
-              Calendrier de performance
-            </h2>
-
-            <p className="mt-1 text-xs text-[color:var(--muted)]">
-              Résultat journalier en R.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() =>
-                setViewDate(
-                  new Date(
-                    viewDate.getFullYear(),
-                    viewDate.getMonth() -
-                      1,
-                    1
-                  )
-                )
-              }
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-black/20 text-white/60"
-            >
-              <ChevronLeft
-                size={15}
-              />
-            </button>
-
-            <div className="min-w-[160px] text-center text-sm font-semibold capitalize text-[color:var(--gold)]">
-              {monthLabel(
-                viewDate
-              )}
-            </div>
-
-            <button
-              type="button"
-              onClick={() =>
-                setViewDate(
-                  new Date(
-                    viewDate.getFullYear(),
-                    viewDate.getMonth() +
-                      1,
-                    1
-                  )
-                )
-              }
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-black/20 text-white/60"
-            >
-              <ChevronRight
-                size={15}
-              />
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-5 grid grid-cols-7 gap-2 text-center text-[9px] font-semibold uppercase text-white/25">
-          {[
-            "Lun",
-            "Mar",
-            "Mer",
-            "Jeu",
-            "Ven",
-            "Sam",
-            "Dim",
-          ].map(
-            (
-              label
-            ) => (
-              <div
-                key={
-                  label
-                }
-              >
-                {
-                  label
-                }
-              </div>
-            )
-          )}
-        </div>
-
-        <div className="mt-2 space-y-2">
-          {weeks.map(
-            (
-              week,
-              weekIndex
-            ) => (
-              <div
-                key={
-                  weekIndex
-                }
-                className="grid grid-cols-7 gap-2"
-              >
-                {week.map(
-                  (
-                    day
-                  ) => {
-                    const inMonth =
-                      day.date.getMonth() ===
-                      viewDate.getMonth();
-
-                    return (
-                      <div
-                        key={
-                          day.key
-                        }
-                        className={[
-                          "min-h-[84px] rounded-xl border p-2 transition",
-
-                          day.resultR >
-                          0
-                            ? "border-emerald-500/15 bg-emerald-500/[0.05]"
-                            : day.resultR <
-                              0
-                            ? "border-red-500/15 bg-red-500/[0.05]"
-                            : "border-white/[0.06] bg-black/20",
-
-                          inMonth
-                            ? ""
-                            : "opacity-30",
-                        ].join(
-                          " "
-                        )}
-                      >
-                        <div className="text-[9px] text-white/40">
-                          {day.date.getDate()}
-                        </div>
-
-                        {day.count >
-                        0 ? (
-                          <>
-                            <div
-                              className={[
-                                "mt-3 text-xs font-semibold",
-
-                                day.resultR >
-                                0
-                                  ? "text-emerald-400"
-                                  : day.resultR <
-                                    0
-                                  ? "text-red-400"
-                                  : "text-white/55",
-                              ].join(
-                                " "
-                              )}
-                            >
-                              {signed(
-                                day.resultR,
-                                "R"
-                              )}
-                            </div>
-
-                            <div className="mt-1 text-[8px] text-white/25">
-                              {
-                                day.count
-                              }{" "}
-                              trade
-                              {day.count !==
-                              1
-                                ? "s"
-                                : ""}
-                            </div>
-                          </>
-                        ) : null}
-                      </div>
-                    );
-                  }
-                )}
-              </div>
-            )
-          )}
-        </div>
-
-        <div className="mt-4 flex items-center justify-between rounded-xl border border-white/[0.06] bg-black/20 px-4 py-3">
-          <span className="text-[10px] text-[color:var(--muted)]">
-            Résultat du mois affiché
-          </span>
-
-          <span
-            className={[
-              "text-sm font-semibold",
-
-              calendar.monthR >
-              0
-                ? "text-emerald-400"
-                : calendar.monthR <
-                  0
-                ? "text-red-400"
-                : "text-white",
-            ].join(
-              " "
-            )}
-          >
-            {signed(
-              calendar.monthR,
-              "R"
-            )}
-          </span>
-        </div>
-      </section>
+      <PerformanceCalendar trades={filteredTrades} accounts={accounts} accountId={selectedAccountId} />
     </div>
   );
 }

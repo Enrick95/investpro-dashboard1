@@ -1,6 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import PwaRegister from "@/components/PwaRegister";
 import "./globals.css";
+import "./aura.css";
+import "./fundamentals.css";
+import "./aura-faithful.css";
 
 export const metadata: Metadata = {
   title: "InvestPro Trading",

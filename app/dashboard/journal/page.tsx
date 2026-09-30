@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
+import PerformanceCalendar from '@/components/performance/PerformanceCalendar';
 import { pushNotif } from "@/lib/notifyStore";
 
 /* =========================================================
@@ -1860,6 +1861,18 @@ export default function JournalPage() {
      MODAL
   ========================================================= */
 
+  useEffect(() => {
+    const openFromLink = () => {
+      if (!loading && window.location.hash === '#nouveau') {
+        openNewTrade();
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
+    };
+    openFromLink();
+    window.addEventListener('hashchange', openFromLink);
+    return () => window.removeEventListener('hashchange', openFromLink);
+  }, [loading]);
+
   function openNewTrade() {
     setEditingTrade(
       null
@@ -3031,6 +3044,8 @@ export default function JournalPage() {
             </select>
           </div>
         </section>
+
+        <PerformanceCalendar trades={filteredTrades} accounts={accounts} accountPicker />
 
         {/* =====================================================
             HISTORY

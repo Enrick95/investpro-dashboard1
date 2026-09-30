@@ -1361,6 +1361,7 @@ export default function PerformancesVipPage() {
     <>
       <div className="investpro-mobile-page space-y-4 pb-4 lg:space-y-5 lg:pb-10">
         <VipTelegram />
+        <details className="rounded-2xl border border-white/10 p-4"><summary className="cursor-pointer py-2 font-semibold">Historique manuel · indépendant de Telegram</summary><div className="space-y-5 pt-5">
 
         {/* HEADER */}
 
@@ -1429,7 +1430,7 @@ export default function PerformancesVipPage() {
                 size={16}
               />
 
-              Ajouter un trade VIP
+              Ajouter un trade manuel
             </button>
           ) : null}
         </div>
@@ -2253,6 +2254,7 @@ export default function PerformancesVipPage() {
             </div>
           )}
         </section>
+        </div></details>
       </div>
 
       {/* MODAL */}
@@ -2305,7 +2307,7 @@ export default function PerformancesVipPage() {
                 <h2 className="text-lg font-semibold text-white">
                   {editingTrade
                     ? "Modifier le trade VIP"
-                    : "Ajouter un trade VIP"}
+                    : "Ajouter un trade manuel"}
                 </h2>
 
                 <p className="mt-1 text-xs text-[color:var(--muted)]">

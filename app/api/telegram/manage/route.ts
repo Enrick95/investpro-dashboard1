@@ -6,6 +6,7 @@ export async function GET(){try{
  const info=await telegram('getWebhookInfo');return Response.json({configured:info.url===target()+'/api/telegram/webhook',pending:info.pending_update_count,lastErrorAt:info.last_error_date??null},{headers:{'Cache-Control':'no-store'}});
 }catch{return Response.json({error:'Vérifie la configuration Telegram.'},{status:503});}}
 export async function POST(req:Request){try{
+ if(process.env.VERCEL_ENV==='preview')return Response.json({error:'La connexion du bot se gère sur le site principal, pas sur cette Preview.'},{status:403});
  if(!(await access()).admin)return Response.json({error:'Accès refusé'},{status:403});
  if(req.headers.get('origin')!==target())return Response.json({error:'Origine refusée'},{status:403});
  const secret=process.env.TELEGRAM_WEBHOOK_SECRET??'';if(!/^[A-Za-z0-9_-]{32,256}$/.test(secret))throw Error('CONFIG');

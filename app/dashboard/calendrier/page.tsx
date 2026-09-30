@@ -1,4 +1,5 @@
 "use client";
+import MarketWidget from "@/components/markets/MarketWidget";
 
 import { useEffect, useMemo, useState } from "react";
 
@@ -668,7 +669,7 @@ function eventTimestamp(
    PAGE
 ========================================================= */
 
-export default function CalendrierPage() {
+function CalendrierPage() {
   const today =
     useMemo(
       () =>
@@ -1964,3 +1965,4 @@ function DataCell({
     </div>
   );
 }
+export default function MarketPage(){return <><MarketWidget kind="calendrier"/><details className="mt-6"><summary className="cursor-pointer text-sm text-[color:var(--gold)]">Outils et affichage InvestPro</summary><div className="mt-5"><CalendrierPage/></div></details></>;}

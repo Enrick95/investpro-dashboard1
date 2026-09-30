@@ -9,7 +9,7 @@ export function Button({
   variant?: "primary" | "secondary" | "ghost" | "danger";
 }) {
   const base =
-    "inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl font-semibold transition select-none disabled:opacity-60 disabled:cursor-not-allowed";
+    "inline-flex items-center justify-center gap-2 px-4 py-3 rounded-[9px] font-semibold transition select-none disabled:opacity-60 disabled:cursor-not-allowed";
 
   const variants: Record<
     NonNullable<Parameters<typeof Button>[0]["variant"]>,
@@ -17,7 +17,7 @@ export function Button({
   > = {
     // ✅ Primary = gold (ok light + dark)
     primary:
-      "bg-[color:var(--gold)] text-black hover:bg-[color:var(--gold-2)]",
+      "bg-[linear-gradient(115deg,#ffdd91,#ebb655)] border border-[#ffdc8e] text-[#231a0d] hover:brightness-105",
 
     // ✅ Avant: text-white / bg-black/.. => cassait le light
     // ✅ Maintenant: theme-aware
