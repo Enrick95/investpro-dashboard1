@@ -1,8 +1,0 @@
-import {useId} from 'react';
-export default function EquityChart({values,labels=[],currency='USD',compact=false}:{values:number[];labels?:string[];currency?:string;compact?:boolean}){
- const id=useId().replace(/:/g,'');const money=(n:number)=>new Intl.NumberFormat('fr-FR',{style:'currency',currency,maximumFractionDigits:0}).format(n);
- if(values.length<2)return <div className="equity-chart aura-empty-chart"><span>La courbe apparaîtra avec les trades clôturés de cette période.</span></div>;
- const low=Math.min(...values),high=Math.max(...values),padding=Math.max((high-low)*.15,1),lo=low-padding,hi=high+padding;
- const pts=values.map((v,i)=>`${5+i/(values.length-1)*790},${200-(v-lo)/(hi-lo)*180}`).join(' ');
- return <div className={'equity-chart '+(compact?'compact':'')}><div className="chart-scale"><span>{money(hi)}</span><span>{money((hi+lo)/2)}</span><span>{money(lo)}</span></div><svg viewBox="0 0 800 230" role="img" aria-label="Résultats cumulés des trades clôturés" preserveAspectRatio="none"><defs><linearGradient id={id} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--gold)" stopOpacity=".19"/><stop offset="100%" stopColor="var(--gold)" stopOpacity="0"/></linearGradient></defs>{[20,110,200].map(y=><line key={y} x1="0" x2="800" y1={y} y2={y} stroke="var(--border)" strokeDasharray="4 5"/>)}<polygon points={`5,225 ${pts} 795,225`} fill={`url(#${id})`}/><polyline points={pts} fill="none" stroke="var(--gold)" strokeWidth="2.8" strokeLinejoin="round" vectorEffect="non-scaling-stroke"/></svg><div className="chart-dates"><span>{labels[0]||'Début de période'}</span><span>Résultat net réalisé</span><span>{labels.at(-1)||''}</span></div></div>
-}
