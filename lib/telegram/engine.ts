@@ -35,10 +35,11 @@ export function parseMessage(text:string):Parsed {
 export function buildStats(events:Event[]){
  const ordered=[...events].sort((a,b)=>a.date-b.date||a.message_id-b.message_id), byId=new Map(ordered.map(e=>[e.message_id,e])),trades=new Map<number,Trade>();
  const issues:{message:number;reason:string}[]=[];
+ const uncertain=new Set<number>();
  for(const e of ordered)if(e.parsed.kind==='signal')trades.set(e.message_id,{...e.parsed.signal,id:e.message_id,date:new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Paris',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(e.date*1000)),status:'pending',target:0,r:null});
  const root=(e:Event)=>{let id=e.reply_to;const seen=new Set<number>();while(id!==null&&!seen.has(id)){seen.add(id);if(trades.has(id))return id;id=byId.get(id)?.reply_to??null;}return null;};
  for(const e of ordered){const p=e.parsed;if(p.kind==='signal'||p.kind==='ignore')continue;const id=root(e),t=id===null?undefined:trades.get(id);
-  if(p.kind==='review'||!t){issues.push({message:e.message_id,reason:p.kind==='review'?p.reason:'Réponse sans signal connu : répondre au message d’origine.'});if(t){t.status='review';t.r=null;}continue;}
+  if(p.kind==='review'||!t){issues.push({message:e.message_id,reason:p.kind==='review'?p.reason:'Réponse sans signal connu : répondre au message d’origine.'});if(t)uncertain.add(t.id);continue;}
   if(t.status==='review')continue;
   if(p.kind==='tp'){
    if(!t.targets[p.target-1]||(t.status==='loss'||t.status==='be')){t.status='review';t.r=null;issues.push({message:e.message_id,reason:'TP inconnu ou contradictoire avec un SL.'});continue;}
@@ -51,5 +52,8 @@ export function buildStats(events:Event[]){
    t.status='be';t.r=0;
   }
  }
+ // An unrecognized comment cannot erase an explicit outcome. Actual conflicting
+ // outcomes above still block the trade and require correction.
+ for(const id of uncertain){const t=trades.get(id)!;if(t.status==='pending')t.status='review';}
  return {trades:[...trades.values()],issues};
 }

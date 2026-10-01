@@ -1,5 +1,6 @@
 "use client";
 
+import type {Trade as TelegramTrade} from "@/lib/telegram/engine";
 import VipTelegram from "@/components/telegram/VipTelegram";
 
 import {
@@ -38,7 +39,8 @@ type TradeStatus =
   | "win"
   | "loss"
   | "breakeven"
-  | "cancelled";
+  | "cancelled"
+  | "review";
 
 type Direction =
   | "buy"
@@ -52,6 +54,7 @@ type Period =
   | "all";
 
 type VipTrade = {
+  source?: "telegram" | "manual";
   id: number;
 
   trade_date: string;
@@ -216,6 +219,8 @@ function statusLabel(
     case "open":
       return "OUVERT";
 
+    case "review":
+      return "À VÉRIFIER";
     case "cancelled":
       return "ANNULÉ";
   }
@@ -253,6 +258,7 @@ function statusClass(
         text-[color:var(--gold)]
       `;
 
+    case "review":
     case "cancelled":
       return `
         border-white/10
@@ -322,6 +328,9 @@ function startOfPeriod(
 ========================================================= */
 
 export default function PerformancesVipPage() {
+  const [telegramTrades,setTelegramTrades]=useState<TelegramTrade[]>([]);
+  const [manualError,setManualError]=useState('');
+  const [source,setSource]=useState<'all'|'telegram'|'manual'>('all');
   const supabase =
     useMemo(
       () =>
@@ -465,6 +474,7 @@ export default function PerformancesVipPage() {
       if (
         tradesResult.error
       ) {
+        setManualError("Historique manuel indisponible : les totaux affichés peuvent être incomplets.");
         console.error(
           "Erreur trades VIP :",
           tradesResult.error
@@ -473,6 +483,7 @@ export default function PerformancesVipPage() {
         const loadedTrades =
           (tradesResult.data as VipTrade[]) || [];
 
+        setManualError('');
         setTrades(loadedTrades);
         await loadScreenshotUrls(loadedTrades);
       }
@@ -654,6 +665,19 @@ export default function PerformancesVipPage() {
      FILTER
   ======================================================= */
 
+  const combinedTrades = useMemo<VipTrade[]>(()=>[
+    ...trades.map(t=>({...t,source:'manual' as const})),
+    ...telegramTrades.map(t=>({
+      id:-t.id,source:'telegram' as const,trade_date:t.date,symbol:t.asset,
+      direction:t.side.toLowerCase() as Direction,entry_price:t.entry,stop_loss:t.sl,
+      take_profit:t.target?t.targets[t.target-1]:t.targets[0]??null,
+      status:(t.status==='be'?'breakeven':t.status==='pending'?'open':t.status) as TradeStatus,
+      result_r:t.r??0,pips:0,setup:`Telegram · ${t.target?'TP'+t.target:'Signal'}`,
+      timeframe:null,session:null,comment:null,screenshot_url:null,created_by:null,
+      created_at:t.date,updated_at:t.date
+    }))
+  ].sort((a,b)=>b.trade_date.localeCompare(a.trade_date)||a.id-b.id),[trades,telegramTrades]);
+
   const filteredTrades =
     useMemo(() => {
       const start =
@@ -666,13 +690,12 @@ export default function PerformancesVipPage() {
           .trim()
           .toLowerCase();
 
-      return trades.filter(
+      return combinedTrades.filter(
         (trade) => {
+          if(source!=='all'&&trade.source!==source)return false;
           if (
             start &&
-            new Date(
-              trade.trade_date
-            ) < start
+            trade.trade_date.slice(0,10) < `${start.getFullYear()}-${String(start.getMonth()+1).padStart(2,"0")}-${String(start.getDate()).padStart(2,"0")}`
           ) {
             return false;
           }
@@ -703,7 +726,8 @@ export default function PerformancesVipPage() {
         }
       );
     }, [
-      trades,
+      combinedTrades,
+      source,
       period,
       search,
     ]);
@@ -720,7 +744,7 @@ export default function PerformancesVipPage() {
             trade.status !==
               "cancelled" &&
             trade.status !==
-              "open"
+              "open" && trade.status !== "review"
         );
 
       const wins =
@@ -833,10 +857,11 @@ export default function PerformancesVipPage() {
               ).getTime()
           );
 
+      if(!sorted.length)return [];
       let cumulative =
         0;
 
-      return sorted.map(
+      return [{id:0,value:0}, ...sorted.map(
         (trade) => {
           cumulative +=
             Number(
@@ -852,7 +877,7 @@ export default function PerformancesVipPage() {
               cumulative,
           };
         }
-      );
+      )];
     }, [
       filteredTrades,
     ]);
@@ -963,6 +988,7 @@ export default function PerformancesVipPage() {
   function openEditTrade(
     trade: VipTrade
   ) {
+    if(trade.source==="telegram")return;
     setEditingTrade(trade);
 
     if (screenshotPreview?.startsWith("blob:")) {
@@ -1289,7 +1315,7 @@ export default function PerformancesVipPage() {
   async function deleteTrade(
     trade: VipTrade
   ) {
-    if (!isAdmin) {
+    if (!isAdmin || trade.source==="telegram") {
       return;
     }
 
@@ -1360,8 +1386,9 @@ export default function PerformancesVipPage() {
   return (
     <>
       <div className="investpro-mobile-page space-y-4 pb-4 lg:space-y-5 lg:pb-10">
-        <VipTelegram />
-        <details className="rounded-2xl border border-white/10 p-4"><summary className="cursor-pointer py-2 font-semibold">Historique manuel · indépendant de Telegram</summary><div className="space-y-5 pt-5">
+        <VipTelegram connectionOnly onTrades={setTelegramTrades} />
+        <div className="space-y-5 pt-5">
+        {manualError&&<p role="alert" className="text-amber-400">{manualError}</p>}
 
         {/* HEADER */}
 
@@ -1398,9 +1425,7 @@ export default function PerformancesVipPage() {
             </h1>
 
             <p className="mt-1 text-sm text-[color:var(--muted)]">
-              Retrouve les résultats
-              officiels des trades
-              partagés dans le groupe VIP.
+              Signaux Telegram et trades manuels réunis. Résultats en R ; Telegram suit le meilleur TP annoncé.
             </p>
           </div>
 
@@ -1559,6 +1584,12 @@ export default function PerformancesVipPage() {
           </div>
         </section>
 
+        <div className="flex flex-wrap items-center gap-3">
+          <label>Source <select className="rounded-xl border border-white/20 bg-black p-3" value={source} onChange={e=>setSource(e.target.value as typeof source)}>
+            <option value="all">Tous les trades</option><option value="telegram">Telegram</option><option value="manual">Manuel</option>
+          </select></label>
+          <span className="text-sm text-[color:var(--muted)]">{filteredTrades.filter(t=>t.status==='open').length} en attente · {filteredTrades.filter(t=>t.status==='review').length} à vérifier</span>
+        </div>
         {/* KPI */}
 
         <section
@@ -1576,7 +1607,7 @@ export default function PerformancesVipPage() {
                 size={17}
               />
             }
-            label="Trades"
+            label="Trades clôturés"
             value={String(
               stats.total
             )}
@@ -1626,7 +1657,7 @@ export default function PerformancesVipPage() {
                 size={17}
               />
             }
-            label="Winrate"
+            label="Winrate hors BE"
             value={`${stats.winrate.toFixed(
               1
             )}%`}
@@ -1650,9 +1681,7 @@ export default function PerformancesVipPage() {
               stats.totalR <
               0
             }
-            sub={`${stats.totalPips >= 0 ? "+" : ""}${stats.totalPips.toFixed(
-              0
-            )} pips`}
+            sub={filteredTrades.some(t=>t.source==='telegram')?'Telegram + saisies manuelles':`${stats.totalPips.toFixed(0)} pips`}
           />
         </section>
 
@@ -1892,12 +1921,12 @@ export default function PerformancesVipPage() {
                           </span>
                         </div>
                         <div className="mt-1 text-[10px] text-[color:var(--muted)]">
-                          {formatDate(trade.trade_date)} • {trade.setup || "Sans setup"}
+                          {formatDate(trade.trade_date)} • {trade.setup || "Manuel"}
                         </div>
                       </div>
                     </div>
                     <div className={["text-right text-base font-bold", trade.result_r > 0 ? "text-emerald-400" : trade.result_r < 0 ? "text-red-400" : "text-white/50"].join(" ")}>
-                      {trade.result_r > 0 ? "+" : ""}{Number(trade.result_r).toFixed(2)}R
+                      {trade.status==='open'||trade.status==='review'?'—':`${trade.result_r>0?'+':''}${Number(trade.result_r).toFixed(2)} R`}
                     </div>
                   </div>
 
@@ -1918,7 +1947,7 @@ export default function PerformancesVipPage() {
 
                   <div className="mt-3 flex items-center justify-between gap-3 border-t border-white/[0.05] pt-3">
                     <div className="text-[10px] text-[color:var(--muted)]">
-                      {trade.timeframe || "—"} • {trade.session || "—"} • {trade.pips > 0 ? "+" : ""}{trade.pips} pips
+                      {trade.source==='telegram'?'Telegram · synchronisé':`Manuel · ${trade.pips} pips`}
                     </div>
                     <div className="flex items-center gap-2">
                       {screenshotUrls[trade.id] ? (
@@ -1926,7 +1955,7 @@ export default function PerformancesVipPage() {
                           <Eye size={14} />
                         </button>
                       ) : null}
-                      {isAdmin ? (
+                      {isAdmin && trade.source!=="telegram" ? (
                         <>
                           <button type="button" onClick={() => openEditTrade(trade)} className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-white/60"><Edit3 size={14} /></button>
                           <button type="button" onClick={() => deleteTrade(trade)} className="flex h-9 w-9 items-center justify-center rounded-xl border border-red-500/20 bg-red-500/[0.05] text-red-400"><Trash2 size={14} /></button>
@@ -2094,16 +2123,7 @@ export default function PerformancesVipPage() {
                                 : "text-white/50"
                             }
                           >
-                            {trade.result_r >
-                            0
-                              ? "+"
-                              : ""}
-                            {Number(
-                              trade.result_r
-                            ).toFixed(
-                              2
-                            )}
-                            R
+                            {trade.status==='open'||trade.status==='review'?'—':`${trade.result_r>0?'+':''}${Number(trade.result_r).toFixed(2)} R`}
                           </span>
                         </TableCell>
 
@@ -2119,19 +2139,12 @@ export default function PerformancesVipPage() {
                                 : "text-white/50"
                             }
                           >
-                            {trade.pips >
-                            0
-                              ? "+"
-                              : ""}
-                            {
-                              trade.pips
-                            }
+                            {trade.source==='telegram'?'—':`${trade.pips>0?'+':''}${trade.pips}`}
                           </span>
                         </TableCell>
 
                         <TableCell>
-                          {trade.setup ||
-                            "—"}
+                          {trade.source==='telegram'?trade.setup:`Manuel · ${trade.setup||"Sans setup"}`}
                         </TableCell>
 
                         <TableCell>
@@ -2166,7 +2179,7 @@ export default function PerformancesVipPage() {
                           )}
                         </TableCell>
 
-                        {isAdmin ? (
+                        {isAdmin && trade.source==="telegram" ? <TableCell>Synchronisé</TableCell> : isAdmin ? (
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <button
@@ -2254,7 +2267,7 @@ export default function PerformancesVipPage() {
             </div>
           )}
         </section>
-        </div></details>
+        </div>
       </div>
 
       {/* MODAL */}
