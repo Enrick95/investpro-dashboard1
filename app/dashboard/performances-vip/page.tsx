@@ -1588,7 +1588,7 @@ export default function PerformancesVipPage() {
           <label>Source <select className="rounded-xl border border-white/20 bg-black p-3" value={source} onChange={e=>setSource(e.target.value as typeof source)}>
             <option value="all">Tous les trades</option><option value="telegram">Telegram</option><option value="manual">Manuel</option>
           </select></label>
-          <span className="text-sm text-[color:var(--muted)]">{filteredTrades.filter(t=>t.status==='open').length} en attente · {filteredTrades.filter(t=>t.status==='review').length} à vérifier</span>
+          <span className="text-sm text-[color:var(--muted)]">{filteredTrades.filter(t=>t.status==='open').length} en attente · {filteredTrades.filter(t=>t.status==='review').length} à vérifier · {filteredTrades.filter(t=>t.status==='cancelled').length} annulé(s)</span>
         </div>
         {/* KPI */}
 
@@ -1926,7 +1926,7 @@ export default function PerformancesVipPage() {
                       </div>
                     </div>
                     <div className={["text-right text-base font-bold", trade.result_r > 0 ? "text-emerald-400" : trade.result_r < 0 ? "text-red-400" : "text-white/50"].join(" ")}>
-                      {trade.status==='open'||trade.status==='review'?'—':`${trade.result_r>0?'+':''}${Number(trade.result_r).toFixed(2)} R`}
+                      {trade.status==='open'||trade.status==='review'||trade.status==='cancelled'?'—':`${trade.result_r>0?'+':''}${Number(trade.result_r).toFixed(2)} R`}
                     </div>
                   </div>
 
@@ -2123,7 +2123,7 @@ export default function PerformancesVipPage() {
                                 : "text-white/50"
                             }
                           >
-                            {trade.status==='open'||trade.status==='review'?'—':`${trade.result_r>0?'+':''}${Number(trade.result_r).toFixed(2)} R`}
+                            {trade.status==='open'||trade.status==='review'||trade.status==='cancelled'?'—':`${trade.result_r>0?'+':''}${Number(trade.result_r).toFixed(2)} R`}
                           </span>
                         </TableCell>
 

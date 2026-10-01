@@ -1,8 +1,8 @@
 // Deterministic signal calculations. No trading execution or market-price inference.
 export type Signal = {asset:string;side:'BUY'|'SELL';entry:number;sl:number;targets:number[]};
-export type Parsed = {kind:'signal';signal:Signal}|{kind:'tp';target:number}|{kind:'sl'}|{kind:'be'}|{kind:'ignore'}|{kind:'review';reason:string};
+export type Parsed = {kind:'signal';signal:Signal}|{kind:'tp';target:number}|{kind:'sl'}|{kind:'be'}|{kind:'cancel'}|{kind:'ignore'}|{kind:'review';reason:string};
 export type Event = {message_id:number;date:number;reply_to:number|null;parsed:Parsed;received_at?:string};
-export type Trade = Signal & {id:number;date:string;status:'pending'|'win'|'loss'|'be'|'review';target:number;r:number|null};
+export type Trade = Signal & {id:number;date:string;status:'pending'|'win'|'loss'|'be'|'cancelled'|'review';target:number;r:number|null};
 const norm=(s:string)=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
 export function parseMessage(text:string):Parsed {
  const s=norm(text), num='(\\d+(?:[.,]\\d+)?)', n=(x:string)=>Number(x.replace(',','.'));
@@ -18,6 +18,11 @@ export function parseMessage(text:string):Parsed {
   if(![lo,hi,entry,sl].every(x=>Number.isFinite(x)&&x>0)||(side==='BUY'?sl>=lo:sl<=hi)||Array.from({length:targets.length},(_,i)=>targets[i]).some((p,i)=>!Number.isFinite(p)||p<=0||(p-(side==='BUY'?hi:lo))*sign<=0||(i>0&&(p-targets[i-1])*sign<=0)))return {kind:'review',reason:'Zone, stop ou ordre des TP incohérents.'};
   return {kind:'signal',signal:{asset,side,entry,sl,targets}};
  }
+ // Require an explicit order cancellation; bare ANNULÉ still ignores a mistaken message.
+ const cancelText=s.replace(/[’‘]/g,"'").replace(/[^A-Z0-9'\s-]/g,' ').trim().replace(/\s+/g,' ');
+ const order="(?:(?:L[' ]|LE |UN |MON |NOTRE )?)(?:ORDRE|ORDER)(?:[ -]+LIMIT(?:E)?)?";
+ const cancelled="ANNUL(?:E|ER|EZ|EE)";
+ if(!s.includes('?')&&new RegExp('^(?:'+order+' '+cancelled+'|(?:ON |JE )?'+cancelled+' '+order+')(?: SVP)?$').test(cancelText))return {kind:'cancel'};
  // A stop moved to entry is not a closed break-even trade.
  const beWord='(?:BE|BREAK[\\s-]*EVEN)';
  if(new RegExp('^\\s*(?:STOP|SL)\\s+(?:(?:MIS|PLACE|DEPLACE)\\s+)?(?:A|AU)\\s+'+beWord+'[.!\\s]*$').test(s))return {kind:'ignore'};
@@ -41,6 +46,16 @@ export function buildStats(events:Event[]){
  for(const e of ordered){const p=e.parsed;if(p.kind==='signal'||p.kind==='ignore')continue;const id=root(e),t=id===null?undefined:trades.get(id);
   if(p.kind==='review'||!t){issues.push({message:e.message_id,reason:p.kind==='review'?p.reason:'Réponse sans signal connu : répondre au message d’origine.'});if(t)uncertain.add(t.id);continue;}
   if(t.status==='review')continue;
+  if(p.kind==='cancel'){
+   if(t.status==='win'||t.status==='loss'||t.status==='be'){
+    issues.push({message:e.message_id,reason:'Annulation refusée : ce signal possède déjà un résultat TP, SL ou BE.'});continue;
+   }
+   t.status='cancelled';t.r=null;t.target=0;continue;
+  }
+  if(t.status==='cancelled'){
+   t.status='review';t.r=null;
+   issues.push({message:e.message_id,reason:'Résultat reçu après annulation de cet ordre : vérifier les messages.'});continue;
+  }
   if(p.kind==='tp'){
    if(!t.targets[p.target-1]||(t.status==='loss'||t.status==='be')){t.status='review';t.r=null;issues.push({message:e.message_id,reason:'TP inconnu ou contradictoire avec un SL.'});continue;}
    t.target=Math.max(t.target,p.target);t.status='win';t.r=Math.abs(t.targets[t.target-1]-t.entry)/Math.abs(t.entry-t.sl);
