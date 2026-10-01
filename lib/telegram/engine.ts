@@ -1,8 +1,8 @@
 // Deterministic signal calculations. No trading execution or market-price inference.
 export type Signal = {asset:string;side:'BUY'|'SELL';entry:number;sl:number;targets:number[]};
-export type Parsed = {kind:'signal';signal:Signal}|{kind:'tp';target:number}|{kind:'sl'}|{kind:'ignore'}|{kind:'review';reason:string};
+export type Parsed = {kind:'signal';signal:Signal}|{kind:'tp';target:number}|{kind:'sl'}|{kind:'be'}|{kind:'ignore'}|{kind:'review';reason:string};
 export type Event = {message_id:number;date:number;reply_to:number|null;parsed:Parsed;received_at?:string};
-export type Trade = Signal & {id:number;date:string;status:'pending'|'win'|'loss'|'review';target:number;r:number|null};
+export type Trade = Signal & {id:number;date:string;status:'pending'|'win'|'loss'|'be'|'review';target:number;r:number|null};
 const norm=(s:string)=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
 export function parseMessage(text:string):Parsed {
  const s=norm(text), num='(\\d+(?:[.,]\\d+)?)', n=(x:string)=>Number(x.replace(',','.'));
@@ -18,11 +18,16 @@ export function parseMessage(text:string):Parsed {
   if(![lo,hi,entry,sl].every(x=>Number.isFinite(x)&&x>0)||(side==='BUY'?sl>=lo:sl<=hi)||Array.from({length:targets.length},(_,i)=>targets[i]).some((p,i)=>!Number.isFinite(p)||p<=0||(p-(side==='BUY'?hi:lo))*sign<=0||(i>0&&(p-targets[i-1])*sign<=0)))return {kind:'review',reason:'Zone, stop ou ordre des TP incohérents.'};
   return {kind:'signal',signal:{asset,side,entry,sl,targets}};
  }
+ // A stop moved to entry is not a closed break-even trade.
+ const beWord='(?:BE|BREAK[\\s-]*EVEN)';
+ if(new RegExp('^\\s*(?:STOP|SL)\\s+(?:(?:MIS|PLACE|DEPLACE)\\s+)?(?:A|AU)\\s+'+beWord+'[.!\\s]*$').test(s))return {kind:'ignore'};
+ const be=new RegExp('^\\s*(?:[A-Z0-9/.]+\\s+)?(?:'+beWord+'(?:\\s+TOUCH(?:ER|E|EE|ES|EES))?|(?:TRADE\\s+)?(?:CLOTURE|SORTIE?|FERME)\\s+(?:A|AU|EN)\\s+'+beWord+')[.!\\s]*$').test(s);
+ if(be&&!/\b(PAS|NON|SI|PRESQUE|BIENTOT|PEUT|DEVRAIT)\b/.test(s))return {kind:'be'};
  const tp=[...s.matchAll(/\bTP\s*(\d+)\s+TOUCH(?:ER|E|EE|ES|EES)\b/g)].map(m=>Number(m[1]));
  const sl=/\bSTOP\s*LOSS\s+TOUCH(?:ER|E|EE|ES)\b/.test(s)||/^\W*SL\W*$/.test(s);
- const relevant=/\b(TP\s*\d+|STOP\s*LOSS|SL|BREAKEVEN|BE)\b/.test(s);
+ const relevant=/\b(TP\s*\d+|STOP\s*LOSS|SL|BREAK[\s-]*EVEN|BE)\b/.test(s);
  if(!relevant)return {kind:'ignore'};
- if(/\b(PAS|NON|SI|PRESQUE|BIENTOT|ANNUL|PEUT|DEVRAIT)\b/.test(s)||s.includes('?')||tp.length&&sl)return {kind:'review',reason:'Annonce ambiguë.'};
+ if(/\b(PAS|NON|SI|PRESQUE|BIENTOT|ANNUL|PEUT|DEVRAIT)\b/.test(s)||s.includes('?')||(tp.length||sl)&&/\b(BE|BREAK[\s-]*EVEN)\b/.test(s)||tp.length&&sl)return {kind:'review',reason:'Annonce ambiguë.'};
  if(tp.length)return {kind:'tp',target:Math.max(...tp)};
  if(sl)return {kind:'sl'};
  return {kind:'review',reason:'Résultat non reconnu : vérifier le message.'};
@@ -36,11 +41,14 @@ export function buildStats(events:Event[]){
   if(p.kind==='review'||!t){issues.push({message:e.message_id,reason:p.kind==='review'?p.reason:'Réponse sans signal connu : répondre au message d’origine.'});if(t){t.status='review';t.r=null;}continue;}
   if(t.status==='review')continue;
   if(p.kind==='tp'){
-   if(!t.targets[p.target-1]||t.status==='loss'){t.status='review';t.r=null;issues.push({message:e.message_id,reason:'TP inconnu ou contradictoire avec un SL.'});continue;}
+   if(!t.targets[p.target-1]||(t.status==='loss'||t.status==='be')){t.status='review';t.r=null;issues.push({message:e.message_id,reason:'TP inconnu ou contradictoire avec un SL.'});continue;}
    t.target=Math.max(t.target,p.target);t.status='win';t.r=Math.abs(t.targets[t.target-1]-t.entry)/Math.abs(t.entry-t.sl);
   }else if(p.kind==='sl'){
-   if(t.status==='win'){t.status='review';t.r=null;issues.push({message:e.message_id,reason:'SL contradictoire avec un TP sur le même signal.'});continue;}
+   if(t.status==='win'||t.status==='be'){t.status='review';t.r=null;issues.push({message:e.message_id,reason:'SL contradictoire avec un TP sur le même signal.'});continue;}
    t.status='loss';t.r=-1;
+  }else if(p.kind==='be'){
+   if(t.status==='win'||t.status==='loss'){t.status='review';t.r=null;issues.push({message:e.message_id,reason:'BE contradictoire avec un TP ou SL sur le même signal.'});continue;}
+   t.status='be';t.r=0;
   }
  }
  return {trades:[...trades.values()],issues};
