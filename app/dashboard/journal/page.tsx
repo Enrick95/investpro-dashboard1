@@ -1921,7 +1921,7 @@ export default function JournalPage() {
   function openEditTrade(
     trade: Trade
   ) {
-    if(trade.setup==='MT5 synchronisé'){alert("Ce trade provient de MT5 : les données importées ne se modifient pas manuellement.");return;}
+    if((trade.setup==='MT5 synchronisé'||trade.setup==='MT4 synchronisé')){alert("Ce trade provient de MetaTrader : les données importées ne se modifient pas manuellement.");return;}
     setEditingTrade(
       trade
     );
@@ -2449,7 +2449,7 @@ export default function JournalPage() {
   async function deleteTrade(
     trade: Trade
   ) {
-    if(trade.setup==='MT5 synchronisé'){alert("Ce trade provient de MT5 et serait réimporté. Révoque la connexion dans Mes comptes pour arrêter la synchronisation.");return;}
+    if((trade.setup==='MT5 synchronisé'||trade.setup==='MT4 synchronisé')){alert("Ce trade provient de MetaTrader et serait réimporté. Révoque la connexion dans Mes comptes pour arrêter la synchronisation.");return;}
     const confirmed =
       window.confirm(
         `Supprimer le trade ${trade.symbol} ?`
@@ -2871,7 +2871,7 @@ export default function JournalPage() {
             }
             label="R moyen"
             value={
-              !trades.some(t=>t.setup==='MT5 synchronisé') && stats.avgR !== 0
+              !trades.some(t=>(t.setup==='MT5 synchronisé'||t.setup==='MT4 synchronisé')) && stats.avgR !== 0
                 ? `${stats.avgR.toFixed(
                     2
                   )}R`
@@ -2887,7 +2887,7 @@ export default function JournalPage() {
             }
             label="Discipline"
             value={
-              !trades.some(t=>t.setup==='MT5 synchronisé') && tradingPlan &&
+              !trades.some(t=>(t.setup==='MT5 synchronisé'||t.setup==='MT4 synchronisé')) && tradingPlan &&
               stats.total > 0
                 ? `${stats.discipline.toFixed(
                     0
@@ -4754,7 +4754,7 @@ function TradeRow({
         </span>
 
         <div>
-          {trade.setup==='MT5 synchronisé'?<span className="text-xs text-white/50">Import MT5</span>:<PlanBadge
+          {(trade.setup==='MT5 synchronisé'||trade.setup==='MT4 synchronisé')?<span className="text-xs text-white/50">Import {trade.setup?.startsWith('MT4')?'MT4':'MT5'}</span>:<PlanBadge
             compliant={
               planResult.compliant
             }
@@ -4786,7 +4786,7 @@ function TradeRow({
         </div>
 
         <div className="mt-1 text-[10px] text-[color:var(--muted)]">
-          {trade.setup==='MT5 synchronisé'?'R et risque initial indisponibles':<>          {trade.result_r >
+          {(trade.setup==='MT5 synchronisé'||trade.setup==='MT4 synchronisé')?'R et risque initial indisponibles':<>          {trade.result_r >
           0
             ? "+"
             : ""}

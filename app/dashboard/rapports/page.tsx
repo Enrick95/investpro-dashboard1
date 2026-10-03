@@ -1466,7 +1466,7 @@ export default function RapportsPage() {
       {!loadError&&kpi.closed===0&&<div className="rounded-xl border border-white/10 p-4 text-sm text-white/70">Aucun trade clôturé pour ce compte et ces filtres. {trades.length>0?'Des trades sont présents dans le journal.':''} <button className="ml-2 text-[color:var(--gold)] underline" onClick={()=>{setPeriod('all');setSearch('');}}>Afficher tout l’historique du compte</button></div>}
       <p className="text-xs text-white/50">Données du journal · {period==='all'?'Tout l’historique':'Période sélectionnée'} · {kpi.closed} trade(s) clôturé(s)</p>
 
-      {filteredTrades.some(t=>t.setup==='MT5 synchronisé')?<SyncReport trades={filteredTrades} currency={new Set(accounts.filter(a=>selectedAccountId==='all'||a.id===selectedAccountId).map(a=>a.currency)).size===1?accountCurrency:null}/>:<>
+      {filteredTrades.some(t=>(t.setup==='MT5 synchronisé'||t.setup==='MT4 synchronisé'))?<SyncReport trades={filteredTrades} currency={new Set(accounts.filter(a=>selectedAccountId==='all'||a.id===selectedAccountId).map(a=>a.currency)).size===1?accountCurrency:null}/>:<>
       {/* =====================================================
           KPI
       ===================================================== */}
