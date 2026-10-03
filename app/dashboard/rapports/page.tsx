@@ -1,4 +1,6 @@
 "use client";
+import {loadJournal as loadJournalRows} from "@/lib/metasync/loadJournal";
+import SyncReport from "@/components/metasync/SyncReport";
 
 import {
   useEffect,
@@ -366,39 +368,7 @@ export default function RapportsPage() {
               }
             ),
 
-          supabase
-            .from(
-              "trading_journal"
-            )
-            .select(
-              `
-                id,
-                account_id,
-                trade_date,
-                symbol,
-                direction,
-                risk_percent,
-                result_amount,
-                result_r,
-                status,
-                setup,
-                session,
-                timeframe,
-                notes,
-                screenshot_url
-              `
-            )
-            .eq(
-              "user_id",
-              user.id
-            )
-            .order(
-              "trade_date",
-              {
-                ascending:
-                  true,
-              }
-            ),
+          loadJournalRows(supabase,user.id),
         ]);
 
       if(accountsResult.error || tradesResult.error)setLoadError('Impossible de charger toutes les données du journal. Réessayez avant d’interpréter les résultats.');
@@ -446,7 +416,7 @@ export default function RapportsPage() {
       } else {
         setTrades(
           (
-            tradesResult.data as Trade[]
+            tradesResult.data as unknown as Trade[]
           )?.map(
             (
               trade
@@ -1496,6 +1466,7 @@ export default function RapportsPage() {
       {!loadError&&kpi.closed===0&&<div className="rounded-xl border border-white/10 p-4 text-sm text-white/70">Aucun trade clôturé pour ce compte et ces filtres. {trades.length>0?'Des trades sont présents dans le journal.':''} <button className="ml-2 text-[color:var(--gold)] underline" onClick={()=>{setPeriod('all');setSearch('');}}>Afficher tout l’historique du compte</button></div>}
       <p className="text-xs text-white/50">Données du journal · {period==='all'?'Tout l’historique':'Période sélectionnée'} · {kpi.closed} trade(s) clôturé(s)</p>
 
+      {filteredTrades.some(t=>t.setup==='MT5 synchronisé')?<SyncReport trades={filteredTrades} currency={new Set(accounts.filter(a=>selectedAccountId==='all'||a.id===selectedAccountId).map(a=>a.currency)).size===1?accountCurrency:null}/>:<>
       {/* =====================================================
           KPI
       ===================================================== */}
@@ -1906,6 +1877,7 @@ export default function RapportsPage() {
           CALENDAR
       ===================================================== */}
 
+      </>}
       <PerformanceCalendar trades={filteredTrades} accounts={accounts} accountId={selectedAccountId} />
     </div>
   );

@@ -1,4 +1,5 @@
 "use client";
+import {loadJournal as loadJournalRows} from "@/lib/metasync/loadJournal";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -971,18 +972,7 @@ export default function JournalPage() {
         accountsResult,
       ] =
         await Promise.all([
-          supabase
-            .from(
-              "trading_journal"
-            )
-            .select("*")
-            .order(
-              "trade_date",
-              {
-                ascending:
-                  false,
-              }
-            ),
+          loadJournalRows(supabase,user.id),
 
           supabase
             .from(
@@ -1054,7 +1044,7 @@ export default function JournalPage() {
         });
       } else {
         const loadedTrades =
-          (tradesResult.data as Trade[]) ||
+          (tradesResult.data as unknown as Trade[]) ||
           [];
 
         setTrades(
@@ -1931,6 +1921,7 @@ export default function JournalPage() {
   function openEditTrade(
     trade: Trade
   ) {
+    if(trade.setup==='MT5 synchronisé'){alert("Ce trade provient de MT5 : les données importées ne se modifient pas manuellement.");return;}
     setEditingTrade(
       trade
     );
@@ -2458,6 +2449,7 @@ export default function JournalPage() {
   async function deleteTrade(
     trade: Trade
   ) {
+    if(trade.setup==='MT5 synchronisé'){alert("Ce trade provient de MT5 et serait réimporté. Révoque la connexion dans Mes comptes pour arrêter la synchronisation.");return;}
     const confirmed =
       window.confirm(
         `Supprimer le trade ${trade.symbol} ?`
@@ -2879,7 +2871,7 @@ export default function JournalPage() {
             }
             label="R moyen"
             value={
-              stats.avgR !== 0
+              !trades.some(t=>t.setup==='MT5 synchronisé') && stats.avgR !== 0
                 ? `${stats.avgR.toFixed(
                     2
                   )}R`
@@ -2895,7 +2887,7 @@ export default function JournalPage() {
             }
             label="Discipline"
             value={
-              tradingPlan &&
+              !trades.some(t=>t.setup==='MT5 synchronisé') && tradingPlan &&
               stats.total > 0
                 ? `${stats.discipline.toFixed(
                     0
@@ -4762,11 +4754,11 @@ function TradeRow({
         </span>
 
         <div>
-          <PlanBadge
+          {trade.setup==='MT5 synchronisé'?<span className="text-xs text-white/50">Import MT5</span>:<PlanBadge
             compliant={
               planResult.compliant
             }
-          />
+          />}
         </div>
       </div>
 
@@ -4794,7 +4786,7 @@ function TradeRow({
         </div>
 
         <div className="mt-1 text-[10px] text-[color:var(--muted)]">
-          {trade.result_r >
+          {trade.setup==='MT5 synchronisé'?'R et risque initial indisponibles':<>          {trade.result_r >
           0
             ? "+"
             : ""}
@@ -4810,7 +4802,7 @@ function TradeRow({
             trade.risk_percent ||
               0
           )}
-          %
+          %</>}
         </div>
       </div>
 

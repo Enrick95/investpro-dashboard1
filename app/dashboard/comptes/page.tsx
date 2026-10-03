@@ -1,4 +1,5 @@
 "use client";
+import MetaSyncPanel from "@/components/metasync/MetaSyncPanel";
 
 import {
   useEffect,
@@ -735,6 +736,7 @@ export default function ComptesPage() {
   return (
     <>
       <div className="investpro-mobile-page space-y-4 pb-4 lg:space-y-5 lg:pb-10">
+        <MetaSyncPanel />
         {/* =====================================================
             HEADER
         ===================================================== */}

@@ -1930,19 +1930,13 @@ export default function PerformancesVipPage() {
                     </div>
                   </div>
 
-                  <div className="mt-4 grid grid-cols-3 gap-2">
+                  <div className="mt-4 grid grid-cols-1 gap-2">
                     <div className="rounded-xl border border-white/[0.06] bg-black/20 p-3">
                       <div className="text-[8px] text-white/30">Entrée</div>
                       <div className="mt-1 truncate text-[10px] font-semibold text-white">{trade.entry_price ?? "—"}</div>
                     </div>
-                    <div className="rounded-xl border border-white/[0.06] bg-black/20 p-3">
-                      <div className="text-[8px] text-white/30">SL</div>
-                      <div className="mt-1 truncate text-[10px] font-semibold text-red-400">{trade.stop_loss ?? "—"}</div>
-                    </div>
-                    <div className="rounded-xl border border-white/[0.06] bg-black/20 p-3">
-                      <div className="text-[8px] text-white/30">TP</div>
-                      <div className="mt-1 truncate text-[10px] font-semibold text-emerald-400">{trade.take_profit ?? "—"}</div>
-                    </div>
+
+
                   </div>
 
                   <div className="mt-3 flex items-center justify-between gap-3 border-t border-white/[0.05] pt-3">
@@ -1991,13 +1985,7 @@ export default function PerformancesVipPage() {
                       Entrée
                     </TableHead>
 
-                    <TableHead>
-                      SL
-                    </TableHead>
 
-                    <TableHead>
-                      TP
-                    </TableHead>
 
                     <TableHead>
                       Résultat
@@ -2101,15 +2089,7 @@ export default function PerformancesVipPage() {
                             "—"}
                         </TableCell>
 
-                        <TableCell>
-                          {trade.stop_loss ??
-                            "—"}
-                        </TableCell>
 
-                        <TableCell>
-                          {trade.take_profit ??
-                            "—"}
-                        </TableCell>
 
                         <TableCell>
                           <span
