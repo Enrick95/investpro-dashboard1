@@ -125,9 +125,26 @@ export default function DashboardPage() {
       }}
     >
       <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-        <div className="investpro-orb investpro-orb-one" />
-        <div className="investpro-orb investpro-orb-two" />
-        <div className="investpro-grid" />
+        <motion.div
+          className="absolute -top-[120px] left-[5%] h-[360px] w-[360px] rounded-full bg-[color:var(--gold)] opacity-[0.07] blur-[110px]"
+          animate={reduceMotion ? undefined : { x: [0, 55, 0], y: [0, 28, 0], scale: [1, 1.12, 1] }}
+          transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="absolute right-[-120px] top-[260px] h-[360px] w-[360px] rounded-full bg-[color:var(--gold)] opacity-[0.07] blur-[110px]"
+          animate={reduceMotion ? undefined : { x: [0, -45, 0], y: [0, -22, 0], scale: [1, 1.08, 1] }}
+          transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <div
+          className="absolute inset-0 opacity-[0.025]"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(255,255,255,.45) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.45) 1px, transparent 1px)",
+            backgroundSize: "44px 44px",
+            WebkitMaskImage: "linear-gradient(to bottom, black, transparent 75%)",
+            maskImage: "linear-gradient(to bottom, black, transparent 75%)",
+          }}
+        />
       </div>
 
       {/* =========================================================
@@ -196,7 +213,12 @@ export default function DashboardPage() {
           investpro-hero
         "
       >
-        <div className="investpro-sweep pointer-events-none absolute inset-0" />
+        <motion.div
+          className="pointer-events-none absolute inset-y-0 w-[35%] bg-gradient-to-r from-transparent via-[#ffe89b]/[0.08] to-transparent"
+          initial={reduceMotion ? false : { x: "-130%", skewX: -16, opacity: 0 }}
+          animate={reduceMotion ? undefined : { x: ["-130%", "160%"], opacity: [0, 0.18, 0] }}
+          transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut", delay: 1.1 }}
+        />
         <div className="pointer-events-none absolute left-0 top-0 h-px w-full bg-gradient-to-r from-transparent via-[color:var(--gold)]/50 to-transparent" />
 
         {/* Glow gauche */}
@@ -238,7 +260,9 @@ export default function DashboardPage() {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: reduceMotion ? 0 : 0.5, delay: 0.12 }}
         >
-          <div
+          <motion.div
+            animate={reduceMotion ? undefined : { boxShadow: ["0 0 0 rgba(242,199,91,0)", "0 0 28px rgba(242,199,91,.12)", "0 0 0 rgba(242,199,91,0)"] }}
+            transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
             className="
               inline-flex
               items-center gap-2
@@ -252,18 +276,21 @@ export default function DashboardPage() {
               uppercase
               tracking-[0.12em]
               text-[color:var(--gold)]
-              investpro-live-badge
             "
           >
             <Activity size={12} />
             InvestPro Trading Hub
-          </div>
+          </motion.div>
 
           <h2 className="text-2xl md:text-[28px] leading-tight font-semibold text-white">
             Bienvenue dans ton espace{" "}
-            <span className="bg-gradient-to-r from-[#f2c75b] via-[#fff0a6] to-[#c99624] bg-clip-text text-transparent investpro-title-shine">
+            <motion.span
+              className="bg-gradient-to-r from-[#f2c75b] via-[#fff0a6] to-[#c99624] bg-clip-text text-transparent"
+              animate={reduceMotion ? undefined : { filter: ["brightness(.9)", "brightness(1.25)", "brightness(.9)"] }}
+              transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
+            >
               InvestPro
-            </span>
+            </motion.span>
           </h2>
 
           <p
@@ -928,54 +955,7 @@ export default function DashboardPage() {
         </DashboardCard>
       </motion.section>
 
-      <style jsx global>{`
-        @keyframes investproFloatOne {
-          0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-          50% { transform: translate3d(55px, 28px, 0) scale(1.12); }
-        }
-        @keyframes investproFloatTwo {
-          0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-          50% { transform: translate3d(-45px, -22px, 0) scale(1.08); }
-        }
-        @keyframes investproSweep {
-          0% { transform: translateX(-130%) skewX(-16deg); opacity: 0; }
-          18% { opacity: .18; }
-          46% { opacity: 0; }
-          100% { transform: translateX(160%) skewX(-16deg); opacity: 0; }
-        }
-        @keyframes investproBadge {
-          0%, 100% { box-shadow: 0 0 0 rgba(242,199,91,0); }
-          50% { box-shadow: 0 0 28px rgba(242,199,91,.12); }
-        }
-        @keyframes investproDot {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(52,211,153,.25); }
-          50% { box-shadow: 0 0 0 6px rgba(52,211,153,0); }
-        }
-        @keyframes investproTitle {
-          0% { filter: brightness(.9); }
-          50% { filter: brightness(1.25); }
-          100% { filter: brightness(.9); }
-        }
-        .investpro-grid {
-          position: absolute; inset: 0; opacity: .025;
-          background-image: linear-gradient(rgba(255,255,255,.45) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.45) 1px, transparent 1px);
-          background-size: 44px 44px;
-          mask-image: linear-gradient(to bottom, black, transparent 75%);
-        }
-        .investpro-orb { position: absolute; width: 360px; height: 360px; border-radius: 999px; background: rgba(212,169,52,.07); filter: blur(110px); }
-        .investpro-orb-one { top: -120px; left: 5%; animation: investproFloatOne 12s ease-in-out infinite; }
-        .investpro-orb-two { top: 260px; right: -120px; animation: investproFloatTwo 15s ease-in-out infinite; }
-        .investpro-sweep { width: 35%; background: linear-gradient(90deg, transparent, rgba(255,232,155,.08), transparent); animation: investproSweep 5.5s ease-in-out infinite 1.1s; }
-        .investpro-live-badge { animation: investproBadge 2.6s ease-in-out infinite; }
-        .investpro-live-dot { animation: investproDot 1.6s ease-in-out infinite; }
-        .investpro-title-shine { animation: investproTitle 3.2s ease-in-out infinite; }
-        .investpro-card-shine { background: radial-gradient(circle at 15% 0%, rgba(242,199,91,.08), transparent 42%); }
-        .investpro-stat::after { content: ""; position: absolute; left: 18%; right: 18%; bottom: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(242,199,91,.5), transparent); transform: scaleX(0); transition: transform .35s ease; }
-        .investpro-stat:hover::after { transform: scaleX(1); }
-        @media (prefers-reduced-motion: reduce) {
-          .investpro-orb-one, .investpro-orb-two, .investpro-sweep, .investpro-live-badge, .investpro-live-dot, .investpro-title-shine { animation: none !important; }
-        }
-      `}</style>
+
     </motion.div>
   );
 }
@@ -1007,7 +987,6 @@ function StatCard({
         group
         relative
         overflow-hidden
-        investpro-stat
         min-h-[96px]
         rounded-2xl
         border border-[color:var(--border)]
@@ -1018,7 +997,10 @@ function StatCard({
       "
     >
       <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-[color:var(--gold)] opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-[0.12]" />
-      <div className="investpro-card-shine pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+      <div
+        className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+        style={{ background: "radial-gradient(circle at 15% 0%, rgba(242,199,91,.08), transparent 42%)" }}
+      />
       <div className="relative z-10 flex h-full items-center gap-3">
         <div
           className="
@@ -1080,7 +1062,10 @@ function DashboardCard({
         className,
       ].join(" ")}
     >
-      <div className="investpro-card-shine pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+      <div
+        className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+        style={{ background: "radial-gradient(circle at 15% 0%, rgba(242,199,91,.08), transparent 42%)" }}
+      />
       <div className="relative z-10">{children}</div>
     </motion.div>
   );
@@ -1090,7 +1075,13 @@ function HeroPill({ label, value, live = false }: { label: string; value: string
   return (
     <div className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-1.5 backdrop-blur-sm">
       <span className="text-[9px] uppercase tracking-[0.12em] text-white/35">{label}</span>
-      {live ? <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 investpro-live-dot" /> : null}
+      {live ? (
+        <motion.span
+          className="h-1.5 w-1.5 rounded-full bg-emerald-400"
+          animate={{ boxShadow: ["0 0 0 0 rgba(52,211,153,.25)", "0 0 0 6px rgba(52,211,153,0)", "0 0 0 0 rgba(52,211,153,0)"] }}
+          transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+        />
+      ) : null}
       <span className="text-[10px] font-semibold text-white/80">{value}</span>
     </div>
   );
