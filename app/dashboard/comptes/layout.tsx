@@ -3,9 +3,10 @@
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import { ArrowRight, MonitorCog, Plus, Sparkles, WalletCards, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, MonitorCog, Sparkles, WalletCards, X, CandlestickChart, ServerCog } from "lucide-react";
 
-type Choice = "mt5" | "mt4" | "manual" | null;
+type Choice = "mt5" | "mt4" | "futures" | "manual" | null;
+type FuturePlatform = "projectx" | "tradovate" | "rithmic" | "other" | null;
 
 function normalizeText(value: string | null | undefined) {
   return String(value || "")
@@ -95,6 +96,7 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
   const reduceMotion = useReducedMotion();
   const [chooserOpen, setChooserOpen] = useState(false);
   const [choice, setChoice] = useState<Choice>(null);
+  const [futurePlatform, setFuturePlatform] = useState<FuturePlatform>(null);
   const bypassNextAddClick = useRef(false);
   const originalAddButton = useRef<HTMLElement | null>(null);
   const pilotPanel = useRef<HTMLElement | null>(null);
@@ -143,6 +145,29 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
       document.removeEventListener("click", onClick, true);
     };
   }, []);
+
+  useEffect(() => {
+    if (!chooserOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    const previousOverscroll = document.body.style.overscrollBehavior;
+    document.body.style.overflow = "hidden";
+    document.body.style.overscrollBehavior = "none";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.body.style.overscrollBehavior = previousOverscroll;
+    };
+  }, [chooserOpen]);
+
+  function openFutures() {
+    setChoice("futures");
+    setFuturePlatform(null);
+  }
+
+  function selectFuturePlatform(platform: FuturePlatform) {
+    setFuturePlatform(platform);
+  }
 
   function chooseManual() {
     setChoice("manual");
@@ -211,7 +236,7 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
       <AnimatePresence>
         {chooserOpen ? (
           <motion.div
-            className="fixed inset-0 z-[1000000] flex items-end justify-center bg-black/75 p-0 backdrop-blur-md sm:items-center sm:p-4"
+            className="fixed inset-0 z-[1000000] flex items-center justify-center overflow-hidden bg-black/75 p-3 backdrop-blur-md sm:p-4"
             initial={reduceMotion ? false : { opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -223,10 +248,10 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
               role="dialog"
               aria-modal="true"
               aria-label="Ajouter un compte"
-              className="relative max-h-[92dvh] w-full max-w-[860px] overflow-y-auto rounded-t-[26px] border border-[color:var(--gold-border)] bg-[#0b0d0b] shadow-[0_30px_120px_rgba(0,0,0,.62)] sm:rounded-[28px]"
-              initial={reduceMotion ? false : { opacity: 0, y: 28, scale: 0.965 }}
+              className="relative flex max-h-[86dvh] w-full max-w-[920px] flex-col overflow-hidden rounded-[24px] border border-[color:var(--gold-border)] bg-[#0b0d0b] shadow-[0_30px_120px_rgba(0,0,0,.62)] sm:max-h-[90dvh] sm:rounded-[28px]"
+              initial={reduceMotion ? false : { opacity: 0, y: 18, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 16, scale: 0.98 }}
+              exit={{ opacity: 0, y: 10, scale: 0.985 }}
               transition={{ type: "spring", stiffness: 240, damping: 25 }}
             >
               <motion.div
@@ -236,18 +261,24 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
                 transition={{ duration: 4.8, repeat: Infinity, ease: "easeInOut" }}
               />
 
-              <div className="sticky top-0 z-20 border-b border-white/[0.07] bg-[#0b0d0b]/95 px-4 py-4 backdrop-blur-xl sm:relative sm:bg-transparent sm:px-6 sm:py-5 md:px-8">
-                <div className="flex items-start justify-between gap-5">
-                  <div>
-                    <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[color:var(--gold)]">
+              <div className="relative z-20 shrink-0 border-b border-white/[0.07] bg-[#0b0d0b]/96 px-4 py-4 backdrop-blur-xl sm:px-6 sm:py-5 md:px-8">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1 text-[9px] font-bold uppercase tracking-[0.14em] text-[color:var(--gold)] sm:text-[10px]">
                       <Sparkles size={12} />
                       Connexion InvestPro
                     </div>
-                    <h2 className="mt-3 text-lg font-semibold text-white sm:mt-4 sm:text-xl md:text-2xl">
-                      Ajouter un <span className="text-[color:var(--gold)]">compte</span>
+                    <h2 className="mt-3 text-lg font-semibold text-white sm:text-xl md:text-2xl">
+                      {choice === "futures" ? (
+                        <>Ajouter un compte <span className="text-[color:var(--gold)]">Futures</span></>
+                      ) : (
+                        <>Ajouter un <span className="text-[color:var(--gold)]">compte</span></>
+                      )}
                     </h2>
-                    <p className="mt-1.5 max-w-xl text-[11px] leading-4 text-white/45 sm:mt-2 sm:text-xs sm:leading-5 md:text-sm">
-                      Choisis comment tu souhaites ajouter ton compte de trading.
+                    <p className="mt-1.5 max-w-xl text-[10px] leading-4 text-white/45 sm:text-xs sm:leading-5 md:text-sm">
+                      {choice === "futures"
+                        ? "Choisis la plateforme Futures utilisée par ton compte."
+                        : "Choisis comment tu souhaites ajouter ton compte de trading."}
                     </p>
                   </div>
 
@@ -261,33 +292,122 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
                 </div>
               </div>
 
-              <div className="relative z-10 p-3.5 sm:p-5 md:p-7">
-                <div className="grid grid-cols-1 gap-2.5 sm:gap-4 md:grid-cols-3">
-                  <ChoiceCard
-                    title="MetaTrader 5"
-                    subtitle="MT5"
-                    text="Synchronisation automatique du compte, de la balance et de l’historique."
-                    icon={<MonitorCog size={24} />}
-                    onClick={chooseMt5}
-                  />
+              <div className="ip-account-modal-scroll relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-contain p-3.5 sm:p-5 md:p-7">
+                <AnimatePresence mode="wait" initial={false}>
+                  {choice !== "futures" ? (
+                    <motion.div
+                      key="account-types"
+                      initial={reduceMotion ? false : { opacity: 0, x: -12 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -10 }}
+                      transition={{ duration: 0.2 }}
+                      className="grid grid-cols-1 gap-2.5 sm:gap-4 md:grid-cols-2 xl:grid-cols-4"
+                    >
+                      <ChoiceCard
+                        title="MetaTrader 5"
+                        subtitle="MT5"
+                        text="Synchronisation automatique du compte, de la balance et de l’historique."
+                        icon={<MonitorCog size={24} />}
+                        onClick={chooseMt5}
+                      />
 
-                  <ChoiceCard
-                    title="MetaTrader 4"
-                    subtitle="MT4"
-                    text="Synchronisation automatique du compte, de la balance et de l’historique."
-                    icon={<MonitorCog size={24} />}
-                    onClick={chooseMt4}
-                  />
+                      <ChoiceCard
+                        title="MetaTrader 4"
+                        subtitle="MT4"
+                        text="Synchronisation automatique du compte, de la balance et de l’historique."
+                        icon={<MonitorCog size={24} />}
+                        onClick={chooseMt4}
+                      />
 
-                  <ChoiceCard
-                    title="Compte manuel"
-                    subtitle="MANUEL"
-                    text="Ajoute un compte sans synchronisation et renseigne toi-même le capital."
-                    icon={<WalletCards size={24} />}
-                    onClick={chooseManual}
-                  />
-                </div>
+                      <ChoiceCard
+                        title="Futures"
+                        subtitle="FUTURES"
+                        text="Connecte une plateforme Futures pour alimenter ton journal et tes statistiques."
+                        icon={<CandlestickChart size={24} />}
+                        onClick={openFutures}
+                      />
 
+                      <ChoiceCard
+                        title="Compte manuel"
+                        subtitle="MANUEL"
+                        text="Ajoute un compte sans synchronisation et renseigne toi-même le capital."
+                        icon={<WalletCards size={24} />}
+                        onClick={chooseManual}
+                      />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="futures-platforms"
+                      initial={reduceMotion ? false : { opacity: 0, x: 18 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 12 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setChoice(null);
+                          setFuturePlatform(null);
+                        }}
+                        className="mb-3 inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-[11px] font-semibold text-white/70 hover:border-[color:var(--gold-border)] hover:text-[color:var(--gold)] sm:mb-5"
+                      >
+                        <ArrowLeft size={14} />
+                        Retour
+                      </button>
+
+                      <div className="grid grid-cols-1 gap-2.5 sm:gap-4 md:grid-cols-2">
+                        <FuturePlatformCard
+                          title="ProjectX"
+                          subtitle="PROJECTX"
+                          text="Pour les environnements compatibles ProjectX et certaines prop firms Futures."
+                          selected={futurePlatform === "projectx"}
+                          onClick={() => selectFuturePlatform("projectx")}
+                        />
+                        <FuturePlatformCard
+                          title="Tradovate"
+                          subtitle="TRADOVATE"
+                          text="Connexion Futures Tradovate pour récupérer l’activité du compte."
+                          selected={futurePlatform === "tradovate"}
+                          onClick={() => selectFuturePlatform("tradovate")}
+                        />
+                        <FuturePlatformCard
+                          title="Rithmic"
+                          subtitle="RITHMIC"
+                          text="Pour les comptes et prop firms utilisant l’infrastructure Rithmic."
+                          selected={futurePlatform === "rithmic"}
+                          onClick={() => selectFuturePlatform("rithmic")}
+                        />
+                        <FuturePlatformCard
+                          title="Autre plateforme"
+                          subtitle="AUTRE"
+                          text="Prépare ton compte pour une plateforme Futures qui n’est pas encore listée."
+                          selected={futurePlatform === "other"}
+                          onClick={() => selectFuturePlatform("other")}
+                        />
+                      </div>
+
+                      {futurePlatform ? (
+                        <motion.div
+                          initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="mt-3 rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4 sm:mt-5 sm:p-5"
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[color:var(--gold-border)] bg-black/25 text-[color:var(--gold)]">
+                              <ServerCog size={18} />
+                            </div>
+                            <div>
+                              <div className="text-sm font-semibold text-white">Connecteur Futures prêt à être intégré</div>
+                              <p className="mt-1 text-[10px] leading-4 text-white/50 sm:text-[11px] sm:leading-5">
+                                L’interface est prête. La connexion automatique de cette plateforme sera branchée sur son API lors de l’étape technique Futures, sans toucher à tes comptes MT4/MT5 actuels.
+                              </p>
+                            </div>
+                          </div>
+                        </motion.div>
+                      ) : null}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </motion.div>
           </motion.div>
@@ -345,11 +465,17 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
           transform: translateY(0) scale(.98);
         }
 
+        .ip-account-modal-scroll {
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: thin;
+          touch-action: pan-y;
+        }
+
         @media (max-width: 639px) {
-          .accounts-motion-scope [role="dialog"] {
+          .ip-account-modal-scroll {
             scrollbar-width: none;
           }
-          .accounts-motion-scope [role="dialog"]::-webkit-scrollbar {
+          .ip-account-modal-scroll::-webkit-scrollbar {
             display: none;
           }
         }
@@ -393,7 +519,7 @@ function ChoiceCard({
       whileHover={{ y: -7, scale: 1.012 }}
       whileTap={{ scale: 0.985 }}
       className={[
-        "group relative min-h-0 overflow-hidden rounded-[18px] border p-4 text-left sm:rounded-[22px] sm:p-5 md:min-h-[250px]",
+        "group relative min-h-0 overflow-hidden rounded-[18px] border p-4 text-left sm:rounded-[22px] sm:p-5 md:min-h-[220px]",
         highlighted
           ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]"
           : "border-white/[0.08] bg-black/25 hover:border-[color:var(--gold-border)]",
@@ -426,3 +552,46 @@ function ChoiceCard({
     </motion.button>
   );
 }
+
+function FuturePlatformCard({
+  title,
+  subtitle,
+  text,
+  selected,
+  onClick,
+}: {
+  title: string;
+  subtitle: string;
+  text: string;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <motion.button
+      type="button"
+      onClick={onClick}
+      whileHover={{ y: -4, scale: 1.008 }}
+      whileTap={{ scale: 0.988 }}
+      className={[
+        "group relative overflow-hidden rounded-[18px] border p-4 text-left sm:rounded-[22px] sm:p-5",
+        selected
+          ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]"
+          : "border-white/[0.08] bg-black/25 hover:border-[color:var(--gold-border)]",
+      ].join(" ")}
+    >
+      <div className="pointer-events-none absolute right-[-45px] top-[-55px] h-[140px] w-[140px] rounded-full bg-[color:var(--gold)] opacity-[0.05] blur-[50px] transition-opacity group-hover:opacity-[0.11]" />
+      <div className="relative z-10 flex items-center gap-3">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[color:var(--gold-border)] bg-black/25 text-[color:var(--gold)]">
+          <CandlestickChart size={20} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-[8px] font-bold uppercase tracking-[0.16em] text-[color:var(--gold)]">{subtitle}</div>
+          <div className="mt-0.5 text-sm font-semibold text-white sm:text-base">{title}</div>
+          <p className="mt-1 text-[10px] leading-4 text-white/45 sm:text-[11px] sm:leading-5">{text}</p>
+        </div>
+        <ArrowRight size={15} className="shrink-0 text-white/45 transition-transform group-hover:translate-x-1 group-hover:text-[color:var(--gold)]" />
+      </div>
+    </motion.button>
+  );
+}
+
