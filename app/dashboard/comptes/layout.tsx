@@ -211,7 +211,7 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
       <AnimatePresence>
         {chooserOpen ? (
           <motion.div
-            className="fixed inset-0 z-[1000000] flex items-center justify-center bg-black/75 p-4 backdrop-blur-md"
+            className="fixed inset-0 z-[1000000] flex items-end justify-center bg-black/75 p-0 backdrop-blur-md sm:items-center sm:p-4"
             initial={reduceMotion ? false : { opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -223,7 +223,7 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
               role="dialog"
               aria-modal="true"
               aria-label="Ajouter un compte"
-              className="relative w-full max-w-[860px] overflow-hidden rounded-[28px] border border-[color:var(--gold-border)] bg-[#0b0d0b] shadow-[0_30px_120px_rgba(0,0,0,.62)]"
+              className="relative max-h-[92dvh] w-full max-w-[860px] overflow-y-auto rounded-t-[26px] border border-[color:var(--gold-border)] bg-[#0b0d0b] shadow-[0_30px_120px_rgba(0,0,0,.62)] sm:rounded-[28px]"
               initial={reduceMotion ? false : { opacity: 0, y: 28, scale: 0.965 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 16, scale: 0.98 }}
@@ -236,17 +236,17 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
                 transition={{ duration: 4.8, repeat: Infinity, ease: "easeInOut" }}
               />
 
-              <div className="relative z-10 border-b border-white/[0.07] px-6 py-5 md:px-8">
+              <div className="sticky top-0 z-20 border-b border-white/[0.07] bg-[#0b0d0b]/95 px-4 py-4 backdrop-blur-xl sm:relative sm:bg-transparent sm:px-6 sm:py-5 md:px-8">
                 <div className="flex items-start justify-between gap-5">
                   <div>
                     <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[color:var(--gold)]">
                       <Sparkles size={12} />
                       Connexion InvestPro
                     </div>
-                    <h2 className="mt-4 text-xl font-semibold text-white md:text-2xl">
+                    <h2 className="mt-3 text-lg font-semibold text-white sm:mt-4 sm:text-xl md:text-2xl">
                       Ajouter un <span className="text-[color:var(--gold)]">compte</span>
                     </h2>
-                    <p className="mt-2 max-w-xl text-xs leading-5 text-white/45 md:text-sm">
+                    <p className="mt-1.5 max-w-xl text-[11px] leading-4 text-white/45 sm:mt-2 sm:text-xs sm:leading-5 md:text-sm">
                       Choisis comment tu souhaites ajouter ton compte de trading.
                     </p>
                   </div>
@@ -254,15 +254,15 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
                   <button
                     type="button"
                     onClick={() => setChooserOpen(false)}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.03] text-white/50 hover:bg-white/[0.07] hover:text-white"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.03] text-white/50 hover:bg-white/[0.07] hover:text-white sm:h-10 sm:w-10"
                   >
                     <X size={17} />
                   </button>
                 </div>
               </div>
 
-              <div className="relative z-10 p-5 md:p-7">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div className="relative z-10 p-3.5 sm:p-5 md:p-7">
+                <div className="grid grid-cols-1 gap-2.5 sm:gap-4 md:grid-cols-3">
                   <ChoiceCard
                     title="MetaTrader 5"
                     subtitle="MT5"
@@ -345,6 +345,15 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
           transform: translateY(0) scale(.98);
         }
 
+        @media (max-width: 639px) {
+          .accounts-motion-scope [role="dialog"] {
+            scrollbar-width: none;
+          }
+          .accounts-motion-scope [role="dialog"]::-webkit-scrollbar {
+            display: none;
+          }
+        }
+
         @media (prefers-reduced-motion: reduce) {
           .accounts-motion-scope *,
           .accounts-motion-scope *::before,
@@ -384,7 +393,7 @@ function ChoiceCard({
       whileHover={{ y: -7, scale: 1.012 }}
       whileTap={{ scale: 0.985 }}
       className={[
-        "group relative min-h-[250px] overflow-hidden rounded-[22px] border p-5 text-left",
+        "group relative min-h-0 overflow-hidden rounded-[18px] border p-4 text-left sm:rounded-[22px] sm:p-5 md:min-h-[250px]",
         highlighted
           ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]"
           : "border-white/[0.08] bg-black/25 hover:border-[color:var(--gold-border)]",
@@ -392,9 +401,9 @@ function ChoiceCard({
     >
       <div className="pointer-events-none absolute right-[-55px] top-[-55px] h-[150px] w-[150px] rounded-full bg-[color:var(--gold)] opacity-[0.06] blur-[55px] transition-opacity group-hover:opacity-[0.12]" />
 
-      <div className="relative z-10 flex h-full flex-col">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[color:var(--gold-border)] bg-black/25 text-[color:var(--gold)] shadow-[0_0_30px_rgba(255,190,60,.05)]">
+      <div className="relative z-10 grid grid-cols-[44px_1fr_auto] items-center gap-x-3 gap-y-1 sm:flex sm:h-full sm:flex-col sm:items-stretch sm:gap-0">
+        <div className="contents sm:flex sm:items-start sm:justify-between sm:gap-3">
+          <div className="row-span-4 flex h-11 w-11 items-center justify-center rounded-xl border border-[color:var(--gold-border)] bg-black/25 text-[color:var(--gold)] shadow-[0_0_30px_rgba(255,190,60,.05)] sm:h-12 sm:w-12 sm:rounded-2xl">
             {icon}
           </div>
 
@@ -405,11 +414,11 @@ function ChoiceCard({
           ) : null}
         </div>
 
-        <div className="mt-7 text-[9px] font-bold uppercase tracking-[0.18em] text-[color:var(--gold)]">{subtitle}</div>
-        <div className="mt-1 text-base font-semibold text-white">{title}</div>
-        <p className="mt-3 flex-1 text-[11px] leading-5 text-white/45">{text}</p>
+        <div className="col-start-2 mt-0 text-[8px] font-bold uppercase tracking-[0.16em] text-[color:var(--gold)] sm:mt-7 sm:text-[9px] sm:tracking-[0.18em]">{subtitle}</div>
+        <div className="col-start-2 mt-0 text-sm font-semibold text-white sm:mt-1 sm:text-base">{title}</div>
+        <p className="col-start-2 mt-0 line-clamp-2 text-[10px] leading-4 text-white/45 sm:mt-3 sm:flex-1 sm:text-[11px] sm:leading-5">{text}</p>
 
-        <div className="mt-5 flex items-center gap-2 text-xs font-semibold text-white transition-colors group-hover:text-[color:var(--gold)]">
+        <div className="col-start-3 row-span-4 row-start-1 mt-0 flex items-center gap-1 text-[11px] font-semibold text-white transition-colors group-hover:text-[color:var(--gold)] sm:mt-5 sm:gap-2 sm:text-xs">
           {subtitle === "MANUEL" ? "Ajouter" : "Connecter"}
           <ArrowRight size={14} className="transition-transform group-hover:translate-x-1" />
         </div>
