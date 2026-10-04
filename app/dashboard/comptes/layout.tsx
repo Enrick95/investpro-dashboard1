@@ -15,51 +15,40 @@ function normalizeText(value: string | null | undefined) {
 }
 
 function findPilotPanel(): HTMLElement | null {
-  const all = Array.from(document.querySelectorAll<HTMLElement>("section, div"));
+  // Sécurité V5 : on ne cherche QUE parmi les <section>.
+  // Cela évite de masquer par erreur le wrapper de toute la page.
+  const sections = Array.from(document.querySelectorAll<HTMLElement>("section"));
 
-  // Formulaire réel de connexion MT4 / MT5.
-  // IMPORTANT : on ne masque PAS les deux blocs informatifs du bas.
-  const marker = all.find((el) => {
-    const text = normalizeText(el.textContent);
+  const matches = sections.filter((section) => {
+    const text = normalizeText(section.textContent);
 
-    const isDirectConnectForm =
+    const directConnectForm =
       text.includes("connecter mon compte mt4 / mt5") &&
-      (text.includes("numéro du compte") ||
-        text.includes("numero du compte")) &&
+      (text.includes("numéro du compte") || text.includes("numero du compte")) &&
       text.includes("mot de passe investisseur") &&
-      text.includes("capital de départ");
+      (text.includes("capital de départ") || text.includes("capital de depart")) &&
+      text.includes("connecter mon compte");
 
-    const isPilotPanel =
+    const pilotPanel =
       text.includes("synchronisation mt5") &&
       (text.includes("installation pilote") ||
         text.includes("créer / renouveler ma clé") ||
-        text.includes("renouveler ma clé de synchronisation"));
+        text.includes("creer / renouveler ma cle") ||
+        text.includes("renouveler ma clé de synchronisation") ||
+        text.includes("renouveler ma cle de synchronisation"));
 
-    return isDirectConnectForm || isPilotPanel;
+    return directConnectForm || pilotPanel;
   });
 
-  if (!marker) return null;
+  if (matches.length === 0) return null;
 
-  const section = marker.closest("section") as HTMLElement | null;
-  if (section) return section;
+  // Si plusieurs sections correspondent, on prend la plus petite :
+  // c'est le formulaire lui-même, jamais le conteneur global de la page.
+  matches.sort(
+    (a, b) => normalizeText(a.textContent).length - normalizeText(b.textContent).length
+  );
 
-  // Cherche le plus petit conteneur raisonnable qui contient tout le formulaire.
-  let node: HTMLElement | null = marker;
-  for (let i = 0; i < 6 && node?.parentElement; i += 1) {
-    const parent = node.parentElement as HTMLElement;
-    const text = normalizeText(parent.textContent);
-    const looksLikeForm =
-      text.includes("connecter mon compte mt4 / mt5") &&
-      text.includes("mot de passe investisseur");
-
-    if (looksLikeForm && text.length < 12000) {
-      node = parent;
-      continue;
-    }
-    break;
-  }
-
-  return node;
+  return matches[0] ?? null;
 }
 
 function setPlatformInsidePanel(panel: HTMLElement, platform: "MT4" | "MT5") {
