@@ -17,15 +17,25 @@ function normalizeText(value: string | null | undefined) {
 function findPilotPanel(): HTMLElement | null {
   const all = Array.from(document.querySelectorAll<HTMLElement>("section, div"));
 
-  // On ne masque QUE le panneau pilote technique, jamais les blocs génériques du bas.
+  // Formulaire réel de connexion MT4 / MT5.
+  // IMPORTANT : on ne masque PAS les deux blocs informatifs du bas.
   const marker = all.find((el) => {
     const text = normalizeText(el.textContent);
-    return (
+
+    const isDirectConnectForm =
+      text.includes("connecter mon compte mt4 / mt5") &&
+      (text.includes("numéro du compte") ||
+        text.includes("numero du compte")) &&
+      text.includes("mot de passe investisseur") &&
+      text.includes("capital de départ");
+
+    const isPilotPanel =
       text.includes("synchronisation mt5") &&
       (text.includes("installation pilote") ||
         text.includes("créer / renouveler ma clé") ||
-        text.includes("renouveler ma clé de synchronisation"))
-    );
+        text.includes("renouveler ma clé de synchronisation"));
+
+    return isDirectConnectForm || isPilotPanel;
   });
 
   if (!marker) return null;
@@ -33,14 +43,16 @@ function findPilotPanel(): HTMLElement | null {
   const section = marker.closest("section") as HTMLElement | null;
   if (section) return section;
 
+  // Cherche le plus petit conteneur raisonnable qui contient tout le formulaire.
   let node: HTMLElement | null = marker;
-  for (let i = 0; i < 5 && node?.parentElement; i += 1) {
+  for (let i = 0; i < 6 && node?.parentElement; i += 1) {
     const parent = node.parentElement as HTMLElement;
     const text = normalizeText(parent.textContent);
-    if (
-      text.includes("synchronisation mt5") &&
-      text.length < 9000
-    ) {
+    const looksLikeForm =
+      text.includes("connecter mon compte mt4 / mt5") &&
+      text.includes("mot de passe investisseur");
+
+    if (looksLikeForm && text.length < 12000) {
       node = parent;
       continue;
     }
@@ -50,11 +62,50 @@ function findPilotPanel(): HTMLElement | null {
   return node;
 }
 
+function setPlatformInsidePanel(panel: HTMLElement, platform: "MT4" | "MT5") {
+  // Essaie les select natifs.
+  const selects = Array.from(panel.querySelectorAll<HTMLSelectElement>("select"));
+  const platformSelect = selects.find((select) =>
+    Array.from(select.options).some((option) =>
+      normalizeText(option.textContent).includes(platform.toLowerCase())
+    )
+  );
+
+  if (platformSelect) {
+    const option = Array.from(platformSelect.options).find((item) =>
+      normalizeText(item.textContent).includes(platform.toLowerCase())
+    );
+    if (option) {
+      platformSelect.value = option.value;
+      platformSelect.dispatchEvent(new Event("input", { bubbles: true }));
+      platformSelect.dispatchEvent(new Event("change", { bubbles: true }));
+      return;
+    }
+  }
+
+  // Fallback pour les composants custom : clique sur le contrôle proche du label Plateforme.
+  const candidates = Array.from(panel.querySelectorAll<HTMLElement>("button, [role='combobox'], input"));
+  const candidate = candidates.find((el) => {
+    const parentText = normalizeText(el.parentElement?.textContent);
+    const ownText = normalizeText(el.textContent || (el as HTMLInputElement).value);
+    return parentText.includes("plateforme") && (ownText.includes("mt4") || ownText.includes("mt5"));
+  });
+
+  if (candidate) {
+    candidate.click();
+    window.setTimeout(() => {
+      const options = Array.from(document.querySelectorAll<HTMLElement>("[role='option'], button, li, div"));
+      const option = options.find((el) => normalizeText(el.textContent) === platform.toLowerCase());
+      option?.click();
+    }, 80);
+  }
+}
+
+
 export default function ComptesMotionLayout({ children }: { children: ReactNode }) {
   const reduceMotion = useReducedMotion();
   const [chooserOpen, setChooserOpen] = useState(false);
   const [choice, setChoice] = useState<Choice>(null);
-  const [mt4Message, setMt4Message] = useState(false);
   const bypassNextAddClick = useRef(false);
   const originalAddButton = useRef<HTMLElement | null>(null);
   const pilotPanel = useRef<HTMLElement | null>(null);
@@ -94,7 +145,6 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
       event.stopPropagation();
       originalAddButton.current = button;
       setChoice(null);
-      setMt4Message(false);
       setChooserOpen(true);
     }
 
@@ -116,8 +166,8 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
     window.setTimeout(() => button.click(), 40);
   }
 
-  function chooseMt5() {
-    setChoice("mt5");
+  function revealMetaTrader(platform: "MT4" | "MT5") {
+    setChoice(platform === "MT5" ? "mt5" : "mt4");
     setChooserOpen(false);
 
     window.setTimeout(() => {
@@ -128,15 +178,19 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
       panel.dataset.ipPilotOpened = "1";
       panel.classList.remove("ip-mt5-pilot-hidden");
       panel.classList.add("ip-mt5-pilot-reveal");
+      setPlatformInsidePanel(panel, platform);
       panel.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
 
       window.setTimeout(() => panel.classList.remove("ip-mt5-pilot-reveal"), 850);
     }, 80);
   }
 
+  function chooseMt5() {
+    revealMetaTrader("MT5");
+  }
+
   function chooseMt4() {
-    setChoice("mt4");
-    setMt4Message(true);
+    revealMetaTrader("MT4");
   }
 
   return (
@@ -231,7 +285,7 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
                   <ChoiceCard
                     title="MetaTrader 4"
                     subtitle="MT4"
-                    text="Connecte ton compte MetaTrader 4 avec le même parcours clair et sécurisé."
+                    text="Synchronisation automatique du compte, de la balance et de l’historique."
                     icon={<MonitorCog size={24} />}
                     onClick={chooseMt4}
                   />
@@ -245,26 +299,6 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
                   />
                 </div>
 
-                <AnimatePresence>
-                  {mt4Message ? (
-                    <motion.div
-                      initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 6 }}
-                      className="mt-5 flex items-start gap-3 rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4"
-                    >
-                      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[color:var(--gold-border)] text-[color:var(--gold)]">
-                        <Plus size={15} />
-                      </div>
-                      <div>
-                        <div className="text-xs font-semibold text-white">Connexion MetaTrader 4</div>
-                        <div className="mt-1 text-[10px] leading-5 text-white/45">
-                          Le parcours MT4 est prévu ici. Son panneau de connexion sera activé dès que la synchronisation MT4 sera opérationnelle.
-                        </div>
-                      </div>
-                    </motion.div>
-                  ) : null}
-                </AnimatePresence>
               </div>
             </motion.div>
           </motion.div>
@@ -343,6 +377,7 @@ function ChoiceCard({
   text,
   icon,
   onClick,
+  eyebrow,
   highlighted = false,
 }: {
   title: string;
@@ -350,6 +385,7 @@ function ChoiceCard({
   text: string;
   icon: ReactNode;
   onClick: () => void;
+  eyebrow?: string;
   highlighted?: boolean;
 }) {
   return (
@@ -373,7 +409,11 @@ function ChoiceCard({
             {icon}
           </div>
 
-
+          {eyebrow ? (
+            <span className="rounded-full border border-[color:var(--gold-border)] bg-black/25 px-2.5 py-1 text-[8px] font-bold tracking-[0.1em] text-[color:var(--gold)]">
+              {eyebrow}
+            </span>
+          ) : null}
         </div>
 
         <div className="mt-7 text-[9px] font-bold uppercase tracking-[0.18em] text-[color:var(--gold)]">{subtitle}</div>
