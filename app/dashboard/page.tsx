@@ -5,13 +5,14 @@ import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 
 import {
+  ArrowDownRight,
   ArrowRight,
+  ArrowUpRight,
   BarChart3,
   BookOpen,
   CalendarDays,
   Flame,
   GraduationCap,
-  LineChart,
   Lock,
   Plus,
   ShieldCheck,
@@ -21,9 +22,15 @@ import {
   Activity,
   TrendingUp,
   Clock3,
+  RefreshCw,
+  CheckCircle2,
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
+
+/* =========================================================
+   TYPES
+========================================================= */
 
 type Profile = {
   username: string;
@@ -31,73 +38,1902 @@ type Profile = {
   xp: number;
 };
 
-const pageItem = {
-  hidden: { opacity: 0, y: 18 },
-  show: { opacity: 1, y: 0 },
+type TradingAccount = {
+  id: number;
+  name: string;
+  account_type: "real" | "demo" | "prop";
+  platform: "MT4" | "MT5" | "OTHER" | null;
+  broker: string | null;
+  currency: string;
+  initial_balance: number;
+  current_balance: number;
+  connection_type: "manual" | "automatic";
 };
 
-const softSpring = {
-  type: "spring" as const,
-  stiffness: 170,
-  damping: 22,
-  mass: 0.7,
+type Trade = {
+  id: number;
+
+  account_id: number | null;
+
+  trade_date: string;
+
+  symbol: string;
+
+  direction: "buy" | "sell";
+
+  risk_percent: number;
+
+  entry_price: number | null;
+  stop_loss: number | null;
+  take_profit: number | null;
+
+  result_amount: number;
+
+  result_r: number;
+
+  status:
+    | "open"
+    | "win"
+    | "loss"
+    | "breakeven"
+    | "cancelled";
+
+  setup: string | null;
+
+  session:
+    | "asian"
+    | "london"
+    | "new_york"
+    | "other"
+    | null;
+
+  timeframe: string | null;
+
+  notes: string | null;
+  screenshot_url: string | null;
 };
+
+type TradingPlan = {
+  max_risk_percent: number;
+  max_trades_per_day: number;
+  minimum_rr: number;
+  weekly_goal: string | null;
+
+  allowed_sessions: string[];
+  allowed_assets: string[];
+  allowed_setups: string[];
+};
+
+type Stars = 1 | 2 | 3;
+
+type EconEvent = {
+  id: string;
+  dateParisYMD: string;
+  time: string;
+  currency: string;
+  countryLabel: string;
+  title: string;
+  actual?: string;
+  forecast?: string;
+  previous?: string;
+  stars: Stars;
+};
+
+/* =========================================================
+   CALENDAR
+========================================================= */
+
+const ALLOWED = new Set([
+  "USD",
+  "EUR",
+  "GBP",
+  "JPY",
+  "CNY",
+]);
+
+const FLAGS: Record<
+  string,
+  string
+> = {
+  USD: "🇺🇸",
+  EUR: "🇪🇺",
+  GBP: "🇬🇧",
+  JPY: "🇯🇵",
+  CNY: "🇨🇳",
+};
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+function formatCurrency(
+  value: number,
+  currency = "EUR"
+) {
+  try {
+    return new Intl.NumberFormat(
+      "fr-FR",
+      {
+        style: "currency",
+        currency,
+
+        minimumFractionDigits:
+          2,
+
+        maximumFractionDigits:
+          2,
+      }
+    ).format(value);
+  } catch {
+    return `${value.toFixed(
+      2
+    )} ${currency}`;
+  }
+}
+
+function formatDate(
+  value: string
+) {
+  return new Date(
+    value
+  ).toLocaleDateString(
+    "fr-FR",
+    {
+      day: "2-digit",
+      month: "short",
+    }
+  );
+}
+
+function currentParisMonth() {
+  const parts =
+    new Intl.DateTimeFormat(
+      "en-CA",
+      {
+        timeZone:
+          "Europe/Paris",
+
+        year: "numeric",
+
+        month:
+          "2-digit",
+      }
+    ).formatToParts(
+      new Date()
+    );
+
+  const year =
+    parts.find(
+      (part) =>
+        part.type ===
+        "year"
+    )?.value || "";
+
+  const month =
+    parts.find(
+      (part) =>
+        part.type ===
+        "month"
+    )?.value || "";
+
+  return `${year}-${month}`;
+}
+
+function parisYMD(
+  date: Date
+) {
+  const parts =
+    new Intl.DateTimeFormat(
+      "en-CA",
+      {
+        timeZone:
+          "Europe/Paris",
+
+        year: "numeric",
+
+        month:
+          "2-digit",
+
+        day:
+          "2-digit",
+      }
+    ).formatToParts(
+      date
+    );
+
+  const get = (
+    type: string
+  ) =>
+    parts.find(
+      (part) =>
+        part.type ===
+        type
+    )?.value ?? "";
+
+  return `${get(
+    "year"
+  )}-${get(
+    "month"
+  )}-${get(
+    "day"
+  )}`;
+}
+
+function isThisMonth(
+  value: string
+) {
+  const tradeMonth =
+    new Intl.DateTimeFormat(
+      "en-CA",
+      {
+        timeZone:
+          "Europe/Paris",
+
+        year: "numeric",
+
+        month:
+          "2-digit",
+      }
+    )
+      .format(
+        new Date(value)
+      )
+      .slice(0, 7);
+
+  return (
+    tradeMonth ===
+    currentParisMonth()
+  );
+}
+
+function getWeekStart() {
+  const now =
+    new Date();
+
+  const parisDateString =
+    now.toLocaleDateString(
+      "en-US",
+      {
+        timeZone:
+          "Europe/Paris",
+      }
+    );
+
+  const parisDate =
+    new Date(
+      `${parisDateString} 12:00:00`
+    );
+
+  const day =
+    parisDate.getDay();
+
+  const diff =
+    day === 0
+      ? -6
+      : 1 - day;
+
+  parisDate.setDate(
+    parisDate.getDate() +
+      diff
+  );
+
+  return parisYMD(
+    parisDate
+  );
+}
+
+function tradeParisYMD(
+  value: string
+) {
+  return parisYMD(
+    new Date(value)
+  );
+}
+
+/* =========================================================
+   WEEKLY DISCIPLINE HELPERS
+========================================================= */
+
+function calculateRR(
+  entry: number | null,
+  stopLoss: number | null,
+  takeProfit: number | null
+) {
+  if (
+    entry == null ||
+    stopLoss == null ||
+    takeProfit == null
+  ) {
+    return null;
+  }
+
+  const riskDistance =
+    Math.abs(
+      entry - stopLoss
+    );
+
+  const rewardDistance =
+    Math.abs(
+      takeProfit - entry
+    );
+
+  if (
+    riskDistance <= 0
+  ) {
+    return null;
+  }
+
+  return (
+    rewardDistance /
+    riskDistance
+  );
+}
+
+function normalizeAsset(
+  value: string
+) {
+  const clean =
+    String(
+      value || ""
+    )
+      .trim()
+      .toUpperCase()
+      .replace(
+        /\s+/g,
+        ""
+      );
+
+  return clean ===
+    "GOLD"
+    ? "XAUUSD"
+    : clean;
+}
+
+function normalizeSession(
+  value:
+    | string
+    | null
+    | undefined
+) {
+  const clean =
+    String(
+      value || ""
+    )
+      .trim()
+      .toLowerCase()
+      .replace(
+        /[_-]/g,
+        " "
+      );
+
+  if (
+    clean ===
+      "new york" ||
+    clean ===
+      "newyork"
+  ) {
+    return "new york";
+  }
+
+  if (
+    clean ===
+      "asian" ||
+    clean ===
+      "asia"
+  ) {
+    return "asian";
+  }
+
+  if (
+    clean ===
+    "london"
+  ) {
+    return "london";
+  }
+
+  return clean;
+}
+
+function normalizeText(
+  value:
+    | string
+    | null
+    | undefined
+) {
+  return String(
+    value || ""
+  )
+    .trim()
+    .toLowerCase();
+}
+
+function isTradePlanCompliant(
+  trade: Trade,
+  plan: TradingPlan
+) {
+  const checks:
+    boolean[] = [];
+
+  /* RISQUE */
+
+  checks.push(
+    Number(
+      trade.risk_percent ||
+        0
+    ) <=
+      Number(
+        plan.max_risk_percent
+      )
+  );
+
+  /* RR */
+
+  const rr =
+    calculateRR(
+      trade.entry_price,
+      trade.stop_loss,
+      trade.take_profit
+    );
+
+  checks.push(
+    rr !== null &&
+      rr >=
+        Number(
+          plan.minimum_rr
+        )
+  );
+
+  /* ACTIF */
+
+  if (
+    plan.allowed_assets.length >
+    0
+  ) {
+    const allowedAssets =
+      plan.allowed_assets.map(
+        normalizeAsset
+      );
+
+    checks.push(
+      allowedAssets.includes(
+        normalizeAsset(
+          trade.symbol
+        )
+      )
+    );
+  }
+
+  /* SESSION */
+
+  if (
+    plan.allowed_sessions.length >
+    0
+  ) {
+    const allowedSessions =
+      plan.allowed_sessions.map(
+        normalizeSession
+      );
+
+    checks.push(
+      allowedSessions.includes(
+        normalizeSession(
+          trade.session
+        )
+      )
+    );
+  }
+
+  /* SETUP */
+
+  if (
+    plan.allowed_setups.length >
+    0
+  ) {
+    const allowedSetups =
+      plan.allowed_setups.map(
+        normalizeText
+      );
+
+    checks.push(
+      allowedSetups.includes(
+        normalizeText(
+          trade.setup
+        )
+      )
+    );
+  }
+
+  return (
+    checks.length > 0 &&
+    checks.every(Boolean)
+  );
+}
+
+/* =========================================================
+   CALENDAR HELPERS
+========================================================= */
+
+function todayParisYMD() {
+  return parisYMD(
+    new Date()
+  );
+}
+
+function nowParisMinutes() {
+  const parts =
+    new Intl.DateTimeFormat(
+      "fr-FR",
+      {
+        timeZone:
+          "Europe/Paris",
+
+        hour:
+          "2-digit",
+
+        minute:
+          "2-digit",
+
+        hour12:
+          false,
+      }
+    ).formatToParts(
+      new Date()
+    );
+
+  const hour =
+    Number(
+      parts.find(
+        (part) =>
+          part.type ===
+          "hour"
+      )?.value ?? 0
+    );
+
+  const minute =
+    Number(
+      parts.find(
+        (part) =>
+          part.type ===
+          "minute"
+      )?.value ?? 0
+    );
+
+  return (
+    hour * 60 +
+    minute
+  );
+}
+
+function timeToMinutes(
+  time: string
+) {
+  if (
+    !/^\d{1,2}:\d{2}$/.test(
+      time
+    )
+  ) {
+    return null;
+  }
+
+  const [
+    hour,
+    minute,
+  ] =
+    time
+      .split(":")
+      .map(Number);
+
+  if (
+    !Number.isFinite(
+      hour
+    ) ||
+    !Number.isFinite(
+      minute
+    )
+  ) {
+    return null;
+  }
+
+  return (
+    hour * 60 +
+    minute
+  );
+}
+
+function normalizeCurrency(
+  raw: string
+): {
+  currency: string;
+  label: string;
+} | null {
+  const value = (
+    raw || ""
+  ).trim();
+
+  if (!value) {
+    return null;
+  }
+
+  if (
+    ALLOWED.has(
+      value
+    )
+  ) {
+    return {
+      currency:
+        value,
+
+      label:
+        value === "USD"
+          ? "États-Unis"
+          : value ===
+            "EUR"
+          ? "Zone Euro"
+          : value ===
+            "GBP"
+          ? "Royaume-Uni"
+          : value ===
+            "JPY"
+          ? "Japon"
+          : "Chine",
+    };
+  }
+
+  const upper =
+    value.toUpperCase();
+
+  if (
+    upper.includes(
+      "UNITED STATES"
+    ) ||
+    upper.includes(
+      "U.S"
+    ) ||
+    upper === "US"
+  ) {
+    return {
+      currency:
+        "USD",
+
+      label:
+        "États-Unis",
+    };
+  }
+
+  if (
+    upper.includes(
+      "EURO"
+    ) ||
+    upper.includes(
+      "EUROZONE"
+    ) ||
+    upper.includes(
+      "GERMANY"
+    ) ||
+    upper.includes(
+      "FRANCE"
+    )
+  ) {
+    return {
+      currency:
+        "EUR",
+
+      label:
+        "Zone Euro",
+    };
+  }
+
+  if (
+    upper.includes(
+      "UNITED KINGDOM"
+    ) ||
+    upper.includes(
+      "UK"
+    ) ||
+    upper.includes(
+      "BRITAIN"
+    )
+  ) {
+    return {
+      currency:
+        "GBP",
+
+      label:
+        "Royaume-Uni",
+    };
+  }
+
+  if (
+    upper.includes(
+      "JAPAN"
+    )
+  ) {
+    return {
+      currency:
+        "JPY",
+
+      label:
+        "Japon",
+    };
+  }
+
+  if (
+    upper.includes(
+      "CHINA"
+    )
+  ) {
+    return {
+      currency:
+        "CNY",
+
+      label:
+        "Chine",
+    };
+  }
+
+  return null;
+}
+
+function parseInvestingHtml(
+  html: string,
+  startYMD: string
+): EconEvent[] {
+  if (
+    !html?.trim()
+  ) {
+    return [];
+  }
+
+  const doc =
+    new DOMParser().parseFromString(
+      `<table><tbody>${html}</tbody></table>`,
+      "text/html"
+    );
+
+  const rows =
+    Array.from(
+      doc.querySelectorAll(
+        "tr"
+      )
+    );
+
+  let currentDay =
+    startYMD;
+
+  const output: EconEvent[] =
+    [];
+
+  for (
+    const row of rows
+  ) {
+    const rowText = (
+      row.textContent || ""
+    ).trim();
+
+    const hasEvent =
+      !!row.querySelector(
+        ".event"
+      ) ||
+      !!row.querySelector(
+        "td.event"
+      );
+
+    if (
+      !hasEvent &&
+      rowText.length >
+        8 &&
+      /20\d{2}/.test(
+        rowText
+      ) &&
+      /(Mon|Tue|Wed|Thu|Fri|Sat|Sun|Lundi|Mardi|Mercredi|Jeudi|Vendredi|Samedi|Dimanche)/i.test(
+        rowText
+      )
+    ) {
+      const date =
+        new Date(
+          rowText
+        );
+
+      if (
+        !Number.isNaN(
+          date.getTime()
+        )
+      ) {
+        currentDay =
+          parisYMD(
+            date
+          );
+      }
+
+      continue;
+    }
+
+    const title = (
+      row.querySelector(
+        ".event"
+      )?.textContent ||
+      row.querySelector(
+        "td.event"
+      )?.textContent ||
+      row.querySelector(
+        ".event a"
+      )?.textContent ||
+      ""
+    ).trim();
+
+    if (!title) {
+      continue;
+    }
+
+    const time =
+      (
+        row.querySelector(
+          ".time"
+        )?.textContent ||
+        row.querySelector(
+          "td.time"
+        )?.textContent ||
+        ""
+      ).trim() ||
+      "—";
+
+    const rawCurrency =
+      (
+        row.querySelector(
+          ".flagCur"
+        )?.textContent ||
+        ""
+      ).trim();
+
+    const currency =
+      normalizeCurrency(
+        rawCurrency
+      ) ||
+      normalizeCurrency(
+        rowText
+      );
+
+    if (!currency) {
+      continue;
+    }
+
+    if (
+      !ALLOWED.has(
+        currency.currency
+      )
+    ) {
+      continue;
+    }
+
+    const actual =
+      (
+        row.querySelector(
+          ".act"
+        )?.textContent ||
+        ""
+      ).trim() ||
+      undefined;
+
+    const forecast =
+      (
+        row.querySelector(
+          ".fore"
+        )?.textContent ||
+        ""
+      ).trim() ||
+      undefined;
+
+    const previous =
+      (
+        row.querySelector(
+          ".prev"
+        )?.textContent ||
+        ""
+      ).trim() ||
+      undefined;
+
+    const sentiment =
+      row.querySelector(
+        ".sentiment"
+      );
+
+    let bulls =
+      row.querySelectorAll(
+        ".fullBullishIcon"
+      ).length +
+      row.querySelectorAll(
+        ".grayFullBullishIcon"
+      ).length +
+      row.querySelectorAll(
+        ".bullishIcon"
+      ).length;
+
+    if (
+      bulls === 0 &&
+      sentiment
+    ) {
+      bulls =
+        Math.max(
+          sentiment.querySelectorAll(
+            "i"
+          ).length,
+
+          sentiment.querySelectorAll(
+            "svg"
+          ).length
+        );
+    }
+
+    bulls =
+      Math.max(
+        0,
+        Math.min(
+          3,
+          bulls
+        )
+      );
+
+    const stars: Stars =
+      bulls >= 3
+        ? 3
+        : bulls === 2
+        ? 2
+        : 1;
+
+    const id =
+      row.getAttribute(
+        "data-event-id"
+      ) ||
+      row.getAttribute(
+        "event_attr_id"
+      ) ||
+      row.getAttribute(
+        "id"
+      ) ||
+      `evt_${Date.now()}_${Math.random()
+        .toString(16)
+        .slice(2)}`;
+
+    output.push({
+      id,
+
+      dateParisYMD:
+        currentDay,time,
+
+      currency:
+        currency.currency,
+
+      countryLabel:
+        currency.label,
+
+      title,
+
+      actual,
+
+      forecast,
+
+      previous,
+
+      stars,
+    });
+  }
+
+  return output;
+}
+
+/* =========================================================
+   DASHBOARD
+========================================================= */
 
 export default function DashboardPage() {
   const reduceMotion = useReducedMotion();
-  const supabase = useMemo(() => createClient(), []);
 
-  const [profile, setProfile] = useState<Profile>({
-    username: "Trader",
-    plan: "free",
-    xp: 0,
-  });
+  const supabase =
+    useMemo(
+      () =>
+        createClient(),
+      []
+    );
 
-  const [loading, setLoading] = useState(true);
+  const [
+    profile,
+    setProfile,
+  ] =
+    useState<Profile>({
+      username:
+        "Trader",
+
+      plan:
+        "free",
+
+      xp:
+        0,
+    });
+
+  const [
+    accounts,
+    setAccounts,
+  ] =
+    useState<
+      TradingAccount[]
+    >([]);
+
+  const [
+    trades,
+    setTrades,
+  ] =
+    useState<Trade[]>(
+      []
+    );
+
+  const [
+    tradingPlan,
+    setTradingPlan,
+  ] =
+    useState<
+      TradingPlan | null
+    >(null);
+
+  const [
+    loading,
+    setLoading,
+  ] =
+    useState(true);
+
+  const [
+    marketEvents,
+    setMarketEvents,
+  ] =
+    useState<
+      EconEvent[]
+    >([]);
+
+  const [
+    calendarLoading,
+    setCalendarLoading,
+  ] =
+    useState(true);
+
+  /* =====================================================
+     LOAD DASHBOARD DATA
+  ===================================================== */
 
   useEffect(() => {
-    async function loadProfile() {
+    async function loadDashboard() {
       try {
+        setLoading(
+          true
+        );
+
         const {
-          data: { user },
-        } = await supabase.auth.getUser();
+          data: {
+            user,
+          },
+        } =
+          await supabase.auth.getUser();
 
         if (!user) {
-          window.location.href = "/login";
+          window.location.href =
+            "/login";
+
           return;
         }
 
-        const { data } = await supabase
-          .from("profiles")
-          .select("username, plan, xp")
-          .eq("id", user.id)
-          .single();
+        const [
+          profileResult,
+          accountsResult,
+          tradesResult,
+          planResult,
+        ] =
+          await Promise.all([
+            supabase
+              .from(
+                "profiles"
+              )
+              .select(
+                "username, plan, xp"
+              )
+              .eq(
+                "id",
+                user.id
+              )
+              .single(),
+
+            supabase
+              .from(
+                "trading_accounts"
+              )
+              .select(
+                `
+                  id,
+                  name,
+                  account_type,
+                  platform,
+                  broker,
+                  currency,
+                  initial_balance,
+                  current_balance,
+                  connection_type
+                `
+              )
+              .order(
+                "created_at",
+                {
+                  ascending:
+                    false,
+                }
+              ),
+
+            supabase
+              .from(
+                "trading_journal"
+              )
+              .select(
+                `
+                  id,
+                  account_id,
+                  trade_date,
+                  symbol,
+                  direction,
+                  risk_percent,
+                  entry_price,
+                  stop_loss,
+                  take_profit,
+                  result_amount,
+                  result_r,
+                  status,
+                  setup,
+                  session,
+                  timeframe,
+                  notes,
+                  screenshot_url
+                `
+              )
+              .order(
+                "trade_date",
+                {
+                  ascending:
+                    false,
+                }
+              ),
+
+            supabase
+              .from(
+                "trading_plans"
+              )
+              .select(
+                `
+                  max_risk_percent,
+                  max_trades_per_day,
+                  minimum_rr,
+                  weekly_goal,
+                  allowed_sessions,
+                  allowed_assets,
+                  allowed_setups
+                `
+              )
+              .eq(
+                "user_id",
+                user.id
+              )
+              .maybeSingle(),
+          ]);
+
+        /* PROFILE */
 
         setProfile({
           username:
-            data?.username ||
-            user.user_metadata?.username ||
-            user.email?.split("@")[0] ||
+            profileResult
+              .data
+              ?.username ||
+            user
+              .user_metadata
+              ?.username ||
+            user.email?.split(
+              "@"
+            )[0] ||
             "Trader",
 
-          plan: String(data?.plan || "free").toLowerCase(),
+          plan:
+            String(
+              profileResult
+                .data
+                ?.plan ||
+                "free"
+            ).toLowerCase(),
 
-          xp: Number(data?.xp || 0),
+          xp:
+            Number(
+              profileResult
+                .data
+                ?.xp ||
+                0
+            ),
         });
-      } catch (error) {
-        console.error("Erreur dashboard :", error);
+
+        /* ACCOUNTS */
+
+        if (
+          accountsResult.error
+        ) {
+          console.error(
+            "Erreur comptes dashboard :",
+            accountsResult.error
+          );
+        } else {
+          setAccounts(
+            (accountsResult.data as TradingAccount[]) ||
+              []
+          );
+        }
+
+        /* TRADES */
+
+        if (
+          tradesResult.error
+        ) {
+          console.error(
+            "Erreur trades dashboard :",
+            tradesResult.error
+          );
+        } else {
+          setTrades(
+            (tradesResult.data as Trade[]) ||
+              []
+          );
+        }
+
+        /* PLAN */
+
+        if (
+          planResult.data
+        ) {
+          setTradingPlan({
+            max_risk_percent:
+              Number(
+                planResult.data
+                  .max_risk_percent
+              ),
+
+            max_trades_per_day:
+              Number(
+                planResult.data
+                  .max_trades_per_day
+              ),
+
+            minimum_rr:
+              Number(
+                planResult.data
+                  .minimum_rr
+              ),
+
+            weekly_goal:
+              planResult.data
+                .weekly_goal ||
+              null,
+
+            allowed_sessions:
+              Array.isArray(
+                planResult.data
+                  .allowed_sessions
+              )
+                ? planResult.data
+                    .allowed_sessions
+                : [],
+
+            allowed_assets:
+              Array.isArray(
+                planResult.data
+                  .allowed_assets
+              )
+                ? planResult.data
+                    .allowed_assets
+                : [],
+
+            allowed_setups:
+              Array.isArray(
+                planResult.data
+                  .allowed_setups
+              )
+                ? planResult.data
+                    .allowed_setups
+                : [],
+          });
+        }
+      } catch (
+        error
+      ) {
+        console.error(
+          "Erreur dashboard :",
+          error
+        );
       } finally {
-        setLoading(false);
+        setLoading(
+          false
+        );
       }
     }
 
-    loadProfile();
+    loadDashboard();
   }, [supabase]);
 
-  const isAcademyUnlocked =
-    profile.plan === "pro" || profile.plan === "elite";
+  /* =====================================================
+     ECONOMIC CALENDAR
+  ===================================================== */
 
-  const planLabel = profile.plan.toUpperCase();
+  useEffect(() => {
+    async function loadDashboardCalendar() {
+      try {
+        setCalendarLoading(
+          true
+        );
+
+        const today =
+          todayParisYMD();
+
+        const url =
+          new URL(
+            "/api/calendar",
+            window
+              .location
+              .origin
+          );
+
+        url.searchParams.set(
+          "start",
+          today
+        );
+
+        url.searchParams.set(
+          "end",
+          today
+        );
+
+        const response =
+          await fetch(
+            url.toString(),
+            {
+              cache:
+                "no-store",
+            }
+          );
+
+        const json =
+          await response.json();
+
+        if (
+          !json?.ok
+        ) {
+          setMarketEvents(
+            []
+          );
+
+          return;
+        }
+
+        const parsed =
+          parseInvestingHtml(
+            String(
+              json.html ??
+                ""
+            ),
+            today
+          );
+
+        const currentMinutes =
+          nowParisMinutes();
+
+        const upcoming =
+          parsed
+            .filter(
+              (
+                event
+              ) =>
+                event.stars >=
+                2
+            )
+            .filter(
+              (
+                event
+              ) => {
+                const eventMinutes =
+                  timeToMinutes(
+                    event.time
+                  );
+
+                if (
+                  eventMinutes ===
+                  null
+                ) {
+                  return false;
+                }
+
+                return (
+                  eventMinutes >=
+                  currentMinutes
+                );
+              }
+            )
+            .sort(
+              (
+                a,
+                b
+              ) => {
+                const aMinutes =
+                  timeToMinutes(
+                    a.time
+                  ) ??
+                  9999;
+
+                const bMinutes =
+                  timeToMinutes(
+                    b.time
+                  ) ??
+                  9999;
+
+                return (
+                  aMinutes -
+                  bMinutes
+                );
+              }
+            )
+            .slice(
+              0,
+              3
+            );
+
+        if (
+          upcoming.length ===
+          0
+        ) {
+          const importantToday =
+            parsed
+              .filter(
+                (
+                  event
+                ) =>
+                  event.stars >=
+                  2
+              )
+              .sort(
+                (
+                  a,
+                  b
+                ) => {
+                  const aMinutes =
+                    timeToMinutes(
+                      a.time
+                    ) ??
+                    9999;
+
+                  const bMinutes =
+                    timeToMinutes(
+                      b.time
+                    ) ??
+                    9999;
+
+                  return (
+                    aMinutes -
+                    bMinutes
+                  );
+                }
+              )
+              .slice(
+                0,
+                3
+              );
+
+          setMarketEvents(
+            importantToday
+          );
+
+          return;
+        }
+
+        setMarketEvents(
+          upcoming
+        );
+      } catch (
+        error
+      ) {
+        console.error(
+          "Erreur calendrier dashboard :",
+          error
+        );
+
+        setMarketEvents(
+          []
+        );
+      } finally {
+        setCalendarLoading(
+          false
+        );
+      }
+    }
+
+    loadDashboardCalendar();
+  }, []);
+
+  /* =====================================================
+     CALCULATED DATA
+  ===================================================== */
+
+  const accountMap =
+    useMemo(() => {
+      const map =
+        new Map<
+          number,
+          TradingAccount
+        >();
+
+      accounts.forEach(
+        (
+          account
+        ) => {
+          map.set(
+            account.id,
+            account
+          );
+        }
+      );
+
+      return map;
+    }, [accounts]);
+
+  const accountCurrency =
+    useMemo(() => {
+      if (
+        accounts.length ===
+        0
+      ) {
+        return null;
+      }
+
+      const currencies =
+        Array.from(
+          new Set(
+            accounts.map(
+              (
+                account
+              ) =>
+                account.currency
+            )
+          )
+        );
+
+      return currencies.length ===
+        1
+        ? currencies[0]
+        : null;
+    }, [accounts]);
+
+  const monthTrades =
+    useMemo(
+      () =>
+        trades.filter(
+          (
+            trade
+          ) =>
+            isThisMonth(
+              trade.trade_date
+            )
+        ),
+      [trades]
+    );
+
+  const dashboardStats =
+    useMemo(() => {
+      const totalCapital =
+        accounts.reduce(
+          (
+            total,
+            account
+          ) =>
+            total +
+            Number(
+              account.current_balance ||
+                0
+            ),
+          0
+        );
+
+      const monthPnl =
+        monthTrades.reduce(
+          (
+            total,
+            trade
+          ) =>
+            total +
+            Number(
+              trade.result_amount ||
+                0
+            ),
+          0
+        );
+
+      const wins =
+        monthTrades.filter(
+          (
+            trade
+          ) =>
+            trade.status ===
+            "win"
+        ).length;
+
+      const losses =
+        monthTrades.filter(
+          (
+            trade
+          ) =>
+            trade.status ===
+            "loss"
+        ).length;
+
+      const winrate =
+        wins + losses > 0
+          ? (wins /
+              (wins +
+                losses)) *
+            100
+          : 0;
+
+      const riskTrades =
+        monthTrades.filter(
+          (
+            trade
+          ) =>
+            Number(
+              trade.risk_percent
+            ) > 0
+        );
+
+      const averageRisk =
+        riskTrades.length >
+        0
+          ? riskTrades.reduce(
+              (
+                total,
+                trade
+              ) =>
+                total +
+                Number(
+                  trade.risk_percent ||
+                    0
+                ),
+              0
+            ) /
+            riskTrades.length
+          : 0;
+
+      return {
+        totalCapital,
+        monthPnl,
+        winrate,
+        averageRisk,
+
+        tradesThisMonth:
+          monthTrades.length,
+      };
+    }, [
+      accounts,
+      monthTrades,
+    ]);
+
+  /* =====================================================
+     WEEK GOALS
+  ===================================================== */
+
+  const weeklyGoals =
+    useMemo(() => {
+      const weekStart =
+        getWeekStart();
+
+      const weekTrades =
+        trades.filter(
+          (
+            trade
+          ) =>
+            tradeParisYMD(
+              trade.trade_date
+            ) >=
+              weekStart &&
+            trade.status !==
+              "cancelled"
+        );
+
+      /* 1. VOLUME DE TRADES */
+
+      const tradeTarget =
+        5;
+
+      const fiveTrades =
+        weekTrades.length >=
+        tradeTarget;
+
+      /* 2. RISQUE MAX */
+
+      const riskRespected =
+        weekTrades.length >
+          0 &&
+        tradingPlan
+          ? weekTrades.every(
+              (
+                trade
+              ) =>
+                Number(
+                  trade.risk_percent ||
+                    0
+                ) <=
+                Number(
+                  tradingPlan.max_risk_percent
+                )
+            )
+          : false;
+
+      /* 3. NOMBRE MAX DE TRADES / JOUR */
+
+      const tradesByDay =
+        new Map<
+          string,
+          number
+        >();
+
+      weekTrades.forEach(
+        (
+          trade
+        ) => {
+          const day =
+            tradeParisYMD(
+              trade.trade_date
+            );
+
+          tradesByDay.set(
+            day,
+            (
+              tradesByDay.get(
+                day
+              ) || 0
+            ) + 1
+          );
+        }
+      );
+
+      const dailyLimitRespected =
+        weekTrades.length >
+          0 &&
+        tradingPlan
+          ? Array.from(
+              tradesByDay.values()
+            ).every(
+              (
+                count
+              ) =>
+                count <=
+                Number(
+                  tradingPlan.max_trades_per_day
+                )
+            )
+          : false;
+
+      /* 4. DISCIPLINE DU PLAN */
+
+      const compliantTrades =
+        tradingPlan
+          ? weekTrades.filter(
+              (
+                trade
+              ) =>
+                isTradePlanCompliant(
+                  trade,
+                  tradingPlan
+                )
+            ).length
+          : 0;
+
+      const disciplinePercent =
+        weekTrades.length >
+          0 &&
+        tradingPlan
+          ? (
+              compliantTrades /
+              weekTrades.length
+            ) *
+            100
+          : 0;
+
+      const disciplineGoal =
+        weekTrades.length >
+          0 &&
+        tradingPlan
+          ? disciplinePercent >=
+            80
+          : false;
+
+      /* 5. JOURNAL DOCUMENTÉ */
+
+      const documentedTrades =
+        weekTrades.filter(
+          (
+            trade
+          ) =>
+            !!trade.notes?.trim() &&
+            !!trade.screenshot_url
+        ).length;
+
+      const journalCompleted =
+        weekTrades.length >
+          0 &&
+        documentedTrades ===
+          weekTrades.length;
+
+      const goals = [
+        fiveTrades,
+        riskRespected,
+        dailyLimitRespected,
+        disciplineGoal,
+        journalCompleted,
+      ];
+
+      const completed =
+        goals.filter(
+          Boolean
+        ).length;
+
+      return {
+        completed,
+
+        totalGoals:
+          goals.length,
+
+        percent:
+          (
+            completed /
+            goals.length
+          ) *
+          100,
+
+        weekTrades:
+          weekTrades.length,
+
+        tradeTarget,
+
+        fiveTrades,
+
+        riskRespected,
+
+        dailyLimitRespected,
+
+        disciplinePercent,
+
+        disciplineGoal,
+
+        documentedTrades,
+
+        journalCompleted,
+      };
+    }, [
+      trades,
+      tradingPlan,
+    ]);
+
+  const recentTrades =
+    trades.slice(
+      0,
+      3
+    );
+
+  const isAcademyUnlocked =
+    profile.plan ===
+      "pro" ||
+    profile.plan ===
+      "elite";
+
+  const planLabel =
+    profile.plan.toUpperCase();
+
+  /* =====================================================
+     LOADING
+  ===================================================== */
 
   if (loading) {
     return (
@@ -111,73 +1947,49 @@ export default function DashboardPage() {
 
   return (
     <motion.div
-      className="relative space-y-5 pb-8 overflow-hidden"
-      initial={reduceMotion ? false : "hidden"}
-      animate="show"
-      variants={{
-        hidden: {},
-        show: {
-          transition: {
-            staggerChildren: reduceMotion ? 0 : 0.07,
-            delayChildren: reduceMotion ? 0 : 0.04,
-          },
-        },
-      }}
+      className="space-y-5 pb-8"
+      initial={reduceMotion ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.35 }}
     >
-      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-        <motion.div
-          className="absolute -top-[120px] left-[5%] h-[360px] w-[360px] rounded-full bg-[color:var(--gold)] opacity-[0.07] blur-[110px]"
-          animate={reduceMotion ? undefined : { x: [0, 55, 0], y: [0, 28, 0], scale: [1, 1.12, 1] }}
-          transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-        />
-        <motion.div
-          className="absolute right-[-120px] top-[260px] h-[360px] w-[360px] rounded-full bg-[color:var(--gold)] opacity-[0.07] blur-[110px]"
-          animate={reduceMotion ? undefined : { x: [0, -45, 0], y: [0, -22, 0], scale: [1, 1.08, 1] }}
-          transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
-        />
-        <div
-          className="absolute inset-0 opacity-[0.025]"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(255,255,255,.45) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.45) 1px, transparent 1px)",
-            backgroundSize: "44px 44px",
-            WebkitMaskImage: "linear-gradient(to bottom, black, transparent 75%)",
-            maskImage: "linear-gradient(to bottom, black, transparent 75%)",
-          }}
-        />
-      </div>
-
-      {/* =========================================================
-          TOP WELCOME
-      ========================================================= */}
+      {/* =====================================================
+          TOP
+      ===================================================== */}
 
       <motion.div
         className="flex items-start justify-between gap-4"
-        variants={pageItem}
-        transition={softSpring}
+        initial={reduceMotion ? false : { opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: "easeOut" }}
       >
         <div>
-          <h1 className="text-[22px] md:text-2xl font-semibold text-white">
+          <h1 className="text-[22px] font-semibold text-white md:text-2xl">
             Bonjour,{" "}
             <span className="text-[color:var(--gold)]">
-              {profile.username}
+              {
+                profile.username
+              }
             </span>{" "}
             👋
           </h1>
 
           <p className="mt-1 text-sm text-[color:var(--muted)]">
-            Voici ce qui se passe sur ton compte aujourd’hui.
+            Voici ce qui se
+            passe sur ton
+            compte aujourd’hui.
           </p>
         </div>
 
         <div
           className="
-            hidden md:flex
-            items-center gap-2
+            hidden
+            items-center
+            gap-2
             rounded-xl
             border border-[color:var(--gold-border)]
             bg-[color:var(--gold-soft)]
             px-3 py-2
+            md:flex
           "
         >
           <ShieldCheck
@@ -195,41 +2007,30 @@ export default function DashboardPage() {
         </div>
       </motion.div>
 
-      {/* =========================================================
-          HERO
-      ========================================================= */}
+      {/* =====================================================
+          HERO===================================================== */}
 
       <motion.section
-        variants={pageItem}
-        transition={softSpring}
+        initial={reduceMotion ? false : { opacity: 0, y: 24, scale: 0.985 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.65, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
         className="
           relative
-          overflow-hidden
           min-h-[205px]
+          overflow-hidden
           rounded-[26px]
           border border-[color:var(--gold-border)]
           bg-[#0b0b0d]
-          shadow-[0_30px_90px_rgba(0,0,0,0.35)]
-          investpro-hero
         "
       >
-        <motion.div
-          className="pointer-events-none absolute inset-y-0 w-[35%] bg-gradient-to-r from-transparent via-[#ffe89b]/[0.08] to-transparent"
-          initial={reduceMotion ? false : { x: "-130%", skewX: -16, opacity: 0 }}
-          animate={reduceMotion ? undefined : { x: ["-130%", "160%"], opacity: [0, 0.18, 0] }}
-          transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut", delay: 1.1 }}
-        />
-        <div className="pointer-events-none absolute left-0 top-0 h-px w-full bg-gradient-to-r from-transparent via-[color:var(--gold)]/50 to-transparent" />
-
-        {/* Glow gauche */}
         <div
           className="
             pointer-events-none
             absolute
             -left-32
             -top-40
-            w-[420px]
             h-[420px]
+            w-[420px]
             rounded-full
             bg-[color:var(--gold)]
             opacity-[0.06]
@@ -237,15 +2038,14 @@ export default function DashboardPage() {
           "
         />
 
-        {/* Glow droite */}
         <div
           className="
             pointer-events-none
             absolute
             right-[-80px]
             top-[-140px]
-            w-[540px]
             h-[440px]
+            w-[540px]
             rounded-full
             bg-[color:var(--gold)]
             opacity-[0.10]
@@ -253,20 +2053,13 @@ export default function DashboardPage() {
           "
         />
 
-        {/* contenu */}
-        <motion.div
-          className="relative z-10 p-7 md:p-8 max-w-2xl"
-          initial={reduceMotion ? false : { opacity: 0, x: -16 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: reduceMotion ? 0 : 0.5, delay: 0.12 }}
-        >
-          <motion.div
-            animate={reduceMotion ? undefined : { boxShadow: ["0 0 0 rgba(242,199,91,0)", "0 0 28px rgba(242,199,91,.12)", "0 0 0 rgba(242,199,91,0)"] }}
-            transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
+        <div className="relative z-10 max-w-2xl p-7 md:p-8">
+          <div
             className="
-              inline-flex
-              items-center gap-2
               mb-4
+              inline-flex
+              items-center
+              gap-2
               rounded-full
               border border-[color:var(--gold-border)]
               bg-black/30
@@ -278,45 +2071,32 @@ export default function DashboardPage() {
               text-[color:var(--gold)]
             "
           >
-            <Activity size={12} />
-            InvestPro Trading Hub
-          </motion.div>
+            <Activity
+              size={12}
+            />
 
-          <h2 className="text-2xl md:text-[28px] leading-tight font-semibold text-white">
-            Bienvenue dans ton espace{" "}
-            <motion.span
-              className="bg-gradient-to-r from-[#f2c75b] via-[#fff0a6] to-[#c99624] bg-clip-text text-transparent"
-              animate={reduceMotion ? undefined : { filter: ["brightness(.9)", "brightness(1.25)", "brightness(.9)"] }}
-              transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
-            >
+            InvestPro Trading
+            Hub
+          </div>
+
+          <h2 className="text-2xl font-semibold leading-tight text-white md:text-[28px]">
+            Bienvenue dans ton
+            espace{" "}
+            <span className="text-[color:var(--gold)]">
               InvestPro
-            </motion.span>
+            </span>
           </h2>
 
-          <p
-            className="
-              mt-3
-              max-w-xl
-              text-sm
-              leading-6
-              text-[color:var(--muted)]
-            "
-          >
-            Apprends, analyse, gère ton risque et suis ta performance.
-            Tout ce dont tu as besoin pour progresser avec discipline,
-            au même endroit.
+          <p className="mt-3 max-w-xl text-sm leading-6 text-[color:var(--muted)]">
+            Apprends, analyse,
+            gère ton risque et
+            suis ta performance.
+            Tout ce dont tu as
+            besoin pour
+            progresser avec
+            discipline, au même
+            endroit.
           </p>
-
-          <motion.div
-            className="mt-5 flex flex-wrap gap-2"
-            initial={reduceMotion ? false : { opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: reduceMotion ? 0 : 0.45, delay: reduceMotion ? 0 : 0.3 }}
-          >
-            <HeroPill label="Plan" value={planLabel} />
-            <HeroPill label="XP" value={String(profile.xp)} />
-            <HeroPill label="Statut" value="En ligne" live />
-          </motion.div>
 
           <div className="mt-5 flex flex-wrap items-center gap-3">
             {isAcademyUnlocked ? (
@@ -324,8 +2104,9 @@ export default function DashboardPage() {
                 href="/dashboard/academy"
                 className="
                   inline-flex
-                  items-center gap-2
                   h-11
+                  items-center
+                  gap-2
                   rounded-xl
                   bg-[color:var(--gold)]
                   px-4
@@ -333,20 +2114,23 @@ export default function DashboardPage() {
                   font-semibold
                   text-black
                   no-underline
-                  hover:bg-[color:var(--gold-2)]
-                  transition
                 "
               >
-                Voir ma progression
-                <ArrowRight size={15} />
+                Voir ma
+                progression
+
+                <ArrowRight
+                  size={15}
+                />
               </Link>
             ) : (
               <Link
                 href="/dashboard/abonnement"
                 className="
                   inline-flex
-                  items-center gap-2
                   h-11
+                  items-center
+                  gap-2
                   rounded-xl
                   bg-[color:var(--gold)]
                   px-4
@@ -354,12 +2138,14 @@ export default function DashboardPage() {
                   font-semibold
                   text-black
                   no-underline
-                  hover:bg-[color:var(--gold-2)]
-                  transition
                 "
               >
-                Découvrir InvestPro PRO
-                <ArrowRight size={15} />
+                Découvrir
+                InvestPro PRO
+
+                <ArrowRight
+                  size={15}
+                />
               </Link>
             )}
 
@@ -367,8 +2153,9 @@ export default function DashboardPage() {
               href="/dashboard/comptes"
               className="
                 inline-flex
-                items-center gap-2
                 h-11
+                items-center
+                gap-2
                 rounded-xl
                 border border-white/10
                 bg-white/[0.03]
@@ -377,18 +2164,14 @@ export default function DashboardPage() {
                 font-medium
                 text-white
                 no-underline
-                hover:bg-white/[0.06]
-                transition
               "
             >
               Mes comptes
             </Link>
           </div>
-        </motion.div>
+        </div>
 
-        {/* =====================================================
-            GRAPH / CANDLE DECORATION
-        ===================================================== */}
+        {/* GRAPH */}
 
         <div
           className="
@@ -402,59 +2185,76 @@ export default function DashboardPage() {
             lg:block
           "
         >
-          {/* lignes horizontales */}
           <div className="absolute inset-0 opacity-[0.08]">
             <div className="absolute left-0 right-0 top-[25%] border-t border-white" />
+
             <div className="absolute left-0 right-0 top-[50%] border-t border-white" />
+
             <div className="absolute left-0 right-0 top-[75%] border-t border-white" />
           </div>
 
-          {/* bougies */}
           <div className="absolute bottom-7 right-8 flex h-[135px] items-end gap-[10px] opacity-35">
             {[
-              48, 68, 54, 92, 112, 78, 125, 105, 148, 126, 172, 154,
-            ].map((height, index) => (
-              <motion.div
-                key={index}
-                className="relative w-[10px]"
-                style={{ height, transformOrigin: "bottom" }}
-                initial={reduceMotion ? false : { scaleY: 0, opacity: 0 }}
-                animate={{ scaleY: 1, opacity: 1 }}
-                transition={{
-                  duration: reduceMotion ? 0 : 0.38,
-                  delay: reduceMotion ? 0 : 0.22 + index * 0.035,
-                  ease: [0.22, 1, 0.36, 1],
-                }}
-              >
-                <span
-                  className="
-                    absolute
-                    left-1/2
-                    top-[-12px]
-                    bottom-[-12px]
-                    w-px
-                    -translate-x-1/2
-                    bg-[color:var(--gold)]
-                  "
-                />
-
-                <span
-                  className="
-                    absolute
-                    inset-x-0
-                    bottom-0
-                    rounded-sm
-                    bg-[color:var(--gold)]
-                  "
+              48,
+              68,
+              54,
+              92,
+              112,
+              78,
+              125,
+              105,
+              148,
+              126,
+              172,
+              154,
+            ].map(
+              (
+                height,
+                index
+              ) => (
+                <div
+                  key={
+                    index
+                  }
+                  className="relative w-[10px]"
                   style={{
-                    height: Math.max(18, height * 0.52),
+                    height,
                   }}
-                />
-              </motion.div>
-            ))}
+                >
+                  <span
+                    className="
+                      absolute
+                      bottom-[-12px]
+                      left-1/2
+                      top-[-12px]
+                      w-px
+                      -translate-x-1/2
+                      bg-[color:var(--gold)]
+                    "
+                  />
+
+                  <span
+                    className="
+                      absolute
+                      inset-x-0
+                      bottom-0
+                      rounded-sm
+                      bg-[color:var(--gold)]
+                    "
+                    style={{
+                      height:
+                        Math.max(
+                          18,
+                          height *
+                            0.52
+                        ),
+                    }}
+                  />
+                </div>
+              )
+            )}
           </div>
 
-          {/* courbe */}
           <svg
             viewBox="0 0 650 220"
             className="absolute bottom-0 right-0 h-[185px] w-full"
@@ -494,12 +2294,16 @@ export default function DashboardPage() {
 
                 <feMerge>
                   <feMergeNode in="blur" />
+
                   <feMergeNode in="SourceGraphic" />
                 </feMerge>
               </filter>
             </defs>
 
             <motion.path
+              initial={reduceMotion ? false : { pathLength: 0, opacity: 0.25 }}
+              animate={{ pathLength: 1, opacity: 1 }}
+              transition={{ pathLength: { duration: 1.6, delay: 0.35, ease: "easeInOut" }, opacity: { duration: 0.4 } }}
               d="
                 M 0 180
                 C 45 178, 55 155, 92 160
@@ -514,23 +2318,12 @@ export default function DashboardPage() {
               stroke="url(#investproLine)"
               strokeWidth="3"
               filter="url(#goldGlow)"
-              initial={reduceMotion ? false : { pathLength: 0, opacity: 0 }}
-              animate={{ pathLength: 1, opacity: 1 }}
-              transition={{ duration: reduceMotion ? 0 : 1.15, delay: reduceMotion ? 0 : 0.25, ease: "easeOut" }}
             />
 
             <motion.circle
-              cx="650"
-              cy="18"
-              r="7"
-              fill="#f2c75b"
-              filter="url(#goldGlow)"
-              initial={reduceMotion ? false : { opacity: 0, scale: 0 }}
-              animate={{ opacity: [0.55, 1, 0.55], scale: [0.8, 1.35, 0.8] }}
-              transition={{ duration: reduceMotion ? 0 : 1.8, repeat: reduceMotion ? 0 : Infinity, ease: "easeInOut", delay: 1 }}
-            />
-
-            <circle
+              initial={reduceMotion ? false : { scale: 0, opacity: 0 }}
+              animate={{ scale: [0, 1.25, 1], opacity: 1 }}
+              transition={{ duration: 0.6, delay: 1.25 }}
               cx="520"
               cy="48"
               r="5"
@@ -538,7 +2331,10 @@ export default function DashboardPage() {
               filter="url(#goldGlow)"
             />
 
-            <circle
+            <motion.circle
+              initial={reduceMotion ? false : { scale: 0, opacity: 0 }}
+              animate={{ scale: [0, 1.35, 1], opacity: 1 }}
+              transition={{ duration: 0.65, delay: 1.55 }}
               cx="650"
               cy="18"
               r="6"
@@ -549,15 +2345,14 @@ export default function DashboardPage() {
         </div>
       </motion.section>
 
-      {/* =========================================================
+      {/* =====================================================
           KPI
-      ========================================================= */}
+      ===================================================== */}
 
       <motion.section
-        variants={{
-          hidden: {},
-          show: { transition: { staggerChildren: reduceMotion ? 0 : 0.09 } },
-        }}
+        initial={reduceMotion ? false : { opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.22 }}
         className="
           grid
           grid-cols-1
@@ -568,61 +2363,146 @@ export default function DashboardPage() {
         "
       >
         <StatCard
-          icon={<WalletCards size={18} />}
+          icon={
+            <WalletCards
+              size={18}
+            />
+          }
           label="Capital total"
-          value="—"
-          sub="Ajoute un compte"
+          value={
+            accounts.length ===
+            0
+              ? "—"
+              : accountCurrency
+              ? formatCurrency(
+                  dashboardStats.totalCapital,
+                  accountCurrency
+                )
+              : "Multi-devises"
+          }
+          sub={
+            accounts.length ===
+            0
+              ? "Ajoute un compte"
+              : `${accounts.length} compte${
+                  accounts.length !==
+                  1
+                    ? "s"
+                    : ""
+                }`
+          }
         />
 
         <StatCard
-          icon={<BarChart3 size={18} />}
+          icon={
+            <BarChart3
+              size={18}
+            />
+          }
           label="P&L du mois"
-          value="—"
-          sub="Aucune donnée"
+          value={
+            monthTrades.length ===
+            0
+              ? "—"
+              : accountCurrency
+              ? formatCurrency(
+                  dashboardStats.monthPnl,
+                  accountCurrency
+                )
+              : "Multi-devises"
+          }
+          sub={
+            monthTrades.length ===
+            0
+              ? "Aucune donnée"
+              : "Ce mois-ci"
+          }
+          positive={
+            monthTrades.length >
+              0 &&
+            accountCurrency
+              ? dashboardStats.monthPnl >=
+                0
+              : undefined
+          }
         />
 
         <StatCard
-          icon={<Target size={18} />}
+          icon={
+            <Target
+              size={18}
+            />
+          }
           label="Winrate"
-          value="—"
-          sub="Aucune donnée"
+          value={
+            monthTrades.length >
+            0
+              ? `${dashboardStats.winrate.toFixed(
+                  1
+                )}%`
+              : "—"
+          }
+          sub="Ce mois-ci"
         />
 
         <StatCard
-          icon={<ShieldCheck size={18} />}
+          icon={
+            <ShieldCheck
+              size={18}
+            />
+          }
           label="Risque moyen"
-          value="—"
-          sub="Aucune donnée"
+          value={
+            dashboardStats.averageRisk >
+            0
+              ? `${dashboardStats.averageRisk.toFixed(
+                  2
+                )}%`
+              : "—"
+          }
+          sub={
+            tradingPlan
+              ? `Plan max ${tradingPlan.max_risk_percent}%`
+              : "Ce mois-ci"
+          }
         />
 
         <StatCard
-          icon={<TrendingUp size={18} />}
+          icon={
+            <TrendingUp
+              size={18}
+            />
+          }
           label="Trades du mois"
-          value="0"
+          value={String(
+            dashboardStats.tradesThisMonth
+          )}
           sub="Ce mois-ci"
         />
       </motion.section>
 
-      {/* =========================================================
+      {/* =====================================================
           MAIN ROW
-      ========================================================= */}
+      ===================================================== */}
 
-      <motion.section
-        className="grid grid-cols-1 gap-4 xl:grid-cols-12"
-        variants={pageItem}
-        transition={softSpring}
-      >
-        {/* Academy */}
+      <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+        {/* ACADEMY */}
+
         <DashboardCard className="xl:col-span-5">
           <CardHeader
-            icon={<BookOpen size={17} />}
+            icon={
+              <BookOpen
+                size={17}
+              />
+            }
             title="Continuer ma formation"
             right={
               !isAcademyUnlocked ? (
                 <span
                   className="
                     inline-flex
-                    items-center gap-1
+                    items-center
+                    gap-1
                     rounded-full
                     border border-[color:var(--gold-border)]
                     bg-[color:var(--gold-soft)]
@@ -632,7 +2512,10 @@ export default function DashboardPage() {
                     text-[color:var(--gold)]
                   "
                 >
-                  <Lock size={10} />
+                  <Lock
+                    size={10}
+                  />
+
                   PRO
                 </span>
               ) : null
@@ -660,7 +2543,8 @@ export default function DashboardPage() {
 
                 <div className="min-w-0 flex-1">
                   <div className="font-semibold text-white">
-                    Les bases du trading
+                    Les bases du
+                    trading
                   </div>
 
                   <div className="mt-1 text-xs text-[color:var(--muted)]">
@@ -703,17 +2587,26 @@ export default function DashboardPage() {
                     bg-black/30
                   "
                 >
-                  <Lock className="text-[color:var(--gold)]" size={20} />
+                  <Lock
+                    className="text-[color:var(--gold)]"
+                    size={20}
+                  />
                 </div>
 
                 <div>
                   <div className="font-semibold text-white">
-                    Academy InvestPro
+                    Academy
+                    InvestPro
                   </div>
 
                   <p className="mt-1 max-w-md text-sm leading-5 text-[color:var(--muted)]">
-                    Accède aux formations, ressources et au suivi de
-                    progression avec InvestPro PRO.
+                    Accède aux
+                    formations,
+                    ressources et
+                    au suivi de
+                    progression
+                    avec
+                    InvestPro PRO.
                   </p>
 
                   <Link
@@ -721,15 +2614,20 @@ export default function DashboardPage() {
                     className="
                       mt-4
                       inline-flex
-                      items-center gap-2
+                      items-center
+                      gap-2
                       text-sm
                       font-semibold
                       text-[color:var(--gold)]
                       no-underline
                     "
                   >
-                    Débloquer l’Academy
-                    <ArrowRight size={14} />
+                    Débloquer
+                    l’Academy
+
+                    <ArrowRight
+                      size={14}
+                    />
                   </Link>
                 </div>
               </div>
@@ -737,69 +2635,200 @@ export default function DashboardPage() {
           )}
         </DashboardCard>
 
-        {/* Activity */}
+        {/* =================================================
+            ACTIVITY
+        ================================================= */}
+
         <DashboardCard className="xl:col-span-4">
           <CardHeader
-            icon={<Clock3 size={17} />}
+            icon={
+              <Clock3
+                size={17}
+              />
+            }
             title="Mon activité récente"
           />
 
           <div className="mt-5">
-            <EmptyState
-              title="Aucune activité récente"
-              text="Tes trades, journaux et activités apparaîtront ici."
-            />
+            {recentTrades.length >
+            0 ? (
+              <div className="space-y-2">
+                {recentTrades.map(
+                  (
+                    trade
+                  ) => {
+                    const account =
+                      trade.account_id
+                        ? accountMap.get(
+                            trade.account_id
+                          )
+                        : null;
+
+                    const currency =
+                      account?.currency ||
+                      accountCurrency ||
+                      "EUR";
+
+                    return (
+                      <RecentTrade
+                        key={
+                          trade.id
+                        }
+                        trade={
+                          trade
+                        }
+                        currency={
+                          currency
+                        }
+                      />
+                    );
+                  }
+                )}
+
+                <Link
+                  href="/dashboard/journal"
+                  className="
+                    mt-4
+                    inline-flex
+                    items-center
+                    gap-2
+                    text-xs
+                    font-semibold
+                    text-[color:var(--gold)]
+                    no-underline
+                  "
+                >
+                  Voir le journal
+
+                  <ArrowRight
+                    size={13}
+                  />
+                </Link>
+              </div>
+            ) : (
+              <EmptyState
+                title="Aucune activité récente"
+                text="Tes trades, journaux et activités apparaîtront ici."
+              />
+            )}
           </div>
         </DashboardCard>
 
-        {/* Calendar */}
+        {/* =================================================
+            CALENDAR
+        ================================================= */}
+
         <DashboardCard className="xl:col-span-3">
           <CardHeader
-            icon={<CalendarDays size={17} />}
+            icon={
+              <CalendarDays
+                size={17}
+              />
+            }
             title="Marchés aujourd’hui"
+            right={
+              calendarLoading ? (
+                <RefreshCw
+                  size={13}
+                  className="animate-spin text-[color:var(--gold)]"
+                />
+              ) : null
+            }
           />
 
-          <div className="mt-5 space-y-3">
-            <MarketRow
-              time="14:30"
-              currency="USD"
-              event="Événement économique"
-              level="Élevé"
-            />
+          <div className="mt-5">
+            {calendarLoading ? (
+              <div className="py-5 text-center text-xs text-[color:var(--muted)]">
+                Chargement des
+                annonces…
+              </div>
+            ) : marketEvents.length >
+              0 ? (
+              <div className="space-y-3">
+                {marketEvents.map(
+                  (
+                    event
+                  ) => (
+                    <MarketRow
+                      key={
+                        event.id
+                      }
+                      time={
+                        event.time
+                      }
+                      currency={
+                        event.currency
+                      }
+                      flag={
+                        FLAGS[
+                          event
+                            .currency
+                        ] ||
+                        "🌐"
+                      }
+                      event={
+                        event.title
+                      }
+                      stars={
+                        event.stars
+                      }
+                    />
+                  )
+                )}
+              </div>
+            ) : (
+              <div
+                className="
+                  rounded-2xl
+                  border border-dashed border-white/[0.08]
+                  bg-black/20
+                  p-4
+                "
+              >
+                <div className="text-xs font-semibold text-white">
+                  Aucune annonce
+                  importante
+                </div>
 
-            <MarketRow
-              time="16:00"
-              currency="USD"
-              event="Donnée macro"
-              level="Moyen"
-            />
+                <p className="mt-1 text-[10px] leading-5 text-[color:var(--muted)]">
+                  Aucune news
+                  économique
+                  majeure n’est
+                  disponible pour
+                  aujourd’hui.
+                </p>
+              </div>
+            )}
 
             <Link
               href="/dashboard/calendrier"
               className="
+                mt-4
                 inline-flex
-                items-center gap-2
-                pt-2
+                items-center
+                gap-2
                 text-xs
                 font-semibold
                 text-[color:var(--gold)]
                 no-underline
               "
             >
-              Voir le calendrier complet
-              <ArrowRight size={13} />
+              Voir le calendrier
+              complet
+
+              <ArrowRight
+                size={13}
+              />
             </Link>
           </div>
         </DashboardCard>
-      </motion.section>
+      </section>
 
-      {/* =========================================================
+      {/* =====================================================
           BOTTOM
-      ========================================================= */}
+      ===================================================== */}
 
-      <motion.section
-        variants={pageItem}
-        transition={softSpring}
+      <section
         className="
           grid
           grid-cols-1
@@ -808,52 +2837,218 @@ export default function DashboardPage() {
           xl:grid-cols-4
         "
       >
-        {/* Goals */}
+        {/* GOALS */}
+
         <DashboardCard>
           <CardHeader
-            icon={<Target size={17} />}
-            title="Objectif de la semaine"
+            icon={
+              <Target
+                size={17}
+              />
+            }
+            title="Objectifs de la semaine"
+            right={
+              <span
+                className="
+                  rounded-full
+                  border border-[color:var(--gold-border)]
+                  bg-[color:var(--gold-soft)]
+                  px-2 py-1
+                  text-[8px]
+                  font-bold
+                  text-[color:var(--gold)]
+                "
+              >
+                LUN → DIM
+              </span>
+            }
           />
 
-          <div className="mt-6 flex items-end justify-between">
+          <div className="mt-6 flex items-end justify-between gap-3">
             <div>
               <div className="text-2xl font-semibold text-white">
-                0 / 3
+                {
+                  weeklyGoals.completed
+                }{" "}
+                /{" "}
+                {
+                  weeklyGoals.totalGoals
+                }
               </div>
 
               <div className="mt-1 text-xs text-[color:var(--muted)]">
-                objectifs complétés
+                objectifs
+                complétés
               </div>
             </div>
 
-            <div className="text-xs font-semibold text-[color:var(--gold)]">
-              0%
+            <div className="text-right">
+              <div className="text-xs font-semibold text-[color:var(--gold)]">
+                {weeklyGoals.percent.toFixed(
+                  0
+                )}
+                %
+              </div>
+
+              <div className="mt-1 text-[9px] text-[color:var(--muted)]">
+                Reset chaque lundi
+              </div>
             </div>
           </div>
 
           <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/5">
-            <div className="h-full w-0 bg-[color:var(--gold)]" />
+            <div
+              className="h-full bg-[color:var(--gold)] transition-all"
+              style={{
+                width: `${weeklyGoals.percent}%`,
+              }}
+            />
           </div>
 
           <div className="mt-5 space-y-3 text-xs text-[color:var(--muted)]">
-            <Goal text="Réaliser 5 trades" />
-            <Goal text="Respecter ton risque" />
-            <Goal text="Compléter ton journal" />
+            <Goal
+              text={`Réaliser ${weeklyGoals.tradeTarget} trades • ${weeklyGoals.weekTrades}/${weeklyGoals.tradeTarget}`}
+              done={
+                weeklyGoals.fiveTrades
+              }
+            />
+
+            <Goal
+              text={
+                tradingPlan
+                  ? `Respecter le risque max • ${tradingPlan.max_risk_percent}%`
+                  : "Définir puis respecter ton risque max"
+              }
+              done={
+                weeklyGoals.riskRespected
+              }
+            />
+
+            <Goal
+              text={
+                tradingPlan
+                  ? `Ne pas dépasser ${tradingPlan.max_trades_per_day} trades/jour`
+                  : "Respecter ta limite de trades/jour"
+              }
+              done={
+                weeklyGoals.dailyLimitRespected
+              }
+            />
+
+            <Goal
+              text={`Discipline du plan ≥ 80% • ${weeklyGoals.disciplinePercent.toFixed(
+                0
+              )}%`}
+              done={
+                weeklyGoals.disciplineGoal
+              }
+            />
+
+            <Goal
+              text={`Journal documenté • ${weeklyGoals.documentedTrades}/${weeklyGoals.weekTrades || 0} avec notes + capture`}
+              done={
+                weeklyGoals.journalCompleted
+              }
+            />
           </div>
+
+          {weeklyGoals.weekTrades ===
+          0 ? (
+            <div
+              className="
+                mt-4
+                rounded-xl
+                border border-dashed border-white/[0.08]
+                bg-black/20
+                px-3 py-3
+              "
+            >
+              <div className="text-[9px] font-semibold text-white">
+                Nouvelle semaine
+              </div>
+
+              <div className="mt-1 text-[9px] leading-4 text-[color:var(--muted)]">
+                Ajoute ton premier trade au journal pour commencer à faire progresser tes objectifs.
+              </div>
+            </div>
+          ) : null}
+
+          {tradingPlan?.weekly_goal ? (
+            <div className="mt-4 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-2">
+              <div className="text-[9px] text-[color:var(--muted)]">
+                Ton objectif personnel
+              </div>
+
+              <div className="mt-1 text-[10px] font-medium text-white">
+                {
+                  tradingPlan.weekly_goal
+                }
+              </div>
+            </div>
+          ) : null}
         </DashboardCard>
 
-        {/* Connected accounts */}
+        {/* ACCOUNTS */}
+
         <DashboardCard>
           <CardHeader
-            icon={<WalletCards size={17} />}
-            title="Comptes connectés"
+            icon={
+              <WalletCards
+                size={17}
+              />
+            }
+            title="Mes comptes"
+            right={
+              accounts.length >
+              0 ? (
+                <span
+                  className="
+                    rounded-full
+                    border border-[color:var(--gold-border)]
+                    bg-[color:var(--gold-soft)]
+                    px-2 py-1
+                    text-[8px]
+                    font-bold
+                    text-[color:var(--gold)]
+                  "
+                >
+                  {
+                    accounts.length
+                  }
+                </span>
+              ) : null
+            }
           />
 
           <div className="mt-5">
-            <EmptyState
-              title="Aucun compte connecté"
-              text="Connecte un compte MetaTrader pour afficher tes performances."
-            />
+            {accounts.length >
+            0 ? (<div className="space-y-3">
+                {accounts
+                  .slice(
+                    0,
+                    2
+                  )
+                  .map(
+                    (
+                      account
+                    ) => (
+                      <DashboardAccount
+                        key={
+                          account.id
+                        }
+                        account={
+                          account
+                        }
+                      />
+                    )
+                  )}
+              </div>
+            ) : (
+              <EmptyState
+                title="Aucun compte"
+                text="Ajoute un compte manuel pour commencer à suivre tes performances."
+              />
+            )}
           </div>
 
           <Link
@@ -872,19 +3067,40 @@ export default function DashboardPage() {
               font-semibold
               text-[color:var(--gold)]
               no-underline
-              hover:bg-white/5
               transition
+              hover:bg-white/5
             "
           >
-            <Plus size={15} />
-            Ajouter un compte
+            {accounts.length >
+            0 ? (
+              <>
+                Voir mes comptes
+
+                <ArrowRight
+                  size={14}
+                />
+              </>
+            ) : (
+              <>
+                <Plus
+                  size={15}
+                />
+
+                Ajouter un compte
+              </>
+            )}
           </Link>
         </DashboardCard>
 
-        {/* Ranking */}
+        {/* RANKING */}
+
         <DashboardCard>
           <CardHeader
-            icon={<Trophy size={17} />}
+            icon={
+              <Trophy
+                size={17}
+              />
+            }
             title="Classement hebdo"
           />
 
@@ -900,7 +3116,8 @@ export default function DashboardPage() {
             className="
               mt-5
               inline-flex
-              items-center gap-2
+              items-center
+              gap-2
               text-xs
               font-semibold
               text-[color:var(--gold)]
@@ -908,14 +3125,22 @@ export default function DashboardPage() {
             "
           >
             Voir le classement
-            <ArrowRight size={13} />
+
+            <ArrowRight
+              size={13}
+            />
           </Link>
         </DashboardCard>
 
-        {/* Challenges */}
+        {/* CHALLENGES */}
+
         <DashboardCard>
           <CardHeader
-            icon={<Flame size={17} />}
+            icon={
+              <Flame
+                size={17}
+              />
+            }
             title="Défis en cours"
           />
 
@@ -930,7 +3155,8 @@ export default function DashboardPage() {
           >
             <div className="flex items-center justify-between gap-3">
               <div className="text-sm font-semibold text-white">
-                Défi Régularité
+                Défi
+                Régularité
               </div>
 
               <span
@@ -949,44 +3175,50 @@ export default function DashboardPage() {
             </div>
 
             <p className="mt-3 text-xs leading-5 text-[color:var(--muted)]">
-              Les challenges communautaires arrivent prochainement.
+              Les challenges
+              communautaires
+              arrivent
+              prochainement.
             </p>
           </div>
         </DashboardCard>
-      </motion.section>
-
-
+      </section>
     </motion.div>
   );
 }
 
-/* =============================================================
+/* =========================================================
    COMPONENTS
-============================================================= */
+========================================================= */
 
 function StatCard({
   icon,
   label,
   value,
   sub,
+  positive,
 }: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  sub: string;
+  icon:
+    React.ReactNode;
+
+  label:
+    string;
+
+  value:
+    string;
+
+  sub:
+    string;
+
+  positive?:
+    boolean;
 }) {
   return (
     <motion.div
-      variants={{
-        hidden: { opacity: 0, y: 24, scale: 0.96 },
-        show: { opacity: 1, y: 0, scale: 1 },
-      }}
-      whileHover={{ y: -7, scale: 1.025 }}
-      transition={softSpring}
+      whileHover={{ y: -6, scale: 1.015 }}
+      transition={{ type: "spring", stiffness: 320, damping: 24 }}
       className="
         group
-        relative
-        overflow-hidden
         min-h-[96px]
         rounded-2xl
         border border-[color:var(--border)]
@@ -996,12 +3228,7 @@ function StatCard({
         hover:border-[color:var(--gold-border)]
       "
     >
-      <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-[color:var(--gold)] opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-[0.12]" />
-      <div
-        className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-        style={{ background: "radial-gradient(circle at 15% 0%, rgba(242,199,91,.08), transparent 42%)" }}
-      />
-      <div className="relative z-10 flex h-full items-center gap-3">
+      <div className="flex h-full items-center gap-3">
         <div
           className="
             flex
@@ -1014,8 +3241,6 @@ function StatCard({
             border border-[color:var(--gold-border)]
             bg-[color:var(--gold-soft)]
             text-[color:var(--gold)]
-            transition-transform duration-300
-            group-hover:scale-110 group-hover:-rotate-3
           "
         >
           {icon}
@@ -1026,7 +3251,21 @@ function StatCard({
             {label}
           </div>
 
-          <div className="mt-1 text-lg font-semibold leading-none text-white">
+          <div
+            className={[
+              "mt-1 text-lg font-semibold leading-none",
+
+              positive ===
+              true
+                ? "text-emerald-400"
+                : positive ===
+                  false
+                ? "text-red-400"
+                : "text-white",
+            ].join(
+              " "
+            )}
+          >
             {value}
           </div>
 
@@ -1043,47 +3282,29 @@ function DashboardCard({
   children,
   className = "",
 }: {
-  children: React.ReactNode;
-  className?: string;
+  children:
+    React.ReactNode;
+
+  className?:
+    string;
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
+      initial={{ opacity: 0, y: 22 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.18 }}
-      whileHover={{ y: -5, scale: 1.005 }}
-      transition={softSpring}
+      viewport={{ once: true, amount: 0.12 }}
+      whileHover={{ y: -2 }}
+      transition={{ duration: 0.45, ease: "easeOut" }}
       className={[
-        "group relative overflow-hidden rounded-[22px]",
+        "rounded-[22px]",
         "border border-[color:var(--border)]",
         "bg-[color:var(--panel)]",
         "p-5",
-        "transition-shadow duration-300 hover:border-[color:var(--gold-border)] hover:shadow-[0_20px_70px_rgba(0,0,0,0.22)]",
         className,
       ].join(" ")}
     >
-      <div
-        className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100"
-        style={{ background: "radial-gradient(circle at 15% 0%, rgba(242,199,91,.08), transparent 42%)" }}
-      />
-      <div className="relative z-10">{children}</div>
+      {children}
     </motion.div>
-  );
-}
-
-function HeroPill({ label, value, live = false }: { label: string; value: string; live?: boolean }) {
-  return (
-    <div className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-1.5 backdrop-blur-sm">
-      <span className="text-[9px] uppercase tracking-[0.12em] text-white/35">{label}</span>
-      {live ? (
-        <motion.span
-          className="h-1.5 w-1.5 rounded-full bg-emerald-400"
-          animate={{ boxShadow: ["0 0 0 0 rgba(52,211,153,.25)", "0 0 0 6px rgba(52,211,153,0)", "0 0 0 0 rgba(52,211,153,0)"] }}
-          transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
-        />
-      ) : null}
-      <span className="text-[10px] font-semibold text-white/80">{value}</span>
-    </div>
   );
 }
 
@@ -1092,9 +3313,14 @@ function CardHeader({
   title,
   right,
 }: {
-  icon: React.ReactNode;
-  title: string;
-  right?: React.ReactNode;
+  icon:
+    React.ReactNode;
+
+  title:
+    string;
+
+  right?:
+    React.ReactNode;
 }) {
   return (
     <div className="flex items-center justify-between gap-3">
@@ -1117,8 +3343,11 @@ function EmptyState({
   title,
   text,
 }: {
-  title: string;
-  text: string;
+  title:
+    string;
+
+  text:
+    string;
 }) {
   return (
     <div
@@ -1140,41 +3369,223 @@ function EmptyState({
   );
 }
 
+function DashboardAccount({
+  account,
+}: {
+  account:
+    TradingAccount;
+}) {
+  return (
+    <div
+      className="
+        rounded-xl
+        border border-white/[0.06]
+        bg-black/20
+        p-3
+      "
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-xs font-semibold text-white">
+            {
+              account.name
+            }
+          </div>
+
+          <div className="mt-1 truncate text-[9px] text-[color:var(--muted)]">
+            {account.broker ||
+              "Compte manuel"}
+
+            {account.platform
+              ? ` • ${account.platform}`
+              : ""}
+          </div>
+        </div>
+
+        <div className="shrink-0 text-right">
+          <div className="text-xs font-semibold text-[color:var(--gold)]">
+            {formatCurrency(
+              Number(
+                account.current_balance ||
+                  0
+              ),
+              account.currency
+            )}
+          </div>
+
+          <div className="mt-1 text-[8px] uppercase text-white/30">
+            {
+              account.connection_type
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RecentTrade({
+  trade,
+  currency,
+}: {
+  trade:
+    Trade;
+
+  currency:
+    string;
+}) {
+  const positive =
+    Number(
+      trade.result_amount
+    ) > 0;
+
+  const negative =
+    Number(
+      trade.result_amount
+    ) < 0;
+
+  return (
+    <div
+      className="
+        flex
+        items-center
+        gap-3
+        rounded-xl
+        border border-white/[0.06]
+        bg-black/20
+        p-3
+      "
+    >
+      <div
+        className={[
+          "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
+
+          trade.direction ===
+          "buy"
+            ? "bg-emerald-500/10 text-emerald-400"
+            : "bg-red-500/10 text-red-400",
+        ].join(" ")}
+      >
+        {trade.direction ===
+        "buy" ? (
+          <ArrowUpRight
+            size={16}
+          />
+        ) : (
+          <ArrowDownRight
+            size={16}
+          />
+        )}
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <div className="truncate text-xs font-semibold text-white">
+            {
+              trade.symbol
+            }
+          </div>
+
+          <span className="text-[8px] uppercase text-[color:var(--muted)]">
+            {
+              trade.status
+            }
+          </span>
+        </div>
+
+        <div className="mt-1 text-[9px] text-[color:var(--muted)]">
+          {formatDate(
+            trade.trade_date
+          )}
+
+          {trade.timeframe
+            ? ` • ${trade.timeframe}`
+            : ""}
+        </div>
+      </div>
+
+      <div
+        className={[
+          "shrink-0 text-xs font-semibold",
+
+          positive
+            ? "text-emerald-400"
+            : negative
+            ? "text-red-400"
+            : "text-white",
+        ].join(" ")}
+      >
+        {formatCurrency(
+          Number(
+            trade.result_amount ||
+              0
+          ),
+          currency
+        )}
+      </div>
+    </div>
+  );
+}
+
 function MarketRow({
   time,
   currency,
+  flag,
   event,
-  level,
+  stars,
 }: {
-  time: string;
-  currency: string;
-  event: string;
-  level: string;
+  time:
+    string;
+
+  currency:
+    string;
+
+  flag:
+    string;
+
+  event:
+    string;
+
+  stars:
+    Stars;
 }) {
+  const level =
+    stars === 3
+      ? "Élevé"
+      : stars === 2
+      ? "Moyen"
+      : "Faible";
+
   return (
-    <div className="flex items-center gap-2 border-b border-white/5 pb-3">
-      <div className="text-[11px] font-semibold text-white">
+    <div className="flex items-center gap-2 border-b border-white/5 pb-3 last:border-b-0">
+      <div className="w-[38px] shrink-0 text-[11px] font-semibold text-white">
         {time}
       </div>
 
-      <div className="text-[10px] font-semibold text-[color:var(--gold)]">
-        {currency}
+      <div className="flex shrink-0 items-center gap-1">
+        <span className="text-[11px]">
+          {flag}
+        </span>
+
+        <span className="text-[9px] text-[color:var(--muted)]">
+          {currency}
+        </span>
       </div>
 
-      <div className="min-w-0 flex-1 truncate text-[10px] text-[color:var(--muted)]">
+      <div className="min-w-0 flex-1 truncate text-[10px] text-white">
         {event}
       </div>
 
       <span
-        className="
-          rounded-full
-          border border-white/[0.08]
-          bg-white/[0.03]
-          px-2 py-1
-          text-[9px]
-          font-semibold
-          text-white/60
-        "
+        className={[
+          "shrink-0 rounded-full px-2 py-1 text-[8px] font-bold",
+
+          stars === 3
+            ? "bg-red-500/10 text-red-400"
+            : stars === 2
+            ? "bg-amber-400/10 text-amber-300"
+            : "bg-white/5 text-white/40",
+        ].join(" ")}
       >
         {level}
       </span>
@@ -1182,26 +3593,36 @@ function MarketRow({
   );
 }
 
-function Goal({ text }: { text: string }) {
+function Goal({
+  text,
+  done = false,
+}: {
+  text:
+    string;
+
+  done?:
+    boolean;
+}) {
   return (
     <div className="flex items-center gap-2">
-      <span
-        className="
-          flex
-          h-4
-          w-4
-          shrink-0
-          items-center
-          justify-center
-          rounded-full
-          border border-[color:var(--gold-border)]
-          bg-[color:var(--gold-soft)]
-        "
-      >
-        <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--gold)]" />
-      </span>
+      {done ? (
+        <CheckCircle2
+          size={13}
+          className="shrink-0 text-emerald-400"
+        />
+      ) : (
+        <span className="h-3 w-3 shrink-0 rounded-full border border-white/20" />
+      )}
 
-      <span>{text}</span>
+      <span
+        className={
+          done
+            ? "text-white"
+            : ""
+        }
+      >
+        {text}
+      </span>
     </div>
   );
 }
