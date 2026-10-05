@@ -40,6 +40,7 @@ export default function DashboardTemplate({
 
   const [trades, setTrades] = useState<Trade[]>([]);
   const [plan, setPlan] = useState<Plan | null>(null);
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
 
   const isHome = pathname === "/dashboard";
 
@@ -144,6 +145,71 @@ export default function DashboardTemplate({
 
     return () => window.clearTimeout(timer);
   }, [isHome, router]);
+
+
+  useEffect(() => {
+    if (!isHome || onboardingChecked) return;
+
+    async function checkOnboarding() {
+      try {
+        const completed =
+          window.localStorage.getItem("investpro_onboarding_completed") === "1";
+        const skipped =
+          window.localStorage.getItem("investpro_onboarding_skipped") === "1";
+
+        if (completed || skipped) {
+          setOnboardingChecked(true);
+          return;
+        }
+
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!user) {
+          setOnboardingChecked(true);
+          return;
+        }
+
+        const [accountsResult, planResult, tradesResult] = await Promise.all([
+          supabase
+            .from("trading_accounts")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", user.id),
+
+          supabase
+            .from("trading_plans")
+            .select("user_id")
+            .eq("user_id", user.id)
+            .maybeSingle(),
+
+          supabase
+            .from("trading_journal")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", user.id),
+        ]);
+
+        const accountDone = Number(accountsResult.count || 0) > 0;
+        const planDone = !!planResult.data;
+        const tradeDone = Number(tradesResult.count || 0) > 0;
+
+        // L'onboarding reste actif jusqu'à la dernière étape, sauf si l'utilisateur le passe.
+        // Pour les comptes existants déjà configurés avant cette V1, on ne force pas l'onboarding.
+        if (accountDone && planDone && tradeDone) {
+          window.localStorage.setItem("investpro_onboarding_completed", "1");
+          setOnboardingChecked(true);
+          return;
+        }
+
+        router.replace("/dashboard/onboarding");
+      } catch (error) {
+        console.error("Erreur onboarding :", error);
+        setOnboardingChecked(true);
+      }
+    }
+
+    checkOnboarding();
+  }, [isHome, onboardingChecked, router, supabase]);
 
   const analytics = useMemo(() => {
     const closed = trades.filter((trade) =>
