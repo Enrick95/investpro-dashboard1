@@ -81,6 +81,27 @@ export default function DashboardTemplate({
     load();
   }, [isHome, supabase]);
 
+
+  useEffect(() => {
+    if (!isHome) return;
+
+    const hideLegacyHero = () => {
+      const nodes = Array.from(document.querySelectorAll("h1, h2, h3, div, span"));
+      const titleNode = nodes.find((node) =>
+        node.textContent?.replace(/\s+/g, " ").trim().startsWith("Bienvenue dans ton espace InvestPro")
+      );
+
+      const section = titleNode?.closest("section");
+      if (section instanceof HTMLElement) {
+        section.dataset.investproLegacyHeroHidden = "1";
+        section.style.display = "none";
+      }
+    };
+
+    const timer = window.setTimeout(hideLegacyHero, 250);
+    return () => window.clearTimeout(timer);
+  }, [isHome]);
+
   useEffect(() => {
     if (!isHome) return;
 
