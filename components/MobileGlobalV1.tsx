@@ -83,7 +83,6 @@ export default function MobileGlobalV1() {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
 
-  const isVip = activeFor(pathname, "/dashboard/performances-vip");
   const isReports =
     activeFor(pathname, "/dashboard/rapports") ||
     activeFor(pathname, "/dashboard/rapport-mensuel");
@@ -324,6 +323,7 @@ export default function MobileGlobalV1() {
       { href: "/dashboard/plan", label: "Plan trading", icon: <ClipboardCheck size={20} /> },
       { href: "/dashboard/simulateur", label: "Simulateur", icon: <Target size={20} /> },
       { href: "/dashboard/rapport-mensuel", label: "Bilan mensuel", icon: <ChartNoAxesCombined size={20} /> },
+      { href: "/dashboard/performances-vip", label: "VIP", icon: <TrendingUp size={20} /> },
     ],
     []
   );
@@ -364,10 +364,10 @@ export default function MobileGlobalV1() {
           icon={<BookOpen size={21} />}
         />
         <BottomTab
-          href="/dashboard/performances-vip"
-          label="VIP"
-          active={isVip}
-          icon={<TrendingUp size={21} />}
+          href="/dashboard/comptes"
+          label="Comptes"
+          active={activeFor(pathname, "/dashboard/comptes")}
+          icon={<WalletCards size={21} />}
         />
         <BottomTab
           href="/dashboard/rapports"
