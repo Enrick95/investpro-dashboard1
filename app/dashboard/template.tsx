@@ -16,6 +16,7 @@ import {
 
 import { createClient } from "@/lib/supabase/client";
 import NotificationEngine from "@/components/NotificationEngine";
+import MobileGlobalV1 from "@/components/MobileGlobalV1";
 
 type Trade = {
   id: number;
@@ -129,6 +130,11 @@ export default function DashboardTemplate({
         if (card.dataset.investproV3Linked === "1") return;
 
         card.dataset.investproV3Linked = "1";
+        card.dataset.ipHomeKpi = "true";
+        if (label === "Capital total") {
+          card.dataset.ipCapitalKpi = "true";
+        }
+        card.parentElement?.setAttribute("data-ip-home-kpi-grid", "true");
         card.style.cursor = "pointer";
         card.setAttribute("role", "link");
         card.setAttribute("tabindex", "0");
@@ -383,6 +389,7 @@ export default function DashboardTemplate({
       ) : null}
 
       <NotificationEngine />
+      <MobileGlobalV1 />
       {children}
     </>
   );

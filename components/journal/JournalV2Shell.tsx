@@ -713,7 +713,7 @@ export default function JournalV2Shell({ children }: { children: ReactNode }) {
           .journal-v2-glow-a { width: 230px; height: 230px; right: -90px; top: 120px; }
           [data-journal-v2] .journal-v2-content > div { padding-bottom: 92px; }
           [data-journal-v2] section { border-radius: 18px !important; }
-          [data-journal-v2] .divide-y > div { margin: 10px; border: 1px solid rgba(255,255,255,.065); border-radius: 16px; background: rgba(0,0,0,.18); padding: 14px !important; }
+          [data-journal-v2] .divide-y > div { margin: 8px; border: 1px solid rgba(255,255,255,.065); border-radius: 15px; background: rgba(0,0,0,.18); padding: 12px !important; }
           [data-journal-v2] .divide-y > div + div { border-top-width: 1px !important; }
           [data-journal-v2] .divide-y > div::before { top: 14px; bottom: 14px; }
         }
