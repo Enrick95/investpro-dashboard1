@@ -118,3 +118,65 @@ export function encryptProjectXApiKey(apiKey: string) {
     tag: tag.toString("base64"),
   };
 }
+
+export type ProjectXTrade = {
+  id: number;
+  accountId: number;
+  contractId: string;
+  creationTimestamp: string;
+  price: number;
+  profitAndLoss: number | null;
+  fees: number;
+  side: number;
+  size: number;
+  voided: boolean;
+  orderId: number;
+};
+
+export function decryptProjectXApiKey(ciphertext: string, ivB64: string, tagB64: string) {
+  const secret = process.env.FUTURES_CREDENTIALS_KEY;
+  if (!secret || secret.length < 24) throw new Error("FUTURES_CREDENTIALS_KEY_MISSING");
+  const key = createHash("sha256").update(secret).digest();
+  const { createDecipheriv } = require("crypto") as typeof import("crypto");
+  const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(ivB64, "base64"));
+  decipher.setAuthTag(Buffer.from(tagB64, "base64"));
+  const decrypted = Buffer.concat([
+    decipher.update(Buffer.from(ciphertext, "base64")),
+    decipher.final(),
+  ]);
+  return decrypted.toString("utf8");
+}
+
+export async function projectXTrades(sessionToken: string, accountId: number, startTimestamp: string, endTimestamp?: string) {
+  const response = await fetch(`${projectXBaseUrl()}/api/Trade/search`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "text/plain",
+      Authorization: `Bearer ${sessionToken}`,
+    },
+    body: JSON.stringify({ accountId, startTimestamp, endTimestamp: endTimestamp || null }),
+    cache: "no-store",
+  });
+  const data = await parseJsonResponse(response);
+  if (!response.ok || !data?.success || !Array.isArray(data?.trades)) {
+    throw new Error(data?.errorMessage || "Impossible de récupérer l’historique ProjectX.");
+  }
+  return data.trades as ProjectXTrade[];
+}
+
+export async function projectXContract(sessionToken: string, contractId: string) {
+  const response = await fetch(`${projectXBaseUrl()}/api/Contract/searchById`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "text/plain",
+      Authorization: `Bearer ${sessionToken}`,
+    },
+    body: JSON.stringify({ contractId }),
+    cache: "no-store",
+  });
+  const data = await parseJsonResponse(response);
+  if (!response.ok || !data?.success || !data?.contract) return null;
+  return data.contract as { id: string; name?: string; description?: string; symbolId?: string };
+}
