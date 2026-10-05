@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowDownRight,
@@ -11,6 +12,8 @@ import {
   Edit3,
   Eye,
   FileText,
+  Filter,
+  RefreshCw,
   ShieldCheck,
   WalletCards,
   X,
@@ -83,6 +86,104 @@ function parseTradeRow(row: HTMLElement): DrawerTrade {
   };
 }
 
+
+function parseMoney(value: string) {
+  const cleaned = value
+    .replace(/\s/g, "")
+    .replace(/\$US|USD|EUR|€/gi, "")
+    .replace(/\$/g, "")
+    .replace(/,(?=\d{1,2}$)/, ".")
+    .replace(/\.(?=\d{3}(?:\D|$))/g, "")
+    .replace(/[^0-9+\-.]/g, "");
+  const number = Number(cleaned);
+  return Number.isFinite(number) ? number : null;
+}
+
+function moneyUnit(value: string) {
+  if (/\$US/i.test(value)) return "$US";
+  if (/USD/i.test(value)) return "USD";
+  if (/EUR|€/i.test(value)) return "€";
+  if (/\$/i.test(value)) return "$";
+  return "";
+}
+
+function formatMoneyValue(value: number, unit: string, sign = false) {
+  const prefix = sign && value > 0 ? "+" : "";
+  return `${prefix}${new Intl.NumberFormat("fr-FR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value)}${unit ? ` ${unit}` : ""}`;
+}
+
+const frenchMonths: Record<string, number> = {
+  janvier: 0,
+  fevrier: 1,
+  février: 1,
+  mars: 2,
+  avril: 3,
+  mai: 4,
+  juin: 5,
+  juillet: 6,
+  aout: 7,
+  août: 7,
+  septembre: 8,
+  octobre: 9,
+  novembre: 10,
+  decembre: 11,
+  décembre: 11,
+};
+
+const shortFrenchMonths: Record<string, number> = {
+  janv: 0,
+  jan: 0,
+  fevr: 1,
+  févr: 1,
+  fev: 1,
+  fév: 1,
+  mars: 2,
+  avr: 3,
+  mai: 4,
+  juin: 5,
+  juil: 6,
+  aout: 7,
+  août: 7,
+  sept: 8,
+  oct: 9,
+  nov: 10,
+  dec: 11,
+  déc: 11,
+};
+
+function dateKeyFromRowText(value: string) {
+  const clean = value.toLowerCase().replace(/\./g, "").trim();
+  const match = clean.match(/(\d{1,2})\s+([a-zà-ÿ]+)\s+(\d{4})/i);
+  if (!match) return null;
+  const day = Number(match[1]);
+  const monthName = match[2];
+  const month = frenchMonths[monthName] ?? shortFrenchMonths[monthName];
+  const year = Number(match[3]);
+  if (!Number.isFinite(day) || month == null || !Number.isFinite(year)) return null;
+  return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function labelFromDateKey(value: string | null) {
+  if (!value) return "";
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return value;
+  return new Date(year, month - 1, day).toLocaleDateString("fr-FR", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+type QuickStats = {
+  profitFactor: string;
+  avgWin: string;
+  avgLoss: string;
+  visible: number;
+};
+
 function InfoCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-white/[0.07] bg-black/25 p-4">
@@ -94,6 +195,172 @@ function InfoCard({ label, value }: { label: string; value: string }) {
 
 export default function JournalV2Shell({ children }: { children: ReactNode }) {
   const [selected, setSelected] = useState<DrawerTrade | null>(null);
+  const [toolsHost, setToolsHost] = useState<HTMLElement | null>(null);
+  const [accountFilter, setAccountFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
+  const [symbolFilter, setSymbolFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState<string | null>(null);
+  const [accounts, setAccounts] = useState<string[]>([]);
+  const [sources, setSources] = useState<string[]>([]);
+  const [symbols, setSymbols] = useState<string[]>([]);
+  const [quickStats, setQuickStats] = useState<QuickStats>({
+    profitFactor: "—",
+    avgWin: "—",
+    avgLoss: "—",
+    visible: 0,
+  });
+
+
+
+  useEffect(() => {
+    let observer: MutationObserver | null = null;
+    let timer = 0;
+
+    function setupHostsAndOptions() {
+      const sections = Array.from(document.querySelectorAll("section")) as HTMLElement[];
+      const filterSection = sections.find((section) => {
+        const text = section.innerText || "";
+        return /Tous les résultats/i.test(text) && /(Achat|Vente)/i.test(text);
+      });
+
+      if (filterSection) {
+        let host = document.getElementById("journal-v2-tools-host");
+        if (!host) {
+          host = document.createElement("div");
+          host.id = "journal-v2-tools-host";
+          host.setAttribute("data-journal-v2-tools", "true");
+          filterSection.insertAdjacentElement("afterend", host);
+        }
+        setToolsHost(host);
+      }
+
+      const historySection = sections.find(
+        (section) => section.querySelector("h2")?.textContent?.trim().toLowerCase() === "historique"
+      );
+      const rows = historySection
+        ? (Array.from(historySection.querySelectorAll(".divide-y > div")) as HTMLElement[])
+        : [];
+      const parsed = rows.map(parseTradeRow);
+      setAccounts(
+        Array.from(new Set(parsed.map((trade) => trade.account).filter((value) => value && value !== "—"))).sort()
+      );
+      setSources(
+        Array.from(new Set(parsed.map((trade) => trade.source).filter((value) => value && value !== "—"))).sort()
+      );
+      setSymbols(Array.from(new Set(parsed.map((trade) => trade.symbol).filter(Boolean))).sort());
+    }
+
+    setupHostsAndOptions();
+    observer = new MutationObserver(() => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(setupHostsAndOptions, 90);
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      observer?.disconnect();
+      window.clearTimeout(timer);
+      document.getElementById("journal-v2-tools-host")?.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    function applyFilters() {
+      const sections = Array.from(document.querySelectorAll("section")) as HTMLElement[];
+      const historySection = sections.find(
+        (section) => section.querySelector("h2")?.textContent?.trim().toLowerCase() === "historique"
+      );
+      if (!historySection) return;
+
+      const rows = Array.from(historySection.querySelectorAll(".divide-y > div")) as HTMLElement[];
+      const visibleTrades: DrawerTrade[] = [];
+
+      rows.forEach((row) => {
+        const trade = parseTradeRow(row);
+        const rowDateKey = dateKeyFromRowText(trade.date);
+        const accountOk = accountFilter === "all" || trade.account === accountFilter;
+        const sourceOk = sourceFilter === "all" || trade.source === sourceFilter;
+        const symbolOk = symbolFilter === "all" || trade.symbol === symbolFilter;
+        const dateOk = !dateFilter || rowDateKey === dateFilter;
+        const show = accountOk && sourceOk && symbolOk && dateOk;
+        row.style.display = show ? "" : "none";
+        if (show) visibleTrades.push(trade);
+      });
+
+      const amounts = visibleTrades
+        .map((trade) => ({ value: parseMoney(trade.pnl), unit: moneyUnit(trade.pnl) }))
+        .filter((item): item is { value: number; unit: string } => item.value !== null);
+      const wins = amounts.filter((item) => item.value > 0);
+      const losses = amounts.filter((item) => item.value < 0);
+      const grossProfit = wins.reduce((sum, item) => sum + item.value, 0);
+      const grossLoss = Math.abs(losses.reduce((sum, item) => sum + item.value, 0));
+      const unit = amounts.find((item) => item.unit)?.unit || "";
+      const factor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : null;
+      const avgWin = wins.length ? grossProfit / wins.length : null;
+      const avgLoss = losses.length ? grossLoss / losses.length : null;
+
+      setQuickStats({
+        profitFactor: factor == null ? "—" : Number.isFinite(factor) ? factor.toFixed(2) : "∞",
+        avgWin: avgWin == null ? "—" : formatMoneyValue(avgWin, unit, true),
+        avgLoss: avgLoss == null ? "—" : `-${formatMoneyValue(avgLoss, unit)}`,
+        visible: visibleTrades.length,
+      });
+    }
+
+    applyFilters();
+    const observer = new MutationObserver(() => window.setTimeout(applyFilters, 50));
+    const root = document.querySelector("[data-journal-v2]");
+    if (root) observer.observe(root, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [accountFilter, sourceFilter, symbolFilter, dateFilter]);
+
+  useEffect(() => {
+    function onCalendarClick(event: MouseEvent) {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      const sections = Array.from(document.querySelectorAll("section")) as HTMLElement[];
+      const calendarSection = sections.find((section) => /Calendrier de performance/i.test(section.innerText || ""));
+      if (!calendarSection || !calendarSection.contains(target)) return;
+
+      const monthText = Array.from(calendarSection.querySelectorAll("button, div, span"))
+        .map((node) => (node.textContent || "").trim().toLowerCase())
+        .find((text) => /^(janvier|février|fevrier|mars|avril|mai|juin|juillet|août|aout|septembre|octobre|novembre|décembre|decembre)\s+\d{4}$/.test(text));
+      if (!monthText) return;
+      const monthMatch = monthText.match(/^([a-zà-ÿ]+)\s+(\d{4})$/i);
+      if (!monthMatch) return;
+      const month = frenchMonths[monthMatch[1]];
+      const year = Number(monthMatch[2]);
+      if (month == null || !Number.isFinite(year)) return;
+
+      let node: HTMLElement | null = target;
+      let cell: HTMLElement | null = null;
+      while (node && node !== calendarSection) {
+        const lines = cleanLines(node.innerText || "");
+        if (lines.length >= 1 && lines.length <= 4 && /^\d{1,2}$/.test(lines[0])) {
+          cell = node;
+        }
+        node = node.parentElement;
+      }
+      if (!cell) return;
+      const day = Number(cleanLines(cell.innerText || "")[0]);
+      if (!day || day > 31) return;
+
+      calendarSection.querySelectorAll("[data-journal-v2-selected-day]").forEach((el) =>
+        el.removeAttribute("data-journal-v2-selected-day")
+      );
+      cell.setAttribute("data-journal-v2-selected-day", "true");
+      setDateFilter(`${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`);
+      window.setTimeout(() => {
+        const history = sections.find(
+          (section) => section.querySelector("h2")?.textContent?.trim().toLowerCase() === "historique"
+        );
+        history?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 80);
+    }
+
+    document.addEventListener("click", onCalendarClick);
+    return () => document.removeEventListener("click", onCalendarClick);
+  }, []);
 
   useEffect(() => {
     function onClick(event: MouseEvent) {
@@ -160,6 +427,91 @@ export default function JournalV2Shell({ children }: { children: ReactNode }) {
       >
         {children}
       </motion.div>
+
+
+      {toolsHost
+        ? createPortal(
+            <motion.section
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.28 }}
+              className="journal-v2-tools mt-5 rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4"
+            >
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <div className="rounded-2xl border border-white/[0.07] bg-black/20 p-4">
+                  <div className="text-[10px] uppercase tracking-[0.12em] text-white/35">Profit Factor</div>
+                  <div className="mt-1 text-xl font-bold text-[color:var(--gold)]">{quickStats.profitFactor}</div>
+                </div>
+                <div className="rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.035] p-4">
+                  <div className="text-[10px] uppercase tracking-[0.12em] text-white/35">Gain moyen</div>
+                  <div className="mt-1 text-xl font-bold text-emerald-400">{quickStats.avgWin}</div>
+                </div>
+                <div className="rounded-2xl border border-red-500/15 bg-red-500/[0.035] p-4">
+                  <div className="text-[10px] uppercase tracking-[0.12em] text-white/35">Perte moyenne</div>
+                  <div className="mt-1 text-xl font-bold text-red-400">{quickStats.avgLoss}</div>
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-center gap-2 text-sm font-semibold text-white">
+                <Filter size={15} className="text-[color:var(--gold)]" />
+                Filtres avancés
+                <span className="ml-auto text-[10px] font-normal text-white/35">{quickStats.visible} trade{quickStats.visible !== 1 ? "s" : ""} affiché{quickStats.visible !== 1 ? "s" : ""}</span>
+              </div>
+
+              <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-4">
+                <select value={accountFilter} onChange={(e) => setAccountFilter(e.target.value)} className="journal-v2-select">
+                  <option value="all">Tous les comptes</option>
+                  {accounts.map((value) => <option key={value} value={value}>{value}</option>)}
+                </select>
+                <select value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)} className="journal-v2-select">
+                  <option value="all">Toutes les sources</option>
+                  {sources.map((value) => <option key={value} value={value}>{value}</option>)}
+                </select>
+                <select value={symbolFilter} onChange={(e) => setSymbolFilter(e.target.value)} className="journal-v2-select">
+                  <option value="all">Tous les actifs</option>
+                  {symbols.map((value) => <option key={value} value={value}>{value}</option>)}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAccountFilter("all");
+                    setSourceFilter("all");
+                    setSymbolFilter("all");
+                    setDateFilter(null);
+                    document.querySelectorAll("[data-journal-v2-selected-day]").forEach((el) =>
+                      el.removeAttribute("data-journal-v2-selected-day")
+                    );
+                  }}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-black/20 px-4 text-xs font-semibold text-white/55 hover:border-[color:var(--gold-border)] hover:text-white"
+                >
+                  <RefreshCw size={13} /> Réinitialiser
+                </button>
+              </div>
+
+              {dateFilter ? (
+                <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-2.5 text-xs text-white/65">
+                  <CalendarDays size={14} className="text-[color:var(--gold)]" />
+                  Journée sélectionnée : <strong className="text-white">{labelFromDateKey(dateFilter)}</strong>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDateFilter(null);
+                      document.querySelectorAll("[data-journal-v2-selected-day]").forEach((el) =>
+                        el.removeAttribute("data-journal-v2-selected-day")
+                      );
+                    }}
+                    className="ml-auto rounded-lg border border-white/[0.08] bg-black/20 px-2.5 py-1.5 text-[10px] font-semibold text-white/55 hover:text-white"
+                  >
+                    Effacer la journée
+                  </button>
+                </div>
+              ) : (
+                <div className="mt-3 text-[10px] text-white/30">Astuce : clique sur un jour du calendrier pour afficher uniquement les trades de cette journée.</div>
+              )}
+            </motion.section>,
+            toolsHost
+          )
+        : null}
 
       <AnimatePresence>
         {selected ? (
@@ -347,6 +699,11 @@ export default function JournalV2Shell({ children }: { children: ReactNode }) {
 
         [data-journal-v2] button { transition: transform .16s ease, filter .16s ease, border-color .16s ease, background .16s ease; }
         [data-journal-v2] button:active { transform: scale(.975); }
+
+        .journal-v2-select { height: 44px; width: 100%; border-radius: 12px; border: 1px solid rgba(255,255,255,.08); background: rgba(0,0,0,.20); padding: 0 12px; color: white; font-size: 12px; outline: none; }
+        .journal-v2-select:focus { border-color: rgba(216,175,71,.35); box-shadow: 0 0 0 3px rgba(216,175,71,.06); }
+        [data-journal-v2-selected-day="true"] { position: relative; z-index: 2; outline: 1px solid var(--gold, #d8af47) !important; outline-offset: -2px; box-shadow: inset 0 0 0 1px rgba(216,175,71,.30), 0 0 24px rgba(216,175,71,.10) !important; }
+        [data-journal-v2] section:has(h2) { scroll-margin-top: 90px; }
 
         @media (max-width: 1100px) {
           [data-journal-v2] .divide-y > div:hover::after { display: none; }
