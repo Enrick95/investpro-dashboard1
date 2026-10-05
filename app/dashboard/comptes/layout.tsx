@@ -2,11 +2,20 @@
 
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { ArrowLeft, ArrowRight, MonitorCog, Sparkles, WalletCards, X, CandlestickChart, ServerCog } from "lucide-react";
 
 type Choice = "mt5" | "mt4" | "futures" | "manual" | null;
 type FuturePlatform = "projectx" | "tradovate" | "rithmic" | "other" | null;
+
+type ProjectXAccount = {
+  id: number;
+  name: string;
+  balance: number;
+  canTrade: boolean;
+  isVisible: boolean;
+};
 
 function normalizeText(value: string | null | undefined) {
   return String(value || "")
@@ -97,6 +106,13 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
   const [chooserOpen, setChooserOpen] = useState(false);
   const [choice, setChoice] = useState<Choice>(null);
   const [futurePlatform, setFuturePlatform] = useState<FuturePlatform>(null);
+  const [pxUsername, setPxUsername] = useState("");
+  const [pxApiKey, setPxApiKey] = useState("");
+  const [pxAccounts, setPxAccounts] = useState<ProjectXAccount[]>([]);
+  const [pxSelectedId, setPxSelectedId] = useState<number | null>(null);
+  const [pxBusy, setPxBusy] = useState(false);
+  const [pxError, setPxError] = useState<string | null>(null);
+  const [pxConnected, setPxConnected] = useState(false);
   const bypassNextAddClick = useRef(false);
   const originalAddButton = useRef<HTMLElement | null>(null);
   const pilotPanel = useRef<HTMLElement | null>(null);
@@ -167,6 +183,86 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
 
   function selectFuturePlatform(platform: FuturePlatform) {
     setFuturePlatform(platform);
+    setPxError(null);
+    setPxConnected(false);
+    if (platform !== "projectx") {
+      setPxAccounts([]);
+      setPxSelectedId(null);
+    }
+  }
+
+  async function getInvestProAccessToken() {
+    const supabase = createClient();
+    const { data, error } = await supabase.auth.getSession();
+    if (error || !data.session?.access_token) {
+      throw new Error("Ta session InvestPro a expiré. Reconnecte-toi puis réessaie.");
+    }
+    return data.session.access_token;
+  }
+
+  async function projectXRequest(path: string, body: Record<string, unknown>) {
+    const accessToken = await getInvestProAccessToken();
+    const response = await fetch(path, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(body),
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok || !data?.ok) {
+      throw new Error(data?.error || `Erreur serveur (${response.status}).`);
+    }
+    return data;
+  }
+
+  async function testProjectX() {
+    if (!pxUsername.trim() || !pxApiKey.trim()) {
+      setPxError("Renseigne ton username ProjectX et ta clé API.");
+      return;
+    }
+    try {
+      setPxBusy(true);
+      setPxError(null);
+      setPxConnected(false);
+      setPxAccounts([]);
+      setPxSelectedId(null);
+      const data = await projectXRequest("/api/futures/projectx/accounts", {
+        userName: pxUsername.trim(),
+        apiKey: pxApiKey.trim(),
+      });
+      const list = Array.isArray(data.accounts) ? data.accounts : [];
+      setPxAccounts(list);
+      setPxSelectedId(list[0]?.id ?? null);
+      if (list.length === 0) setPxError("Connexion réussie, mais aucun compte ProjectX actif n’a été trouvé.");
+    } catch (error: any) {
+      setPxError(String(error?.message || error));
+    } finally {
+      setPxBusy(false);
+    }
+  }
+
+  async function connectProjectX() {
+    if (!pxSelectedId) {
+      setPxError("Choisis le compte ProjectX à ajouter.");
+      return;
+    }
+    try {
+      setPxBusy(true);
+      setPxError(null);
+      await projectXRequest("/api/futures/projectx/connect", {
+        userName: pxUsername.trim(),
+        apiKey: pxApiKey.trim(),
+        accountId: pxSelectedId,
+      });
+      setPxConnected(true);
+      window.setTimeout(() => window.location.reload(), 900);
+    } catch (error: any) {
+      setPxError(String(error?.message || error));
+    } finally {
+      setPxBusy(false);
+    }
   }
 
   function chooseManual() {
@@ -386,7 +482,109 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
                         />
                       </div>
 
-                      {futurePlatform ? (
+                      {futurePlatform === "projectx" ? (
+                        <motion.div
+                          initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="mt-3 rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4 sm:mt-5 sm:p-5"
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[color:var(--gold-border)] bg-black/25 text-[color:var(--gold)]">
+                              <ServerCog size={18} />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="text-sm font-semibold text-white">Connecter ProjectX</div>
+                              <p className="mt-1 text-[10px] leading-4 text-white/50 sm:text-[11px] sm:leading-5">
+                                Utilise ton username de plateforme ProjectX et une clé API. Le mot de passe de trading n’est pas demandé.
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <label className="block">
+                              <span className="mb-1.5 block text-[10px] font-medium text-white/65">Username ProjectX</span>
+                              <input
+                                value={pxUsername}
+                                onChange={(event) => setPxUsername(event.target.value)}
+                                placeholder="Ex. enrick95"
+                                autoComplete="username"
+                                className="h-11 w-full rounded-xl border border-white/[0.08] bg-black/30 px-3 text-sm text-white outline-none placeholder:text-white/25 focus:border-[color:var(--gold-border)]"
+                              />
+                            </label>
+
+                            <label className="block">
+                              <span className="mb-1.5 block text-[10px] font-medium text-white/65">Clé API ProjectX</span>
+                              <input
+                                type="password"
+                                value={pxApiKey}
+                                onChange={(event) => setPxApiKey(event.target.value)}
+                                placeholder="Colle ta clé API"
+                                autoComplete="off"
+                                className="h-11 w-full rounded-xl border border-white/[0.08] bg-black/30 px-3 text-sm text-white outline-none placeholder:text-white/25 focus:border-[color:var(--gold-border)]"
+                              />
+                            </label>
+                          </div>
+
+                          <div className="mt-3 flex flex-wrap items-center gap-3">
+                            <button
+                              type="button"
+                              onClick={testProjectX}
+                              disabled={pxBusy}
+                              className="inline-flex h-10 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-4 text-xs font-bold text-black disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {pxBusy ? "Connexion..." : "Tester la connexion"}
+                              <ArrowRight size={14} />
+                            </button>
+                            <span className="text-[9px] leading-4 text-white/35">Lecture seule côté InvestPro · aucun ordre n’est envoyé.</span>
+                          </div>
+
+                          {pxError ? (
+                            <div className="mt-3 rounded-xl border border-red-500/20 bg-red-500/[0.06] px-3 py-2 text-[10px] leading-4 text-red-300">
+                              {pxError}
+                            </div>
+                          ) : null}
+
+                          {pxAccounts.length > 0 ? (
+                            <div className="mt-4">
+                              <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gold)]">Choisis ton compte</div>
+                              <div className="space-y-2">
+                                {pxAccounts.map((account) => (
+                                  <button
+                                    key={account.id}
+                                    type="button"
+                                    onClick={() => setPxSelectedId(account.id)}
+                                    className={[
+                                      "flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-3 text-left",
+                                      pxSelectedId === account.id
+                                        ? "border-[color:var(--gold-border)] bg-black/30"
+                                        : "border-white/[0.07] bg-black/15 hover:border-white/[0.13]",
+                                    ].join(" ")}
+                                  >
+                                    <div className="min-w-0">
+                                      <div className="truncate text-xs font-semibold text-white">{account.name}</div>
+                                      <div className="mt-0.5 text-[9px] text-white/40">ID {account.id} · {account.canTrade ? "Actif" : "Lecture seule"}</div>
+                                    </div>
+                                    <div className="shrink-0 text-right">
+                                      <div className="text-xs font-semibold text-white">{Number(account.balance || 0).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} $</div>
+                                      <div className="mt-0.5 text-[8px] text-white/35">Balance</div>
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={connectProjectX}
+                                disabled={pxBusy || !pxSelectedId}
+                                className="mt-3 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[color:var(--gold)] px-4 text-xs font-bold text-black disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                              >
+                                {pxConnected ? "Compte ajouté ✓" : pxBusy ? "Ajout..." : "Ajouter ce compte à InvestPro"}
+                                {!pxConnected ? <ArrowRight size={14} /> : null}
+                              </button>
+                            </div>
+                          ) : null}
+                        </motion.div>
+                      ) : futurePlatform ? (
                         <motion.div
                           initial={reduceMotion ? false : { opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
@@ -397,9 +595,9 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
                               <ServerCog size={18} />
                             </div>
                             <div>
-                              <div className="text-sm font-semibold text-white">Connecteur Futures prêt à être intégré</div>
+                              <div className="text-sm font-semibold text-white">Connexion en préparation</div>
                               <p className="mt-1 text-[10px] leading-4 text-white/50 sm:text-[11px] sm:leading-5">
-                                L’interface est prête. La connexion automatique de cette plateforme sera branchée sur son API lors de l’étape technique Futures, sans toucher à tes comptes MT4/MT5 actuels.
+                                ProjectX est le premier connecteur Futures activé. Tradovate sera branché ensuite ; Rithmic et les autres plateformes restent disponibles pour la suite.
                               </p>
                             </div>
                           </div>
