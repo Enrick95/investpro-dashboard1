@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
+import NotificationEngine from "@/components/NotificationEngine";
 
 type Trade = {
   id: number;
@@ -375,6 +376,7 @@ export default function DashboardTemplate({
         </section>
       ) : null}
 
+      <NotificationEngine />
       {children}
     </>
   );
