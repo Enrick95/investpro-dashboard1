@@ -83,7 +83,6 @@ export default function MobileGlobalV1() {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
 
-  const isVip = activeFor(pathname, "/dashboard/performances-vip");
   const isReports =
     activeFor(pathname, "/dashboard/rapports") ||
     activeFor(pathname, "/dashboard/rapport-mensuel");
@@ -204,6 +203,7 @@ export default function MobileGlobalV1() {
       { href: "/dashboard/plan", label: "Plan trading", icon: <ClipboardCheck size={20} /> },
       { href: "/dashboard/simulateur", label: "Simulateur", icon: <Target size={20} /> },
       { href: "/dashboard/rapport-mensuel", label: "Bilan mensuel", icon: <ChartNoAxesCombined size={20} /> },
+      { href: "/dashboard/performances-vip", label: "Performances VIP", icon: <TrendingUp size={20} /> },
     ],
     []
   );
@@ -244,10 +244,10 @@ export default function MobileGlobalV1() {
           icon={<BookOpen size={21} />}
         />
         <BottomTab
-          href="/dashboard/performances-vip"
-          label="VIP"
-          active={isVip}
-          icon={<TrendingUp size={21} />}
+          href="/dashboard/comptes"
+          label="Comptes"
+          active={activeFor(pathname, "/dashboard/comptes")}
+          icon={<WalletCards size={21} />}
         />
         <BottomTab
           href="/dashboard/rapports"
@@ -582,6 +582,58 @@ export default function MobileGlobalV1() {
 
           body.ip-mobile-vip [data-ip-vip-telegram="true"] button {
             min-height: 42px !important;
+          }
+
+
+          /* V1.1 — safe area Journal */
+          body.ip-mobile-journal [data-journal-v2] {
+            padding-top: max(22px, env(safe-area-inset-top)) !important;
+          }
+
+          body.ip-mobile-journal [data-journal-v2] h1 {
+            margin-top: 4px !important;
+          }
+
+          /* V1.1 — Dashboard V3 plus compact */
+          body.ip-mobile-dashboard [data-ip-v3-grid="true"] {
+            grid-template-columns: 1fr !important;
+            gap: 10px !important;
+          }
+
+          body.ip-mobile-dashboard [data-ip-v3-curve="true"] {
+            padding: 13px !important;
+            border-radius: 16px !important;
+          }
+
+          body.ip-mobile-dashboard [data-ip-v3-curve="true"] > div:last-child {
+            height: 92px !important;
+            margin-top: 10px !important;
+          }
+
+          body.ip-mobile-dashboard [data-ip-v3-metrics="true"] {
+            display: grid !important;
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            gap: 8px !important;
+          }
+
+          body.ip-mobile-dashboard [data-ip-v3-metrics="true"] > div {
+            min-width: 0 !important;
+            padding: 11px 9px !important;
+            border-radius: 14px !important;
+            min-height: 92px !important;
+          }
+
+          body.ip-mobile-dashboard [data-ip-v3-metrics="true"] > div > div:nth-child(2) {
+            margin-top: 8px !important;
+            font-size: 8px !important;
+            line-height: 1.1 !important;
+          }
+
+          body.ip-mobile-dashboard [data-ip-v3-metrics="true"] > div > div:nth-child(3) {
+            margin-top: 4px !important;
+            font-size: 14px !important;
+            line-height: 1.15 !important;
+            white-space: nowrap !important;
           }
 
           /* Rapports / bilan */

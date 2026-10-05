@@ -320,8 +320,8 @@ export default function DashboardTemplate({
             </div>
           </div>
 
-          <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-12">
-            <div className="rounded-2xl border border-white/[0.06] bg-black/20 p-4 lg:col-span-7">
+          <div data-ip-v3-grid="true" className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-12">
+            <div data-ip-v3-curve="true" className="rounded-2xl border border-white/[0.06] bg-black/20 p-4 lg:col-span-7">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <div className="text-[9px] uppercase tracking-[0.08em] text-white/30">
@@ -357,7 +357,7 @@ export default function DashboardTemplate({
               <MiniCurve values={analytics.curve.map((point) => point.value)} />
             </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:col-span-5">
+            <div data-ip-v3-metrics="true" className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:col-span-5">
               <MiniMetric
                 icon={<TrendingUp size={15} />}
                 label="Profit Factor"
