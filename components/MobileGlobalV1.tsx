@@ -83,6 +83,7 @@ export default function MobileGlobalV1() {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
 
+  const isVip = activeFor(pathname, "/dashboard/performances-vip");
   const isReports =
     activeFor(pathname, "/dashboard/rapports") ||
     activeFor(pathname, "/dashboard/rapport-mensuel");
@@ -133,7 +134,31 @@ export default function MobileGlobalV1() {
     if (pathname === "/dashboard") {
       const quick = exactText("Analyse rapide");
       const quickSection = quick?.closest("section") as HTMLElement | null;
-      if (quickSection) quickSection.dataset.ipMobileQuick = "true";
+      if (quickSection) {
+        quickSection.dataset.ipMobileQuick = "true";
+
+        const metricLabels = ["Profit Factor", "Drawdown max", "Risque respecté"];
+        const metricCards = metricLabels
+          .map((label) => {
+            const node = Array.from(quickSection.querySelectorAll("div,span")).find(
+              (el) => el.textContent?.trim() === label
+            ) as HTMLElement | undefined;
+            return node?.closest("div.rounded-2xl") as HTMLElement | null;
+          })
+          .filter(Boolean) as HTMLElement[];
+
+        if (metricCards.length) {
+          metricCards.forEach((card) => (card.dataset.ipQuickMetric = "true"));
+          const grid = metricCards[0]?.parentElement;
+          if (grid) grid.dataset.ipQuickMetricsGrid = "true";
+        }
+
+        const curveLabel = Array.from(quickSection.querySelectorAll("div,span")).find(
+          (el) => el.textContent?.trim() === "Mini equity curve"
+        ) as HTMLElement | undefined;
+        const curveCard = curveLabel?.closest("div.rounded-2xl") as HTMLElement | null;
+        if (curveCard) curveCard.dataset.ipQuickCurve = "true";
+      }
 
       ["Continuer ma formation", "Mon activité récente", "Marchés aujourd’hui", "Objectifs de la semaine", "Mes comptes", "Classement hebdo", "Défis en cours"].forEach((title) => {
         const node = exactText(title);
@@ -186,6 +211,102 @@ export default function MobileGlobalV1() {
         }
       });
     }
+
+    if (pathname.startsWith("/dashboard/plan")) {
+      const labels = ["Risque max", "Trades max", "RR minimum"];
+      const cards = labels
+        .map((label) => {
+          const node = exactText(label);
+          return node?.closest("div.rounded-2xl") as HTMLElement | null;
+        })
+        .filter(Boolean) as HTMLElement[];
+
+      if (cards.length) {
+        cards.forEach((card) => (card.dataset.ipPlanTopStat = "true"));
+        const grid = cards[0]?.parentElement;
+        if (grid) grid.dataset.ipPlanTopGrid = "true";
+      }
+
+      const disciplineTitle = exactText("Score de discipline");
+      const disciplineCard = disciplineTitle?.closest("div.rounded-[24px], div.rounded-\\[24px\\], section") as HTMLElement | null;
+      if (disciplineCard) {
+        disciplineCard.dataset.ipPlanDiscipline = "true";
+        const gradient = disciplineCard.querySelector('[style*="conic-gradient"]') as HTMLElement | null;
+        const ring = gradient?.parentElement as HTMLElement | null;
+        if (ring) ring.dataset.ipPlanRing = "true";
+      }
+
+      const conformity = exactText("Conformité des derniers trades");
+      const conformityCard = conformity?.closest("div.rounded-[24px], div.rounded-\\[24px\\], section") as HTMLElement | null;
+      if (conformityCard) conformityCard.dataset.ipPlanConformity = "true";
+    }
+
+    if (pathname.startsWith("/dashboard/comptes")) {
+      const next = exactText("Connexion automatique MetaTrader");
+      const nextSection = next?.closest("section, article, div.rounded-[24px], div.rounded-\\[24px\\]") as HTMLElement | null;
+      if (nextSection) nextSection.dataset.ipAccountsMetaNext = "true";
+
+      const sync = exactText("Synchronisation MetaTrader");
+      const syncSection = sync?.closest("section, article, div.rounded-[24px], div.rounded-\\[24px\\]") as HTMLElement | null;
+      if (syncSection) syncSection.dataset.ipAccountsMetaSync = "true";
+
+      const tradingAccounts = exactText("Comptes de trading");
+      const accountsSection = tradingAccounts?.closest("section, article, div.rounded-[24px], div.rounded-\\[24px\\]") as HTMLElement | null;
+      if (accountsSection) accountsSection.dataset.ipAccountsList = "true";
+    }
+
+    if (pathname.startsWith("/dashboard/rapports")) {
+      const reportHeads = [
+        "Performance par session",
+        "Performance par setup",
+        "Performance par timeframe",
+        "Jours de la semaine",
+        "Performance par actif",
+      ];
+      reportHeads.forEach((title) => {
+        const node = exactText(title);
+        const card = node?.closest("section, article, div.rounded-[22px], div.rounded-\\[22px\\], div.rounded-[24px], div.rounded-\\[24px\\]") as HTMLElement | null;
+        if (card) card.dataset.ipReportsCompact = "true";
+      });
+
+      const equity = exactText("Courbe d’equity réalisée");
+      const equityCard = equity?.closest("section, article, div.rounded-[22px], div.rounded-\\[22px\\], div.rounded-[24px], div.rounded-\\[24px\\]") as HTMLElement | null;
+      if (equityCard) {
+        equityCard.dataset.ipReportsEquity = "true";
+        const svg = equityCard.querySelector("svg") as SVGElement | null;
+        const graphWrap = svg?.parentElement as HTMLElement | null;
+        if (graphWrap) graphWrap.dataset.ipReportsGraph = "true";
+      }
+
+      const heatmap = exactText("Calendrier / Heatmap");
+      const heatmapCard = heatmap?.closest("section, article, div.rounded-[22px], div.rounded-\\[22px\\], div.rounded-[24px], div.rounded-\\[24px\\]") as HTMLElement | null;
+      if (heatmapCard) {
+        heatmapCard.dataset.ipReportsHeatmap = "true";
+        const grids = Array.from(heatmapCard.querySelectorAll("div")).filter((element) => {
+          const style = window.getComputedStyle(element);
+          return style.display === "grid" && element.children.length >= 28;
+        }) as HTMLElement[];
+        const grid = grids.sort((a, b) => b.children.length - a.children.length)[0];
+        if (grid) grid.dataset.ipReportsHeatmapGrid = "true";
+      }
+    }
+
+    if (pathname.startsWith("/dashboard/rapport-mensuel")) {
+      ["Ce qui fonctionne le mieux", "Discipline", "Continuer l’analyse"].forEach((title) => {
+        const node = exactText(title);
+        const card = node?.closest("section, article, div.rounded-[22px], div.rounded-\\[22px\\]") as HTMLElement | null;
+        if (card) card.dataset.ipMonthlyCompact = "true";
+      });
+
+      const curve = exactText("Courbe du mois");
+      const card = curve?.closest("section, article, div.rounded-[22px], div.rounded-\\[22px\\]") as HTMLElement | null;
+      if (card) {
+        card.dataset.ipMonthlyCurve = "true";
+        const svg = card.querySelector("svg") as SVGElement | null;
+        const wrap = svg?.parentElement as HTMLElement | null;
+        if (wrap) wrap.dataset.ipMonthlyGraph = "true";
+      }
+    }
   }, [pathname]);
 
   useEffect(() => {
@@ -203,7 +324,6 @@ export default function MobileGlobalV1() {
       { href: "/dashboard/plan", label: "Plan trading", icon: <ClipboardCheck size={20} /> },
       { href: "/dashboard/simulateur", label: "Simulateur", icon: <Target size={20} /> },
       { href: "/dashboard/rapport-mensuel", label: "Bilan mensuel", icon: <ChartNoAxesCombined size={20} /> },
-      { href: "/dashboard/performances-vip", label: "Performances VIP", icon: <TrendingUp size={20} /> },
     ],
     []
   );
@@ -244,10 +364,10 @@ export default function MobileGlobalV1() {
           icon={<BookOpen size={21} />}
         />
         <BottomTab
-          href="/dashboard/comptes"
-          label="Comptes"
-          active={activeFor(pathname, "/dashboard/comptes")}
-          icon={<WalletCards size={21} />}
+          href="/dashboard/performances-vip"
+          label="VIP"
+          active={isVip}
+          icon={<TrendingUp size={21} />}
         />
         <BottomTab
           href="/dashboard/rapports"
@@ -584,58 +704,6 @@ export default function MobileGlobalV1() {
             min-height: 42px !important;
           }
 
-
-          /* V1.1 — safe area Journal */
-          body.ip-mobile-journal [data-journal-v2] {
-            padding-top: max(22px, env(safe-area-inset-top)) !important;
-          }
-
-          body.ip-mobile-journal [data-journal-v2] h1 {
-            margin-top: 4px !important;
-          }
-
-          /* V1.1 — Dashboard V3 plus compact */
-          body.ip-mobile-dashboard [data-ip-v3-grid="true"] {
-            grid-template-columns: 1fr !important;
-            gap: 10px !important;
-          }
-
-          body.ip-mobile-dashboard [data-ip-v3-curve="true"] {
-            padding: 13px !important;
-            border-radius: 16px !important;
-          }
-
-          body.ip-mobile-dashboard [data-ip-v3-curve="true"] > div:last-child {
-            height: 92px !important;
-            margin-top: 10px !important;
-          }
-
-          body.ip-mobile-dashboard [data-ip-v3-metrics="true"] {
-            display: grid !important;
-            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-            gap: 8px !important;
-          }
-
-          body.ip-mobile-dashboard [data-ip-v3-metrics="true"] > div {
-            min-width: 0 !important;
-            padding: 11px 9px !important;
-            border-radius: 14px !important;
-            min-height: 92px !important;
-          }
-
-          body.ip-mobile-dashboard [data-ip-v3-metrics="true"] > div > div:nth-child(2) {
-            margin-top: 8px !important;
-            font-size: 8px !important;
-            line-height: 1.1 !important;
-          }
-
-          body.ip-mobile-dashboard [data-ip-v3-metrics="true"] > div > div:nth-child(3) {
-            margin-top: 4px !important;
-            font-size: 14px !important;
-            line-height: 1.15 !important;
-            white-space: nowrap !important;
-          }
-
           /* Rapports / bilan */
           body.ip-mobile-reports section,
           body.ip-mobile-plan section,
@@ -648,6 +716,191 @@ export default function MobileGlobalV1() {
           body.ip-mobile-plan h1,
           body.ip-mobile-accounts h1 {
             letter-spacing: -.03em;
+          }
+
+          /* V1.1 — safe-area / respiration haute */
+          body.ip-mobile-journal .journal-v2-content {
+            padding-top: 26px !important;
+          }
+
+          /* Dashboard V3 — 3 métriques sur une seule ligne */
+          body.ip-mobile-dashboard [data-ip-quick-metrics-grid="true"] {
+            display: grid !important;
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            gap: 7px !important;
+          }
+
+          body.ip-mobile-dashboard [data-ip-quick-metric="true"] {
+            min-width: 0 !important;
+            min-height: 92px !important;
+            padding: 11px !important;
+            border-radius: 15px !important;
+          }
+
+          body.ip-mobile-dashboard [data-ip-quick-metric="true"] > div:nth-child(2) {
+            margin-top: 8px !important;
+            font-size: 8px !important;
+            line-height: 1.15 !important;
+          }
+
+          body.ip-mobile-dashboard [data-ip-quick-metric="true"] > div:last-child {
+            margin-top: 4px !important;
+            font-size: 15px !important;
+          }
+
+          body.ip-mobile-dashboard [data-ip-quick-curve="true"] {
+            padding: 13px !important;
+          }
+
+          body.ip-mobile-dashboard [data-ip-quick-curve="true"] svg {
+            max-height: 104px !important;
+          }
+
+          /* Plan de trading — stats hautes en 3 colonnes */
+          body.ip-mobile-plan [data-ip-plan-top-grid="true"] {
+            display: grid !important;
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            gap: 8px !important;
+          }
+
+          body.ip-mobile-plan [data-ip-plan-top-stat="true"] {
+            min-width: 0 !important;
+            min-height: 108px !important;
+            padding: 11px !important;
+            border-radius: 16px !important;
+          }
+
+          body.ip-mobile-plan [data-ip-plan-top-stat="true"] .h-10,
+          body.ip-mobile-plan [data-ip-plan-top-stat="true"] .w-10 {
+            width: 32px !important;
+            height: 32px !important;
+          }
+
+          body.ip-mobile-plan [data-ip-plan-top-stat="true"] .text-lg {
+            font-size: 17px !important;
+          }
+
+          body.ip-mobile-plan [data-ip-plan-discipline="true"] {
+            padding: 15px !important;
+          }
+
+          body.ip-mobile-plan [data-ip-plan-ring="true"] {
+            width: 116px !important;
+            height: 116px !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
+          }
+
+          body.ip-mobile-plan [data-ip-plan-conformity="true"] {
+            padding: 15px !important;
+          }
+
+          body.ip-mobile-plan [data-ip-plan-conformity="true"] .space-y-2 > * {
+            padding-top: 10px !important;
+            padding-bottom: 10px !important;
+          }
+
+          /* Comptes — panneaux MetaTrader plus courts */
+          body.ip-mobile-accounts [data-ip-accounts-meta-next="true"],
+          body.ip-mobile-accounts [data-ip-accounts-meta-sync="true"] {
+            padding: 15px !important;
+            border-radius: 20px !important;
+          }
+
+          body.ip-mobile-accounts [data-ip-accounts-meta-next="true"] h2,
+          body.ip-mobile-accounts [data-ip-accounts-meta-sync="true"] h2 {
+            font-size: 21px !important;
+            line-height: 1.15 !important;
+          }
+
+          body.ip-mobile-accounts [data-ip-accounts-meta-next="true"] p,
+          body.ip-mobile-accounts [data-ip-accounts-meta-sync="true"] p {
+            line-height: 1.55 !important;
+          }
+
+          body.ip-mobile-accounts [data-ip-accounts-meta-next="true"] .rounded-2xl,
+          body.ip-mobile-accounts [data-ip-accounts-meta-sync="true"] .rounded-2xl {
+            padding: 13px !important;
+          }
+
+          body.ip-mobile-accounts [data-ip-accounts-list="true"] {
+            padding: 14px !important;
+          }
+
+          body.ip-mobile-accounts [data-ip-accounts-list="true"] .rounded-2xl {
+            border-radius: 16px !important;
+          }
+
+          /* Rapports — heatmap 7 colonnes visible sans scroll horizontal */
+          body.ip-mobile-reports [data-ip-reports-heatmap="true"] {
+            padding: 14px !important;
+            overflow: hidden !important;
+          }
+
+          body.ip-mobile-reports [data-ip-reports-heatmap-grid="true"] {
+            width: 100% !important;
+            min-width: 0 !important;
+            display: grid !important;
+            grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+            gap: 3px !important;
+            overflow: hidden !important;
+          }
+
+          body.ip-mobile-reports [data-ip-reports-heatmap-grid="true"] > * {
+            min-width: 0 !important;
+            min-height: 62px !important;
+            padding: 5px 3px !important;
+            border-radius: 9px !important;
+            font-size: 8px !important;
+            overflow: hidden !important;
+            word-break: break-word !important;
+          }
+
+          body.ip-mobile-reports [data-ip-reports-compact="true"] {
+            padding: 14px !important;
+            border-radius: 19px !important;
+          }
+
+          body.ip-mobile-reports [data-ip-reports-compact="true"] > div:not(:first-child) {
+            margin-top: 10px !important;
+          }
+
+          body.ip-mobile-reports [data-ip-reports-equity="true"] {
+            padding: 14px !important;
+          }
+
+          body.ip-mobile-reports [data-ip-reports-graph="true"] {
+            height: 220px !important;
+            max-height: 220px !important;
+          }
+
+          body.ip-mobile-reports [data-ip-reports-graph="true"] svg {
+            height: 100% !important;
+            max-height: 220px !important;
+          }
+
+          /* Rapport mensuel — plus dense */
+          body.ip-mobile-reports [data-ip-monthly-compact="true"] {
+            padding: 14px !important;
+            border-radius: 19px !important;
+          }
+
+          body.ip-mobile-reports [data-ip-monthly-compact="true"] .rounded-xl {
+            padding: 11px !important;
+          }
+
+          body.ip-mobile-reports [data-ip-monthly-curve="true"] {
+            padding: 14px !important;
+          }
+
+          body.ip-mobile-reports [data-ip-monthly-graph="true"] {
+            height: 190px !important;
+            max-height: 190px !important;
+          }
+
+          body.ip-mobile-reports [data-ip-monthly-graph="true"] svg {
+            height: 100% !important;
+            max-height: 190px !important;
           }
         }
 
