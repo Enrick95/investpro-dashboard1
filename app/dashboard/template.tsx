@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   BarChart3,
   BookOpen,
+  FileText,
   ChevronRight,
   LineChart,
   ShieldCheck,
@@ -284,7 +285,7 @@ export default function DashboardTemplate({
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
               <QuickLink
                 href="/dashboard/journal"
                 icon={<BookOpen size={14} />}
@@ -304,6 +305,11 @@ export default function DashboardTemplate({
                 href="/dashboard/comptes"
                 icon={<Target size={14} />}
                 label="Comptes"
+              />
+              <QuickLink
+                href="/dashboard/rapport-mensuel"
+                icon={<FileText size={14} />}
+                label="Bilan mensuel"
               />
             </div>
           </div>

@@ -247,7 +247,7 @@ export default function NotificationEngine() {
             message: `Ton rapport de ${previous.toLocaleDateString("fr-FR", {
               month: "long",
               year: "numeric",
-            })} est prêt à être analysé.`,
+            })} est prêt. Ouvre « Bilan mensuel » depuis le Dashboard.`,
             ttlMs: 5000,
           });
         });
