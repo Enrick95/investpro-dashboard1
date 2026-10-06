@@ -7,14 +7,17 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   BarChart3,
+  BrainCircuit,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
   CircleDollarSign,
   Clock3,
   Gauge,
+  Flame,
   LineChart,
   Search,
+  Scale,
   ShieldAlert,
   Target,
   TrendingDown,
@@ -226,10 +229,34 @@ export default function RapportsPage() {
       return { index, value: cumulative, date: trade.trade_date };
     });
 
+    const expectancy = closed.length ? pnl / closed.length : 0;
+    const payoffRatio =
+      avgLoss > 0 ? avgWin / avgLoss : avgWin > 0 ? Infinity : 0;
+
+    let maxWinStreak = 0;
+    let maxLossStreak = 0;
+    let currentWinStreak = 0;
+    let currentLossStreak = 0;
+
+    closed.forEach((trade) => {
+      const result = Number(trade.result_amount || 0);
+
+      if (result > 0) {
+        currentWinStreak += 1;
+        currentLossStreak = 0;
+        maxWinStreak = Math.max(maxWinStreak, currentWinStreak);
+      } else if (result < 0) {
+        currentLossStreak += 1;
+        currentWinStreak = 0;
+        maxLossStreak = Math.max(maxLossStreak, currentLossStreak);
+      }
+    });
+
     return {
       count: closed.length, wins: wins.length, losses: losses.length, bes: bes.length,
       grossProfit, grossLoss, pnl, profitFactor, avgWin, avgLoss, winrate,
-      bestTrade, worstTrade, avgR, maxDrawdown, equity,
+      bestTrade, worstTrade, avgR, maxDrawdown, equity, expectancy, payoffRatio,
+      maxWinStreak, maxLossStreak,
     };
   }, [filteredTrades]);
 
@@ -278,6 +305,78 @@ export default function RapportsPage() {
       hours,
     };
   }, [filteredTrades]);
+
+  const intelligence = useMemo(() => {
+    const bestSession = breakdowns.sessions[0] || null;
+    const worstSession = breakdowns.sessions.length
+      ? breakdowns.sessions[breakdowns.sessions.length - 1]
+      : null;
+    const bestSetup = breakdowns.setups[0] || null;
+
+    const messages: {
+      tone: "good" | "warn" | "neutral";
+      title: string;
+      text: string;
+    }[] = [];
+
+    if (stats.maxLossStreak >= 3) {
+      messages.push({
+        tone: "warn",
+        title: "Série de pertes à surveiller",
+        text: `Ta plus longue série est de ${stats.maxLossStreak} pertes consécutives. Réduire la fréquence après 2 pertes peut protéger la session.`,
+      });
+    }
+
+    if (bestSession && bestSession.pnl > 0) {
+      messages.push({
+        tone: "good",
+        title: `Avantage sur ${bestSession.label}`,
+        text: `${bestSession.count} trade(s) · ${pct(bestSession.winrate)} de winrate. C’est actuellement ta session la plus rentable sur la sélection.`,
+      });
+    }
+
+    if (worstSession && worstSession.pnl < 0) {
+      messages.push({
+        tone: "warn",
+        title: `${worstSession.label} te coûte le plus`,
+        text: `${worstSession.count} trade(s) · ${pct(worstSession.winrate)} de winrate. Compare la qualité de tes setups sur cette session.`,
+      });
+    }
+
+    if (bestSetup && bestSetup.pnl > 0) {
+      messages.push({
+        tone: "good",
+        title: `Setup fort : ${bestSetup.label}`,
+        text: `${bestSetup.count} occurrence(s) · ${pct(bestSetup.winrate)} de winrate.`,
+      });
+    }
+
+    if (stats.expectancy > 0) {
+      messages.push({
+        tone: "good",
+        title: "Espérance positive",
+        text: `Chaque trade clôturé produit en moyenne ${
+          mixedCurrencies
+            ? nfmt(stats.expectancy)
+            : signedMoney(stats.expectancy, currency)
+        } sur la période.`,
+      });
+    } else if (stats.count >= 5 && stats.expectancy < 0) {
+      messages.push({
+        tone: "warn",
+        title: "Espérance négative",
+        text: `Chaque trade clôturé coûte en moyenne ${
+          mixedCurrencies
+            ? nfmt(Math.abs(stats.expectancy))
+            : money(Math.abs(stats.expectancy), currency)
+        } sur la période.`,
+      });
+    }
+
+    return {
+      messages: messages.slice(0, 4),
+    };
+  }, [breakdowns, stats, mixedCurrencies, currency]);
 
   const calendar = useMemo(() => {
     const first = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
@@ -349,6 +448,90 @@ export default function RapportsPage() {
         <Kpi icon={<Activity size={16}/>} label="Trades" value={String(stats.count)} sub={`${stats.bes} BE`}/>
         <Kpi icon={<TrendingUp size={16}/>} label="R moyen" value={stats.avgR == null ? "—" : `${stats.avgR > 0 ? "+" : ""}${nfmt(stats.avgR)}R`}/>
         <Kpi icon={<ShieldAlert size={16}/>} label="Drawdown max" value={mixedCurrencies ? "—" : `-${money(stats.maxDrawdown, currency)}`} tone="danger"/>
+      </section>
+
+      <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Kpi
+          icon={<Scale size={16}/>}
+          label="Espérance / trade"
+          value={mixedCurrencies ? nfmt(stats.expectancy) : signedMoney(stats.expectancy, currency)}
+          tone={stats.expectancy > 0 ? "success" : stats.expectancy < 0 ? "danger" : "neutral"}
+        />
+        <Kpi
+          icon={<Target size={16}/>}
+          label="Payoff ratio"
+          value={stats.payoffRatio === Infinity ? "∞" : `${nfmt(stats.payoffRatio)}x`}
+          sub="Gain moyen / perte moyenne"
+          tone="gold"
+        />
+        <Kpi
+          icon={<Flame size={16}/>}
+          label="Meilleure série"
+          value={`${stats.maxWinStreak}W`}
+          sub="Wins consécutifs"
+          tone="success"
+        />
+        <Kpi
+          icon={<ShieldAlert size={16}/>}
+          label="Pire série"
+          value={`${stats.maxLossStreak}L`}
+          sub="Losses consécutives"
+          tone={stats.maxLossStreak >= 3 ? "danger" : "neutral"}
+        />
+      </section>
+
+      <section className="rounded-[24px] border border-[color:var(--gold-border)] bg-[color:var(--panel)] p-4 md:p-5">
+        <div className="flex items-start gap-3">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]">
+            <BrainCircuit size={17}/>
+          </div>
+
+          <div>
+            <div className="text-sm font-semibold text-white">
+              Lecture intelligente de la période
+            </div>
+            <div className="mt-1 text-[9px] text-white/30">
+              InvestPro transforme tes statistiques en points d’attention concrets.
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+          {intelligence.messages.length ? (
+            intelligence.messages.map((item, index) => (
+              <div
+                key={`${item.title}-${index}`}
+                className={`rounded-2xl border p-4 ${
+                  item.tone === "good"
+                    ? "border-emerald-500/15 bg-emerald-500/[.04]"
+                    : item.tone === "warn"
+                      ? "border-amber-500/20 bg-amber-500/[.04]"
+                      : "border-white/[.06] bg-black/20"
+                }`}
+              >
+                <div
+                  className={`text-[11px] font-semibold ${
+                    item.tone === "good"
+                      ? "text-emerald-400"
+                      : item.tone === "warn"
+                        ? "text-amber-300"
+                        : "text-white"
+                  }`}
+                >
+                  {item.title}
+                </div>
+
+                <p className="mt-2 text-[9px] leading-5 text-white/40">
+                  {item.text}
+                </p>
+              </div>
+            ))
+          ) : (
+            <div className="rounded-2xl border border-dashed border-white/[.07] bg-black/20 p-5 text-[10px] text-white/30 md:col-span-2">
+              Ajoute davantage de trades clôturés pour obtenir des conclusions fiables.
+            </div>
+          )}
+        </div>
       </section>
 
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">

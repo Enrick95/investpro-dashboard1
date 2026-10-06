@@ -21,6 +21,7 @@ import MobileGlobalV1 from "@/components/MobileGlobalV1";
 import InstallAppExperience from "@/components/InstallAppExperience";
 import NewMemberJourney from "@/components/NewMemberJourney";
 import PremiumEmptyStateGuide from "@/components/PremiumEmptyStateGuide";
+import SmartDashboardInsights from "@/components/intelligence/SmartDashboardInsights";
 
 type Trade = {
   id: number;
@@ -447,6 +448,8 @@ export default function DashboardTemplate({
           </div>
         </section>
       ) : null}
+
+      {isHome ? <SmartDashboardInsights /> : null}
 
       {isHome ? (
         <section className="mb-5 rounded-[24px] border border-[color:var(--gold-border)] bg-[color:var(--panel)] p-4 md:p-5">

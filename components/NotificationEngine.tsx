@@ -7,6 +7,7 @@ import { pushNotif } from "@/lib/notifyStore";
 type TradingPlan = {
   max_risk_percent: number;
   minimum_rr: number;
+  max_trades_per_day: number;
   allowed_sessions: string[];
   allowed_assets: string[];
   allowed_setups: string[];
@@ -202,7 +203,7 @@ export default function NotificationEngine() {
         supabase
           .from("trading_plans")
           .select(
-            "max_risk_percent, minimum_rr, allowed_sessions, allowed_assets, allowed_setups"
+            "max_risk_percent, minimum_rr, max_trades_per_day, allowed_sessions, allowed_assets, allowed_setups"
           )
           .eq("user_id", user.id)
           .maybeSingle(),
@@ -235,6 +236,7 @@ export default function NotificationEngine() {
         planRef.current = {
           max_risk_percent: Number(planResult.data.max_risk_percent || 0),
           minimum_rr: Number(planResult.data.minimum_rr || 0),
+          max_trades_per_day: Number(planResult.data.max_trades_per_day || 0),
           allowed_sessions: Array.isArray(planResult.data.allowed_sessions)
             ? planResult.data.allowed_sessions
             : [],
@@ -275,6 +277,136 @@ export default function NotificationEngine() {
           });
         });
       }
+
+      // Alertes utiles de discipline au chargement.
+      try {
+        const now = new Date();
+        const start = new Date(now);
+        start.setHours(0, 0, 0, 0);
+
+        const { data: todayTrades } = await supabase
+          .from("trading_journal")
+          .select("id,result_amount,risk_percent,status,trade_date,symbol")
+          .eq("user_id", user.id)
+          .gte("trade_date", start.toISOString())
+          .order("trade_date", { ascending: true });
+
+        const rows = todayTrades || [];
+        const closed = rows.filter((row: any) =>
+          ["win", "loss", "breakeven"].includes(
+            String(row.status || "").toLowerCase()
+          )
+        );
+        const losses = closed.filter(
+          (row: any) => Number(row.result_amount || 0) < 0
+        ).length;
+
+        const maxRisk = Number(planRef.current?.max_risk_percent || 0);
+        const maxTrades = Number(planRef.current?.max_trades_per_day || 0);
+        const dayKey = new Date().toISOString().slice(0, 10);
+
+        if (prefsRef.current.notify_discipline && losses >= 2) {
+          once(`investpro_2loss_${user.id}_${dayKey}`, () => {
+            pushNotif({
+              kind: "warning",
+              title: "2 pertes aujourd’hui",
+              message:
+                "Ta règle de protection mérite ton attention avant de reprendre une position.",
+              ttlMs: 7000,
+            });
+          });
+        }
+
+        if (
+          prefsRef.current.notify_discipline &&
+          maxTrades > 0 &&
+          rows.length >= maxTrades
+        ) {
+          once(`investpro_maxtrades_${user.id}_${dayKey}`, () => {
+            pushNotif({
+              kind: "warning",
+              title: "Limite de trades atteinte",
+              message: `${rows.length} trade(s) aujourd’hui · ton plan prévoit ${maxTrades} maximum.`,
+              ttlMs: 7000,
+            });
+          });
+        }
+
+        if (prefsRef.current.notify_discipline && maxRisk > 0) {
+          const overRisk = rows.find(
+            (row: any) => Number(row.risk_percent || 0) > maxRisk
+          );
+
+          if (overRisk) {
+            once(`investpro_risk_${user.id}_${dayKey}`, () => {
+              pushNotif({
+                kind: "warning",
+                title: "Risque supérieur au plan",
+                message: `${overRisk.symbol || "Trade"} dépasse ta limite de ${maxRisk}%.`,
+                ttlMs: 7000,
+              });
+            });
+          }
+        }
+      } catch {}
+
+      // Santé MT4 / MT5 uniquement. ProjectX n'est volontairement pas touché ici.
+      try {
+        const { data: mtConnections } = await supabase
+          .from("investpro_mt_connections")
+          .select("id,login,platform,last_sync,revoked")
+          .eq("user_id", user.id)
+          .eq("revoked", false);
+
+        for (const connection of mtConnections || []) {
+          if (!connection.last_sync) continue;
+
+          const ageMinutes =
+            (Date.now() - new Date(connection.last_sync).getTime()) / 60000;
+
+          if (ageMinutes < 30) continue;
+
+          const hourKey = new Date().toISOString().slice(0, 13);
+
+          once(`investpro_mt_stale_${connection.id}_${hourKey}`, () => {
+            pushNotif({
+              kind: "warning",
+              title: `${connection.platform || "MetaTrader"} à vérifier`,
+              message: `Le compte ${connection.login || ""} n’a pas synchronisé depuis ${Math.floor(ageMinutes)} min.`,
+              ttlMs: 7000,
+            });
+          });
+        }
+      } catch {}
+
+      // Nouvelle réponse support.
+      try {
+        const { data: answeredTickets } = await supabase
+          .from("support_tickets")
+          .select("id,subject,answered_at,admin_reply")
+          .eq("user_id", user.id)
+          .not("admin_reply", "is", null)
+          .order("answered_at", { ascending: false })
+          .limit(5);
+
+        for (const ticket of answeredTickets || []) {
+          if (!ticket.admin_reply) continue;
+
+          once(
+            `investpro_support_answer_${ticket.id}_${ticket.answered_at || "answered"}`,
+            () => {
+              pushNotif({
+                kind: "admin",
+                title: "Nouvelle réponse du support",
+                message:
+                  ticket.subject ||
+                  "L’équipe InvestPro a répondu à ta demande.",
+                ttlMs: 6000,
+              });
+            }
+          );
+        }
+      } catch {}
 
       journalChannel = supabase
         .channel(`investpro-notifs-journal-${user.id}`)
