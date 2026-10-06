@@ -47,7 +47,7 @@ function relativeDate(value?: string | null) {
   if (Number.isNaN(date.getTime())) return "Indisponible";
 
   const diff = Date.now() - date.getTime();
-  const minutes = Math.floor(diff / 60000);
+  const minutes = Math.max(0, Math.floor(diff / 60000));
 
   if (minutes < 1) return "À l’instant";
   if (minutes < 60) return `Il y a ${minutes} min`;
@@ -62,6 +62,64 @@ function relativeDate(value?: string | null) {
   });
 }
 
+function exactDate(value?: string | null) {
+  if (!value) return "Aucune réception";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Date indisponible";
+
+  return date.toLocaleString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
+function syncHealth(value?: string | null) {
+  if (!value) {
+    return {
+      key: "offline",
+      label: "Aucune synchro",
+      detail: "Aucune réception détectée",
+      className: "text-white/35 border-white/[0.08] bg-white/[0.03]",
+      dot: "bg-white/30",
+    };
+  }
+
+  const date = new Date(value);
+  const minutes = Math.max(0, Math.floor((Date.now() - date.getTime()) / 60000));
+
+  if (minutes <= 3) {
+    return {
+      key: "online",
+      label: "En ligne",
+      detail: "Synchronisation normale",
+      className: "text-emerald-400 border-emerald-500/20 bg-emerald-500/[0.07]",
+      dot: "bg-emerald-400",
+    };
+  }
+
+  if (minutes <= 10) {
+    return {
+      key: "delayed",
+      label: "Retard léger",
+      detail: "Dernière réception il y a quelques minutes",
+      className: "text-amber-300 border-amber-500/20 bg-amber-500/[0.07]",
+      dot: "bg-amber-300",
+    };
+  }
+
+  return {
+    key: "stale",
+    label: "À vérifier",
+    detail: "Aucune réception récente",
+    className: "text-red-300 border-red-500/20 bg-red-500/[0.06]",
+    dot: "bg-red-400",
+  };
+}
+
 export default function ConnectionsPage() {
   const supabase = useMemo(() => createClient(), []);
   const [loading, setLoading] = useState(true);
@@ -69,6 +127,7 @@ export default function ConnectionsPage() {
   const [projectXRows, setProjectXRows] = useState<any[]>([]);
   const [projectXAvailable, setProjectXAvailable] = useState(true);
   const [error, setError] = useState("");
+  const [nowTick, setNowTick] = useState(Date.now());
 
   async function load() {
     try {
@@ -118,6 +177,12 @@ export default function ConnectionsPage() {
 
   useEffect(() => {
     load();
+
+    const interval = window.setInterval(() => {
+      setNowTick(Date.now());
+    }, 30000);
+
+    return () => window.clearInterval(interval);
   }, []);
 
   const mtAccounts = accounts.filter((account) =>
@@ -140,6 +205,9 @@ export default function ConnectionsPage() {
     .sort()
     .reverse()[0];
 
+  const latestHealth = syncHealth(latestSync);
+  void nowTick;
+
   const projectXConnected = projectXRows.length > 0;
 
   const connectionCount =
@@ -159,7 +227,8 @@ export default function ConnectionsPage() {
       icon: <Server size={22} />,
       href: "/dashboard/comptes",
       cta: autoMt.length ? "Gérer MetaTrader" : "Connecter MetaTrader",
-      info: latestSync ? `Dernière réception : ${relativeDate(latestSync)}` : "Connecteur Windows InvestPro",
+      info: latestSync ? `Dernière réception : ${relativeDate(latestSync)} · ${exactDate(latestSync)}` : "Connecteur Windows InvestPro",
+      health: latestHealth,
     },
     {
       id: "projectx",
@@ -177,6 +246,7 @@ export default function ConnectionsPage() {
       info: projectXAvailable
         ? "Module API installé"
         : "Module ProjectX non détecté",
+      health: null,
     },
     {
       id: "tradovate",
@@ -190,6 +260,7 @@ export default function ConnectionsPage() {
       href: "/dashboard/comptes",
       cta: "Voir les comptes",
       info: "Demande API en cours",
+      health: null,
     },
   ];
 
@@ -222,14 +293,29 @@ export default function ConnectionsPage() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={load}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 text-xs font-semibold text-[color:var(--gold)]"
-          >
-            <RefreshCw size={14} />
-            Actualiser les statuts
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              title={`Dernière réception : ${exactDate(latestSync)}`}
+              className={`inline-flex h-11 items-center gap-2 rounded-xl border px-3 text-[10px] font-semibold ${latestHealth.className}`}
+            >
+              <span className="relative flex h-2 w-2">
+                {latestHealth.key === "online" ? (
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-50" />
+                ) : null}
+                <span className={`relative inline-flex h-2 w-2 rounded-full ${latestHealth.dot}`} />
+              </span>
+              {latestHealth.label}
+            </span>
+
+            <button
+              type="button"
+              onClick={load}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 text-xs font-semibold text-[color:var(--gold)]"
+            >
+              <RefreshCw size={14} />
+              Actualiser les statuts
+            </button>
+          </div>
         </div>
       </section>
 
@@ -256,7 +342,8 @@ export default function ConnectionsPage() {
           icon={<RefreshCw size={17} />}
           label="Dernière synchro"
           value={relativeDate(latestSync)}
-          sub="MetaTrader"
+          sub={exactDate(latestSync)}
+          tone={latestHealth.key === "online" ? "ok" : latestHealth.key === "delayed" ? "warn" : latestHealth.key === "stale" ? "danger" : "neutral"}
         />
         <Stat
           icon={<ShieldCheck size={17} />}
@@ -265,6 +352,32 @@ export default function ConnectionsPage() {
           sub="Aucun ordre envoyé"
         />
       </section>
+
+      {latestHealth.key === "stale" || latestHealth.key === "delayed" ? (
+        <section
+          className={[
+            "flex items-start gap-3 rounded-2xl border p-4",
+            latestHealth.key === "stale"
+              ? "border-red-500/20 bg-red-500/[0.05]"
+              : "border-amber-500/20 bg-amber-500/[0.05]",
+          ].join(" ")}
+        >
+          <TriangleAlert
+            size={17}
+            className={latestHealth.key === "stale" ? "mt-0.5 shrink-0 text-red-300" : "mt-0.5 shrink-0 text-amber-300"}
+          />
+          <div>
+            <div className="text-xs font-semibold text-white">
+              {latestHealth.key === "stale"
+                ? "Une connexion MetaTrader semble inactive"
+                : "La synchronisation MetaTrader est légèrement en retard"}
+            </div>
+            <div className="mt-1 text-[10px] leading-5 text-white/45">
+              Dernière réception : {exactDate(latestSync)}. Vérifie que MT4/MT5 et le connecteur InvestPro sont bien ouverts si le statut ne revient pas en ligne.
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         {providers.map((provider) => (
@@ -299,6 +412,7 @@ export default function ConnectionsPage() {
                 const automatic =
                   String(account.connection_type || "").toLowerCase() ===
                   "automatic";
+                const accountHealth = automatic ? syncHealth(account.updated_at) : null;
 
                 return (
                   <div
@@ -339,14 +453,19 @@ export default function ConnectionsPage() {
                           {account.currency || ""}
                         </span>
                       </div>
-                      <div
-                        className={[
-                          "mt-1 text-[8px] font-semibold uppercase",
-                          automatic ? "text-emerald-400" : "text-white/30",
-                        ].join(" ")}
-                      >
-                        {automatic ? "Synchronisé" : "Manuel"}
-                      </div>
+                      {automatic && accountHealth ? (
+                        <div
+                          title={`Dernière réception : ${exactDate(account.updated_at)}`}
+                          className={`mt-1 inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[8px] font-semibold uppercase ${accountHealth.className}`}
+                        >
+                          <span className={`h-1.5 w-1.5 rounded-full ${accountHealth.dot}`} />
+                          {accountHealth.label}
+                        </div>
+                      ) : (
+                        <div className="mt-1 text-[8px] font-semibold uppercase text-white/30">
+                          Manuel
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -405,6 +524,7 @@ function ProviderCard({
   href,
   cta,
   info,
+  health,
 }: {
   title: string;
   subtitle: string;
@@ -415,6 +535,7 @@ function ProviderCard({
   href: string;
   cta: string;
   info: string;
+  health?: ReturnType<typeof syncHealth> | null;
 }) {
   const active = status === "connected" || status === "configured";
   const waiting = status === "waiting";
@@ -456,7 +577,25 @@ function ProviderCard({
         {description}
       </p>
 
-      <div className="mt-4 rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2.5 text-[9px] text-white/35">
+      {health ? (
+        <div
+          title={health.detail}
+          className={`mt-4 flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 ${health.className}`}
+        >
+          <div className="flex items-center gap-2 text-[9px] font-semibold">
+            <span className="relative flex h-2 w-2">
+              {health.key === "online" ? (
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-50" />
+              ) : null}
+              <span className={`relative inline-flex h-2 w-2 rounded-full ${health.dot}`} />
+            </span>
+            {health.label}
+          </div>
+          <div className="text-[8px] opacity-70">{health.detail}</div>
+        </div>
+      ) : null}
+
+      <div className={`${health ? "mt-2" : "mt-4"} rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2.5 text-[9px] text-white/35`}>
         {info}
       </div>
 
@@ -499,15 +638,26 @@ function Stat({
   label,
   value,
   sub,
+  tone = "neutral",
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   sub: string;
+  tone?: "neutral" | "ok" | "warn" | "danger";
 }) {
+  const iconTone =
+    tone === "ok"
+      ? "text-emerald-400"
+      : tone === "warn"
+      ? "text-amber-300"
+      : tone === "danger"
+      ? "text-red-300"
+      : "text-[color:var(--gold)]";
+
   return (
     <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--panel)] p-4">
-      <div className="text-[color:var(--gold)]">{icon}</div>
+      <div className={iconTone}>{icon}</div>
       <div className="mt-3 text-[9px] text-white/35">{label}</div>
       <div className="mt-1 truncate text-base font-semibold text-white">{value}</div>
       <div className="mt-1 text-[8px] text-white/25">{sub}</div>
