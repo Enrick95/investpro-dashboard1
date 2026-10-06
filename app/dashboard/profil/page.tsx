@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Bell,
   Cable,
+  LockKeyhole,
   Check,
   CircleUserRound,
   Clock3,
@@ -480,6 +481,13 @@ export default function ProfilePage() {
           text="Vérifie l’état de MT4, MT5, ProjectX et Tradovate."
           href="/dashboard/connexions"
           cta="Voir mes connexions"
+        />
+        <BottomCard
+          icon={<LockKeyhole size={17} />}
+          title="Compte & sécurité"
+          text="Mot de passe, sessions et actions sensibles."
+          href="/dashboard/compte"
+          cta="Sécuriser mon compte"
         />
         <BottomCard
           icon={<Sparkles size={17} />}
