@@ -11,6 +11,17 @@ export default function PerformanceCalendar({trades,accounts,accountId='all',acc
  const scope=accountPicker?localAccount:String(accountId);
  const scopedAccounts=useMemo(()=>accounts.filter(a=>scope==='all'||String(a.id)===scope),[accounts,scope]);
  const closed=useMemo(()=>trades.filter(t=>isClosed(t)&&(scope==='all'||String(t.account_id)===scope)&&tradeDay(t.trade_date)),[trades,scope]);
+ const percentAccounts=useMemo(()=>scopedAccounts.map(account=>{
+  const declared=Number(account.initial_balance||0);
+  if(Number.isFinite(declared)&&declared>0)return account;
+  const current=Number(account.current_balance||0);
+  if(!Number.isFinite(current)||current<=0)return account;
+  const accountPnl=trades
+   .filter(t=>isClosed(t)&&String(t.account_id)===String(account.id)&&Number.isFinite(Number(t.result_amount)))
+   .reduce((sum,t)=>sum+Number(t.result_amount||0),0);
+  const inferred=current-accountPnl;
+  return {...account,initial_balance:Number.isFinite(inferred)&&inferred>0?inferred:declared};
+ }),[scopedAccounts,trades]);
  const latest=closed.map(t=>tradeDay(t.trade_date)).sort().at(-1)?.slice(0,7)||tradeDay(new Date().toISOString()).slice(0,7);
  const [month,setMonth]=useState(latest);
  useEffect(()=>setMonth(latest),[latest,scope]);
@@ -19,7 +30,7 @@ export default function PerformanceCalendar({trades,accounts,accountId='all',acc
  const currency=currencies.size===1?[...currencies][0]:null;
  const ids=new Set(scopedAccounts.map(a=>String(a.id)));
  const summary=(items:PerformanceTrade[])=>{
-  const result=performanceSummary(items,scopedAccounts);
+  const result=performanceSummary(items,percentAccounts);
   const valid=!!currency&&items.every(t=>t.account_id!==null&&ids.has(String(t.account_id))&&t.result_amount!=null&&Number.isFinite(Number(t.result_amount)));
   return {count:items.length,amount:valid?items.reduce((sum,t)=>sum+Number(t.result_amount),0):null,percent:valid?result.percent:null};
  };
@@ -64,7 +75,7 @@ export default function PerformanceCalendar({trades,accounts,accountId='all',acc
   </div></div>
   {!monthly.length&&<p className="note">Aucun trade clôturé pour ce mois avec les filtres actuels.</p>}
   <p className="note">% calculé sur le capital de départ{scope==='all'?' total des comptes sélectionnés':''}. Les filtres de la page s’appliquent au calendrier.</p>
-  {total.amount===null?<p className="note">Sélectionnez un compte pour afficher les montants et pourcentages. Les devises différentes ne sont pas additionnées et chaque trade doit être associé à un compte.</p>:total.percent===null&&<p className="note">Renseignez un capital de départ positif pour afficher les pourcentages.</p>}
+  {total.amount===null?<p className="note">Sélectionnez un compte pour afficher les montants et pourcentages. Les devises différentes ne sont pas additionnées et chaque trade doit être associé à un compte.</p>:total.percent===null&&<p className="note">Renseignez un capital de départ positif ou synchronisez une balance valide pour afficher les pourcentages.</p>}
   <style jsx>{`
    .perf-calendar{border:1px solid var(--border,#655537);background:var(--panel,#111210);border-radius:20px;padding:24px;margin:20px 0;color:#eee;min-width:0}
    header,.controls{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}h2{font-size:18px;font-weight:650;margin:0}p{font-size:12px;color:#a6aaa6;line-height:1.6;margin:6px 0}

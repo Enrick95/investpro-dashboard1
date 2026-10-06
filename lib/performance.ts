@@ -1,5 +1,5 @@
 export type PerformanceTrade = {account_id:number|null;trade_date:string;status:string;result_r:number|null;setup?:string|null;result_amount:number};
-export type PerformanceAccount = {id:number;name:string;currency:string;initial_balance:number};
+export type PerformanceAccount = {id:number;name:string;currency:string;initial_balance:number;current_balance?:number|null};
 export function tradeDay(value:string){
  if(/^\d{4}-\d{2}-\d{2}$/.test(value))return value;
  const date=new Date(value);if(!Number.isFinite(date.getTime()))return '';
