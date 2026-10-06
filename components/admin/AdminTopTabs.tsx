@@ -9,7 +9,7 @@ const tabs = [
   { label: "Utilisateurs", href: "/dashboard/admin/utilisateurs", enabled: true },
   { label: "Modération", href: "#", enabled: false },
   { label: "Inbox", href: "#", enabled: false },
-  { label: "Système", href: "#", enabled: false },
+  { label: "Système", href: "/dashboard/admin/systeme", enabled: true },
 ];
 
 export default function AdminTopTabs({
