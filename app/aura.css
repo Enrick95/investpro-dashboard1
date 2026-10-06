@@ -266,36 +266,35 @@
 
 
 /* =========================================================
-   UI/UX V4 HOTFIX — overlays / journal mobile
-   A fixed modal rendered directly inside the page must never
-   inherit the page-enter transform/opacity animation.
+   UI/UX V4 — HOTFIX DEFINITIF MODALES MOBILE
+   Cause: l'animation globale appliquait transform: translateY(...)
+   au conteneur de chaque page. Un ancêtre transformé change le
+   repère des éléments position:fixed et cassait les modales
+   Journal / Comptes sur mobile.
 ========================================================= */
-.aura-content-inner > .fixed{
-  animation:none!important;
-  transform:none!important;
-  opacity:1!important;
+
+/* Desktop : on garde une entrée douce, mais SANS transform. */
+.aura-content-inner > *{
+  animation:ip-page-enter-safe .22s ease-out both!important;
 }
 
+@keyframes ip-page-enter-safe{
+  from{opacity:0}
+  to{opacity:1}
+}
+
+/* Mobile/PWA : aucune animation sur le conteneur de page.
+   Les modales fixed retrouvent leur comportement natif. */
 @media(max-width:1023px){
-  .aura-content-inner > .fixed{
-    position:fixed!important;
-    inset:0!important;
-    width:100vw!important;
-    height:100dvh!important;
-    min-height:100dvh!important;
-    z-index:999999!important;
-    margin:0!important;
-    padding:10px!important;
-    overflow-y:auto!important;
-    overscroll-behavior:contain;
-    -webkit-overflow-scrolling:touch;
+  .aura-content-inner > *{
+    animation:none!important;
+    transform:none!important;
+    opacity:1!important;
   }
 
-  .aura-content-inner > .fixed > div{
-    max-height:calc(100dvh - 20px)!important;
-    margin:auto!important;
-    background:#0d0d10!important;
-    opacity:1!important;
-    isolation:isolate;
+  /* Les overlays existants gardent leurs propres styles/z-index.
+     On évite volontairement de forcer leurs dimensions ici. */
+  .aura-content .fixed{
+    transform:none!important;
   }
 }
