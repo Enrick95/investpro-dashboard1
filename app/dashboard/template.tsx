@@ -308,6 +308,70 @@ export default function DashboardTemplate({
     };
   }, [trades, plan]);
 
+
+
+  const todaySummary = useMemo(() => {
+    const now = new Date();
+    const todayKey = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Europe/Paris",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(now);
+
+    const todayTrades = trades.filter((trade) => {
+      if (!trade.trade_date) return false;
+      const value = new Date(trade.trade_date);
+      if (Number.isNaN(value.getTime())) return String(trade.trade_date).slice(0, 10) === todayKey;
+      const key = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Europe/Paris",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(value);
+      return key === todayKey;
+    });
+
+    const closed = todayTrades.filter((trade) =>
+      ["win", "loss", "breakeven"].includes(trade.status)
+    );
+    const wins = closed.filter((trade) => Number(trade.result_amount || 0) > 0).length;
+    const losses = closed.filter((trade) => Number(trade.result_amount || 0) < 0).length;
+    const pnl = closed.reduce((sum, trade) => sum + Number(trade.result_amount || 0), 0);
+    const riskAlerts = plan?.max_risk_percent
+      ? todayTrades.filter(
+          (trade) => Number(trade.risk_percent || 0) > Number(plan.max_risk_percent || 0)
+        ).length
+      : 0;
+
+    let status = "Session calme";
+    let tone: "neutral" | "good" | "warn" = "neutral";
+
+    if (riskAlerts > 0) {
+      status = `${riskAlerts} alerte${riskAlerts > 1 ? "s" : ""} risque`;
+      tone = "warn";
+    } else if (closed.length && pnl > 0) {
+      status = "Session positive";
+      tone = "good";
+    } else if (losses >= 2) {
+      status = "Discipline prioritaire";
+      tone = "warn";
+    } else if (todayTrades.length) {
+      status = "Session en cours";
+    }
+
+    return {
+      count: todayTrades.length,
+      closed: closed.length,
+      wins,
+      losses,
+      pnl,
+      riskAlerts,
+      status,
+      tone,
+    };
+  }, [trades, plan]);
+
   return (
     <>
       {isHome && !journeyHidden ? (
@@ -320,13 +384,76 @@ export default function DashboardTemplate({
         />
       ) : null}
 
+
+      {isHome ? (
+        <section className="ip-daily-pulse mb-5 overflow-hidden rounded-[24px] border border-white/[0.07] bg-[color:var(--panel)]">
+          <div className="grid grid-cols-1 xl:grid-cols-[1.25fr_1fr]">
+            <div className="relative p-4 md:p-5">
+              <div className="pointer-events-none absolute -left-14 -top-20 h-56 w-56 rounded-full bg-[color:var(--gold)] opacity-[0.055] blur-[70px]" />
+              <div className="relative">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gold)]">
+                    <Clock3 size={11} />
+                    Aujourd’hui
+                  </span>
+                  <span
+                    className={[
+                      "rounded-full border px-2.5 py-1 text-[9px] font-semibold",
+                      todaySummary.tone === "good"
+                        ? "border-emerald-500/15 bg-emerald-500/[0.05] text-emerald-400"
+                        : todaySummary.tone === "warn"
+                        ? "border-amber-500/20 bg-amber-500/[0.05] text-amber-300"
+                        : "border-white/[0.07] bg-black/20 text-white/40",
+                    ].join(" ")}
+                  >
+                    {todaySummary.status}
+                  </span>
+                </div>
+
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <h2 className="text-xl font-semibold text-white">Pulse de session</h2>
+                    <p className="mt-1 max-w-xl text-[10px] leading-5 text-[color:var(--muted)]">
+                      Un résumé instantané pour savoir où tu en es avant de reprendre une position.
+                    </p>
+                  </div>
+
+                  <Link
+                    href="/dashboard/journal"
+                    className="inline-flex items-center gap-1 text-[10px] font-semibold text-[color:var(--gold)]"
+                  >
+                    Ouvrir le journal
+                    <ChevronRight size={12} />
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-px border-t border-white/[0.05] bg-white/[0.04] sm:grid-cols-4 xl:border-l xl:border-t-0">
+              <PulseMetric label="Trades" value={String(todaySummary.count)} />
+              <PulseMetric label="Wins / Loss" value={`${todaySummary.wins} / ${todaySummary.losses}`} />
+              <PulseMetric
+                label="P&L jour"
+                value={`${todaySummary.pnl > 0 ? "+" : ""}${todaySummary.pnl.toLocaleString("fr-FR", { maximumFractionDigits: 0 })}`}
+                tone={todaySummary.pnl > 0 ? "good" : todaySummary.pnl < 0 ? "bad" : "neutral"}
+              />
+              <PulseMetric
+                label="Alertes risque"
+                value={String(todaySummary.riskAlerts)}
+                tone={todaySummary.riskAlerts > 0 ? "warn" : "good"}
+              />
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       {isHome ? (
         <section className="mb-5 rounded-[24px] border border-[color:var(--gold-border)] bg-[color:var(--panel)] p-4 md:p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gold)]">
                 <LineChart size={11} />
-                Dashboard V3
+                Dashboard V4
               </div>
               <h2 className="mt-3 text-lg font-semibold text-white">
                 Analyse rapide
@@ -479,6 +606,33 @@ function MiniMetric({
       <div className="text-[color:var(--gold)]">{icon}</div>
       <div className="mt-3 text-[9px] text-white/35">{label}</div>
       <div className="mt-1 text-lg font-semibold text-white">{value}</div>
+    </div>
+  );
+}
+
+
+function PulseMetric({
+  label,
+  value,
+  tone = "neutral",
+}: {
+  label: string;
+  value: string;
+  tone?: "neutral" | "good" | "bad" | "warn";
+}) {
+  const valueClass =
+    tone === "good"
+      ? "text-emerald-400"
+      : tone === "bad"
+      ? "text-red-400"
+      : tone === "warn"
+      ? "text-amber-300"
+      : "text-white";
+
+  return (
+    <div className="bg-[color:var(--panel)] p-4 xl:min-h-[118px] xl:p-5">
+      <div className="text-[8px] uppercase tracking-[0.1em] text-white/25">{label}</div>
+      <div className={`mt-2 text-lg font-semibold ${valueClass}`}>{value}</div>
     </div>
   );
 }

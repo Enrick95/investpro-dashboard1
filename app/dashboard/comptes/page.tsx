@@ -363,6 +363,13 @@ export default function ComptesPage() {
             "prop"
         ).length;
 
+      const automaticAccounts =
+        accounts.filter(
+          (account) =>
+            account.connection_type ===
+            "automatic"
+        ).length;
+
       return {
         total:
           accounts.length,
@@ -372,6 +379,8 @@ export default function ComptesPage() {
         realAccounts,
 
         propAccounts,
+
+        automaticAccounts,
       };
     }, [accounts]);
 
@@ -836,8 +845,8 @@ export default function ComptesPage() {
               />
             }
             label="Synchronisation"
-            value="Manuelle"
-            sub="MT4 / MT5 auto bientôt"
+            value={stats.automaticAccounts > 0 ? `${stats.automaticAccounts} auto` : "Manuelle"}
+            sub={stats.automaticAccounts > 0 ? `${stats.automaticAccounts} compte${stats.automaticAccounts > 1 ? "s" : ""} synchronisé${stats.automaticAccounts > 1 ? "s" : ""}` : "Connecte ProjectX ou MetaTrader"}
           />
         </section>
 
@@ -1765,7 +1774,7 @@ function AccountCard({
               text-[color:var(--gold)]
             "
           >
-            Manuel
+            {account.connection_type === "automatic" ? "Auto-sync" : "Manuel"}
           </span>
         </div>
 
