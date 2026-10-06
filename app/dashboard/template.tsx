@@ -17,6 +17,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import NotificationEngine from "@/components/NotificationEngine";
 import MobileGlobalV1 from "@/components/MobileGlobalV1";
+import InstallAppExperience from "@/components/InstallAppExperience";
 
 type Trade = {
   id: number;
@@ -390,6 +391,7 @@ export default function DashboardTemplate({
 
       <NotificationEngine />
       <MobileGlobalV1 />
+      <InstallAppExperience />
       {children}
     </>
   );

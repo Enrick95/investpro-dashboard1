@@ -13,6 +13,7 @@ import {
   LineChart,
   Loader2,
   ShieldCheck,
+  Smartphone,
   Target,
   WalletCards,
 } from "lucide-react";
@@ -47,6 +48,7 @@ export default function OnboardingPage() {
 
   const [loading, setLoading] = useState(true);
   const [state, setState] = useState<State>(initialState);
+  const [installStep, setInstallStep] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -107,15 +109,15 @@ export default function OnboardingPage() {
     load();
   }, [supabase]);
 
-  const currentStep = !state.accountDone
+  const currentStep = installStep
+    ? 5
+    : !state.accountDone
     ? 1
     : !state.planDone
     ? 2
     : !state.tradeDone
     ? 3
     : 4;
-
-  const progress = [state.accountDone, state.planDone, state.tradeDone, false];
 
   function skipOnboarding() {
     window.localStorage.setItem("investpro_onboarding_skipped", "1");
@@ -166,11 +168,12 @@ export default function OnboardingPage() {
           </button>
         </div>
 
-        <div className="relative z-10 mt-7 grid grid-cols-1 gap-2 md:grid-cols-4">
+        <div className="relative z-10 mt-7 grid grid-cols-1 gap-2 md:grid-cols-5">
           <StepTop number={1} label="Ajouter un compte" done={state.accountDone} active={currentStep === 1} />
           <StepTop number={2} label="Configurer votre plan" done={state.planDone} active={currentStep === 2} />
           <StepTop number={3} label="Importer un trade" done={state.tradeDone} active={currentStep === 3} />
-          <StepTop number={4} label="Voir vos rapports" done={false} active={currentStep === 4} />
+          <StepTop number={4} label="Voir vos rapports" done={currentStep === 5} active={currentStep === 4} />
+          <StepTop number={5} label="Installer l’app" done={false} active={currentStep === 5} />
         </div>
       </section>
 
@@ -181,12 +184,14 @@ export default function OnboardingPage() {
           <StepPlan />
         ) : currentStep === 3 ? (
           <StepTrade />
+        ) : currentStep === 4 ? (
+          <StepReports state={state} onFinish={() => setInstallStep(true)} />
         ) : (
-          <StepReports state={state} onFinish={finishOnboarding} />
+          <StepInstall onFinish={finishOnboarding} />
         )}
       </section>
 
-      <section className="grid grid-cols-1 gap-3 md:grid-cols-4">
+      <section className="grid grid-cols-1 gap-3 md:grid-cols-5">
         <StepCard
           number={1}
           title="Ajouter un compte"
@@ -219,6 +224,38 @@ export default function OnboardingPage() {
           active={currentStep === 4}
           href="/dashboard/rapports"
         />
+        <button
+          type="button"
+          onClick={() => {
+            setInstallStep(true);
+            window.setTimeout(() => {
+              window.dispatchEvent(new Event("investpro:open-install-guide"));
+            }, 80);
+          }}
+          className={[
+            "rounded-[20px] border p-4 text-left transition",
+            currentStep === 5
+              ? "border-[color:var(--gold)] bg-[color:var(--gold-soft)] shadow-[0_0_28px_rgba(230,184,78,.08)]"
+              : "border-[color:var(--border)] bg-[color:var(--panel)] hover:border-[color:var(--gold-border)]",
+          ].join(" ")}
+        >
+          <div className="flex items-start gap-3">
+            <span className={[
+              "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-bold",
+              currentStep === 5
+                ? "border-[color:var(--gold)] bg-[color:var(--gold)] text-black"
+                : "border-white/15 text-white/50",
+            ].join(" ")}>
+              5
+            </span>
+            <div>
+              <div className="text-xs font-semibold text-white">Installer InvestPro</div>
+              <div className="mt-1 text-[9px] leading-4 text-[color:var(--muted)]">
+                Ajoute InvestPro à ton écran d’accueil.
+              </div>
+            </div>
+          </div>
+        </button>
       </section>
     </div>
   );
@@ -228,7 +265,7 @@ function StepAccount({ state }: { state: State }) {
   return (
     <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
       <div className="xl:col-span-7">
-        <div className="text-[10px] text-[color:var(--muted)]">Étape 1 sur 4</div>
+        <div className="text-[10px] text-[color:var(--muted)]">Étape 1 sur 5</div>
         <h2 className="mt-2 text-xl font-semibold text-white md:text-2xl">
           Ajouter votre premier compte
         </h2>
@@ -271,7 +308,7 @@ function StepPlan() {
   return (
     <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
       <div className="xl:col-span-7">
-        <div className="text-[10px] text-[color:var(--muted)]">Étape 2 sur 4</div>
+        <div className="text-[10px] text-[color:var(--muted)]">Étape 2 sur 5</div>
         <h2 className="mt-2 text-xl font-semibold text-white md:text-2xl">
           Configurer votre plan de trading
         </h2>
@@ -304,7 +341,7 @@ function StepTrade() {
   return (
     <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
       <div className="xl:col-span-7">
-        <div className="text-[10px] text-[color:var(--muted)]">Étape 3 sur 4</div>
+        <div className="text-[10px] text-[color:var(--muted)]">Étape 3 sur 5</div>
         <h2 className="mt-2 text-xl font-semibold text-white md:text-2xl">
           Importer votre premier trade
         </h2>
@@ -343,7 +380,7 @@ function StepReports({
   return (
     <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
       <div className="xl:col-span-7">
-        <div className="text-[10px] text-[color:var(--muted)]">Étape 4 sur 4</div>
+        <div className="text-[10px] text-[color:var(--muted)]">Étape 4 sur 5</div>
         <h2 className="mt-2 text-xl font-semibold text-white md:text-2xl">
           Découvrez vos rapports
         </h2>
@@ -363,7 +400,7 @@ function StepReports({
           onClick={onFinish}
           className="mt-6 inline-flex h-11 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-sm font-semibold text-black"
         >
-          Accéder à mes rapports <ArrowRight size={14} />
+          Dernière étape <ArrowRight size={14} />
         </button>
       </div>
 
@@ -374,10 +411,10 @@ function StepReports({
               <CheckCircle2 size={20} />
             </div>
             <div className="mt-4 text-lg font-semibold text-white">
-              Configuration terminée
+              Ton espace est configuré
             </div>
             <p className="mt-2 text-xs leading-5 text-[color:var(--muted)]">
-              Ton espace InvestPro est prêt à être utilisé au quotidien.
+              Il ne reste plus qu’à découvrir comment l’ajouter à ton téléphone.
             </p>
           </div>
 
@@ -389,6 +426,88 @@ function StepReports({
     </div>
   );
 }
+
+
+function StepInstall({ onFinish }: { onFinish: () => void }) {
+  function openGuide() {
+    window.dispatchEvent(new Event("investpro:open-install-guide"));
+  }
+
+  return (
+    <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
+      <div className="xl:col-span-7">
+        <div className="text-[10px] text-[color:var(--muted)]">Étape 5 sur 5</div>
+
+        <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gold)]">
+          <Smartphone size={12} />
+          InvestPro Mobile
+        </div>
+
+        <h2 className="mt-4 text-xl font-semibold text-white md:text-2xl">
+          Mets InvestPro sur ton écran d’accueil
+        </h2>
+
+        <p className="mt-2 max-w-xl text-sm leading-6 text-[color:var(--muted)]">
+          Utilise ton espace comme une application : Journal, comptes, rapports et plan accessibles en un seul clic.
+        </p>
+
+        <div className="mt-5 space-y-3">
+          <Bullet>Compatible iPhone et Android</Bullet>
+          <Bullet>Pas besoin de passer par l’App Store</Bullet>
+          <Bullet>Accès direct depuis ton écran d’accueil</Bullet>
+        </div>
+
+        <div className="mt-6 flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={openGuide}
+            className="inline-flex h-11 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-sm font-semibold text-black"
+          >
+            <Smartphone size={15} />
+            Installer InvestPro
+          </button>
+
+          <button
+            type="button"
+            onClick={onFinish}
+            className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-5 text-sm font-semibold text-white"
+          >
+            Continuer vers le dashboard
+            <ArrowRight size={14} />
+          </button>
+        </div>
+      </div>
+
+      <div className="rounded-[22px] border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-5 xl:col-span-5">
+        <div className="flex h-full flex-col justify-between">
+          <div>
+            <div className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[color:var(--gold-border)] bg-black/20 text-[color:var(--gold)]">
+              <Smartphone size={21} />
+            </div>
+
+            <div className="mt-4 text-lg font-semibold text-white">
+              InvestPro partout avec toi
+            </div>
+
+            <p className="mt-2 text-xs leading-5 text-[color:var(--muted)]">
+              Une fois ajouté, InvestPro s’ouvre depuis ton téléphone comme une application dédiée.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={openGuide}
+            className="mt-6 inline-flex items-center gap-2 text-xs font-semibold text-[color:var(--gold)]"
+          >
+            Voir le guide iPhone / Android
+            <ArrowRight size={13} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 function StepTop({
   number,

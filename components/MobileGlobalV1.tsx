@@ -18,6 +18,7 @@ import {
   Menu,
   Newspaper,
   ShieldCheck,
+  Smartphone,
   Target,
   TrendingUp,
   Trophy,
@@ -80,9 +81,28 @@ function MenuTile({
   );
 }
 
+
+function InstallMenuTile({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className="ip-more-tile">
+      <span className="ip-more-tile-icon">
+        <Smartphone size={20} />
+      </span>
+      <span>Installer l’app</span>
+    </button>
+  );
+}
+
 export default function MobileGlobalV1() {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
+
+  function openInstallGuide() {
+    setMoreOpen(false);
+    window.setTimeout(() => {
+      window.dispatchEvent(new Event("investpro:open-install-guide"));
+    }, 80);
+  }
 
   const isReports =
     activeFor(pathname, "/dashboard/rapports") ||
@@ -434,6 +454,10 @@ export default function MobileGlobalV1() {
                 {academyTiles.map((item) => (
                   <MenuTile key={item.href} {...item} onClick={() => setMoreOpen(false)} />
                 ))}
+              </MenuGroup>
+
+              <MenuGroup title="Application">
+                <InstallMenuTile onClick={openInstallGuide} />
               </MenuGroup>
             </div>
           </div>

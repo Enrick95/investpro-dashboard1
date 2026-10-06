@@ -12,6 +12,7 @@ import {
   Save,
   ShieldCheck,
   Sparkles,
+  Smartphone,
   Target,
   TrendingUp,
 } from "lucide-react";
@@ -457,7 +458,7 @@ export default function ProfilePage() {
         </div>
       </section>
 
-      <section className="grid grid-cols-1 gap-3 md:grid-cols-3">
+      <section className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
         <BottomCard
           icon={<ShieldCheck size={17} />}
           title="Plan & discipline"
@@ -479,6 +480,20 @@ export default function ProfilePage() {
           href="/dashboard/rapport-mensuel"
           cta="Voir mon bilan"
         />
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new Event("investpro:open-install-guide"))}
+          className="rounded-[18px] border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4 text-left transition hover:border-[color:var(--gold)]"
+        >
+          <div className="text-[color:var(--gold)]"><Smartphone size={17} /></div>
+          <div className="mt-3 text-xs font-semibold text-white">InvestPro Mobile</div>
+          <div className="mt-1 text-[9px] leading-4 text-[color:var(--muted)]">
+            Ajoute InvestPro à ton écran d’accueil et utilise-le comme une app.
+          </div>
+          <div className="mt-3 text-[10px] font-semibold text-[color:var(--gold)]">
+            Installer l’application →
+          </div>
+        </button>
       </section>
 
       <style jsx global>{`
