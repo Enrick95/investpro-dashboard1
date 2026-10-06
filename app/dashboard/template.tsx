@@ -22,6 +22,7 @@ import InstallAppExperience from "@/components/InstallAppExperience";
 import NewMemberJourney from "@/components/NewMemberJourney";
 import PremiumEmptyStateGuide from "@/components/PremiumEmptyStateGuide";
 import SmartDashboardInsights from "@/components/intelligence/SmartDashboardInsights";
+import AdaptiveNextSteps from "@/components/ux/AdaptiveNextSteps";
 
 type Trade = {
   id: number;
@@ -450,6 +451,7 @@ export default function DashboardTemplate({
       ) : null}
 
       {isHome ? <SmartDashboardInsights /> : null}
+      {isHome ? <AdaptiveNextSteps /> : null}
 
       {isHome ? (
         <section className="mb-5 rounded-[24px] border border-[color:var(--gold-border)] bg-[color:var(--panel)] p-4 md:p-5">

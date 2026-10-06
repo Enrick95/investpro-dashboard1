@@ -5,6 +5,9 @@ import Link from "next/link";
 import {
   AlertTriangle,
   AppWindow,
+  Activity,
+  DatabaseBackup,
+  HeartPulse,
   ArrowRight,
   Cable,
   CheckCircle2,
@@ -350,6 +353,41 @@ export default function AccountSecurityPage() {
             Gère tes identifiants, tes sessions et les actions sensibles de ton compte.
           </p>
         </div>
+      </section>
+
+      <section className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <Link
+          href="/dashboard/sante"
+          className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4 no-underline transition hover:border-[color:var(--gold-border)]"
+        >
+          <div className="grid h-9 w-9 place-items-center rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]">
+            <HeartPulse size={15} />
+          </div>
+          <div className="mt-3 text-xs font-semibold text-white">Santé du compte</div>
+          <div className="mt-1 text-[9px] text-white/35">Sécurité, connexions et préparation.</div>
+        </Link>
+
+        <Link
+          href="/dashboard/sauvegarde"
+          className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4 no-underline transition hover:border-[color:var(--gold-border)]"
+        >
+          <div className="grid h-9 w-9 place-items-center rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]">
+            <DatabaseBackup size={15} />
+          </div>
+          <div className="mt-3 text-xs font-semibold text-white">Sauvegarde</div>
+          <div className="mt-1 text-[9px] text-white/35">Exporter Journal et réglages.</div>
+        </Link>
+
+        <Link
+          href="/dashboard/activite"
+          className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4 no-underline transition hover:border-[color:var(--gold-border)]"
+        >
+          <div className="grid h-9 w-9 place-items-center rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]">
+            <Activity size={15} />
+          </div>
+          <div className="mt-3 text-xs font-semibold text-white">Activité</div>
+          <div className="mt-1 text-[9px] text-white/35">Timeline de ton espace InvestPro.</div>
+        </Link>
       </section>
 
       {message ? (
