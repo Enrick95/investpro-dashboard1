@@ -196,7 +196,7 @@ export default function SubscriptionAccessPage() {
             </h1>
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-[color:var(--muted)]">
-              Consulte ton plan, les fonctionnalités débloquées et l’état de ton abonnement.
+              Pendant la bêta, toutes les fonctionnalités InvestPro sont accessibles gratuitement à tous les membres inscrits.
             </p>
           </div>
 
@@ -344,7 +344,7 @@ export default function SubscriptionAccessPage() {
           <SideCard
             icon={<ReceiptText size={17} />}
             title="Facturation"
-            subtitle="La gestion automatique des paiements sera branchée dans une prochaine étape."
+            subtitle="Aucun paiement n’est demandé pendant la bêta. La facturation sera activée plus tard."
           >
             <div className="space-y-3">
               <Info
@@ -371,14 +371,14 @@ export default function SubscriptionAccessPage() {
               className="mt-4 inline-flex h-10 w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] text-xs font-semibold text-white/30"
             >
               <CircleDollarSign size={14} />
-              Paiement à connecter
+              Bêta gratuite actuellement
             </button>
           </SideCard>
 
           <SideCard
             icon={<ShieldCheck size={17} />}
             title="Accès sécurisé"
-            subtitle="Cette V1 prépare les droits sans bloquer tes pages actuelles."
+            subtitle="Mode bêta ouvert : aucune fonctionnalité n’est bloquée actuellement."
           >
             <div className="space-y-3">
               <SecurityRow text="Les règles d’accès sont centralisées dans lib/access.ts." />

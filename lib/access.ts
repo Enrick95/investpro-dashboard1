@@ -1,3 +1,5 @@
+export const INVESTPRO_OPEN_BETA = true;
+
 export type InvestProPlan = "FREE" | "PRO" | "VIP";
 
 export type FeatureKey =
@@ -64,6 +66,7 @@ export function hasFeature(
   planValue: string | null | undefined,
   feature: FeatureKey
 ) {
+  if (INVESTPRO_OPEN_BETA) return true;
   const plan = normalizePlan(planValue);
   return PLAN_FEATURES[plan].includes(feature);
 }
@@ -72,6 +75,7 @@ export function hasAtLeastPlan(
   planValue: string | null | undefined,
   minimum: InvestProPlan
 ) {
+  if (INVESTPRO_OPEN_BETA) return true;
   const plan = normalizePlan(planValue);
   return PLAN_ORDER[plan] >= PLAN_ORDER[minimum];
 }

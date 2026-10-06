@@ -3,7 +3,6 @@
 import Link from "next/link";
 import {
   Activity,
-  Apple,
   BarChart3,
   Check,
   LineChart,
@@ -271,35 +270,21 @@ export function GoogleButton({
       type="button"
       onClick={onClick}
       disabled={busy}
-      className="flex h-12 w-full items-center justify-center gap-3 rounded-[14px] border border-white/[0.09] bg-white/[0.045] text-[11px] font-semibold text-white transition hover:bg-white/[0.075] disabled:opacity-50"
+      className="group flex h-12 w-full items-center justify-center gap-3 rounded-[14px] border border-white/[0.09] bg-white/[0.045] text-[11px] font-semibold text-white transition hover:border-white/[0.14] hover:bg-white/[0.075] disabled:opacity-50"
     >
-      <span className="grid h-6 w-6 place-items-center rounded-full bg-white text-[11px] font-extrabold text-[#4285F4]">G</span>
-      {label}
+      <span className="grid h-7 w-7 place-items-center rounded-full bg-white shadow-[0_3px_12px_rgba(0,0,0,.18)]">
+        <svg viewBox="0 0 24 24" className="h-[17px] w-[17px]" aria-hidden="true">
+          <path fill="#4285F4" d="M21.805 10.023h-9.63v3.955h5.54c-.238 1.273-.952 2.35-2.03 3.069v2.55h3.287c1.924-1.77 3.033-4.38 3.033-7.487 0-.73-.066-1.43-.2-2.087Z"/>
+          <path fill="#34A853" d="M12.175 22c2.75 0 5.06-.91 6.747-2.47l-3.287-2.55c-.91.61-2.078.97-3.46.97-2.656 0-4.905-1.794-5.71-4.205H3.07v2.64A10.197 10.197 0 0 0 12.175 22Z"/>
+          <path fill="#FBBC05" d="M6.465 13.745a6.157 6.157 0 0 1-.322-1.945c0-.675.116-1.33.322-1.945v-2.64H3.07A10.198 10.198 0 0 0 2 11.8c0 1.647.394 3.205 1.07 4.585l3.395-2.64Z"/>
+          <path fill="#EA4335" d="M12.175 5.65c1.493 0 2.83.513 3.885 1.52l2.91-2.91C17.23 2.64 14.92 1.6 12.175 1.6A10.197 10.197 0 0 0 3.07 7.215l3.395 2.64c.805-2.41 3.054-4.205 5.71-4.205Z"/>
+        </svg>
+      </span>
+      <span>{busy ? "Connexion à Google..." : label}</span>
     </button>
   );
 }
 
-export function AppleButton({
-  onClick,
-  busy,
-  label,
-}: {
-  onClick: () => void;
-  busy: boolean;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={busy}
-      className="flex h-12 w-full items-center justify-center gap-3 rounded-[14px] border border-white/[0.09] bg-white text-[11px] font-semibold text-black transition hover:bg-white/90 disabled:opacity-50"
-    >
-      <Apple size={18} fill="currentColor" />
-      {label}
-    </button>
-  );
-}
 
 export function Divider() {
   return (
