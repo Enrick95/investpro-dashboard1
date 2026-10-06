@@ -1,73 +1,66 @@
 "use client";
 
-import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const tabs = [
-  { label: "Overview", href: "/dashboard/admin" },
-  { label: "Finance", href: "/dashboard/admin/finance" },
-  { label: "Utilisateurs", href: "/dashboard/admin/users" },
-  { label: "Modération", href: "/dashboard/admin/moderation" },
-  { label: "Inbox", href: "/dashboard/admin/inbox" },
-  { label: "Système", href: "/dashboard/admin/system" },
+  { label: "Overview", href: "/dashboard/admin", enabled: true },
+  { label: "Finance", href: "#", enabled: false },
+  { label: "Utilisateurs", href: "/dashboard/admin/utilisateurs", enabled: true },
+  { label: "Modération", href: "#", enabled: false },
+  { label: "Inbox", href: "#", enabled: false },
+  { label: "Système", href: "#", enabled: false },
 ];
 
-type AdminTopTabsProps = {
-  onRevoke?: () => void;
-};
-
-export default function AdminTopTabs({
-  onRevoke,
-}: AdminTopTabsProps) {
+export default function AdminTopTabs() {
   const pathname = usePathname();
 
-  function handleRefresh() {
-    if (onRevoke) {
-      onRevoke();
-      return;
-    }
-
-    window.location.reload();
-  }
-
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      {tabs.map((t) => {
-        const active = pathname === t.href;
+    <div className="flex flex-wrap gap-2">
+      {tabs.map((tab) => {
+        const active =
+          tab.enabled &&
+          (pathname === tab.href ||
+            (tab.href !== "/dashboard/admin" && pathname.startsWith(tab.href)));
+
+        if (!tab.enabled) {
+          return (
+            <button
+              key={tab.label}
+              type="button"
+              disabled
+              title="Bientôt disponible"
+              className="rounded-xl border px-4 py-2 text-sm opacity-45 cursor-not-allowed"
+              style={{
+                borderColor: "rgba(255,255,255,.08)",
+                background: "rgba(255,255,255,.025)",
+                color: "var(--muted)",
+              }}
+            >
+              {tab.label}
+            </button>
+          );
+        }
 
         return (
           <Link
-            key={t.href}
-            href={t.href}
-            className="px-4 py-2 rounded-xl border text-sm"
+            key={tab.label}
+            href={tab.href}
+            className="rounded-xl border px-4 py-2 text-sm font-medium no-underline transition"
             style={{
-              borderColor: "rgba(255,255,255,.08)",
+              borderColor: active
+                ? "var(--gold-border)"
+                : "rgba(255,255,255,.08)",
               background: active
-                ? "rgba(212,175,55,.16)"
-                : "rgba(255,255,255,.03)",
+                ? "var(--gold-soft)"
+                : "rgba(255,255,255,.025)",
               color: active ? "var(--gold)" : "var(--text)",
             }}
           >
-            {t.label}
+            {tab.label}
           </Link>
         );
       })}
-
-      <div className="flex-1" />
-
-      <button
-        type="button"
-        onClick={handleRefresh}
-        className="px-4 py-2 rounded-xl border text-sm"
-        style={{
-          borderColor: "rgba(212,175,55,.25)",
-          background: "rgba(212,175,55,.12)",
-          color: "var(--gold)",
-        }}
-      >
-        Rafraîchir
-      </button>
     </div>
   );
 }
