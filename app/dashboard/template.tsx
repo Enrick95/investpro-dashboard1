@@ -19,6 +19,7 @@ import NotificationEngine from "@/components/NotificationEngine";
 import MobileGlobalV1 from "@/components/MobileGlobalV1";
 import InstallAppExperience from "@/components/InstallAppExperience";
 import NewMemberJourney from "@/components/NewMemberJourney";
+import PremiumEmptyStateGuide from "@/components/PremiumEmptyStateGuide";
 
 type Trade = {
   id: number;
@@ -435,6 +436,7 @@ export default function DashboardTemplate({
       <NotificationEngine />
       <MobileGlobalV1 />
       <InstallAppExperience />
+      <PremiumEmptyStateGuide />
       {children}
     </>
   );
