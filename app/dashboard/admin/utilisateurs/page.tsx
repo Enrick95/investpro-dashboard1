@@ -276,9 +276,12 @@ export default function AdminPage() {
                         className="border-b border-white/[0.045] last:border-0 hover:bg-white/[0.015]"
                       >
                         <td className="px-5 py-4">
-                          <div className="font-semibold text-[11px] text-white">
+                          <Link
+                            href={`/dashboard/admin/utilisateurs/${member.id}`}
+                            className="font-semibold text-[11px] text-white no-underline hover:text-[color:var(--gold)]"
+                          >
                             {member.username}
-                          </div>
+                          </Link>
                           <div className="mt-1 text-[9px] text-white/28">
                             {member.email}
                           </div>
