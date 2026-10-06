@@ -107,6 +107,11 @@ export default function NotificationEngine() {
   const supabase = useMemo(() => createClient(), []);
   const planRef = useRef<TradingPlan | null>(null);
   const userIdRef = useRef<string | null>(null);
+  const prefsRef = useRef({
+    notify_imports: true,
+    notify_discipline: true,
+    notify_reports: true,
+  });
 
   const pendingTradesRef = useRef<TradeRow[]>([]);
   const flushTimerRef = useRef<number | null>(null);
@@ -146,7 +151,8 @@ export default function NotificationEngine() {
           0
         );
 
-        pushNotif({
+        if (prefsRef.current.notify_imports) {
+          pushNotif({
           kind: pnl >= 0 ? "success" : "info",
           title:
             rows.length === 1
@@ -164,11 +170,14 @@ export default function NotificationEngine() {
                   maximumFractionDigits: 2,
                 })} $US`,
           ttlMs: 4500,
-        });
+          });
+        }
 
         for (const trade of rows) {
           const reasons = complianceReasons(trade, planRef.current);
           if (!reasons.length) continue;
+
+          if (!prefsRef.current.notify_discipline) continue;
 
           pushNotif({
             kind: "warning",
@@ -189,12 +198,18 @@ export default function NotificationEngine() {
 
       userIdRef.current = user.id;
 
-      const [planResult, previousMonthTrades] = await Promise.all([
+      const [planResult, preferencesResult, previousMonthTrades] = await Promise.all([
         supabase
           .from("trading_plans")
           .select(
             "max_risk_percent, minimum_rr, allowed_sessions, allowed_assets, allowed_setups"
           )
+          .eq("user_id", user.id)
+          .maybeSingle(),
+
+        supabase
+          .from("trader_preferences")
+          .select("notify_imports, notify_discipline, notify_reports")
           .eq("user_id", user.id)
           .maybeSingle(),
 
@@ -232,8 +247,16 @@ export default function NotificationEngine() {
         };
       }
 
+      if (preferencesResult.data) {
+        prefsRef.current = {
+          notify_imports: preferencesResult.data.notify_imports ?? true,
+          notify_discipline: preferencesResult.data.notify_discipline ?? true,
+          notify_reports: preferencesResult.data.notify_reports ?? true,
+        };
+      }
+
       const previousCount = Number(previousMonthTrades.count || 0);
-      if (previousCount > 0) {
+      if (previousCount > 0 && prefsRef.current.notify_reports) {
         const now = new Date();
         const previous = new Date(now.getFullYear(), now.getMonth() - 1, 1);
         const reportKey = `investpro_notif_monthly_report_${user.id}_${monthKey(
@@ -301,6 +324,8 @@ export default function NotificationEngine() {
             const eventKey = `investpro_notif_sync_${user.id}_${row.id}_${String(
               row.updated_at || newBalance
             )}`;
+
+            if (!prefsRef.current.notify_imports) return;
 
             once(eventKey, () => {
               pushNotif({

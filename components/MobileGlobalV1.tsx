@@ -102,6 +102,7 @@ export default function MobileGlobalV1() {
       "ip-mobile-plan",
       "ip-mobile-calendar",
       "ip-mobile-onboarding",
+      "ip-mobile-profile",
     ];
 
     classes.forEach((name) => body.classList.remove(name));
@@ -119,6 +120,7 @@ export default function MobileGlobalV1() {
     if (pathname.startsWith("/dashboard/plan")) body.classList.add("ip-mobile-plan");
     if (pathname.startsWith("/dashboard/calendrier")) body.classList.add("ip-mobile-calendar");
     if (pathname.startsWith("/dashboard/onboarding")) body.classList.add("ip-mobile-onboarding");
+    if (pathname.startsWith("/dashboard/profil")) body.classList.add("ip-mobile-profile");
 
     return () => classes.forEach((name) => body.classList.remove(name));
   }, [pathname]);
