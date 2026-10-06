@@ -25,7 +25,15 @@ function normalizeText(value: string | null | undefined) {
 }
 
 function findPilotPanel(): HTMLElement | null {
-  // Sécurité V5 : on ne cherche QUE parmi les <section>.
+  // Connexions V2 : masque/révèle le bloc MetaSync COMPLET.
+  // Il reste dans le DOM pour que "Ajouter un compte > MT4/MT5" puisse l'ouvrir,
+  // mais il n'encombre plus "Mes comptes" par défaut.
+  const v2Panel = document.querySelector<HTMLElement>(
+    '[data-investpro-metasync-panel="true"]'
+  );
+  if (v2Panel) return v2Panel;
+
+  // Fallback legacy : on ne cherche QUE parmi les <section>.
   // Cela évite de masquer par erreur le wrapper de toute la page.
   const sections = Array.from(document.querySelectorAll<HTMLElement>("section"));
 

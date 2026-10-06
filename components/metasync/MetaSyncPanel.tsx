@@ -27,7 +27,7 @@ type Connection = {
 
 export default function MetaSyncPanel() {
   return (
-    <div className="space-y-4">
+    <div data-investpro-metasync-panel="true" className="space-y-4">
       <HostedSyncPanel />
       <LocalSyncPanel />
     </div>
