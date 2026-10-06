@@ -15,7 +15,10 @@ import {
   RefreshCw,
   ShieldCheck,
   User,
+  UserCheck,
+  UserX,
   WalletCards,
+  X,
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
@@ -39,6 +42,7 @@ type Payload = {
   trades: any[];
   preferences: any | null;
   trading_plan: any | null;
+  admin_logs: any[];
   metrics: {
     accounts_count: number;
     automatic_accounts_count: number;
@@ -48,6 +52,12 @@ type Payload = {
     total_r: number;
   };
 };
+
+type ConfirmAction =
+  | { kind: "suspend" }
+  | { kind: "reactivate" }
+  | { kind: "plan"; plan: "free" | "pro" | "elite" }
+  | null;
 
 function dateLabel(value: string | null) {
   if (!value) return "—";
@@ -60,6 +70,13 @@ function dateLabel(value: string | null) {
   });
 }
 
+function logLabel(action: string) {
+  if (action === "member_suspended") return "Membre suspendu";
+  if (action === "member_reactivated") return "Membre réactivé";
+  if (action === "plan_changed") return "Plan modifié";
+  return action;
+}
+
 export default function AdminMemberPage() {
   const params = useParams<{ id: string }>();
   const supabase = useMemo(() => createClient(), []);
@@ -68,24 +85,35 @@ export default function AdminMemberPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [actionSuccess, setActionSuccess] = useState("");
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  async function getToken() {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      window.location.href = "/login";
+      return null;
+    }
+
+    return session.access_token;
+  }
 
   async function load(silent = false) {
     try {
       silent ? setRefreshing(true) : setLoading(true);
       setError("");
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!session?.access_token) {
-        window.location.href = "/login";
-        return;
-      }
+      const token = await getToken();
+      if (!token) return;
 
       const response = await fetch(`/api/admin/member/${params.id}`, {
         headers: {
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${token}`,
         },
         cache: "no-store",
       });
@@ -99,6 +127,47 @@ export default function AdminMemberPage() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  }
+
+  async function runAction() {
+    if (!confirmAction) return;
+
+    try {
+      setActionLoading(true);
+      setActionError("");
+      setActionSuccess("");
+
+      const token = await getToken();
+      if (!token) return;
+
+      const payload =
+        confirmAction.kind === "plan"
+          ? { action: "change_plan", plan: confirmAction.plan }
+          : { action: confirmAction.kind };
+
+      const response = await fetch(`/api/admin/member/${params.id}/actions`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const json = await response.json();
+
+      if (!response.ok) {
+        throw new Error(json?.error || "Action impossible.");
+      }
+
+      setActionSuccess(json?.message || "Action effectuée.");
+      setConfirmAction(null);
+      await load(true);
+    } catch (e: any) {
+      setActionError(e?.message || "Action impossible.");
+    } finally {
+      setActionLoading(false);
     }
   }
 
@@ -145,6 +214,18 @@ export default function AdminMemberPage() {
       {error ? (
         <div className="rounded-2xl border border-red-500/20 bg-red-500/[0.05] p-4 text-sm text-red-200">
           {error}
+        </div>
+      ) : null}
+
+      {actionError ? (
+        <div className="mb-4 rounded-2xl border border-red-500/20 bg-red-500/[0.05] p-4 text-sm text-red-200">
+          {actionError}
+        </div>
+      ) : null}
+
+      {actionSuccess ? (
+        <div className="mb-4 rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.05] p-4 text-sm text-emerald-300">
+          {actionSuccess}
         </div>
       ) : null}
 
@@ -215,6 +296,74 @@ export default function AdminMemberPage() {
             <Stat icon={<CheckCircle2 size={16} />} label="Trades clôturés" value={data.metrics.closed_trades_count} />
             <Stat icon={<Activity size={16} />} label="Winrate" value={`${data.metrics.winrate}%`} />
             <Stat icon={<CircleDollarSign size={16} />} label="Résultat" value={`${data.metrics.total_r > 0 ? "+" : ""}${data.metrics.total_r}R`} />
+          </section>
+
+          <section className="mt-4 rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4">
+            <div className="flex items-center gap-2 text-sm font-semibold text-[color:var(--gold)]">
+              <ShieldCheck size={15} />
+              Actions administrateur
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-3 xl:grid-cols-[1fr_1fr]">
+              <div className="rounded-xl border border-white/[0.07] bg-black/20 p-4">
+                <div className="text-xs font-semibold text-white">
+                  Statut du membre
+                </div>
+                <p className="mt-1 text-[10px] leading-5 text-white/35">
+                  Suspendre bloque la connexion du membre. L’action est réversible.
+                </p>
+
+                <div className="mt-4">
+                  {data.member.banned_until ? (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmAction({ kind: "reactivate" })}
+                      className="inline-flex h-10 items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.07] px-4 text-xs font-semibold text-emerald-300"
+                    >
+                      <UserCheck size={14} />
+                      Réactiver le membre
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmAction({ kind: "suspend" })}
+                      className="inline-flex h-10 items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/[0.07] px-4 text-xs font-semibold text-red-300"
+                    >
+                      <UserX size={14} />
+                      Suspendre le membre
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-white/[0.07] bg-black/20 p-4">
+                <div className="text-xs font-semibold text-white">
+                  Plan administratif
+                </div>
+                <p className="mt-1 text-[10px] leading-5 text-white/35">
+                  Pour l’instant tout InvestPro reste gratuit : ce champ ne verrouille aucun accès.
+                </p>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {(["free", "pro", "elite"] as const).map((plan) => (
+                    <button
+                      key={plan}
+                      type="button"
+                      disabled={data.member.plan === plan}
+                      onClick={() => setConfirmAction({ kind: "plan", plan })}
+                      className={[
+                        "h-10 rounded-xl border px-4 text-xs font-semibold uppercase",
+                        data.member.plan === plan
+                          ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)] opacity-60"
+                          : "border-white/[0.08] bg-black/20 text-white/55 hover:text-white",
+                      ].join(" ")}
+                    >
+                      {plan}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
           </section>
 
           <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
@@ -320,17 +469,128 @@ export default function AdminMemberPage() {
             </div>
           </section>
 
-          <div className="mt-4 rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4">
-            <div className="flex items-center gap-2 text-sm font-semibold text-[color:var(--gold)]">
-              <ShieldCheck size={15} />
-              Admin V3 en lecture seule
+          <section className="mt-4 overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.02]">
+            <div className="border-b border-white/[0.06] p-4">
+              <div className="font-semibold text-white">Journal administrateur</div>
+              <div className="mt-1 text-[10px] text-white/30">
+                Les 20 dernières actions concernant ce membre.
+              </div>
             </div>
-            <p className="mt-2 text-[10px] leading-5 text-white/40">
-              Les actions sensibles (suspendre, réactiver, changer le plan) seront ajoutées ensuite avec confirmation pour éviter toute mauvaise manipulation.
-            </p>
-          </div>
+
+            <div className="divide-y divide-white/[0.05]">
+              {data.admin_logs?.length ? (
+                data.admin_logs.map((log) => (
+                  <div key={log.id} className="flex flex-col gap-2 p-4 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <div className="text-[11px] font-semibold text-white">
+                        {logLabel(log.action)}
+                      </div>
+                      <div className="mt-1 text-[9px] text-white/30">
+                        Admin : {log.admin_user_id}
+                      </div>
+                    </div>
+
+                    <div className="text-[9px] text-white/30">
+                      {dateLabel(log.created_at)}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="p-8 text-center text-sm text-white/25">
+                  Aucune action administrateur enregistrée.
+                </div>
+              )}
+            </div>
+          </section>
         </>
       ) : null}
+
+      {confirmAction ? (
+        <ConfirmModal
+          action={confirmAction}
+          username={data?.member.username || "ce membre"}
+          loading={actionLoading}
+          onCancel={() => !actionLoading && setConfirmAction(null)}
+          onConfirm={runAction}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function ConfirmModal({
+  action,
+  username,
+  loading,
+  onCancel,
+  onConfirm,
+}: {
+  action: NonNullable<ConfirmAction>;
+  username: string;
+  loading: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const dangerous = action.kind === "suspend";
+
+  const title =
+    action.kind === "suspend"
+      ? "Suspendre ce membre ?"
+      : action.kind === "reactivate"
+        ? "Réactiver ce membre ?"
+        : `Changer le plan vers ${action.plan.toUpperCase()} ?`;
+
+  const text =
+    action.kind === "suspend"
+      ? `${username} ne pourra plus se connecter à InvestPro jusqu’à sa réactivation.`
+      : action.kind === "reactivate"
+        ? `${username} pourra à nouveau se connecter à InvestPro.`
+        : `Le plan administratif de ${username} sera modifié. Pour l’instant cela ne change aucun accès puisque tout InvestPro est gratuit.`;
+
+  return (
+    <div className="fixed inset-0 z-[100] grid place-items-center bg-black/70 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-[22px] border border-white/[0.08] bg-[#0d0f0d] p-5 shadow-2xl">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-lg font-semibold text-white">{title}</div>
+            <p className="mt-2 text-[11px] leading-5 text-white/40">{text}</p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={loading}
+            className="grid h-9 w-9 place-items-center rounded-xl border border-white/[0.07] bg-black/20 text-white/40"
+          >
+            <X size={15} />
+          </button>
+        </div>
+
+        <div className="mt-5 flex gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={loading}
+            className="h-11 flex-1 rounded-xl border border-white/[0.08] bg-black/20 text-xs font-semibold text-white/55"
+          >
+            Annuler
+          </button>
+
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={loading}
+            className={[
+              "h-11 flex-1 rounded-xl border text-xs font-semibold",
+              dangerous
+                ? "border-red-500/20 bg-red-500/[0.10] text-red-300"
+                : "border-[color:var(--gold-border)] bg-[color:var(--gold)] text-black",
+            ].join(" ")}
+          >
+            {loading ? "Traitement…" : "Confirmer"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

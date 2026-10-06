@@ -8,53 +8,59 @@ function getAdminIds() {
     .filter(Boolean);
 }
 
+async function verifyAdmin(request: Request) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !publishableKey || !serviceRoleKey) {
+    throw new Error("Configuration Supabase serveur incomplète.");
+  }
+
+  const authHeader = request.headers.get("authorization") || "";
+  const accessToken = authHeader.startsWith("Bearer ")
+    ? authHeader.slice(7)
+    : "";
+
+  if (!accessToken) {
+    return { response: NextResponse.json({ error: "Non authentifié." }, { status: 401 }) };
+  }
+
+  const publicClient = createClient(supabaseUrl, publishableKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  const {
+    data: { user: requester },
+    error: requesterError,
+  } = await publicClient.auth.getUser(accessToken);
+
+  if (requesterError || !requester) {
+    return { response: NextResponse.json({ error: "Session invalide." }, { status: 401 }) };
+  }
+
+  if (!getAdminIds().includes(requester.id)) {
+    return { response: NextResponse.json({ error: "Accès administrateur refusé." }, { status: 403 }) };
+  }
+
+  const admin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  return { requester, admin };
+}
+
 export async function GET(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await context.params;
+    const verified = await verifyAdmin(request);
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if ("response" in verified && verified.response) return verified.response;
 
-    if (!supabaseUrl || !publishableKey || !serviceRoleKey) {
-      return NextResponse.json(
-        { error: "Configuration Supabase serveur incomplète." },
-        { status: 500 }
-      );
-    }
-
-    const authHeader = request.headers.get("authorization") || "";
-    const accessToken = authHeader.startsWith("Bearer ")
-      ? authHeader.slice(7)
-      : "";
-
-    if (!accessToken) {
-      return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
-    }
-
-    const publicClient = createClient(supabaseUrl, publishableKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
-
-    const {
-      data: { user: requester },
-      error: requesterError,
-    } = await publicClient.auth.getUser(accessToken);
-
-    if (requesterError || !requester) {
-      return NextResponse.json({ error: "Session invalide." }, { status: 401 });
-    }
-
-    if (!getAdminIds().includes(requester.id)) {
-      return NextResponse.json({ error: "Accès administrateur refusé." }, { status: 403 });
-    }
-
-    const admin = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
+    const { admin } = verified as any;
 
     const { data: authData, error: authError } =
       await admin.auth.admin.getUserById(id);
@@ -71,6 +77,7 @@ export async function GET(
       tradesResult,
       prefsResult,
       planResult,
+      logsResult,
     ] = await Promise.all([
       admin
         .from("profiles")
@@ -102,24 +109,40 @@ export async function GET(
         .select("*")
         .eq("user_id", id)
         .maybeSingle(),
+
+      admin
+        .from("admin_action_logs")
+        .select("id,admin_user_id,target_user_id,action,details,created_at")
+        .eq("target_user_id", id)
+        .order("created_at", { ascending: false })
+        .limit(20),
     ]);
 
     if (profileResult.error) throw profileResult.error;
     if (accountsResult.error) throw accountsResult.error;
     if (tradesResult.error) throw tradesResult.error;
 
+    // Si la table de logs n'a pas encore été créée, on ne casse pas toute la fiche.
+    const adminLogs = logsResult.error ? [] : logsResult.data || [];
+
     const profile: any = profileResult.data || {};
     const accounts: any[] = accountsResult.data || [];
     const trades: any[] = tradesResult.data || [];
 
     const closedTrades = trades.filter((trade) =>
-      ["closed", "win", "loss", "be"].includes(String(trade.status || "").toLowerCase())
+      ["closed", "win", "loss", "be"].includes(
+        String(trade.status || "").toLowerCase()
+      )
     );
 
     const wins = closedTrades.filter((trade) => {
       const r = Number(trade.result_r || 0);
       const amount = Number(trade.result_amount || 0);
-      return r > 0 || amount > 0 || String(trade.status || "").toLowerCase() === "win";
+      return (
+        r > 0 ||
+        amount > 0 ||
+        String(trade.status || "").toLowerCase() === "win"
+      );
     }).length;
 
     const totalR = closedTrades.reduce(
@@ -150,6 +173,7 @@ export async function GET(
       trades,
       preferences: prefsResult.data || null,
       trading_plan: planResult.data || null,
+      admin_logs: adminLogs,
       metrics: {
         accounts_count: accounts.length,
         automatic_accounts_count: accounts.filter(
