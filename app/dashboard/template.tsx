@@ -8,6 +8,7 @@ import {
   BookOpen,
   FileText,
   ChevronRight,
+  Clock3,
   LineChart,
   ShieldCheck,
   Target,
