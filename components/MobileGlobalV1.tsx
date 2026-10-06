@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   Target,
   TrendingUp,
+  Trophy,
   WalletCards,
   X,
   Zap,
@@ -325,6 +326,8 @@ export default function MobileGlobalV1() {
       { href: "/dashboard/plan", label: "Plan trading", icon: <ClipboardCheck size={20} /> },
       { href: "/dashboard/simulateur", label: "Simulateur", icon: <Target size={20} /> },
       { href: "/dashboard/rapport-mensuel", label: "Bilan mensuel", icon: <ChartNoAxesCombined size={20} /> },
+      { href: "/dashboard/classement", label: "Classement", icon: <Trophy size={20} /> },
+      { href: "/dashboard/defis", label: "Défis", icon: <Zap size={20} /> },
       { href: "/dashboard/performances-vip", label: "VIP", icon: <TrendingUp size={20} /> },
     ],
     []
