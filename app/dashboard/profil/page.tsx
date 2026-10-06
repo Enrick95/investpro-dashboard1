@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Bell,
+  Cable,
   Check,
   CircleUserRound,
   Clock3,
@@ -458,7 +459,7 @@ export default function ProfilePage() {
         </div>
       </section>
 
-      <section className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
         <BottomCard
           icon={<ShieldCheck size={17} />}
           title="Plan & discipline"
@@ -472,6 +473,13 @@ export default function ProfilePage() {
           text="Gère tes comptes et tes connexions de trading."
           href="/dashboard/comptes"
           cta="Gérer mes comptes"
+        />
+        <BottomCard
+          icon={<Cable size={17} />}
+          title="Centre des connexions"
+          text="Vérifie l’état de MT4, MT5, ProjectX et Tradovate."
+          href="/dashboard/connexions"
+          cta="Voir mes connexions"
         />
         <BottomCard
           icon={<Sparkles size={17} />}

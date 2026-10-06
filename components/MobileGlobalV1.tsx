@@ -7,6 +7,7 @@ import {
   BarChart3,
   BookOpen,
   CalendarDays,
+  Cable,
   ChartNoAxesCombined,
   CircleUserRound,
   ClipboardCheck,
@@ -343,6 +344,7 @@ export default function MobileGlobalV1() {
   const tradingTiles = useMemo(
     () => [
       { href: "/dashboard/comptes", label: "Comptes", icon: <WalletCards size={20} /> },
+      { href: "/dashboard/connexions", label: "Connexions", icon: <Cable size={20} /> },
       { href: "/dashboard/plan", label: "Plan trading", icon: <ClipboardCheck size={20} /> },
       { href: "/dashboard/simulateur", label: "Simulateur", icon: <Target size={20} /> },
       { href: "/dashboard/rapport-mensuel", label: "Bilan mensuel", icon: <ChartNoAxesCombined size={20} /> },
