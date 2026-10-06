@@ -18,6 +18,7 @@ import { createClient } from "@/lib/supabase/client";
 import NotificationEngine from "@/components/NotificationEngine";
 import MobileGlobalV1 from "@/components/MobileGlobalV1";
 import InstallAppExperience from "@/components/InstallAppExperience";
+import NewMemberJourney from "@/components/NewMemberJourney";
 
 type Trade = {
   id: number;
@@ -45,6 +46,9 @@ export default function DashboardTemplate({
   const [trades, setTrades] = useState<Trade[]>([]);
   const [plan, setPlan] = useState<Plan | null>(null);
   const [onboardingChecked, setOnboardingChecked] = useState(false);
+  const [accountsCount, setAccountsCount] = useState(0);
+  const [journeyHidden, setJourneyHidden] = useState(false);
+  const [appInstalled, setAppInstalled] = useState(false);
 
   const isHome = pathname === "/dashboard";
 
@@ -58,7 +62,7 @@ export default function DashboardTemplate({
 
       if (!user) return;
 
-      const [tradesResult, planResult] = await Promise.all([
+      const [tradesResult, planResult, accountsResult] = await Promise.all([
         supabase
           .from("trading_journal")
           .select("id, trade_date, symbol, result_amount, result_r, status, risk_percent")
@@ -70,6 +74,11 @@ export default function DashboardTemplate({
           .select("max_risk_percent")
           .eq("user_id", user.id)
           .maybeSingle(),
+
+        supabase
+          .from("trading_accounts")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id),
       ]);
 
       if (!tradesResult.error) {
@@ -80,6 +89,10 @@ export default function DashboardTemplate({
         setPlan({
           max_risk_percent: Number(planResult.data.max_risk_percent || 0),
         });
+      }
+
+      if (!accountsResult.error) {
+        setAccountsCount(Number(accountsResult.count || 0));
       }
     }
 
@@ -220,6 +233,26 @@ export default function DashboardTemplate({
     checkOnboarding();
   }, [isHome, onboardingChecked, router, supabase]);
 
+
+  useEffect(() => {
+    if (!isHome) return;
+
+    const hidden =
+      window.localStorage.getItem("investpro_new_member_journey_hidden") === "1";
+    setJourneyHidden(hidden);
+
+    const standalone =
+      window.matchMedia?.("(display-mode: standalone)")?.matches ||
+      (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+
+    setAppInstalled(Boolean(standalone));
+  }, [isHome]);
+
+  function hideJourney() {
+    window.localStorage.setItem("investpro_new_member_journey_hidden", "1");
+    setJourneyHidden(true);
+  }
+
   const analytics = useMemo(() => {
     const closed = trades.filter((trade) =>
       ["win", "loss", "breakeven"].includes(trade.status)
@@ -276,6 +309,16 @@ export default function DashboardTemplate({
 
   return (
     <>
+      {isHome && !journeyHidden ? (
+        <NewMemberJourney
+          accountDone={accountsCount > 0}
+          planDone={!!plan}
+          tradeDone={trades.length > 0}
+          appDone={appInstalled}
+          onDismiss={hideJourney}
+        />
+      ) : null}
+
       {isHome ? (
         <section className="mb-5 rounded-[24px] border border-[color:var(--gold-border)] bg-[color:var(--panel)] p-4 md:p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
