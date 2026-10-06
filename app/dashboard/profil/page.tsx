@@ -5,6 +5,7 @@ import {
   Bell,
   Cable,
   LockKeyhole,
+  Crown,
   Check,
   CircleUserRound,
   Clock3,
@@ -488,6 +489,13 @@ export default function ProfilePage() {
           text="Mot de passe, sessions et actions sensibles."
           href="/dashboard/compte"
           cta="Sécuriser mon compte"
+        />
+        <BottomCard
+          icon={<Crown size={17} />}
+          title="Abonnement & accès"
+          text="Plan actuel, fonctionnalités et état de l’abonnement."
+          href="/dashboard/abonnement"
+          cta="Voir mon accès"
         />
         <BottomCard
           icon={<Sparkles size={17} />}

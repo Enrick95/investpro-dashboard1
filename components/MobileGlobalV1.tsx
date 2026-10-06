@@ -8,6 +8,7 @@ import {
   BookOpen,
   CalendarDays,
   Cable,
+  Crown,
   ChartNoAxesCombined,
   CircleUserRound,
   ClipboardCheck,

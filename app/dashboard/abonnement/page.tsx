@@ -1,566 +1,510 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Card, CardBody, CardSubCard } from "../../../components/ui/Card";
-import { Button } from "../../../components/ui/Button";
-import { getCurrentAccount } from "../../../lib/authStore";
-
 import {
-  Check,
-  X as XIcon,
-  Sparkles,
-  Crown,
-  Zap,
-  HelpCircle,
-  ChevronDown,
-  CreditCard,
-  Lock,
-  BadgeCheck,
-  Calendar,
-  Timer,
-  ShieldCheck,
   ArrowRight,
+  BadgeCheck,
+  Check,
+  CircleDollarSign,
+  Clock3,
+  Crown,
+  Gem,
+  Loader2,
+  LockKeyhole,
+  ReceiptText,
+  ShieldCheck,
+  Sparkles,
+  Star,
+  WalletCards,
+  X,
 } from "lucide-react";
 
-type PlanId = "free" | "pro" | "elite";
-type BillingCycle = "monthly" | "yearly";
+import { createClient } from "@/lib/supabase/client";
+import {
+  normalizePlan,
+  PLAN_FEATURES,
+  type InvestProPlan,
+} from "@/lib/access";
 
-type CompareKey =
-  | "calendar"
-  | "tradingview"
-  | "riskCalculator"
-  | "journal"
-  | "reports"
-  | "terminal"
-  | "copier"
-  | "support";
-
-type Plan = {
-  id: PlanId;
-  name: string;
-  tagline: string;
-  recommended?: boolean;
-  icon: React.ReactNode;
-  monthlyPrice: number; // 0 for free
-  yearlyPrice: number; // total / year
-  highlights: string[];
-  compare: Record<CompareKey, boolean>;
+type Subscription = {
+  id: string;
+  plan: string;
+  status: string;
+  provider: string | null;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
 };
 
-type FaqItem = {
-  q: string;
-  a: string;
-  icon: React.ReactNode;
+type Profile = {
+  username?: string | null;
+  plan?: string | null;
 };
 
-function cx(...s: Array<string | false | null | undefined>) {
-  return s.filter(Boolean).join(" ");
+const featureLabels: Record<string, string> = {
+  dashboard: "Dashboard trading",
+  journal: "Journal de trading",
+  plan: "Plan de trading",
+  simulator: "Simulateur de risque",
+  reports: "Rapports avancés",
+  monthly_report: "Bilan mensuel",
+  connections: "Connexions automatiques",
+  leaderboard: "Classement InvestPro",
+  challenges: "Défis & XP",
+  priority_support: "Support prioritaire",
+  vip_channel: "Accès VIP InvestPro",
+};
+
+const planData: Record<
+  InvestProPlan,
+  {
+    name: string;
+    tagline: string;
+    icon: React.ReactNode;
+    price: string;
+    note: string;
+  }
+> = {
+  FREE: {
+    name: "Free",
+    tagline: "Les bases pour commencer à structurer ton trading.",
+    icon: <Star size={19} />,
+    price: "0 €",
+    note: "Accès essentiel",
+  },
+  PRO: {
+    name: "Pro",
+    tagline: "Le cœur complet d’InvestPro pour suivre et analyser tes performances.",
+    icon: <Gem size={19} />,
+    price: "—",
+    note: "Ton plan actuel",
+  },
+  VIP: {
+    name: "VIP",
+    tagline: "InvestPro + accompagnement premium et accès communautaire.",
+    icon: <Crown size={19} />,
+    price: "—",
+    note: "À connecter plus tard",
+  },
+};
+
+function formatDate(value?: string | null) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+
+  return date.toLocaleDateString("fr-FR", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
 }
 
-function formatEuro(n: number) {
-  if (n === 0) return "0€";
-  return (
-    n.toLocaleString("fr-FR", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }) + "€"
-  );
+function subscriptionStatusLabel(status?: string | null) {
+  const value = String(status || "").toLowerCase();
+
+  if (value === "active") return "Actif";
+  if (value === "trialing") return "Période d’essai";
+  if (value === "past_due") return "Paiement à régulariser";
+  if (value === "cancelled") return "Annulé";
+  if (value === "expired") return "Expiré";
+  return "Actif";
 }
 
-/** fade-in on scroll */
-function useInViewOnce<T extends HTMLElement>(opts?: IntersectionObserverInit) {
-  const ref = useRef<T | null>(null);
-  const [shown, setShown] = useState(false);
+export default function SubscriptionAccessPage() {
+  const supabase = useMemo(() => createClient(), []);
+  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [billingTableAvailable, setBillingTableAvailable] = useState(true);
 
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || shown) return;
+  async function load() {
+    setLoading(true);
 
-    const obs = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          setShown(true);
-          obs.disconnect();
-        }
-      },
-      { threshold: 0.12, rootMargin: "40px", ...(opts || {}) }
-    );
-
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [shown, opts]);
-
-  return { ref, shown };
-}
-
-const COMPARE_ROWS: Array<{ key: CompareKey; label: string }> = [
-  { key: "calendar", label: "Calendrier économique" },
-  { key: "tradingview", label: "Intégration TradingView" },
-  { key: "riskCalculator", label: "Calculateur de risques" },
-  { key: "journal", label: "Journal de trading" },
-  { key: "reports", label: "Rapports avancés" },
-  { key: "terminal", label: "Terminal de trading" },
-  { key: "copier", label: "Copieur de trades" },
-  { key: "support", label: "Support prioritaire" },
-];
-
-export default function AbonnementsPage() {
-  const [mounted, setMounted] = useState(false);
-  const [isLogged, setIsLogged] = useState(false);
-  const [cycle, setCycle] = useState<BillingCycle>("monthly");
-
-  useEffect(() => {
-    setMounted(true);
     try {
-      setIsLogged(!!getCurrentAccount());
-    } catch {
-      setIsLogged(false);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        window.location.href = "/login";
+        return;
+      }
+
+      const profileResult = await supabase
+        .from("profiles")
+        .select("username,plan")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (!profileResult.error) {
+        setProfile(profileResult.data || null);
+      }
+
+      const subResult = await supabase
+        .from("subscriptions")
+        .select(
+          "id,plan,status,provider,current_period_end,cancel_at_period_end"
+        )
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (subResult.error) {
+        setBillingTableAvailable(false);
+        setSubscription(null);
+      } else {
+        setBillingTableAvailable(true);
+        setSubscription(subResult.data || null);
+      }
+    } finally {
+      setLoading(false);
     }
+  }
 
-    try {
-      const saved = localStorage.getItem("ip_billing_cycle");
-      if (saved === "monthly" || saved === "yearly") setCycle(saved);
-    } catch {}
+  useEffect(() => {
+    load();
   }, []);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem("ip_billing_cycle", cycle);
-    } catch {}
-  }, [cycle]);
+  const currentPlan = normalizePlan(subscription?.plan || profile?.plan || "PRO");
+  const currentStatus = subscriptionStatusLabel(subscription?.status || "active");
+  const features = PLAN_FEATURES[currentPlan];
 
-  const plans: Plan[] = useMemo(
-    () => [
-      {
-        id: "free",
-        name: "Free",
-        tagline: "Découvre InvestPro et commence à tracker.",
-        monthlyPrice: 0,
-        yearlyPrice: 0,
-        highlights: [
-          "Journal de trading (base)",
-          "Calendrier économique intégré",
-          "TradingView + calculateur de risque",
-        ],
-        compare: {
-          journal: true,
-          calendar: true,
-          tradingview: true,
-          riskCalculator: true,
-          reports: false,
-          terminal: false,
-          copier: false,
-          support: false,
-        },
-        icon: <Sparkles size={18} className="text-[color:var(--gold)]" />,
-      },
-      {
-        id: "pro",
-        name: "Pro",
-        tagline: "Pour trader sérieusement et progresser vite.",
-        monthlyPrice: 19.9,
-        yearlyPrice: 190.0, // ~ -20%
-        highlights: [
-          "Rapports avancés (RR, PF, streaks…)",
-          "Terminal de trading (gestion + prévisualisation)",
-          "Sauvegardes / exports + notifications avancées",
-        ],
-        compare: {
-          journal: true,
-          calendar: true,
-          tradingview: true,
-          riskCalculator: true,
-          reports: true,
-          terminal: true,
-          copier: false, // ✅ réservé Elite
-          support: false,
-        },
-        recommended: true,
-        icon: <Crown size={18} className="text-[color:var(--gold)]" />,
-      },
-      {
-        id: "elite",
-        name: "Elite",
-        tagline: "Pour performer et scaler (team / prop).",
-        monthlyPrice: 49.9,
-        yearlyPrice: 479.0, // ~ -20%
-        highlights: [
-          "Copieur de trades (multi-comptes) + risk manager",
-          "Support prioritaire + accès nouveautés en premier",
-          "Tout Pro + outils premium (progressivement)",
-        ],
-        compare: {
-          journal: true,
-          calendar: true,
-          tradingview: true,
-          riskCalculator: true,
-          reports: true,
-          terminal: true,
-          copier: true,
-          support: true,
-        },
-        icon: <Zap size={18} className="text-[color:var(--gold)]" />,
-      },
-    ],
-    []
-  );
-
-  const faqs: FaqItem[] = useMemo(
-    () => [
-      {
-        q: "Je peux annuler quand je veux ?",
-        a: "Oui. Tu peux annuler à tout moment. Ton accès reste actif jusqu’à la fin de la période.",
-        icon: <HelpCircle size={16} className="text-[color:var(--muted)]" />,
-      },
-      {
-        q: "Le paiement est sécurisé ?",
-        a: "Oui. Les paiements sont gérés via un prestataire sécurisé (type Stripe) quand la partie billing est branchée.",
-        icon: <Lock size={16} className="text-[color:var(--muted)]" />,
-      },
-      {
-        q: "Mensuel vs Annuel : c’est quoi la diff ?",
-        a: "Annuel = meilleur prix (réduction). Mensuel = plus flexible. Tu peux changer quand tu veux.",
-        icon: <Calendar size={16} className="text-[color:var(--muted)]" />,
-      },
-    ],
-    []
-  );
-
-  const ctaHref = mounted ? (isLogged ? "/dashboard/abonnement" : "/login") : "/login";
-
-  const hero = useInViewOnce<HTMLDivElement>();
-  const faqIn = useInViewOnce<HTMLDivElement>();
+  if (loading) {
+    return (
+      <div className="flex min-h-[65vh] items-center justify-center">
+        <Loader2 size={24} className="animate-spin text-[color:var(--gold)]" />
+      </div>
+    );
+  }
 
   return (
-    <div className="p-4 md:p-6 space-y-4 max-w-6xl mx-auto">
-      {/* HERO */}
-      <div
-        ref={hero.ref}
-        className={cx(
-          "transition-all duration-500 ease-out",
-          hero.shown ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"
-        )}
-      >
-        <Card>
-          <CardBody className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="space-y-2">
-              <div className="text-2xl md:text-3xl font-semibold">💳 Abonnements InvestPro</div>
-              <div className="text-sm text-muted">
-                1 plan gratuit + 2 plans premium. Simple, clair, efficace.
-              </div>
+    <div className="mx-auto max-w-[1380px] space-y-5 pb-10">
+      <section className="relative overflow-hidden rounded-[26px] border border-[color:var(--gold-border)] bg-[color:var(--panel)] p-5 md:p-6">
+        <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-[color:var(--gold)] opacity-[0.06] blur-[80px]" />
 
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-                <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[color:var(--border)] bg-[color:var(--panel-2)]">
-                  <ShieldCheck size={14} className="text-emerald-400" />
-                  Paiement sécurisé
-                </span>
-                <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[color:var(--border)] bg-[color:var(--panel-2)]">
-                  <CreditCard size={14} className="text-[color:var(--gold)]" />
-                  Annulation facile
-                </span>
-                <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[color:var(--border)] bg-[color:var(--panel-2)]">
-                  <Timer size={14} className="text-[color:var(--muted)]" />
-                  Upgrade instant
-                </span>
-              </div>
+        <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gold)]">
+              <Crown size={12} />
+              Abonnement & accès
             </div>
 
-            <div className="flex flex-col items-stretch md:items-end gap-3">
-              <CycleSwitch cycle={cycle} onChange={setCycle} />
+            <h1 className="mt-3 text-2xl font-semibold text-white md:text-3xl">
+              Ton accès <span className="text-[color:var(--gold)]">InvestPro</span>
+            </h1>
 
-              <div className="flex gap-2">
-                <Link href={ctaHref}>
-                  <Button>
-                    Gérer mon abonnement <ArrowRight size={16} className="ml-2" />
-                  </Button>
-                </Link>
-                <Link href="/dashboard">
-                  <Button variant="ghost">Retour dashboard</Button>
-                </Link>
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-      </div>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[color:var(--muted)]">
+              Consulte ton plan, les fonctionnalités débloquées et l’état de ton abonnement.
+            </p>
+          </div>
 
-      {/* PLANS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {plans.map((p, idx) => (
-          <PlanCard key={p.id} plan={p} cycle={cycle} ctaHref={ctaHref} delayMs={idx * 90} />
-        ))}
-      </div>
+          <div className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-2.5 text-[10px] font-semibold text-emerald-400">
+            <span className="h-2 w-2 rounded-full bg-emerald-400" />
+            {currentStatus}
+          </div>
+        </div>
+      </section>
 
-      {/* FAQ */}
-      <div
-        ref={faqIn.ref}
-        className={cx(
-          "transition-all duration-500 ease-out",
-          faqIn.shown ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"
-        )}
-      >
-        <Card>
-          <CardBody className="space-y-3">
-            <div className="flex items-center gap-2">
-              <HelpCircle size={18} className="text-[color:var(--muted)]" />
-              <div className="text-lg font-semibold">FAQ</div>
-              <div className="text-xs text-muted">Questions rapides</div>
-            </div>
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat
+          icon={<Gem size={17} />}
+          label="Plan actuel"
+          value={currentPlan}
+          sub={planData[currentPlan].tagline}
+          accent
+        />
+        <Stat
+          icon={<BadgeCheck size={17} />}
+          label="Statut"
+          value={currentStatus}
+          sub={subscription?.provider ? `Via ${subscription.provider}` : "Gestion InvestPro"}
+        />
+        <Stat
+          icon={<Clock3 size={17} />}
+          label="Fin de période"
+          value={formatDate(subscription?.current_period_end)}
+          sub={
+            subscription?.cancel_at_period_end
+              ? "Résiliation prévue"
+              : "Renouvellement non configuré"
+          }
+        />
+        <Stat
+          icon={<WalletCards size={17} />}
+          label="Facturation"
+          value={subscription?.provider ? "Connectée" : "À connecter"}
+          sub="Stripe / autre provider plus tard"
+        />
+      </section>
 
-            <div className="space-y-2">
-              {faqs.map((f, idx) => (
-                <FaqRow key={idx} item={f} />
-              ))}
-            </div>
-          </CardBody>
-        </Card>
-      </div>
-
-      <style>{`
-        .ip-glow{
-          background: radial-gradient(60% 60% at 50% 50%, rgba(255,200,90,.22), rgba(0,0,0,0));
-        }
-        .ip-reco{
-          border: 1px solid rgba(255,200,90,.25);
-          box-shadow: 0 0 0 1px rgba(255,200,90,.12) inset;
-        }
-        .ip-badge{
-          position: relative;
-          overflow: hidden;
-        }
-        .ip-badge:after{
-          content:"";
-          position:absolute;
-          top:-40%;
-          left:-60%;
-          width:40%;
-          height:180%;
-          background: linear-gradient(90deg, transparent, rgba(255,255,255,.22), transparent);
-          transform: rotate(18deg);
-          animation: ipShine 2.8s ease-in-out infinite;
-        }
-        @keyframes ipShine{
-          0%{ transform: translateX(0) rotate(18deg); opacity:.0; }
-          20%{ opacity:.6; }
-          60%{ opacity:.0; }
-          100%{ transform: translateX(320%) rotate(18deg); opacity:0; }
-        }
-      `}</style>
-    </div>
-  );
-}
-
-function CycleSwitch({
-  cycle,
-  onChange,
-}: {
-  cycle: BillingCycle;
-  onChange: (c: BillingCycle) => void;
-}) {
-  return (
-    <div className="inline-flex items-center gap-2 p-1 rounded-2xl border border-[color:var(--border)] bg-[color:var(--panel-2)]">
-      <button
-        type="button"
-        onClick={() => onChange("monthly")}
-        className={cx(
-          "px-3 h-9 rounded-xl text-xs font-semibold transition border",
-          cycle === "monthly"
-            ? "border-[color:var(--gold-border)] bg-[color:var(--panel)] text-[color:var(--text)]"
-            : "border-transparent text-[color:var(--muted)] hover:text-[color:var(--text)]"
-        )}
-      >
-        Mensuel
-      </button>
-
-      <button
-        type="button"
-        onClick={() => onChange("yearly")}
-        className={cx(
-          "px-3 h-9 rounded-xl text-xs font-semibold transition border flex items-center gap-2",
-          cycle === "yearly"
-            ? "border-[color:var(--gold-border)] bg-[color:var(--panel)] text-[color:var(--text)]"
-            : "border-transparent text-[color:var(--muted)] hover:text-[color:var(--text)]"
-        )}
-      >
-        Annuel
-        <span className="text-[10px] px-2 py-0.5 rounded-full font-bold border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]">
-          -20%
-        </span>
-      </button>
-    </div>
-  );
-}
-
-function PlanCard({
-  plan,
-  cycle,
-  ctaHref,
-  delayMs,
-}: {
-  plan: Plan;
-  cycle: BillingCycle;
-  ctaHref: string;
-  delayMs: number;
-}) {
-  const { ref, shown } = useInViewOnce<HTMLDivElement>();
-
-  const price = cycle === "monthly" ? plan.monthlyPrice : plan.yearlyPrice;
-
-  const priceLabel = plan.id === "free" ? "0€" : formatEuro(price);
-
-  const periodLabel =
-    plan.id === "free" ? "" : cycle === "monthly" ? "/mois" : "/an";
-
-  const subLabel =
-    plan.id === "free"
-      ? "Parfait pour commencer"
-      : cycle === "yearly"
-      ? "Meilleur prix sur l’année"
-      : "Flexible, sans engagement long";
-
-  return (
-    <div
-      ref={ref}
-      style={{ transitionDelay: `${delayMs}ms` }}
-      className={cx(
-        "relative transition-all duration-500 ease-out",
-        shown ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"
-      )}
-    >
-      {plan.recommended ? (
-        <div className="pointer-events-none absolute -inset-0.5 rounded-3xl opacity-70 blur-xl ip-glow" />
+      {!billingTableAvailable ? (
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.05] px-4 py-3 text-xs text-amber-300">
+          Le module d’abonnement n’est pas encore initialisé dans Supabase. Exécute le SQL fourni avec cette mise à jour.
+        </div>
       ) : null}
 
-      <Card>
-        <CardBody
-          className={cx(
-            "relative rounded-3xl transition",
-            "hover:-translate-y-1 hover:shadow-2xl",
-            plan.recommended ? "ip-reco" : ""
-          )}
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="w-9 h-9 rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--panel-2)] flex items-center justify-center">
-                  {plan.icon}
-                </span>
-                <div className="text-lg font-semibold">{plan.name}</div>
-              </div>
+      <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+        <div className="space-y-4 xl:col-span-8">
+          <section className="rounded-[22px] border border-[color:var(--gold-border)] bg-[color:var(--panel)] p-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]">
+                  {planData[currentPlan].icon}
+                </div>
 
-              <div className="text-xs text-muted mt-2">{plan.tagline}</div>
-            </div>
-
-            {plan.recommended ? (
-              <span className="ip-badge text-[10px] px-2 py-0.5 rounded-full font-bold border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]">
-                Recommandé
-              </span>
-            ) : null}
-          </div>
-
-          <div className="mt-4 flex items-end gap-2">
-            <div className="text-3xl font-bold text-[color:var(--text)]">
-              {priceLabel}
-            </div>
-            <div className="text-xs text-muted mb-1">{periodLabel}</div>
-          </div>
-
-          <div className="mt-1 text-[11px] text-muted">{subLabel}</div>
-
-          {/* Highlights */}
-          <div className="mt-4">
-            <CardSubCard>
-              <div className="space-y-2">
-                {plan.highlights.map((h, i) => (
-                  <div key={i} className="flex items-start gap-2 text-sm">
-                    <Check size={16} className="mt-0.5 text-emerald-400" />
-                    <span className="text-[color:var(--text)]">{h}</span>
+                <div>
+                  <div className="text-[9px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gold)]">
+                    Plan actuel
                   </div>
-                ))}
-              </div>
-            </CardSubCard>
-          </div>
-
-          {/* Mini comparaison */}
-          <div className="mt-3">
-            <CardSubCard>
-              <div className="flex items-center gap-2 mb-2">
-                <BadgeCheck size={16} className="text-[color:var(--muted)]" />
-                <div className="text-sm font-semibold text-[color:var(--text)]">
-                  Comparaison rapide
+                  <div className="mt-1 text-xl font-semibold text-white">
+                    InvestPro {planData[currentPlan].name}
+                  </div>
+                  <p className="mt-2 max-w-xl text-[10px] leading-5 text-white/45">
+                    {planData[currentPlan].tagline}
+                  </p>
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                {COMPARE_ROWS.map((r) => {
-                  const ok = plan.compare[r.key];
-                  return (
-                    <div key={r.key} className="flex items-center justify-between gap-3">
-                      <div className="text-xs text-[color:var(--muted)]">{r.label}</div>
-                      <div className="shrink-0">
-                        {ok ? (
-                          <Check size={16} className="text-emerald-400" />
-                        ) : (
-                          <XIcon size={16} className="text-rose-400" />
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardSubCard>
-          </div>
+              <span className="rounded-full border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-1 text-[9px] font-bold uppercase text-emerald-400">
+                {currentStatus}
+              </span>
+            </div>
 
-          <div className="mt-4 flex gap-2">
-            <Link href={ctaHref} className="w-full">
-              <Button className="w-full" variant={plan.recommended ? "primary" : "ghost"}>
-                Choisir {plan.name}
-              </Button>
+            <div className="mt-5 grid grid-cols-1 gap-2 md:grid-cols-2">
+              {features.map((feature) => (
+                <Feature key={feature} text={featureLabels[feature] || feature} active />
+              ))}
+            </div>
+          </section>
+
+          <section className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5">
+            <div className="flex items-center gap-2">
+              <Sparkles size={17} className="text-[color:var(--gold)]" />
+              <h2 className="text-sm font-semibold text-white">
+                Comparer les accès
+              </h2>
+            </div>
+
+            <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
+              {(["FREE", "PRO", "VIP"] as InvestProPlan[]).map((plan) => {
+                const active = plan === currentPlan;
+
+                return (
+                  <div
+                    key={plan}
+                    className={[
+                      "rounded-2xl border p-4",
+                      active
+                        ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]"
+                        : "border-white/[0.06] bg-black/20",
+                    ].join(" ")}
+                  >
+                    <div className={active ? "text-[color:var(--gold)]" : "text-white/40"}>
+                      {planData[plan].icon}
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between gap-2">
+                      <div className="text-sm font-semibold text-white">
+                        {planData[plan].name}
+                      </div>
+
+                      {active ? (
+                        <span className="rounded-full border border-[color:var(--gold-border)] bg-black/10 px-2 py-0.5 text-[8px] font-bold uppercase text-[color:var(--gold)]">
+                          Actuel
+                        </span>
+                      ) : null}
+                    </div>
+
+                    <div className="mt-1 text-lg font-semibold text-white">
+                      {planData[plan].price}
+                    </div>
+
+                    <p className="mt-2 min-h-[48px] text-[9px] leading-4 text-white/35">
+                      {planData[plan].tagline}
+                    </p>
+
+                    <div className="mt-4 space-y-2">
+                      {PLAN_FEATURES[plan].slice(0, 5).map((feature) => (
+                        <MiniFeature
+                          key={feature}
+                          text={featureLabels[feature] || feature}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        </div>
+
+        <div className="space-y-4 xl:col-span-4">
+          <SideCard
+            icon={<ReceiptText size={17} />}
+            title="Facturation"
+            subtitle="La gestion automatique des paiements sera branchée dans une prochaine étape."
+          >
+            <div className="space-y-3">
+              <Info
+                label="Provider"
+                value={subscription?.provider || "Non connecté"}
+              />
+              <Info
+                label="Période actuelle"
+                value={formatDate(subscription?.current_period_end)}
+              />
+              <Info
+                label="Résiliation"
+                value={
+                  subscription?.cancel_at_period_end
+                    ? "Prévue en fin de période"
+                    : "Aucune"
+                }
+              />
+            </div>
+
+            <button
+              type="button"
+              disabled
+              className="mt-4 inline-flex h-10 w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] text-xs font-semibold text-white/30"
+            >
+              <CircleDollarSign size={14} />
+              Paiement à connecter
+            </button>
+          </SideCard>
+
+          <SideCard
+            icon={<ShieldCheck size={17} />}
+            title="Accès sécurisé"
+            subtitle="Cette V1 prépare les droits sans bloquer tes pages actuelles."
+          >
+            <div className="space-y-3">
+              <SecurityRow text="Les règles d’accès sont centralisées dans lib/access.ts." />
+              <SecurityRow text="Aucune page existante n’est verrouillée automatiquement dans cette V1." />
+              <SecurityRow text="On pourra activer les blocages plan par plan une fois les paiements branchés." />
+            </div>
+          </SideCard>
+
+          <SideCard
+            icon={<LockKeyhole size={17} />}
+            title="Compte & sécurité"
+            subtitle="Mot de passe, sessions et actions sensibles."
+          >
+            <Link
+              href="/dashboard/compte"
+              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-xs font-semibold text-[color:var(--gold)]"
+            >
+              Ouvrir la sécurité
+              <ArrowRight size={13} />
             </Link>
-          </div>
-        </CardBody>
-      </Card>
+          </SideCard>
+        </div>
+      </section>
     </div>
   );
 }
 
-function FaqRow({ item }: { item: { q: string; a: string; icon: React.ReactNode } }) {
-  const [open, setOpen] = useState(false);
-
+function Stat({
+  icon,
+  label,
+  value,
+  sub,
+  accent = false,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  sub: string;
+  accent?: boolean;
+}) {
   return (
-    <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--panel)] overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="w-full px-4 py-3 flex items-center gap-3 hover:bg-[color:var(--panel-2)] transition text-left"
-      >
-        <span className="w-9 h-9 rounded-xl border border-[color:var(--border)] bg-[color:var(--panel-2)] flex items-center justify-center">
-          {item.icon}
-        </span>
+    <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--panel)] p-4">
+      <div className={accent ? "text-[color:var(--gold)]" : "text-white/35"}>
+        {icon}
+      </div>
+      <div className="mt-3 text-[9px] text-white/35">{label}</div>
+      <div className={accent ? "mt-1 truncate text-base font-semibold text-[color:var(--gold)]" : "mt-1 truncate text-base font-semibold text-white"}>
+        {value}
+      </div>
+      <div className="mt-1 line-clamp-2 text-[8px] leading-4 text-white/25">{sub}</div>
+    </div>
+  );
+}
 
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-semibold text-[color:var(--text)]">{item.q}</div>
+function Feature({ text, active }: { text: string; active: boolean }) {
+  return (
+    <div className="flex items-center gap-2 rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2.5">
+      <span
+        className={[
+          "flex h-5 w-5 items-center justify-center rounded-full border",
+          active
+            ? "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-400"
+            : "border-white/[0.08] text-white/25",
+        ].join(" ")}
+      >
+        {active ? <Check size={12} /> : <X size={12} />}
+      </span>
+      <span className="text-[10px] text-white/60">{text}</span>
+    </div>
+  );
+}
+
+function MiniFeature({ text }: { text: string }) {
+  return (
+    <div className="flex items-center gap-2 text-[9px] text-white/45">
+      <Check size={11} className="shrink-0 text-emerald-400" />
+      {text}
+    </div>
+  );
+}
+
+function SideCard({
+  icon,
+  title,
+  subtitle,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5">
+      <div className="flex items-start gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]">
+          {icon}
         </div>
 
-        <ChevronDown
-          size={18}
-          className={cx(
-            "text-[color:var(--muted)] transition-transform duration-200",
-            open ? "rotate-180" : "rotate-0"
-          )}
-        />
-      </button>
-
-      <div
-        className={cx(
-          "grid transition-[grid-template-rows] duration-200 ease-out",
-          open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-        )}
-      >
-        <div className="overflow-hidden px-4 pb-4">
-          <div className="text-sm text-[color:var(--muted)] leading-relaxed">{item.a}</div>
+        <div>
+          <h2 className="text-sm font-semibold text-white">{title}</h2>
+          <p className="mt-1 text-[9px] leading-4 text-white/35">{subtitle}</p>
         </div>
       </div>
+
+      <div className="mt-5">{children}</div>
+    </section>
+  );
+}
+
+function Info({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2.5">
+      <span className="text-[9px] text-white/35">{label}</span>
+      <span className="text-right text-[9px] font-semibold text-white/65">
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function SecurityRow({ text }: { text: string }) {
+  return (
+    <div className="flex items-start gap-2 text-[10px] leading-5 text-white/55">
+      <Check size={14} className="mt-0.5 shrink-0 text-emerald-400" />
+      {text}
     </div>
   );
 }
