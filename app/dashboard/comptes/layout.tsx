@@ -162,6 +162,44 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
     };
   }, []);
 
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const connect = String(params.get("connect") || "").toLowerCase();
+
+    if (!connect) return;
+
+    // Nettoie l’URL immédiatement pour éviter de rouvrir le parcours au refresh.
+    const cleanUrl = `${window.location.pathname}${window.location.hash || ""}`;
+    window.history.replaceState({}, "", cleanUrl);
+
+    if (connect === "projectx") {
+      setChoice("futures");
+      setFuturePlatform("projectx");
+      setChooserOpen(true);
+      return;
+    }
+
+    if (connect === "futures" || connect === "tradovate" || connect === "rithmic") {
+      setChoice("futures");
+      setFuturePlatform(
+        connect === "tradovate"
+          ? "tradovate"
+          : connect === "rithmic"
+            ? "rithmic"
+            : null
+      );
+      setChooserOpen(true);
+      return;
+    }
+
+    if (connect === "mt4" || connect === "mt5") {
+      window.setTimeout(() => {
+        revealMetaTrader(connect === "mt4" ? "MT4" : "MT5");
+      }, 250);
+    }
+  }, []);
+
   useEffect(() => {
     if (!chooserOpen) return;
 
