@@ -7,6 +7,7 @@ import { ArrowRight, Eye, EyeOff, Loader2, LockKeyhole, Mail, UserRound } from "
 
 import { createClient } from "@/lib/supabase/client";
 import AuthExperienceShell, {
+  AppleButton,
   AuthCardHeader,
   AuthFeatureStrip,
   AuthMessage,
@@ -29,6 +30,7 @@ export default function RegisterPage() {
   const [accepted, setAccepted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
+  const [appleBusy, setAppleBusy] = useState(false);
   const [message, setMessage] = useState<Message>(null);
 
   const strength = Math.min(
@@ -106,7 +108,35 @@ export default function RegisterPage() {
       if (error) throw error;
     } catch (error: any) {
       setGoogleBusy(false);
-      setMessage({ kind: "error", text: error?.message || "Inscription Google impossible." });
+      setMessage({
+        kind: "error",
+        text:
+          String(error?.message || "").includes("provider is not enabled")
+            ? "L’inscription Google n’est pas encore activée côté InvestPro. Crée ton compte avec ton e-mail pour le moment."
+            : error?.message || "Inscription Google impossible.",
+      });
+    }
+  }
+
+  async function appleRegister() {
+    try {
+      setAppleBusy(true);
+      setMessage(null);
+      const redirectTo = `${window.location.origin}/auth/callback?next=/dashboard/onboarding`;
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "apple",
+        options: { redirectTo },
+      });
+      if (error) throw error;
+    } catch (error: any) {
+      setAppleBusy(false);
+      setMessage({
+        kind: "error",
+        text:
+          String(error?.message || "").includes("provider is not enabled")
+            ? "L’inscription Apple n’est pas encore activée côté InvestPro. Crée ton compte avec ton e-mail pour le moment."
+            : error?.message || "Inscription Apple impossible.",
+      });
     }
   }
 
@@ -117,13 +147,16 @@ export default function RegisterPage() {
           badge="Créer mon espace"
           title="Commence à structurer ton"
           highlight="trading"
-          description="Crée ton compte InvestPro puis configure ton espace en quelques minutes : compte trading, plan, journal et application mobile."
+          description="Crée ton compte InvestPro puis configure ton espace CFD & Futures en quelques minutes : comptes, plan, journal, copy multi-comptes et application mobile."
         />
 
         <div className="mt-6 space-y-4">
           {message ? <AuthMessage {...message} /> : null}
 
-          <GoogleButton onClick={googleRegister} busy={googleBusy} label="Continuer avec Google" />
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <GoogleButton onClick={googleRegister} busy={googleBusy} label="Google" />
+            <AppleButton onClick={appleRegister} busy={appleBusy} label="Apple" />
+          </div>
           <Divider />
 
           <form onSubmit={register} className="space-y-3.5">
@@ -220,7 +253,7 @@ export default function RegisterPage() {
 
             <button
               type="submit"
-              disabled={busy || googleBusy}
+              disabled={busy || googleBusy || appleBusy}
               className="flex h-12 w-full items-center justify-center gap-2 rounded-[14px] bg-[#e7ba4d] text-[11px] font-bold text-[#090a09] shadow-[0_12px_35px_rgba(231,186,77,.12)] transition hover:bg-[#efc55d] disabled:opacity-50"
             >
               {busy ? <Loader2 size={15} className="animate-spin" /> : null}

@@ -3,11 +3,13 @@
 import Link from "next/link";
 import {
   Activity,
+  Apple,
   BarChart3,
   Check,
   LineChart,
   LockKeyhole,
   MonitorSmartphone,
+  Repeat2,
   ShieldCheck,
   Sparkles,
   Target,
@@ -50,14 +52,15 @@ export default function AuthExperienceShell({
                 </h1>
 
                 <p className="mt-5 max-w-[620px] text-[15px] leading-7 text-white/48">
-                  Centralise tes comptes, ton journal, ton plan et tes rapports dans un espace pensé pour suivre ta discipline et comprendre ta progression.
+                  Centralise tes comptes CFD & Futures, ton journal, ton plan et tes rapports, puis réplique tes trades sur plusieurs comptes depuis un seul espace.
                 </p>
 
                 <div className="mt-7 grid max-w-[650px] grid-cols-2 gap-2.5 xl:grid-cols-3">
                   <Benefit icon={<Activity size={15} />} text="Journal intelligent" />
                   <Benefit icon={<BarChart3 size={15} />} text="Rapports avancés" />
                   <Benefit icon={<ShieldCheck size={15} />} text="Discipline & risque" />
-                  <Benefit icon={<WalletCards size={15} />} text="Multi-comptes" />
+                  <Benefit icon={<WalletCards size={15} />} text="CFD & Futures" />
+                  <Benefit icon={<Repeat2 size={15} />} text="Copy multi-comptes" />
                   <Benefit icon={<TrendingUp size={15} />} text="Classement & défis" />
                   <Benefit icon={<MonitorSmartphone size={15} />} text="App mobile" />
                 </div>
@@ -271,6 +274,28 @@ export function GoogleButton({
       className="flex h-12 w-full items-center justify-center gap-3 rounded-[14px] border border-white/[0.09] bg-white/[0.045] text-[11px] font-semibold text-white transition hover:bg-white/[0.075] disabled:opacity-50"
     >
       <span className="grid h-6 w-6 place-items-center rounded-full bg-white text-[11px] font-extrabold text-[#4285F4]">G</span>
+      {label}
+    </button>
+  );
+}
+
+export function AppleButton({
+  onClick,
+  busy,
+  label,
+}: {
+  onClick: () => void;
+  busy: boolean;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={busy}
+      className="flex h-12 w-full items-center justify-center gap-3 rounded-[14px] border border-white/[0.09] bg-white text-[11px] font-semibold text-black transition hover:bg-white/90 disabled:opacity-50"
+    >
+      <Apple size={18} fill="currentColor" />
       {label}
     </button>
   );

@@ -7,6 +7,7 @@ import { ArrowRight, Eye, EyeOff, Loader2, LockKeyhole, Mail } from "lucide-reac
 
 import { createClient } from "@/lib/supabase/client";
 import AuthExperienceShell, {
+  AppleButton,
   AuthCardHeader,
   AuthFeatureStrip,
   AuthMessage,
@@ -26,6 +27,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
+  const [appleBusy, setAppleBusy] = useState(false);
   const [forgotMode, setForgotMode] = useState(false);
   const [message, setMessage] = useState<Message>(null);
 
@@ -81,7 +83,37 @@ export default function LoginPage() {
       if (error) throw error;
     } catch (error: any) {
       setGoogleBusy(false);
-      setMessage({ kind: "error", text: error?.message || "Connexion Google impossible." });
+      setMessage({
+        kind: "error",
+        text:
+          String(error?.message || "").includes("provider is not enabled")
+            ? "La connexion Google n’est pas encore activée côté InvestPro. Utilise e-mail / mot de passe pour le moment."
+            : error?.message || "Connexion Google impossible.",
+      });
+    }
+  }
+
+  async function appleLogin() {
+    try {
+      setAppleBusy(true);
+      setMessage(null);
+
+      const redirectTo = `${window.location.origin}/auth/callback?next=/dashboard`;
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "apple",
+        options: { redirectTo },
+      });
+
+      if (error) throw error;
+    } catch (error: any) {
+      setAppleBusy(false);
+      setMessage({
+        kind: "error",
+        text:
+          String(error?.message || "").includes("provider is not enabled")
+            ? "La connexion Apple n’est pas encore activée côté InvestPro. Utilise e-mail / mot de passe pour le moment."
+            : error?.message || "Connexion Apple impossible.",
+      });
     }
   }
 
@@ -130,7 +162,10 @@ export default function LoginPage() {
 
           {!forgotMode ? (
             <>
-              <GoogleButton onClick={googleLogin} busy={googleBusy} label="Se connecter avec Google" />
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <GoogleButton onClick={googleLogin} busy={googleBusy} label="Google" />
+                <AppleButton onClick={appleLogin} busy={appleBusy} label="Apple" />
+              </div>
               <Divider />
             </>
           ) : null}
@@ -191,7 +226,7 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              disabled={busy || googleBusy}
+              disabled={busy || googleBusy || appleBusy}
               className="mt-1 flex h-12 w-full items-center justify-center gap-2 rounded-[14px] bg-[#e7ba4d] text-[11px] font-bold text-[#090a09] shadow-[0_12px_35px_rgba(231,186,77,.12)] transition hover:bg-[#efc55d] disabled:opacity-50"
             >
               {busy ? <Loader2 size={15} className="animate-spin" /> : null}
