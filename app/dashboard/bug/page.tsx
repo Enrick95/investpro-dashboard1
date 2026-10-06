@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { Card, CardBody } from "../../../components/ui/Card";
 import { Button } from "../../../components/ui/Button";
+import { createClient } from "@/lib/supabase/client";
 
 type Img = {
   id: string;
@@ -30,6 +31,7 @@ function readAsDataUrl(file: File): Promise<string> {
 }
 
 export default function BugPage() {
+  const supabase = useMemo(() => createClient(), []);
   const [where, setWhere] = useState("");
   const [desc, setDesc] = useState("");
 
@@ -105,9 +107,21 @@ export default function BugPage() {
         at: new Date().toISOString(),
       };
 
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        window.location.href = "/login";
+        return;
+      }
+
       const r = await fetch("/api/bug", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(payload),
       });
 
