@@ -1,200 +1,245 @@
 "use client";
 
-import Image from "next/image";
+import { FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowRight, Eye, EyeOff, Loader2, LockKeyhole, Mail, UserRound } from "lucide-react";
+
 import { createClient } from "@/lib/supabase/client";
+import AuthExperienceShell, {
+  AuthCardHeader,
+  AuthFeatureStrip,
+  AuthMessage,
+  Divider,
+  GoogleButton,
+  SecurityNote,
+} from "@/components/auth/AuthExperienceShell";
+
+type Message = { kind: "success" | "error" | "info"; text: string } | null;
 
 export default function RegisterPage() {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
+  const router = useRouter();
 
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
-  const [pass, setPass] = useState("");
-  const [pass2, setPass2] = useState("");
-  const [err, setErr] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [accepted, setAccepted] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [googleBusy, setGoogleBusy] = useState(false);
+  const [message, setMessage] = useState<Message>(null);
 
-  async function onRegister() {
-    setErr(null);
-    setSuccess(null);
+  const strength = Math.min(
+    4,
+    Number(password.length >= 8) +
+      Number(/[A-Z]/.test(password)) +
+      Number(/[0-9]/.test(password)) +
+      Number(/[^A-Za-z0-9]/.test(password))
+  );
 
-    if (!username.trim()) {
-      return setErr("Le pseudo est requis");
+  async function register(event: FormEvent) {
+    event.preventDefault();
+    setMessage(null);
+
+    if (username.trim().length < 2) {
+      setMessage({ kind: "error", text: "Choisis un pseudo d’au moins 2 caractères." });
+      return;
     }
-
     if (!email.trim()) {
-      return setErr("L’adresse e-mail est requise");
+      setMessage({ kind: "error", text: "Renseigne ton adresse e-mail." });
+      return;
+    }
+    if (password.length < 8) {
+      setMessage({ kind: "error", text: "Ton mot de passe doit contenir au moins 8 caractères." });
+      return;
+    }
+    if (password !== confirm) {
+      setMessage({ kind: "error", text: "Les deux mots de passe ne correspondent pas." });
+      return;
+    }
+    if (!accepted) {
+      setMessage({ kind: "error", text: "Confirme que tu acceptes la création de ton espace InvestPro." });
+      return;
     }
 
-    if (pass.length < 6) {
-      return setErr("Mot de passe trop court (min 6 caractères)");
-    }
-
-    if (pass !== pass2) {
-      return setErr("Les mots de passe ne correspondent pas");
-    }
-
-    setLoading(true);
-
-    const { data, error } = await supabase.auth.signUp({
-      email: email.trim(),
-      password: pass,
-      options: {
-        data: {
-          username: username.trim(),
-          plan: "free",
+    try {
+      setBusy(true);
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          data: { username: username.trim() },
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard/onboarding`,
         },
-      },
-    });
+      });
 
-    setLoading(false);
+      if (error) throw error;
 
-    if (error) {
-      setErr(error.message);
-      return;
+      if (data.session) {
+        router.push("/dashboard/onboarding");
+        router.refresh();
+        return;
+      }
+
+      setMessage({
+        kind: "success",
+        text: "Ton compte est créé. Vérifie maintenant ta boîte e-mail pour confirmer ton adresse, puis tu seras dirigé vers l’onboarding InvestPro.",
+      });
+    } catch (error: any) {
+      setMessage({ kind: "error", text: error?.message || "Impossible de créer le compte." });
+    } finally {
+      setBusy(false);
     }
+  }
 
-    if (!data.user) {
-      setErr("Erreur lors de la création du compte");
-      return;
+  async function googleRegister() {
+    try {
+      setGoogleBusy(true);
+      setMessage(null);
+      const redirectTo = `${window.location.origin}/auth/callback?next=/dashboard/onboarding`;
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo },
+      });
+      if (error) throw error;
+    } catch (error: any) {
+      setGoogleBusy(false);
+      setMessage({ kind: "error", text: error?.message || "Inscription Google impossible." });
     }
-
-    // Si Supabase demande une confirmation par e-mail
-    if (!data.session) {
-      setSuccess(
-        "Compte créé ! Vérifiez votre boîte mail pour confirmer votre adresse e-mail."
-      );
-      return;
-    }
-
-    // Si la confirmation email est désactivée, l'utilisateur est connecté immédiatement
-    window.location.href = "/dashboard/profil";
   }
 
   return (
-    <div className="min-h-screen bg-black text-white flex items-center justify-center px-4 py-10">
-      <div
-        className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0c0c0f]
-                   p-8 shadow-2xl"
-      >
-        {/* Logo */}
-        <div className="flex justify-center mb-6">
-          <Image
-            src="/logo.webp"
-            alt="InvestPro Trading"
-            width={64}
-            height={64}
-            className="rounded-2xl"
-          />
-        </div>
+    <AuthExperienceShell mode="register">
+      <div className="rounded-[26px] border border-white/[0.07] bg-[#0d0f0d]/90 p-5 shadow-[0_30px_80px_rgba(0,0,0,.28)] sm:p-7">
+        <AuthCardHeader
+          badge="Créer mon espace"
+          title="Commence à structurer ton"
+          highlight="trading"
+          description="Crée ton compte InvestPro puis configure ton espace en quelques minutes : compte trading, plan, journal et application mobile."
+        />
 
-        <h1 className="text-2xl font-semibold text-center">
-          Créer votre compte{" "}
-          <span className="text-[color:var(--gold)]">InvestPro</span>
-        </h1>
+        <div className="mt-6 space-y-4">
+          {message ? <AuthMessage {...message} /> : null}
 
-        <p className="text-sm text-center text-[color:var(--muted)] mt-2">
-          Rejoignez la plateforme et suivez vos performances.
-        </p>
+          <GoogleButton onClick={googleRegister} busy={googleBusy} label="Continuer avec Google" />
+          <Divider />
 
-        {/* Google */}
-        <button
-          type="button"
-          className="w-full mt-6 flex items-center justify-center gap-3 px-4 py-3
-                     rounded-2xl bg-[#1f1f1f] hover:bg-[#2a2a2a]
-                     border border-white/10 transition text-white"
-        >
-          <img src="/google.svg" alt="Google" className="w-5 h-5" />
-          S’inscrire avec Google
-        </button>
+          <form onSubmit={register} className="space-y-3.5">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className="block sm:col-span-1">
+                <span className="mb-2 block text-[9px] font-medium text-white/45">Pseudo</span>
+                <div className="relative">
+                  <UserRound size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
+                  <input
+                    value={username}
+                    onChange={(event) => setUsername(event.target.value)}
+                    placeholder="Trader95"
+                    className="h-12 w-full rounded-[14px] border border-white/[0.075] bg-black/25 pl-10 pr-3 text-[11px] text-white outline-none placeholder:text-white/18 focus:border-[#d9ac43]/45"
+                  />
+                </div>
+              </label>
 
-        <div className="flex items-center gap-3 my-6">
-          <div className="flex-1 h-px bg-white/10" />
-          <span className="text-xs text-white/40">ou</span>
-          <div className="flex-1 h-px bg-white/10" />
-        </div>
+              <label className="block sm:col-span-1">
+                <span className="mb-2 block text-[9px] font-medium text-white/45">Adresse e-mail</span>
+                <div className="relative">
+                  <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
+                  <input
+                    type="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    placeholder="ton@email.com"
+                    className="h-12 w-full rounded-[14px] border border-white/[0.075] bg-black/25 pl-10 pr-3 text-[11px] text-white outline-none placeholder:text-white/18 focus:border-[#d9ac43]/45"
+                  />
+                </div>
+              </label>
+            </div>
 
-        {/* Erreur */}
-        {err && (
-          <div className="mb-4 text-sm rounded-xl border border-red-500/30 bg-red-500/10 text-red-400 px-4 py-3">
-            {err}
+            <label className="block">
+              <span className="mb-2 block text-[9px] font-medium text-white/45">Mot de passe</span>
+              <div className="relative">
+                <LockKeyhole size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="8 caractères minimum"
+                  className="h-12 w-full rounded-[14px] border border-white/[0.075] bg-black/25 pl-10 pr-11 text-[11px] text-white outline-none placeholder:text-white/18 focus:border-[#d9ac43]/45"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((value) => !value)}
+                  className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-white/28 hover:text-white/65"
+                >
+                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </div>
+
+              <div className="mt-2 grid grid-cols-4 gap-1.5">
+                {[1, 2, 3, 4].map((level) => (
+                  <span
+                    key={level}
+                    className={[
+                      "h-1 rounded-full transition",
+                      strength >= level ? "bg-[#d9ac43]" : "bg-white/[0.06]",
+                    ].join(" ")}
+                  />
+                ))}
+              </div>
+            </label>
+
+            <label className="block">
+              <span className="mb-2 block text-[9px] font-medium text-white/45">Confirmer le mot de passe</span>
+              <div className="relative">
+                <LockKeyhole size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="new-password"
+                  value={confirm}
+                  onChange={(event) => setConfirm(event.target.value)}
+                  placeholder="Répète ton mot de passe"
+                  className="h-12 w-full rounded-[14px] border border-white/[0.075] bg-black/25 pl-10 pr-3 text-[11px] text-white outline-none placeholder:text-white/18 focus:border-[#d9ac43]/45"
+                />
+              </div>
+            </label>
+
+            <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-white/[0.05] bg-white/[0.02] p-3">
+              <input
+                type="checkbox"
+                checked={accepted}
+                onChange={(event) => setAccepted(event.target.checked)}
+                className="mt-0.5 h-3.5 w-3.5 accent-[#d9ac43]"
+              />
+              <span className="text-[8px] leading-4 text-white/35">
+                Je confirme vouloir créer mon espace InvestPro et j’ai compris que les outils proposés ne constituent pas un conseil financier.
+              </span>
+            </label>
+
+            <button
+              type="submit"
+              disabled={busy || googleBusy}
+              className="flex h-12 w-full items-center justify-center gap-2 rounded-[14px] bg-[#e7ba4d] text-[11px] font-bold text-[#090a09] shadow-[0_12px_35px_rgba(231,186,77,.12)] transition hover:bg-[#efc55d] disabled:opacity-50"
+            >
+              {busy ? <Loader2 size={15} className="animate-spin" /> : null}
+              Créer mon espace InvestPro
+              {!busy ? <ArrowRight size={14} /> : null}
+            </button>
+          </form>
+
+          <div className="pt-1 text-center text-[9px] text-white/35">
+            Déjà membre ?{" "}
+            <Link href="/login" className="font-semibold text-[#d9ac43]">
+              Me connecter
+            </Link>
           </div>
-        )}
 
-        {/* Succès */}
-        {success && (
-          <div className="mb-4 text-sm rounded-xl border border-green-500/30 bg-green-500/10 text-green-400 px-4 py-3">
-            {success}
-          </div>
-        )}
-
-        {/* Formulaire */}
-        <div className="space-y-4">
-          <input
-            type="text"
-            placeholder="Pseudo"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            className="w-full px-4 py-3 rounded-2xl bg-black/30 border border-white/10
-                       text-white outline-none focus:border-[color:var(--gold-border)]"
-          />
-
-          <input
-            type="email"
-            placeholder="Adresse e-mail"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-3 rounded-2xl bg-black/30 border border-white/10
-                       text-white outline-none focus:border-[color:var(--gold-border)]"
-          />
-
-          <input
-            type="password"
-            placeholder="Mot de passe"
-            value={pass}
-            onChange={(e) => setPass(e.target.value)}
-            className="w-full px-4 py-3 rounded-2xl bg-black/30 border border-white/10
-                       text-white outline-none focus:border-[color:var(--gold-border)]"
-          />
-
-          <input
-            type="password"
-            placeholder="Confirmer le mot de passe"
-            value={pass2}
-            onChange={(e) => setPass2(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !loading) {
-                onRegister();
-              }
-            }}
-            className="w-full px-4 py-3 rounded-2xl bg-black/30 border border-white/10
-                       text-white outline-none focus:border-[color:var(--gold-border)]"
-          />
+          <AuthFeatureStrip />
+          <SecurityNote />
         </div>
-
-        <button
-          type="button"
-          onClick={onRegister}
-          disabled={loading}
-          className="w-full mt-6 px-4 py-3 rounded-2xl bg-[color:var(--gold)]
-                     text-black font-semibold hover:bg-[color:var(--gold-2)]
-                     transition disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loading ? "Création du compte..." : "Créer le compte"}
-        </button>
-
-        <p className="text-sm text-center text-[color:var(--muted)] mt-6">
-          Déjà un compte ?{" "}
-          <Link
-            href="/login"
-            className="text-[color:var(--gold)] hover:underline"
-          >
-            Se connecter
-          </Link>
-        </p>
       </div>
-    </div>
+    </AuthExperienceShell>
   );
 }

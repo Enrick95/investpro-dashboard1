@@ -1,152 +1,229 @@
 "use client";
 
-import Image from "next/image";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowRight, Eye, EyeOff, Loader2, LockKeyhole, Mail } from "lucide-react";
+
 import { createClient } from "@/lib/supabase/client";
+import AuthExperienceShell, {
+  AuthCardHeader,
+  AuthFeatureStrip,
+  AuthMessage,
+  Divider,
+  GoogleButton,
+  SecurityNote,
+} from "@/components/auth/AuthExperienceShell";
+
+type Message = { kind: "success" | "error" | "info"; text: string } | null;
 
 export default function LoginPage() {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
+  const router = useRouter();
 
   const [email, setEmail] = useState("");
-  const [pass, setPass] = useState("");
-  const [err, setErr] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [googleBusy, setGoogleBusy] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
+  const [message, setMessage] = useState<Message>(null);
 
-  async function onLogin() {
-    setErr(null);
-
-    if (!email.trim()) {
-      return setErr("L’adresse e-mail est requise");
-    }
-
-    if (!pass) {
-      return setErr("Le mot de passe est requis");
-    }
-
-    setLoading(true);
-
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password: pass,
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) router.replace("/dashboard");
     });
+  }, [router, supabase]);
 
-    setLoading(false);
+  async function login(event: FormEvent) {
+    event.preventDefault();
+    setMessage(null);
 
-    if (error) {
-      setErr("Adresse e-mail ou mot de passe incorrect");
+    if (!email.trim() || !password) {
+      setMessage({ kind: "error", text: "Renseigne ton e-mail et ton mot de passe." });
       return;
     }
 
-    window.location.href = "/dashboard";
+    try {
+      setBusy(true);
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+
+      if (error) throw error;
+      router.push("/dashboard");
+      router.refresh();
+    } catch (error: any) {
+      setMessage({
+        kind: "error",
+        text:
+          error?.message === "Invalid login credentials"
+            ? "E-mail ou mot de passe incorrect."
+            : error?.message || "Connexion impossible pour le moment.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function googleLogin() {
+    try {
+      setGoogleBusy(true);
+      setMessage(null);
+
+      const redirectTo = `${window.location.origin}/auth/callback?next=/dashboard`;
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo },
+      });
+
+      if (error) throw error;
+    } catch (error: any) {
+      setGoogleBusy(false);
+      setMessage({ kind: "error", text: error?.message || "Connexion Google impossible." });
+    }
+  }
+
+  async function sendReset() {
+    setMessage(null);
+
+    if (!email.trim()) {
+      setMessage({ kind: "error", text: "Entre d’abord ton adresse e-mail." });
+      return;
+    }
+
+    try {
+      setBusy(true);
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+
+      setMessage({
+        kind: "success",
+        text: "Si cette adresse correspond à un compte, un lien de réinitialisation vient d’être envoyé.",
+      });
+    } catch (error: any) {
+      setMessage({ kind: "error", text: error?.message || "Impossible d’envoyer le lien." });
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
-    <div className="min-h-screen bg-black text-white flex items-center justify-center px-4 py-10">
-      <div
-        className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0c0c0f]
-                   p-8 shadow-2xl"
-      >
-        {/* Logo */}
-        <div className="flex justify-center mb-6">
-          <Image
-            src="/logo.webp"
-            alt="InvestPro Trading"
-            width={64}
-            height={64}
-            className="rounded-2xl"
-          />
+    <AuthExperienceShell mode="login">
+      <div className="rounded-[26px] border border-white/[0.07] bg-[#0d0f0d]/90 p-5 shadow-[0_30px_80px_rgba(0,0,0,.28)] sm:p-7">
+        <AuthCardHeader
+          badge={forgotMode ? "Récupération du compte" : "Espace membre"}
+          title={forgotMode ? "Retrouve ton" : "Connexion à ton espace"}
+          highlight={forgotMode ? "accès" : "InvestPro"}
+          description={
+            forgotMode
+              ? "Entre ton e-mail et nous t’enverrons un lien sécurisé pour choisir un nouveau mot de passe."
+              : "Retrouve ton journal, tes comptes, tes rapports et ta progression au même endroit."
+          }
+        />
+
+        <div className="mt-6 space-y-4">
+          {message ? <AuthMessage {...message} /> : null}
+
+          {!forgotMode ? (
+            <>
+              <GoogleButton onClick={googleLogin} busy={googleBusy} label="Se connecter avec Google" />
+              <Divider />
+            </>
+          ) : null}
+
+          <form onSubmit={forgotMode ? (event) => { event.preventDefault(); sendReset(); } : login} className="space-y-3.5">
+            <label className="block">
+              <span className="mb-2 block text-[9px] font-medium text-white/45">Adresse e-mail</span>
+              <div className="relative">
+                <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
+                <input
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="ton@email.com"
+                  className="h-12 w-full rounded-[14px] border border-white/[0.075] bg-black/25 pl-10 pr-3 text-[11px] text-white outline-none transition placeholder:text-white/18 focus:border-[#d9ac43]/45"
+                />
+              </div>
+            </label>
+
+            {!forgotMode ? (
+              <label className="block">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <span className="text-[9px] font-medium text-white/45">Mot de passe</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setForgotMode(true);
+                      setMessage(null);
+                    }}
+                    className="text-[8px] font-semibold text-[#d9ac43]"
+                  >
+                    Mot de passe oublié ?
+                  </button>
+                </div>
+
+                <div className="relative">
+                  <LockKeyhole size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder="••••••••"
+                    className="h-12 w-full rounded-[14px] border border-white/[0.075] bg-black/25 pl-10 pr-11 text-[11px] text-white outline-none transition placeholder:text-white/18 focus:border-[#d9ac43]/45"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((value) => !value)}
+                    className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-white/28 hover:text-white/65"
+                    aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                  >
+                    {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
+              </label>
+            ) : null}
+
+            <button
+              type="submit"
+              disabled={busy || googleBusy}
+              className="mt-1 flex h-12 w-full items-center justify-center gap-2 rounded-[14px] bg-[#e7ba4d] text-[11px] font-bold text-[#090a09] shadow-[0_12px_35px_rgba(231,186,77,.12)] transition hover:bg-[#efc55d] disabled:opacity-50"
+            >
+              {busy ? <Loader2 size={15} className="animate-spin" /> : null}
+              {forgotMode ? "Envoyer le lien sécurisé" : "Connexion"}
+              {!busy ? <ArrowRight size={14} /> : null}
+            </button>
+          </form>
+
+          {forgotMode ? (
+            <button
+              type="button"
+              onClick={() => {
+                setForgotMode(false);
+                setMessage(null);
+              }}
+              className="w-full text-center text-[9px] font-semibold text-white/38 hover:text-white/65"
+            >
+              ← Retour à la connexion
+            </button>
+          ) : (
+            <div className="pt-1 text-center text-[9px] text-white/35">
+              Pas encore de compte ?{" "}
+              <Link href="/register" className="font-semibold text-[#d9ac43]">
+                Créer mon espace
+              </Link>
+            </div>
+          )}
+
+          <AuthFeatureStrip />
+          <SecurityNote />
         </div>
-
-        <h1 className="text-2xl font-semibold text-center">
-          Connexion à votre compte{" "}
-          <span className="text-[color:var(--gold)]">InvestPro</span>
-        </h1>
-
-        <p className="text-sm text-center text-[color:var(--muted)] mt-2">
-          Retrouvez votre espace et suivez vos performances.
-        </p>
-
-        {/* Google - on le branchera après */}
-        <button
-          type="button"
-          className="w-full mt-6 flex items-center justify-center gap-3 px-4 py-3
-                     rounded-2xl bg-[#1f1f1f] hover:bg-[#2a2a2a]
-                     border border-white/10 transition text-white"
-        >
-          <img src="/google.svg" alt="Google" className="w-5 h-5" />
-          Se connecter avec Google
-        </button>
-
-        <div className="flex items-center gap-3 my-6">
-          <div className="flex-1 h-px bg-white/10" />
-          <span className="text-xs text-white/40">ou</span>
-          <div className="flex-1 h-px bg-white/10" />
-        </div>
-
-        {/* Erreur */}
-        {err && (
-          <div className="mb-4 text-sm rounded-xl border border-red-500/30 bg-red-500/10 text-red-400 px-4 py-3">
-            {err}
-          </div>
-        )}
-
-        {/* Form */}
-        <div className="space-y-4">
-          <input
-            type="email"
-            placeholder="Adresse e-mail"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-3 rounded-2xl bg-black/30 border border-white/10
-                       text-white outline-none focus:border-[color:var(--gold-border)]"
-          />
-
-          <input
-            type="password"
-            placeholder="Mot de passe"
-            value={pass}
-            onChange={(e) => setPass(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !loading) {
-                onLogin();
-              }
-            }}
-            className="w-full px-4 py-3 rounded-2xl bg-black/30 border border-white/10
-                       text-white outline-none focus:border-[color:var(--gold-border)]"
-          />
-        </div>
-
-        <div className="flex justify-end mt-2">
-          <Link
-            href="/forgot-password"
-            className="text-xs text-[color:var(--gold)] hover:underline"
-          >
-            Mot de passe oublié ?
-          </Link>
-        </div>
-
-        <button
-          type="button"
-          onClick={onLogin}
-          disabled={loading}
-          className="w-full mt-6 px-4 py-3 rounded-2xl bg-[color:var(--gold)]
-                     text-black font-semibold hover:bg-[color:var(--gold-2)]
-                     transition disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loading ? "Connexion..." : "Connexion"}
-        </button>
-
-        <p className="text-sm text-center text-[color:var(--muted)] mt-6">
-          Pas encore de compte ?{" "}
-          <Link
-            href="/register"
-            className="text-[color:var(--gold)] hover:underline"
-          >
-            Créer un compte
-          </Link>
-        </p>
       </div>
-    </div>
+    </AuthExperienceShell>
   );
 }

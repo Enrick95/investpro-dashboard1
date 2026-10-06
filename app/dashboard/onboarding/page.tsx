@@ -16,6 +16,8 @@ import {
   Smartphone,
   Target,
   WalletCards,
+  UsersRound,
+  Clock3,
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
@@ -156,6 +158,24 @@ export default function OnboardingPage() {
             <p className="mt-2 max-w-2xl text-sm leading-6 text-[color:var(--muted)]">
               Suis ces étapes pour configurer ton espace et commencer à analyser tes performances.
             </p>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/15 bg-emerald-500/[0.045] px-3 py-1.5 text-[9px] font-semibold text-emerald-300">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-45" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+                </span>
+                +400 traders dans la communauté InvestPro
+              </span>
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/[0.07] bg-white/[0.025] px-3 py-1.5 text-[9px] text-white/45">
+                <Clock3 size={11} />
+                Configuration guidée · quelques minutes
+              </span>
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/[0.07] bg-white/[0.025] px-3 py-1.5 text-[9px] text-white/45">
+                <Smartphone size={11} />
+                Installation mobile incluse
+              </span>
+            </div>
           </div>
 
           <button
