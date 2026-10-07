@@ -179,7 +179,7 @@ export default function HostedSyncPanel({ initialPlatform = "MT5" }: { initialPl
                 className="ip-connection-input"
                 value={platform}
                 onChange={(event) => {
-                  setPlatform(event.target.value);
+                  setPlatform(event.target.value as "MT4" | "MT5");
                   setBroker("");
                 }}
               >
