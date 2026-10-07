@@ -5,5 +5,5 @@ export async function serverCatalog():Promise<Broker[]> {
  const {data,error}=await database().from('investpro_mt_server_catalog').select('id,label,platform,server');
  if(error)throw Error('Catalogue indisponible');
  // Environment entries remain authoritative for existing templates.
- return [...existing,...(data??[]).filter(b=>!existing.some(e=>e.id===b.id||e.platform===b.platform&&e.server.toLowerCase()===b.server.toLowerCase()))];
+ return [...existing,...(data??[]).filter(b=>!existing.some(e=>e.id===b.id||e.platform===b.platform&&e.server.toLowerCase()===b.server.toLowerCase()))].sort((a,b)=>a.platform.localeCompare(b.platform)||a.server.localeCompare(b.server,'en',{numeric:true,sensitivity:'base'}));
 }
