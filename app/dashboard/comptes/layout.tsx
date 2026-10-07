@@ -237,9 +237,11 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
     }
 
     if (connect === "mt4" || connect === "mt5") {
-      window.setTimeout(() => {
-        revealMetaTrader(connect === "mt4" ? "MT4" : "MT5");
-      }, 250);
+      const platform = connect === "mt4" ? "mt4" : "mt5";
+      window.location.replace(
+        `/dashboard/connexions/metatrader?platform=${platform}`
+      );
+      return;
     }
   }, []);
 
@@ -403,49 +405,13 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
     setChoice(platform === "MT5" ? "mt5" : "mt4");
     setChooserOpen(false);
 
-    let attempt = 0;
+    // Parcours dédié et fiable sur desktop + mobile/PWA.
+    // On ne dépend plus d'un panneau caché plus haut dans la page "Mes comptes".
+    const target = `/dashboard/connexions/metatrader?platform=${platform.toLowerCase()}`;
 
-    const reveal = () => {
-      const panel = pilotPanel.current || findPilotPanel();
-
-      if (!panel) {
-        attempt += 1;
-
-        // Sur iPhone/PWA, le panneau peut être remonté quelques frames plus tard.
-        if (attempt <= 15) {
-          window.setTimeout(reveal, 100);
-          return;
-        }
-
-        // Fallback propre : on recharge le même parcours avec un deep-link.
-        // Le useEffect au chargement retentera automatiquement l'ouverture.
-        const url = new URL(window.location.href);
-        url.searchParams.set("connect", platform.toLowerCase());
-        window.location.assign(url.toString());
-        return;
-      }
-
-      pilotPanel.current = panel;
-      panel.dataset.ipPilotOpened = "1";
-      panel.classList.remove("ip-mt5-pilot-hidden");
-      panel.classList.add("ip-mt5-pilot-reveal");
-      setPlatformInsidePanel(panel, platform);
-
-      window.requestAnimationFrame(() => {
-        panel.scrollIntoView({
-          behavior: reduceMotion ? "auto" : "smooth",
-          block: "start",
-        });
-      });
-
-      window.setTimeout(
-        () => panel.classList.remove("ip-mt5-pilot-reveal"),
-        850
-      );
-    };
-
-    // Laisse le temps à la modal de se démonter et au body de retrouver son scroll.
-    window.setTimeout(reveal, 140);
+    window.setTimeout(() => {
+      window.location.assign(target);
+    }, 80);
   }
 
   function chooseMt5() {

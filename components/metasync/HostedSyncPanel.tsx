@@ -1,6 +1,5 @@
 "use client";
 
-import ServerRequests from "./ServerRequests";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
@@ -41,11 +40,11 @@ type Connection = {
   };
 };
 
-export default function HostedSyncPanel() {
+export default function HostedSyncPanel({ initialPlatform = "MT5" }: { initialPlatform?: "MT4" | "MT5" }) {
   const [enabled, setEnabled] = useState(false);
   const [brokers, setBrokers] = useState<Broker[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
-  const [platform, setPlatform] = useState("MT5");
+  const [platform, setPlatform] = useState<"MT4" | "MT5">(initialPlatform);
   const [broker, setBroker] = useState("");
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
@@ -55,6 +54,11 @@ export default function HostedSyncPanel() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+
+  useEffect(() => {
+    setPlatform(initialPlatform);
+    setBroker("");
+  }, [initialPlatform]);
 
   const load = useCallback(async () => {
     const response = await fetch("/api/metasync/hosted", { cache: "no-store" });
@@ -162,7 +166,6 @@ export default function HostedSyncPanel() {
       </div>
 
       <div className="grid grid-cols-1 gap-px bg-white/[0.05] xl:grid-cols-[1.05fr_.95fr]">
-        <div className="min-w-0 bg-[color:var(--panel)]">
         <form
           onSubmit={(event) => {
             event.preventDefault();
@@ -255,7 +258,7 @@ export default function HostedSyncPanel() {
           {platformBrokers.length === 0 ? (
             <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/[0.05] p-3 text-[10px] leading-5 text-amber-200">
               Aucun serveur {platform} n’est encore enregistré côté InvestPro.
-              Demande son ajout avec « Mon serveur est absent » ci-dessous.
+              Utilise l’installation locale pilote ou contacte le support pour ajouter le serveur.
             </div>
           ) : null}
 
@@ -299,8 +302,6 @@ export default function HostedSyncPanel() {
             </div>
           ) : null}
         </form>
-        <div className="px-5 pb-5 md:px-6 md:pb-6"><ServerRequests platformDefault={platform}/></div>
-        </div>
 
         <div className="bg-[color:var(--panel)] p-5 md:p-6">
           <div className="flex items-center justify-between gap-3">
