@@ -1,19 +1,562 @@
-import Link from 'next/link';
-import {ArrowRight,CheckCircle2} from 'lucide-react';
-import AuraLanding from '@/components/aura/Landing';
-export default function Home(){return <div className="aura-faithful"><div className="landing">
-<header className="landing-nav"><Link href="/" className="brand"><div className="brand-mark"><span/><span/><span/></div><div>investpro<span className="brand-sub">TRADING</span></div></Link><nav><a href="#pourquoi">Pourquoi InvestPro</a><a href="#fonctionnalites">Fonctionnalités</a><a href="#beta">Accès bêta</a><a href="#faq">FAQ</a></nav><Link className="btn primary" href="/dashboard">Explorer l’espace <ArrowRight size={17}/></Link></header>
-<main><AuraLanding/>
-<section className="beta-section" id="beta"><div><span className="eyebrow">ACCÈS BÊTA</span><h2>Votre espace de trading.<br/><em>Gratuit pendant la bêta.</em></h2><p>Préparez vos sessions, suivez vos comptes et comprenez vos résultats dans un même espace.</p><Link className="btn primary" href="/dashboard">Découvrir mon espace <ArrowRight size={17}/></Link></div><div className="beta-card"><span className="tag gold">LES ESSENTIELS</span><h3>Une base pour progresser</h3><ul>{['Dashboard & suivi des résultats','Journal de trading','Mes comptes','Plan de trading & simulateur','Calendrier économique & analyses'].map(t=><li key={t}><CheckCircle2 size={17}/>{t}</li>)}</ul><div className="beta-next"><span>EN PRÉPARATION</span><p>Copieur · Synchronisation des comptes</p></div><p className="field-help">L’accès bêta à la plateforme est distinct de l’accès au groupe VIP.</p></div></section>
-<section className="why-section" id="pourquoi"><span className="eyebrow">POURQUOI INVESTPRO</span><h2>Plus de clarté.<br/>Plus de discipline. <em>Plus de contrôle.</em></h2><div>{[['01','Une vision de vos comptes','Retrouvez votre capital et vos résultats sans disperser votre suivi.'],['02','Une méthode à respecter','Gardez vos règles de risque et votre préparation à portée de main.'],['03','Une progression à comprendre','Relisez vos opérations, documentez vos décisions et identifiez vos habitudes.']].map(([n,title,p])=><article key={n}><span>{n}</span><h3>{title}</h3><p>{p}</p></article>)}</div></section>
-<section className="landing-faq" id="faq"><div><span className="eyebrow">FOIRE AUX QUESTIONS</span><h2>Vos questions.<br/>Des réponses claires.</h2></div><div>{[
-['À quoi sert le journal de trading ?','Il rassemble vos opérations, leurs résultats et vos notes pour vous aider à comprendre vos décisions.'],
-['Puis-je suivre plusieurs comptes ?','Vous pouvez organiser votre suivi dans Mes comptes. La connexion automatique aux courtiers est en préparation.'],
-['Le copieur est-il disponible ?','Le copieur est en développement. Son ouverture à la communauté sera annoncée après l’intégration et les tests.'],
-['Comment lire les performances VIP ?','Le suivi Telegram présente les résultats théoriques des signaux reçus et des TP ou SL annoncés. Il reste distinct des gains réellement réalisés sur votre compte.'],
-['Puis-je utiliser InvestPro sur mobile ?','Oui. Retrouvez votre espace depuis le navigateur de votre téléphone. Vous pouvez aussi ajouter le site à votre écran d’accueil.'],
-['Les résultats sont-ils garantis ?','Non. Le trading comporte un risque de perte en capital. Les performances passées et les signaux ne garantissent aucun résultat futur.']
-].map(([q,a])=><details key={q}><summary>{q}</summary><p>{a}</p></details>)}</div></section>
-<section className="landing-end"><span className="eyebrow">INVESTPRO TRADING</span><h2>Le prochain trade commence<br/>par une meilleure préparation.</h2><Link className="btn primary" href="/dashboard">Ouvrir mon espace <ArrowRight size={18}/></Link></section></main>
-<footer><Link href="/" className="brand">investpro<span className="brand-sub">TRADING</span></Link><p>Le trading comporte un risque de perte en capital.</p><div><Link href="/cgu">Conditions d’utilisation</Link> · <Link href="/privacy">Confidentialité</Link></div></footer>
-</div></div>}
+import Link from "next/link";
+import {
+  Activity,
+  ArrowRight,
+  BarChart3,
+  BookOpen,
+  Check,
+  CheckCircle2,
+  CircleDollarSign,
+  Cloud,
+  Copy,
+  Layers3,
+  MonitorSmartphone,
+  Play,
+  RefreshCw,
+  ShieldCheck,
+  Smartphone,
+  Target,
+  TrendingUp,
+  WalletCards,
+} from "lucide-react";
+import styles from "./page.module.css";
+
+const features = [
+  {
+    num: "01",
+    icon: BookOpen,
+    title: "Journal de trading",
+    text: "Documentez vos trades, notes et décisions pour mieux comprendre vos résultats.",
+    footer: ["EURUSD", "XAUUSD", "NAS100"],
+  },
+  {
+    num: "02",
+    icon: Layers3,
+    title: "Mes comptes",
+    text: "Suivez plusieurs comptes en temps réel depuis un seul espace InvestPro.",
+    footer: ["Compte principal", "Compte prop firm", "Compte démo"],
+  },
+  {
+    num: "03",
+    icon: Target,
+    title: "Plan de trading",
+    text: "Préparez vos sessions, définissez vos règles de risque et restez discipliné.",
+    footer: ["Routine quotidienne", "Règles de risque", "Objectifs"],
+  },
+  {
+    num: "04",
+    icon: BarChart3,
+    title: "Rapports & analyses",
+    text: "Des statistiques claires pour identifier vos forces et vos axes d’amélioration.",
+    footer: ["Win rate", "P&L moyen", "Séries W/L"],
+  },
+  {
+    num: "05",
+    icon: RefreshCw,
+    title: "Synchronisation",
+    text: "Accédez à vos données sur tous vos appareils, automatiquement selon les connexions compatibles.",
+    footer: ["MT4 / MT5", "Multi-appareils", "Journal auto"],
+  },
+];
+
+const faq = [
+  [
+    "À quoi sert le journal de trading ?",
+    "À centraliser vos opérations, résultats, notes et contexte afin d’identifier ce qui fonctionne réellement dans votre méthode.",
+  ],
+  [
+    "Puis-je suivre plusieurs comptes ?",
+    "Oui. InvestPro permet de centraliser plusieurs comptes et de distinguer les comptes manuels des comptes synchronisés.",
+  ],
+  [
+    "Le copy trading est-il disponible ?",
+    "Le module multi-comptes et les outils de copie sont intégrés à l’écosystème InvestPro selon les connexions et accès disponibles.",
+  ],
+  [
+    "Comment lire mes performances ?",
+    "Le Journal et les Rapports regroupent win rate, P&L, profit factor, drawdown, séries et analyses par session ou setup.",
+  ],
+];
+
+export default function Home() {
+  return (
+    <main className={styles.page}>
+      <header className={styles.nav}>
+        <Link href="/" className={styles.logo} aria-label="InvestPro Trading">
+          <span className={styles.logoBars} aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </span>
+          <span>
+            <b>investpro</b>
+            <small>TRADING</small>
+          </span>
+        </Link>
+
+        <nav className={styles.navLinks}>
+          <a href="#pourquoi">Pourquoi InvestPro</a>
+          <a href="#fonctionnalites">Fonctionnalités</a>
+          <a href="#beta">Accès bêta</a>
+          <a href="#faq">FAQ</a>
+        </nav>
+
+        <div className={styles.navActions}>
+          <Link href="/login" className={styles.secondaryButton}>
+            Se connecter
+          </Link>
+          <Link href="/dashboard" className={styles.primaryButton}>
+            Explorer l’espace <ArrowRight size={16} />
+          </Link>
+        </div>
+      </header>
+
+      <section className={styles.hero}>
+        <div className={styles.heroGlow} />
+        <div className={styles.heroCopy}>
+          <div className={styles.eyebrow}>L’ESPACE DES TRADERS DISCIPLINÉS</div>
+
+          <h1>
+            Tradez mieux.
+            <br />
+            <span>Progressez</span>
+            <br />
+            <span>chaque jour.</span>
+          </h1>
+
+          <p>
+            Analysez, exécutez, comprenez et suivez vos performances dans un
+            espace unique, pensé pour les traders qui veulent de vrais résultats.
+          </p>
+
+          <div className={styles.heroActions}>
+            <Link href="/dashboard" className={styles.primaryButtonLarge}>
+              Découvrir mon espace <ArrowRight size={18} />
+            </Link>
+
+            <Link href="/login" className={styles.demoButton}>
+              <Play size={16} fill="currentColor" />
+              Voir la démo <span>2 min</span>
+            </Link>
+          </div>
+
+          <div className={styles.heroFacts}>
+            <span>
+              <CheckCircle2 size={15} /> Journal & analyse
+            </span>
+            <span>
+              <CheckCircle2 size={15} /> Gestion du risque
+            </span>
+            <span>
+              <CheckCircle2 size={15} /> Multi-comptes
+            </span>
+          </div>
+        </div>
+
+        <div className={styles.heroVisual}>
+          <div className={styles.stackOne} />
+          <div className={styles.stackTwo} />
+
+          <div className={styles.dashboardMock}>
+            <div className={styles.mockSidebar}>
+              <div className={styles.mockLogo}>
+                <span className={styles.miniBars}>
+                  <i />
+                  <i />
+                  <i />
+                </span>
+                <b>investpro</b>
+              </div>
+
+              <div className={styles.mockNavItemActive}>Tableau de bord</div>
+              <div>Journal de trading</div>
+              <div>Mes comptes</div>
+              <div>Plan de trading</div>
+              <div>Analyses</div>
+              <div>Calendrier</div>
+              <div className={styles.mockSync}>Synchronisation</div>
+            </div>
+
+            <div className={styles.mockMain}>
+              <div className={styles.mockHeader}>
+                <div>
+                  <strong>Bonjour, Trader 👋</strong>
+                  <small>Voici un aperçu de vos performances.</small>
+                </div>
+                <span>Cette semaine</span>
+              </div>
+
+              <div className={styles.mockMetrics}>
+                <div>
+                  <small>P&L Total</small>
+                  <strong className={styles.positive}>+2 458 €</strong>
+                  <span>+12,4%</span>
+                </div>
+                <div>
+                  <small>Trades</small>
+                  <strong>24</strong>
+                  <span>cette semaine</span>
+                </div>
+                <div>
+                  <small>Win rate</small>
+                  <strong>62%</strong>
+                  <span>performance</span>
+                </div>
+              </div>
+
+              <div className={styles.mockChart}>
+                <div className={styles.mockChartTop}>
+                  <div>
+                    <small>Évolution du capital</small>
+                    <strong>27 416 €</strong>
+                  </div>
+                  <span>APERÇU DÉMO</span>
+                </div>
+
+                <svg viewBox="0 0 520 170" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="area" x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="0%" stopColor="#e7b653" stopOpacity=".25" />
+                      <stop offset="100%" stopColor="#e7b653" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <path
+                    d="M0 138 L28 128 L52 132 L78 114 L105 120 L132 96 L160 103 L188 78 L215 88 L246 64 L273 70 L302 52 L333 60 L361 42 L392 48 L420 29 L447 34 L475 19 L520 8 L520 170 L0 170 Z"
+                    fill="url(#area)"
+                  />
+                  <path
+                    d="M0 138 L28 128 L52 132 L78 114 L105 120 L132 96 L160 103 L188 78 L215 88 L246 64 L273 70 L302 52 L333 60 L361 42 L392 48 L420 29 L447 34 L475 19 L520 8"
+                    fill="none"
+                    stroke="#efbf5c"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+
+                <div className={styles.mockDays}>
+                  <span>Lun</span>
+                  <span>Mar</span>
+                  <span>Mer</span>
+                  <span>Jeu</span>
+                  <span>Ven</span>
+                  <span>Sam</span>
+                  <span>Dim</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className={styles.riskCard}>
+            <ShieldCheck size={18} />
+            <div>
+              <small>Risque du jour</small>
+              <strong>-0.8%</strong>
+              <span>Dans la limite</span>
+            </div>
+          </div>
+
+          <div className={styles.tradeCard}>
+            <div className={styles.tradeCoin}>EU</div>
+            <div>
+              <small>EURUSD</small>
+              <strong>Achat · 1.2 lots</strong>
+            </div>
+            <div className={styles.tradeProfit}>
+              +320 €
+              <span>+1.6%</span>
+            </div>
+          </div>
+
+          <div className={styles.phoneMock}>
+            <div className={styles.phoneNotch} />
+            <div className={styles.phoneTitle}>Mon compte</div>
+            <strong>27 416 €</strong>
+            <span>+18.2%</span>
+            <svg viewBox="0 0 180 70" preserveAspectRatio="none">
+              <path
+                d="M0 58 L18 54 L35 48 L53 51 L70 40 L88 43 L105 31 L121 35 L139 20 L154 23 L180 8"
+                fill="none"
+                stroke="#e7b653"
+                strokeWidth="3"
+              />
+            </svg>
+            <div className={styles.phoneTrades}>
+              <div>
+                <span>EURUSD</span>
+                <b className={styles.positive}>+200 €</b>
+              </div>
+              <div>
+                <span>BTCUSD</span>
+                <b className={styles.negative}>-150 €</b>
+              </div>
+              <div>
+                <span>XAUUSD</span>
+                <b className={styles.positive}>+280 €</b>
+              </div>
+              <div>
+                <span>NAS100</span>
+                <b className={styles.positive}>+412 €</b>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className={styles.trustStrip}>
+        <div>
+          <ShieldCheck />
+          <span>
+            <b>Une méthode claire</b>
+            Du plan à l’exécution
+          </span>
+        </div>
+
+        <div>
+          <ShieldCheck />
+          <span>
+            <b>Vos données sécurisées</b>
+            et toujours synchronisées
+          </span>
+        </div>
+
+        <div>
+          <Target />
+          <span>
+            <b>Pensé pour progresser</b>
+            avec des décisions mesurables
+          </span>
+        </div>
+
+        <div>
+          <CircleDollarSign />
+          <span>
+            <b>Accès bêta gratuit</b>
+            pendant la phase de test
+          </span>
+        </div>
+      </section>
+
+      <section className={styles.featuresSection} id="fonctionnalites">
+        <div className={styles.sectionHeader}>
+          <div>
+            <div className={styles.sectionEyebrow}>
+              TOUT CE DONT VOUS AVEZ BESOIN
+            </div>
+            <h2>
+              Un espace complet pour <span>votre progression.</span>
+            </h2>
+          </div>
+
+          <p>
+            Des outils puissants et simples, réunis dans une seule plateforme
+            pour analyser, suivre et améliorer vos performances.
+          </p>
+        </div>
+
+        <div className={styles.featureGrid}>
+          {features.map(({ num, icon: Icon, title, text, footer }) => (
+            <article key={num} className={styles.featureCard}>
+              <div className={styles.featureTop}>
+                <Icon size={23} />
+                <span>{num}</span>
+              </div>
+
+              <h3>{title}</h3>
+              <p>{text}</p>
+
+              <div className={styles.featureMini}>
+                {footer.map((item, index) => (
+                  <div key={item}>
+                    <span>{index + 1}</span>
+                    <b>{item}</b>
+                    {num === "01" ? (
+                      <em
+                        className={
+                          index === 1 ? styles.negative : styles.positive
+                        }
+                      >
+                        {index === 0
+                          ? "+320 €"
+                          : index === 1
+                            ? "-150 €"
+                            : "+412 €"}
+                      </em>
+                    ) : null}
+                    {num === "05" && index === 1 ? (
+                      <em className={styles.positive}>Actif</em>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+
+              <Link
+                href={
+                  num === "01"
+                    ? "/dashboard/journal"
+                    : num === "02"
+                      ? "/dashboard/comptes"
+                      : num === "03"
+                        ? "/dashboard/plan"
+                        : num === "04"
+                          ? "/dashboard/rapports"
+                          : "/dashboard/connexions"
+                }
+                aria-label={`Ouvrir ${title}`}
+                className={styles.featureArrow}
+              >
+                <ArrowRight size={16} />
+              </Link>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className={styles.betaSection} id="beta">
+        <div className={styles.betaCopy}>
+          <div className={styles.sectionEyebrow}>ACCÈS BÊTA</div>
+          <h2>
+            Votre espace de trading.
+            <br />
+            <span>Gratuit pendant la bêta.</span>
+          </h2>
+          <p>
+            Rejoignez les utilisateurs qui testent InvestPro et accédez à
+            toutes les fonctionnalités actuellement ouvertes.
+          </p>
+
+          <div className={styles.betaActions}>
+            <Link href="/dashboard" className={styles.primaryButtonLarge}>
+              Demander mon accès <ArrowRight size={17} />
+            </Link>
+
+            <Link href="/login" className={styles.demoButton}>
+              <Play size={15} fill="currentColor" />
+              Voir la démo
+            </Link>
+          </div>
+
+          <div className={styles.betaFacts}>
+            <span>
+              <Check size={14} /> Accès complet
+            </span>
+            <span>
+              <Check size={14} /> Mises à jour prioritaires
+            </span>
+            <span>
+              <Check size={14} /> Votre avis compte
+            </span>
+          </div>
+        </div>
+
+        <div className={styles.betaVisual}>
+          <div className={styles.betaTag}>PHASE BÊTA</div>
+          <h3>
+            Construisons ensemble
+            <br />
+            le meilleur outil pour traders.
+          </h3>
+          <p>
+            Vos retours nous aident à façonner InvestPro Trading, à prioriser
+            les améliorations et à rendre l’expérience plus simple.
+          </p>
+
+          <div className={styles.betaLandscape}>
+            <div className={styles.eclipseMini} />
+          </div>
+
+          <div className={styles.betaMiniStats}>
+            <div>
+              <WalletCards size={16} />
+              <span>
+                <b>Multi-comptes</b>
+                centralisés
+              </span>
+            </div>
+
+            <div>
+              <ShieldCheck size={16} />
+              <span>
+                <b>Lecture seule</b>
+                côté suivi
+              </span>
+            </div>
+
+            <div>
+              <RefreshCw size={16} />
+              <span>
+                <b>Synchronisation</b>
+                selon connexion
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className={styles.faqSection} id="faq">
+        <div>
+          <div className={styles.sectionEyebrow}>FOIRE AUX QUESTIONS</div>
+          <h2>
+            Vos questions.
+            <br />
+            Des réponses claires.
+          </h2>
+
+          <Link href="/dashboard/contact" className={styles.faqButton}>
+            Voir toutes les FAQ <ArrowRight size={15} />
+          </Link>
+        </div>
+
+        <div className={styles.faqList}>
+          {faq.map(([question, answer]) => (
+            <details key={question}>
+              <summary>{question}</summary>
+              <p>{answer}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+
+      <section className={styles.finalCta} id="pourquoi">
+        <div className={styles.finalBackdrop} />
+        <div className={styles.sectionEyebrow}>INVESTPRO TRADING</div>
+        <h2>
+          Le prochain trade commence
+          <br />
+          par une meilleure préparation.
+        </h2>
+
+        <Link href="/dashboard" className={styles.primaryButtonLarge}>
+          Ouvrir mon espace <ArrowRight size={17} />
+        </Link>
+      </section>
+
+      <footer className={styles.footer}>
+        <Link href="/" className={styles.logo}>
+          <span className={styles.logoBars} aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </span>
+          <span>
+            <b>investpro</b>
+            <small>TRADING</small>
+          </span>
+        </Link>
+
+        <nav>
+          <a href="#pourquoi">Pourquoi InvestPro</a>
+          <a href="#fonctionnalites">Fonctionnalités</a>
+          <a href="#beta">Accès bêta</a>
+          <a href="#faq">FAQ</a>
+        </nav>
+
+        <div>
+          <Link href="/cgu">Conditions d’utilisation</Link>
+          <span>|</span>
+          <Link href="/privacy">Confidentialité</Link>
+        </div>
+      </footer>
+    </main>
+  );
+}
