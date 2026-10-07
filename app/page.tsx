@@ -26,36 +26,41 @@ const features = [
     num: "01",
     icon: BookOpen,
     title: "Journal de trading",
-    text: "Documentez vos trades, notes et décisions pour mieux comprendre vos résultats.",
-    footer: ["EURUSD", "XAUUSD", "NAS100"],
+    text: "Documentez vos trades, notes et émotions pour mieux comprendre vos décisions.",
+    href: "/dashboard/journal",
+    kind: "journal",
   },
   {
     num: "02",
     icon: Layers3,
     title: "Mes comptes",
-    text: "Suivez plusieurs comptes en temps réel depuis un seul espace InvestPro.",
-    footer: ["Compte principal", "Compte prop firm", "Compte démo"],
+    text: "Suivez plusieurs comptes en temps réel. Une vision globale de vos performances.",
+    href: "/dashboard/comptes",
+    kind: "accounts",
   },
   {
     num: "03",
     icon: Target,
     title: "Plan de trading",
-    text: "Préparez vos sessions, définissez vos règles de risque et restez discipliné.",
-    footer: ["Routine quotidienne", "Règles de risque", "Objectifs"],
+    text: "Préparez vos sessions, définissez vos règles de risque et suivez votre exécution.",
+    href: "/dashboard/plan",
+    kind: "plan",
   },
   {
     num: "04",
     icon: BarChart3,
     title: "Rapports & analyses",
-    text: "Des statistiques claires pour identifier vos forces et vos axes d’amélioration.",
-    footer: ["Win rate", "P&L moyen", "Séries W/L"],
+    text: "Des statistiques claires pour identifier vos forces et axes d’amélioration.",
+    href: "/dashboard/rapports",
+    kind: "reports",
   },
   {
     num: "05",
     icon: RefreshCw,
     title: "Synchronisation",
-    text: "Accédez à vos données sur tous vos appareils, automatiquement selon les connexions compatibles.",
-    footer: ["MT4 / MT5", "Multi-appareils", "Journal auto"],
+    text: "Accédez à vos données sur tous vos appareils, automatiquement.",
+    href: "/dashboard/connexions",
+    kind: "sync",
   },
 ];
 
@@ -355,57 +360,126 @@ export default function Home() {
         </div>
 
         <div className={styles.featureGrid}>
-          {features.map(({ num, icon: Icon, title, text, footer }) => (
+          {features.map(({ num, icon: Icon, title, text, href, kind }) => (
             <article key={num} className={styles.featureCard}>
               <div className={styles.featureTop}>
-                <Icon size={23} />
+                <Icon size={31} strokeWidth={2.15} />
                 <span>{num}</span>
               </div>
 
               <h3>{title}</h3>
               <p>{text}</p>
 
-              <div className={styles.featureMini}>
-                {footer.map((item, index) => (
-                  <div key={item}>
-                    <span>{index + 1}</span>
-                    <b>{item}</b>
-                    {num === "01" ? (
-                      <em
-                        className={
-                          index === 1 ? styles.negative : styles.positive
-                        }
-                      >
-                        {index === 0
-                          ? "+320 €"
-                          : index === 1
-                            ? "-150 €"
-                            : "+412 €"}
-                      </em>
-                    ) : null}
-                    {num === "05" && index === 1 ? (
-                      <em className={styles.positive}>Actif</em>
-                    ) : null}
+              <div className={styles.featureVisual}>
+                {kind === "journal" ? (
+                  <div className={styles.tradeListMock}>
+                    <div>
+                      <span className={styles.assetIcon}>🇪🇺</span>
+                      <b>EURUSD</b>
+                      <em className={styles.positive}>+320 €</em>
+                    </div>
+                    <div>
+                      <span className={styles.assetIcon}>🟨</span>
+                      <b>XAUUSD</b>
+                      <em className={styles.negative}>-150 €</em>
+                    </div>
+                    <div>
+                      <span className={styles.assetIcon}>🇺🇸</span>
+                      <b>NAS100</b>
+                      <em className={styles.positive}>+412 €</em>
+                    </div>
                   </div>
-                ))}
+                ) : null}
+
+                {kind === "accounts" ? (
+                  <div className={styles.accountsMock}>
+                    <div>
+                      <span>Compte principal</span>
+                      <b>27 416 €</b>
+                      <em>+18.2%</em>
+                    </div>
+                    <div>
+                      <span>Compte FTMO</span>
+                      <b>12 307 €</b>
+                      <em>+6.4%</em>
+                    </div>
+                    <div>
+                      <span>Compte démo</span>
+                      <b>5 120 €</b>
+                      <em>+2.4%</em>
+                    </div>
+                  </div>
+                ) : null}
+
+                {kind === "plan" ? (
+                  <div className={styles.planMock}>
+                    <div>
+                      <span className={styles.planCheck}>✓</span>
+                      <b>Ma routine quotidienne</b>
+                      <i>✓</i>
+                    </div>
+                    <div>
+                      <span className={styles.planCheck}>✓</span>
+                      <b>Règles de risque</b>
+                      <i>✓</i>
+                    </div>
+                    <div>
+                      <span className={styles.planCheck}>◉</span>
+                      <b>Objectifs de la semaine</b>
+                      <i>✓</i>
+                    </div>
+                  </div>
+                ) : null}
+
+                {kind === "reports" ? (
+                  <div className={styles.reportsMock}>
+                    <div className={styles.winrateMock}>
+                      <small>Win rate</small>
+                      <strong>62%</strong>
+                      <em>+6%</em>
+                      <div className={styles.ringMock}>
+                        <span />
+                      </div>
+                    </div>
+
+                    <div className={styles.pnlMock}>
+                      <small>P&L moyen</small>
+                      <strong>+124 €</strong>
+                      <div className={styles.barMock}>
+                        <i />
+                        <i />
+                        <i />
+                        <i />
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
+                {kind === "sync" ? (
+                  <div className={styles.syncMock}>
+                    <div className={styles.deviceRow}>
+                      <span>⚑</span>
+                      <Cloud size={24} />
+                      <MonitorSmartphone size={26} />
+                      <Smartphone size={22} />
+                    </div>
+                    <div className={styles.syncedBadge}>
+                      <span><Check size={18} /></span>
+                      <div>
+                        <b>Synchronisé</b>
+                        <small>il y a 2 minutes</small>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
               <Link
-                href={
-                  num === "01"
-                    ? "/dashboard/journal"
-                    : num === "02"
-                      ? "/dashboard/comptes"
-                      : num === "03"
-                        ? "/dashboard/plan"
-                        : num === "04"
-                          ? "/dashboard/rapports"
-                          : "/dashboard/connexions"
-                }
+                href={href}
                 aria-label={`Ouvrir ${title}`}
                 className={styles.featureArrow}
               >
-                <ArrowRight size={16} />
+                <ArrowRight size={19} />
               </Link>
             </article>
           ))}
