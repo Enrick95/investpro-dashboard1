@@ -1,0 +1,14 @@
+"use client";
+import { useEffect,useMemo,useState } from "react";
+import { BarChart3, RefreshCw, Users } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+export default function AdminAnalytics(){
+ const supabase=useMemo(()=>createClient(),[]); const [data,setData]=useState<any>(null); const [loading,setLoading]=useState(true);
+ async function load(){setLoading(true);const {data:{session}}=await supabase.auth.getSession();if(!session?.access_token)return;const r=await fetch("/api/admin/analytics",{headers:{Authorization:`Bearer ${session.access_token}`},cache:"no-store"});const j=await r.json();if(r.ok)setData(j);setLoading(false)}
+ useEffect(()=>{void load()},[]);
+ if(loading)return <div className="py-16 text-center text-sm text-white/35">Chargement Analytics…</div>;
+ return <div className="space-y-4 pb-10"><div className="flex items-end justify-between"><div><div className="text-[9px] uppercase tracking-[.12em] text-[color:var(--gold)]">Produit</div><h1 className="mt-2 text-2xl font-semibold text-white">Analytics <span className="text-[color:var(--gold)]">InvestPro</span></h1><p className="mt-1 text-sm text-white/35">Usage produit uniquement, sans contenu sensible des trades.</p></div><button onClick={()=>void load()} className="inline-flex h-10 items-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 text-xs text-[color:var(--gold)]"><RefreshCw size={13}/>Actualiser</button></div>
+ {data?<><div className="grid grid-cols-2 gap-3 md:grid-cols-4">{[["Actifs 7j",data.stats.active7],["Actifs 30j",data.stats.active30],["Événements 7j",data.stats.events7],["Événements 30j",data.stats.events30]].map(([l,v])=><div key={String(l)} className="rounded-2xl border border-white/[.07] bg-white/[.02] p-4"><div className="text-xl font-semibold text-white">{v}</div><div className="mt-1 text-[9px] text-white/30">{l}</div></div>)}</div><div className="grid grid-cols-1 gap-4 xl:grid-cols-2"><Panel title="Pages les plus utilisées" rows={data.topPages?.map((x:any)=>[x.path,x.count])||[]}/><Panel title="Événements" rows={data.events?.map((x:any)=>[x.name,x.count])||[]}/></div></>:null}
+ </div>
+}
+function Panel({title,rows}:{title:string;rows:any[]}){return <section className="rounded-2xl border border-white/[.07] bg-white/[.02] p-4"><div className="text-sm font-semibold text-white">{title}</div><div className="mt-3 space-y-2">{rows.length?rows.map((r:any,i:number)=><div key={i} className="flex items-center justify-between gap-3 rounded-xl border border-white/[.05] bg-black/20 px-3 py-2"><span className="truncate text-[10px] text-white/50">{r[0]}</span><b className="text-[10px] text-[color:var(--gold)]">{r[1]}</b></div>):<div className="py-8 text-center text-xs text-white/25">Pas encore de données.</div>}</div></section>}

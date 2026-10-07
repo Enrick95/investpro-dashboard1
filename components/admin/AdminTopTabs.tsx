@@ -9,8 +9,9 @@ const tabs = [
   { label: "Utilisateurs", href: "/dashboard/admin/utilisateurs" },
   { label: "Modération", href: "/dashboard/admin/moderation" },
   { label: "Inbox", href: "/dashboard/admin/inbox" },
-  { label: "Serveurs MT4 / MT5", href: "/dashboard/admin/serveurs" },
   { label: "Système", href: "/dashboard/admin/systeme" },
+  { label: "Analytics", href: "/dashboard/admin/analytics" },
+  { label: "Feedback", href: "/dashboard/admin/feedback" },
 ];
 
 export default function AdminTopTabs({

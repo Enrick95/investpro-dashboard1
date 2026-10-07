@@ -15,6 +15,7 @@ import {
   LockKeyhole,
   RefreshCw,
   Server,
+  ServerCog,
   ShieldCheck,
   Sparkles,
   WalletCards,
@@ -375,7 +376,7 @@ export default function ConnectionsPage() {
             </h1>
 
             <p className="mt-3 max-w-3xl text-sm leading-6 text-[color:var(--muted)]">
-              Connecte MT4, MT5 ou ProjectX une seule fois. InvestPro centralise les comptes,
+              Connecte MT4, MT5, TradeLocker, cTrader ou ProjectX une seule fois. InvestPro centralise les comptes,
               surveille la synchronisation et alimente progressivement le Journal et les Rapports.
             </p>
 
@@ -433,7 +434,7 @@ export default function ConnectionsPage() {
           icon={<Cable size={17} />}
           label="Connexions actives"
           value={String(connectedCount)}
-          sub="MT4 / MT5 / ProjectX"
+          sub="MT4 / MT5 / TradeLocker / cTrader / Futures"
         />
         <Stat
           icon={<WalletCards size={17} />}
@@ -478,7 +479,7 @@ export default function ConnectionsPage() {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           <ProviderCard
             eyebrow="CFD / FOREX"
             title="MetaTrader 5"
@@ -511,6 +512,28 @@ export default function ConnectionsPage() {
                 ? "Gérer MT4"
                 : "Connecter MT4"
             }
+          />
+
+          <ProviderCard
+            eyebrow="CFD / MULTI-ASSETS"
+            title="TradeLocker"
+            subtitle="API officielle REST"
+            description="Connexion sécurisée TradeLocker avec détection des comptes et stockage chiffré côté serveur."
+            icon={<ServerCog size={22} />}
+            status="ready"
+            href="/dashboard/comptes?connect=tradelocker"
+            cta="Connecter TradeLocker"
+          />
+
+          <ProviderCard
+            eyebrow="CFD / FOREX"
+            title="cTrader"
+            subtitle="Open API · OAuth 2.0"
+            description="Autorisation lecture seule via cTrader Open API. Synchronisation continue préparée pour worker dédié."
+            icon={<Cable size={22} />}
+            status="ready"
+            href="/dashboard/comptes?connect=ctrader"
+            cta="Connecter cTrader"
           />
 
           <ProviderCard
@@ -660,7 +683,7 @@ export default function ConnectionsPage() {
                   Aucun compte automatique
                 </div>
                 <p className="mx-auto mt-2 max-w-sm text-[10px] leading-5 text-white/35">
-                  Connecte MT4, MT5 ou ProjectX pour faire apparaître tes comptes ici.
+                  Connecte MT4, MT5, TradeLocker, cTrader ou ProjectX pour faire apparaître tes comptes ici.
                 </p>
               </div>
             )}

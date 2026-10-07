@@ -1,0 +1,3 @@
+"use client";
+import { RefreshCw } from "lucide-react";
+export default function DashboardError({reset}:{error:Error & {digest?:string};reset:()=>void}){return <div className="mx-auto max-w-2xl rounded-[24px] border border-red-500/15 bg-red-500/[.04] p-8 text-center"><div className="text-lg font-semibold text-white">Impossible de charger ce module</div><p className="mt-2 text-sm text-white/40">La plateforme reste accessible. Tu peux réessayer sans perdre tes données.</p><button onClick={reset} className="mt-5 inline-flex h-10 items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.03] px-4 text-xs text-white"><RefreshCw size={13}/>Réessayer</button></div>}

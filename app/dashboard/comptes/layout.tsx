@@ -6,8 +6,10 @@ import { createClient } from "@/lib/supabase/client";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { ArrowLeft, ArrowRight, MonitorCog, Sparkles, WalletCards, X, CandlestickChart, ServerCog } from "lucide-react";
 
-type Choice = "mt5" | "mt4" | "futures" | "manual" | null;
+type Choice = "mt5" | "mt4" | "futures" | "tradelocker" | "ctrader" | "manual" | null;
 type FuturePlatform = "projectx" | "tradovate" | "rithmic" | "other" | null;
+
+type TradeLockerAccount = { accountId: string; accNum: number; name: string; currency: string; status: string; type: string };
 
 type ProjectXAccount = {
   id: number;
@@ -121,6 +123,17 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
   const [pxBusy, setPxBusy] = useState(false);
   const [pxError, setPxError] = useState<string | null>(null);
   const [pxConnected, setPxConnected] = useState(false);
+  const [tlEmail, setTlEmail] = useState("");
+  const [tlPassword, setTlPassword] = useState("");
+  const [tlServer, setTlServer] = useState("");
+  const [tlEnvironment, setTlEnvironment] = useState<"live" | "demo">("live");
+  const [tlAccounts, setTlAccounts] = useState<TradeLockerAccount[]>([]);
+  const [tlSelected, setTlSelected] = useState<string>("");
+  const [tlBusy, setTlBusy] = useState(false);
+  const [tlError, setTlError] = useState<string | null>(null);
+  const [tlConnected, setTlConnected] = useState(false);
+  const [ctraderBusy, setCtraderBusy] = useState(false);
+  const [ctraderMessage, setCtraderMessage] = useState<string | null>(null);
   const bypassNextAddClick = useRef(false);
   const originalAddButton = useRef<HTMLElement | null>(null);
   const pilotPanel = useRef<HTMLElement | null>(null);
@@ -197,6 +210,27 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
             ? "rithmic"
             : null
       );
+      setChooserOpen(true);
+      return;
+    }
+
+    if (connect === "tradelocker") {
+      setChoice("tradelocker");
+      setChooserOpen(true);
+      return;
+    }
+
+    if (connect === "ctrader") {
+      setChoice("ctrader");
+      setChooserOpen(true);
+      return;
+    }
+
+    const connection = String(params.get("connection") || "").toLowerCase();
+    const connectionStatus = String(params.get("status") || "").toLowerCase();
+    if (connection === "ctrader") {
+      setChoice("ctrader");
+      setCtraderMessage(connectionStatus === "authorized" ? "Autorisation cTrader enregistrée ✓" : "La connexion cTrader n’a pas pu être finalisée.");
       setChooserOpen(true);
       return;
     }
@@ -309,6 +343,48 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
     } finally {
       setPxBusy(false);
     }
+  }
+
+  async function tradeLockerRequest(path: string, body: Record<string, unknown>) {
+    const accessToken = await getInvestProAccessToken();
+    const response = await fetch(path, { method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const data = await response.json().catch(() => null);
+    if (!response.ok || !data?.ok) throw new Error(data?.error || `Erreur serveur (${response.status}).`);
+    return data;
+  }
+
+  async function testTradeLocker() {
+    if (!tlEmail.trim() || !tlPassword || !tlServer.trim()) { setTlError("Renseigne ton e-mail, ton mot de passe et ton serveur TradeLocker."); return; }
+    try {
+      setTlBusy(true); setTlError(null); setTlConnected(false); setTlAccounts([]); setTlSelected("");
+      const data = await tradeLockerRequest("/api/connections/tradelocker/test", { email: tlEmail.trim(), password: tlPassword, server: tlServer.trim(), environment: tlEnvironment });
+      const list = Array.isArray(data.accounts) ? data.accounts : [];
+      setTlAccounts(list); setTlSelected(list[0]?.accountId ? `${list[0].accountId}:${list[0].accNum}` : "");
+      if (!list.length) setTlError("Connexion réussie mais aucun compte TradeLocker n’a été trouvé.");
+    } catch(error:any) { setTlError(String(error?.message || error)); }
+    finally { setTlBusy(false); }
+  }
+
+  async function connectTradeLocker() {
+    const selected = tlAccounts.find((item) => `${item.accountId}:${item.accNum}` === tlSelected);
+    if (!selected) { setTlError("Choisis le compte TradeLocker à ajouter."); return; }
+    try {
+      setTlBusy(true); setTlError(null);
+      await tradeLockerRequest("/api/connections/tradelocker/connect", { email: tlEmail.trim(), password: tlPassword, server: tlServer.trim(), environment: tlEnvironment, account: selected });
+      setTlConnected(true); window.setTimeout(() => window.location.reload(), 900);
+    } catch(error:any) { setTlError(String(error?.message || error)); }
+    finally { setTlBusy(false); }
+  }
+
+  async function startCTrader() {
+    try {
+      setCtraderBusy(true); setCtraderMessage(null);
+      const accessToken = await getInvestProAccessToken();
+      const response = await fetch("/api/connections/ctrader/start", { method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify({ returnTo: "/dashboard/comptes" }) });
+      const data = await response.json();
+      if (!response.ok || !data?.ok || !data?.url) throw new Error(data?.error || "Connexion cTrader impossible.");
+      window.location.href = data.url;
+    } catch(error:any) { setCtraderMessage(String(error?.message || error)); setCtraderBusy(false); }
   }
 
   function chooseManual() {
@@ -436,14 +512,14 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
 
               <div className="ip-account-modal-scroll relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-contain p-3.5 sm:p-5 md:p-7">
                 <AnimatePresence mode="wait" initial={false}>
-                  {choice !== "futures" ? (
+                  {choice !== "futures" && choice !== "tradelocker" && choice !== "ctrader" ? (
                     <motion.div
                       key="account-types"
                       initial={reduceMotion ? false : { opacity: 0, x: -12 }}
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: -10 }}
                       transition={{ duration: 0.2 }}
-                      className="grid grid-cols-1 gap-2.5 sm:gap-4 md:grid-cols-2 xl:grid-cols-4"
+                      className="grid grid-cols-1 gap-2.5 sm:gap-4 md:grid-cols-2 xl:grid-cols-3"
                     >
                       <ChoiceCard
                         title="MetaTrader 5"
@@ -470,12 +546,57 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
                       />
 
                       <ChoiceCard
+                        title="TradeLocker"
+                        subtitle="TRADELOCKER"
+                        text="Connecte un compte TradeLocker via l’API officielle REST."
+                        icon={<ServerCog size={24} />}
+                        onClick={() => { setChoice("tradelocker"); setTlError(null); }}
+                      />
+
+                      <ChoiceCard
+                        title="cTrader"
+                        subtitle="CTRADER"
+                        text="Autorisation sécurisée via cTrader Open API en lecture seule."
+                        icon={<ServerCog size={24} />}
+                        onClick={() => { setChoice("ctrader"); setCtraderMessage(null); }}
+                      />
+
+                      <ChoiceCard
                         title="Compte manuel"
                         subtitle="MANUEL"
                         text="Ajoute un compte sans synchronisation et renseigne toi-même le capital."
                         icon={<WalletCards size={24} />}
                         onClick={chooseManual}
                       />
+                    </motion.div>
+                  ) : choice === "tradelocker" ? (
+                    <motion.div key="tradelocker" initial={reduceMotion ? false : { opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 12 }} transition={{ duration: 0.2 }}>
+                      <button type="button" onClick={() => setChoice(null)} className="mb-4 inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-[11px] font-semibold text-white/70 hover:border-[color:var(--gold-border)] hover:text-[color:var(--gold)]"><ArrowLeft size={14}/>Retour</button>
+                      <div className="rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4 sm:p-5">
+                        <div className="text-sm font-semibold text-white">Connecter TradeLocker</div>
+                        <p className="mt-1 text-[10px] leading-5 text-white/45">InvestPro teste l’API officielle puis chiffre les identifiants côté serveur. L’intention est lecture seule : aucun ordre n’est envoyé par ce connecteur.</p>
+                        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          <label><span className="mb-1.5 block text-[10px] text-white/65">Environnement</span><select value={tlEnvironment} onChange={e=>setTlEnvironment(e.target.value as "live"|"demo")} className="h-11 w-full rounded-xl border border-white/[.08] bg-black/30 px-3 text-sm text-white"><option value="live">Live</option><option value="demo">Demo</option></select></label>
+                          <label><span className="mb-1.5 block text-[10px] text-white/65">Serveur TradeLocker</span><input value={tlServer} onChange={e=>setTlServer(e.target.value)} placeholder="Nom exact du serveur" className="h-11 w-full rounded-xl border border-white/[.08] bg-black/30 px-3 text-sm text-white outline-none placeholder:text-white/25 focus:border-[color:var(--gold-border)]"/></label>
+                          <label><span className="mb-1.5 block text-[10px] text-white/65">E-mail TradeLocker</span><input type="email" value={tlEmail} onChange={e=>setTlEmail(e.target.value)} placeholder="trader@email.com" autoComplete="username" className="h-11 w-full rounded-xl border border-white/[.08] bg-black/30 px-3 text-sm text-white outline-none placeholder:text-white/25 focus:border-[color:var(--gold-border)]"/></label>
+                          <label><span className="mb-1.5 block text-[10px] text-white/65">Mot de passe</span><input type="password" value={tlPassword} onChange={e=>setTlPassword(e.target.value)} placeholder="Mot de passe TradeLocker" autoComplete="current-password" className="h-11 w-full rounded-xl border border-white/[.08] bg-black/30 px-3 text-sm text-white outline-none placeholder:text-white/25 focus:border-[color:var(--gold-border)]"/></label>
+                        </div>
+                        <button type="button" onClick={testTradeLocker} disabled={tlBusy} className="mt-4 inline-flex h-10 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-4 text-xs font-bold text-black disabled:opacity-50">{tlBusy?"Connexion...":"Tester la connexion"}<ArrowRight size={14}/></button>
+                        {tlError?<div className="mt-3 rounded-xl border border-red-500/20 bg-red-500/[.06] px-3 py-2 text-[10px] text-red-300">{tlError}</div>:null}
+                        {tlAccounts.length?<div className="mt-4 space-y-2"><div className="text-[10px] font-semibold uppercase tracking-[.12em] text-[color:var(--gold)]">Choisis ton compte</div>{tlAccounts.map(account=><button key={`${account.accountId}:${account.accNum}`} type="button" onClick={()=>setTlSelected(`${account.accountId}:${account.accNum}`)} className={["flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-3 text-left",tlSelected===`${account.accountId}:${account.accNum}`?"border-[color:var(--gold-border)] bg-black/30":"border-white/[.07] bg-black/15"].join(" ")}><div><div className="text-xs font-semibold text-white">{account.name}</div><div className="mt-1 text-[9px] text-white/35">ID {account.accountId} · {account.type} · {account.status}</div></div><div className="text-[10px] font-semibold text-white">{account.currency}</div></button>)}<button type="button" onClick={connectTradeLocker} disabled={tlBusy||!tlSelected} className="mt-2 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[color:var(--gold)] text-xs font-bold text-black disabled:opacity-50">{tlConnected?"Compte ajouté ✓":"Ajouter ce compte à InvestPro"}<ArrowRight size={14}/></button></div>:null}
+                      </div>
+                    </motion.div>
+                  ) : choice === "ctrader" ? (
+                    <motion.div key="ctrader" initial={reduceMotion ? false : { opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 12 }} transition={{ duration: 0.2 }}>
+                      <button type="button" onClick={() => setChoice(null)} className="mb-4 inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-[11px] font-semibold text-white/70 hover:border-[color:var(--gold-border)] hover:text-[color:var(--gold)]"><ArrowLeft size={14}/>Retour</button>
+                      <div className="rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-5">
+                        <div className="text-sm font-semibold text-white">Connecter cTrader</div>
+                        <p className="mt-2 text-[10px] leading-5 text-white/45">cTrader utilise OAuth 2.0. InvestPro demande uniquement le scope <b className="text-white/70">accounts</b> (lecture seule), donc le connecteur ne peut pas envoyer d’ordres.</p>
+                        <div className="mt-4 rounded-xl border border-white/[.07] bg-black/20 p-3 text-[10px] leading-5 text-white/45">La première autorisation nécessite une application cTrader Open API approuvée et trois variables Vercel. Après l’autorisation, les tokens sont chiffrés avec la clé serveur déjà utilisée pour les connexions Futures.</div>
+                        {ctraderMessage?<div className="mt-3 rounded-xl border border-[color:var(--gold-border)] bg-black/20 px-3 py-2 text-[10px] text-[color:var(--gold)]">{ctraderMessage}</div>:null}
+                        <button type="button" onClick={startCTrader} disabled={ctraderBusy} className="mt-4 inline-flex h-11 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-4 text-xs font-bold text-black disabled:opacity-50">{ctraderBusy?"Ouverture...":"Autoriser cTrader"}<ArrowRight size={14}/></button>
+                        <p className="mt-3 text-[9px] leading-4 text-white/30">L’autorisation OAuth est incluse dans ce pack. La synchro historique temps réel cTrader utilise un WebSocket persistant (port JSON 5036) et sera activée lorsque le worker cTrader sera déployé.</p>
+                      </div>
                     </motion.div>
                   ) : (
                     <motion.div
