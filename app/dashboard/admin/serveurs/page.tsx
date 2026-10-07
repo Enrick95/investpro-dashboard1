@@ -1,2 +1,3 @@
 import ServerRequests from '@/components/metasync/ServerRequests';
-export default function Page(){return <main className="space-y-5"><h1 className="text-2xl font-semibold">Serveurs MetaTrader</h1><ServerRequests admin/></main>;}
+import {Server} from 'lucide-react';
+export default function Page(){return <main className="space-y-5"><div className="flex items-center gap-3"><div className="rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-3 text-[color:var(--gold)]"><Server size={20}/></div><div><h1 className="text-xl font-semibold text-white">Serveurs MT4 / MT5</h1><p className="mt-1 text-xs text-white/40">Prépare les serveurs demandés par les membres et rends-les disponibles.</p></div></div><ServerRequests admin/></main>;}
