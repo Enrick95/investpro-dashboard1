@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
+import { loadActiveTradingScope, scopeTradesToActiveAccounts } from "@/lib/trading/activeScope";
 
 /* =========================================================
    TYPES
@@ -1124,6 +1125,7 @@ export default function DashboardPage() {
           accountsResult,
           tradesResult,
           planResult,
+          activeScope,
         ] =
           await Promise.all([
             supabase
@@ -1217,6 +1219,8 @@ export default function DashboardPage() {
                 user.id
               )
               .maybeSingle(),
+
+            loadActiveTradingScope(supabase, user.id),
           ]);
 
         /* PROFILE */
@@ -1262,8 +1266,9 @@ export default function DashboardPage() {
           );
         } else {
           setAccounts(
-            (accountsResult.data as TradingAccount[]) ||
-              []
+            ((accountsResult.data as TradingAccount[]) || []).filter((account) =>
+              activeScope.activeIds.has(Number(account.id))
+            )
           );
         }
 
@@ -1278,8 +1283,10 @@ export default function DashboardPage() {
           );
         } else {
           setTrades(
-            (tradesResult.data as Trade[]) ||
-              []
+            scopeTradesToActiveAccounts(
+              (tradesResult.data as Trade[]) || [],
+              activeScope.activeIds
+            )
           );
         }
 
@@ -1354,7 +1361,16 @@ export default function DashboardPage() {
       }
     }
 
-    loadDashboard();
+    void loadDashboard();
+    const timer = window.setInterval(() => void loadDashboard(), 30000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void loadDashboard();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [supabase]);
 
   /* =====================================================

@@ -15,9 +15,11 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { loadActiveTradingScope, scopeTradesToActiveAccounts } from "@/lib/trading/activeScope";
 
 type Trade = {
   id: number;
+  account_id: number | null;
   trade_date: string;
   symbol: string;
   result_amount: number | null;
@@ -76,11 +78,11 @@ export default function SmartDashboardInsights() {
         const start = new Date();
         start.setDate(start.getDate() - 90);
 
-        const [tradesResult, planResult] = await Promise.all([
+        const [tradesResult, planResult, activeScope] = await Promise.all([
           supabase
             .from("trading_journal")
             .select(
-              "id,trade_date,symbol,result_amount,result_r,status,risk_percent,setup,session"
+              "id,account_id,trade_date,symbol,result_amount,result_r,status,risk_percent,setup,session"
             )
             .eq("user_id", user.id)
             .gte("trade_date", start.toISOString())
@@ -90,10 +92,12 @@ export default function SmartDashboardInsights() {
             .select("max_risk_percent,max_trades_per_day")
             .eq("user_id", user.id)
             .maybeSingle(),
+          loadActiveTradingScope(supabase, user.id),
         ]);
 
         if (!tradesResult.error) {
-          setTrades((tradesResult.data || []) as Trade[]);
+          const allTrades = (tradesResult.data || []) as Trade[];
+          setTrades(scopeTradesToActiveAccounts(allTrades, activeScope.activeIds));
         }
 
         if (!planResult.error && planResult.data) {
@@ -108,6 +112,15 @@ export default function SmartDashboardInsights() {
     }
 
     void load();
+    const timer = window.setInterval(() => void load(), 30000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [supabase]);
 
   const insight = useMemo(() => {

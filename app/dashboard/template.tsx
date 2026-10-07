@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
+import { loadActiveTradingScope, scopeTradesToActiveAccounts } from "@/lib/trading/activeScope";
 import NotificationEngine from "@/components/NotificationEngine";
 import MobileGlobalV1 from "@/components/MobileGlobalV1";
 import InstallAppExperience from "@/components/InstallAppExperience";
@@ -26,6 +27,7 @@ import AdaptiveNextSteps from "@/components/ux/AdaptiveNextSteps";
 
 type Trade = {
   id: number;
+  account_id: number | null;
   trade_date: string;
   symbol: string;
   result_amount: number | null;
@@ -66,10 +68,10 @@ export default function DashboardTemplate({
 
       if (!user) return;
 
-      const [tradesResult, planResult, accountsResult] = await Promise.all([
+      const [tradesResult, planResult, accountsResult, activeScope] = await Promise.all([
         supabase
           .from("trading_journal")
-          .select("id, trade_date, symbol, result_amount, result_r, status, risk_percent")
+          .select("id, account_id, trade_date, symbol, result_amount, result_r, status, risk_percent")
           .eq("user_id", user.id)
           .order("trade_date", { ascending: true }),
 
@@ -83,10 +85,13 @@ export default function DashboardTemplate({
           .from("trading_accounts")
           .select("id", { count: "exact", head: true })
           .eq("user_id", user.id),
+
+        loadActiveTradingScope(supabase, user.id),
       ]);
 
       if (!tradesResult.error) {
-        setTrades((tradesResult.data as Trade[]) || []);
+        const allTrades = (tradesResult.data as Trade[]) || [];
+        setTrades(scopeTradesToActiveAccounts(allTrades as Array<Trade & { account_id: number | null }>, activeScope.activeIds));
       }
 
       if (!planResult.error && planResult.data) {
@@ -100,7 +105,16 @@ export default function DashboardTemplate({
       }
     }
 
-    load();
+    void load();
+    const timer = window.setInterval(() => void load(), 30000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [isHome, supabase]);
 
 

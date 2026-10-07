@@ -25,6 +25,7 @@ import {
   WalletCards,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { loadActiveTradingScope, scopeTradesToActiveAccounts } from "@/lib/trading/activeScope";
 
 type TradingAccount = {
   id: number;
@@ -145,7 +146,7 @@ export default function RapportsPage() {
           window.location.href = "/login";
           return;
         }
-        const [accountsResult, tradesResult] = await Promise.all([
+        const [accountsResult, tradesResult, activeScope] = await Promise.all([
           supabase
             .from("trading_accounts")
             .select("id,name,broker,account_type,platform,currency,initial_balance,current_balance")
@@ -156,16 +157,23 @@ export default function RapportsPage() {
             .select("id,account_id,trade_date,symbol,direction,risk_percent,result_amount,result_r,status,setup,session,timeframe")
             .eq("user_id", user.id)
             .order("trade_date", { ascending: true }),
+          loadActiveTradingScope(supabase, user.id),
         ]);
         if (!accountsResult.error) {
-          setAccounts(((accountsResult.data || []) as TradingAccount[]).map((a) => ({
-            ...a,
-            initial_balance: Number(a.initial_balance || 0),
-            current_balance: Number(a.current_balance || 0),
-          })));
+          setAccounts(((accountsResult.data || []) as TradingAccount[])
+            .filter((a) => activeScope.activeIds.has(Number(a.id)))
+            .map((a) => ({
+              ...a,
+              initial_balance: Number(a.initial_balance || 0),
+              current_balance: Number(a.current_balance || 0),
+            })));
         }
         if (!tradesResult.error) {
-          setTrades(((tradesResult.data || []) as Trade[]).map((t) => ({
+          const scopedTrades = scopeTradesToActiveAccounts(
+            (tradesResult.data || []) as Trade[],
+            activeScope.activeIds
+          );
+          setTrades(scopedTrades.map((t) => ({
             ...t,
             risk_percent: t.risk_percent == null ? null : Number(t.risk_percent),
             result_amount: t.result_amount == null ? null : Number(t.result_amount),
@@ -176,7 +184,16 @@ export default function RapportsPage() {
         setLoading(false);
       }
     }
-    loadPage();
+    void loadPage();
+    const timer = window.setInterval(() => void loadPage(), 30000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void loadPage();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [supabase]);
 
   const selectedAccount = useMemo(() => {
