@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
@@ -402,19 +403,49 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
     setChoice(platform === "MT5" ? "mt5" : "mt4");
     setChooserOpen(false);
 
-    window.setTimeout(() => {
+    let attempt = 0;
+
+    const reveal = () => {
       const panel = pilotPanel.current || findPilotPanel();
-      if (!panel) return;
+
+      if (!panel) {
+        attempt += 1;
+
+        // Sur iPhone/PWA, le panneau peut être remonté quelques frames plus tard.
+        if (attempt <= 15) {
+          window.setTimeout(reveal, 100);
+          return;
+        }
+
+        // Fallback propre : on recharge le même parcours avec un deep-link.
+        // Le useEffect au chargement retentera automatiquement l'ouverture.
+        const url = new URL(window.location.href);
+        url.searchParams.set("connect", platform.toLowerCase());
+        window.location.assign(url.toString());
+        return;
+      }
 
       pilotPanel.current = panel;
       panel.dataset.ipPilotOpened = "1";
       panel.classList.remove("ip-mt5-pilot-hidden");
       panel.classList.add("ip-mt5-pilot-reveal");
       setPlatformInsidePanel(panel, platform);
-      panel.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
 
-      window.setTimeout(() => panel.classList.remove("ip-mt5-pilot-reveal"), 850);
-    }, 80);
+      window.requestAnimationFrame(() => {
+        panel.scrollIntoView({
+          behavior: reduceMotion ? "auto" : "smooth",
+          block: "start",
+        });
+      });
+
+      window.setTimeout(
+        () => panel.classList.remove("ip-mt5-pilot-reveal"),
+        850
+      );
+    };
+
+    // Laisse le temps à la modal de se démonter et au body de retrouver son scroll.
+    window.setTimeout(reveal, 140);
   }
 
   function chooseMt5() {
@@ -451,10 +482,12 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
 
       {children}
 
-      <AnimatePresence>
-        {chooserOpen ? (
+      {typeof document !== "undefined"
+        ? createPortal(
+            <AnimatePresence>
+              {chooserOpen ? (
           <motion.div
-            className="fixed inset-0 z-[1000000] flex items-center justify-center overflow-hidden bg-black/75 p-3 backdrop-blur-md sm:p-4"
+            className="fixed inset-0 z-[2147483000] flex items-end justify-center overflow-hidden bg-black/[0.92] p-0 backdrop-blur-md sm:items-center sm:p-4"
             initial={reduceMotion ? false : { opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -466,7 +499,7 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
               role="dialog"
               aria-modal="true"
               aria-label="Ajouter un compte"
-              className="relative flex max-h-[86dvh] w-full max-w-[920px] flex-col overflow-hidden rounded-[24px] border border-[color:var(--gold-border)] bg-[#0b0d0b] shadow-[0_30px_120px_rgba(0,0,0,.62)] sm:max-h-[90dvh] sm:rounded-[28px]"
+              className="relative flex h-[calc(100dvh-env(safe-area-inset-top))] max-h-[100dvh] w-full max-w-[920px] flex-col overflow-hidden rounded-none border border-[color:var(--gold-border)] bg-[#0b0d0b] shadow-[0_30px_120px_rgba(0,0,0,.72)] sm:h-auto sm:max-h-[90dvh] sm:rounded-[28px]"
               initial={reduceMotion ? false : { opacity: 0, y: 18, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.985 }}
@@ -510,7 +543,7 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
                 </div>
               </div>
 
-              <div className="ip-account-modal-scroll relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-contain p-3.5 sm:p-5 md:p-7">
+              <div className="ip-account-modal-scroll relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-contain p-3.5 pb-[calc(28px+env(safe-area-inset-bottom))] sm:p-5 md:p-7">
                 <AnimatePresence mode="wait" initial={false}>
                   {choice !== "futures" && choice !== "tradelocker" && choice !== "ctrader" ? (
                     <motion.div
@@ -776,8 +809,11 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
               </div>
             </motion.div>
           </motion.div>
-        ) : null}
-      </AnimatePresence>
+              ) : null}
+            </AnimatePresence>,
+            document.body
+          )
+        : null}
 
       <style jsx global>{`
         .ip-mt5-pilot-hidden {
