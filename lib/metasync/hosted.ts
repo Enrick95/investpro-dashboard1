@@ -6,10 +6,13 @@ export function brokers():Broker[]{
  if(!Array.isArray(rows))throw Error('configuration');
  return rows.filter((b:Broker)=>/^[a-z0-9-]{1,60}$/.test(b.id)&&['MT4','MT5'].includes(b.platform)&&typeof b.label==='string'&&typeof b.server==='string'&&b.server.length<=120&&!/[\r\n\0]/.test(b.server));
 }
-export function hostedAllowed(id:string){const ids=(process.env.METASYNC_HOSTED_USER_IDS??'').split(',').map(s=>s.trim());return ids.includes('*')||ids.includes(id);}
+// La connexion MetaTrader hébergée est disponible pour tout utilisateur authentifié.
+// L'ancienne whitelist METASYNC_HOSTED_USER_IDS était prévue pour la phase pilote
+// et empêchait les nouveaux membres d'afficher / utiliser le formulaire MT4 / MT5.
+export function hostedAllowed(_id:string){return true;}
 export async function hostedUser(){
  const {data:{user}}=await (await createClient()).auth.getUser();
- return user&&hostedAllowed(user.id)?user:null;
+ return user ?? null;
 }
 function key(){const value=process.env.METASYNC_HOSTED_ENCRYPTION_KEY??'';if(!/^[a-f0-9]{64}$/.test(value))throw Error('configuration');return Buffer.from(value,'hex');}
 export function seal(password:string,owner:string){const iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key(),iv);cipher.setAAD(Buffer.from(owner));return Buffer.concat([iv,cipher.update(password,'utf8'),cipher.final(),cipher.getAuthTag()]).toString('base64');}
