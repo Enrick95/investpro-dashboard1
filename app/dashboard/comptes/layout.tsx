@@ -237,11 +237,18 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
     }
 
     if (connect === "mt4" || connect === "mt5") {
-      const platform = connect === "mt4" ? "mt4" : "mt5";
-      window.location.replace(
-        `/dashboard/connexions/metatrader?platform=${platform}`
-      );
-      return;
+      const platform = connect === "mt4" ? "MT4" : "MT5";
+
+      if (window.matchMedia("(max-width: 767px)").matches) {
+        window.location.replace(
+          `/dashboard/connexions/metatrader?platform=${connect}`
+        );
+        return;
+      }
+
+      window.setTimeout(() => {
+        revealMetaTrader(platform);
+      }, 250);
     }
   }, []);
 
@@ -405,13 +412,55 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
     setChoice(platform === "MT5" ? "mt5" : "mt4");
     setChooserOpen(false);
 
-    // Parcours dédié et fiable sur desktop + mobile/PWA.
-    // On ne dépend plus d'un panneau caché plus haut dans la page "Mes comptes".
-    const target = `/dashboard/connexions/metatrader?platform=${platform.toLowerCase()}`;
+    const isMobile = window.matchMedia("(max-width: 767px)").matches;
 
-    window.setTimeout(() => {
-      window.location.assign(target);
-    }, 80);
+    // MOBILE / PWA :
+    // route dédiée = parcours fiable, sans dépendre du panneau caché de Mes comptes.
+    if (isMobile) {
+      window.setTimeout(() => {
+        window.location.assign(
+          `/dashboard/connexions/metatrader?platform=${platform.toLowerCase()}`
+        );
+      }, 80);
+      return;
+    }
+
+    // DESKTOP :
+    // on conserve le fonctionnement historique dans "Mes comptes",
+    // afin de garder toutes les sections situées juste en dessous.
+    let attempt = 0;
+
+    const reveal = () => {
+      const panel = pilotPanel.current || findPilotPanel();
+
+      if (!panel) {
+        attempt += 1;
+        if (attempt <= 15) {
+          window.setTimeout(reveal, 100);
+        }
+        return;
+      }
+
+      pilotPanel.current = panel;
+      panel.dataset.ipPilotOpened = "1";
+      panel.classList.remove("ip-mt5-pilot-hidden");
+      panel.classList.add("ip-mt5-pilot-reveal");
+      setPlatformInsidePanel(panel, platform);
+
+      window.requestAnimationFrame(() => {
+        panel.scrollIntoView({
+          behavior: reduceMotion ? "auto" : "smooth",
+          block: "start",
+        });
+      });
+
+      window.setTimeout(
+        () => panel.classList.remove("ip-mt5-pilot-reveal"),
+        850
+      );
+    };
+
+    window.setTimeout(reveal, 120);
   }
 
   function chooseMt5() {
