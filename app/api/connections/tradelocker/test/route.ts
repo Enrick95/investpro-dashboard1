@@ -10,7 +10,7 @@ function baseUrl(environment: string) {
     : "https://live.tradelocker.com/backend-api";
 }
 
-function developerHeaders() {
+function developerHeaders(): Record<string, string> {
   const key = process.env.TRADELOCKER_DEVELOPER_API_KEY;
   return key ? { "tl-developer-api-key": key } : {};
 }
