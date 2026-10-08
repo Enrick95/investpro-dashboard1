@@ -63,12 +63,24 @@ export default function AdminTopTabs({
           cache: "no-store",
         });
 
+        let copierPending = 0;
         if (copierResponse.ok) {
           const copierData = await copierResponse.json();
-          if (!cancelled) {
-            setCopierCount(Number(copierData?.pending_count || 0));
-          }
+          copierPending += Number(copierData?.pending_count || 0);
         }
+
+        const configResponse = await fetch("/api/admin/copier-config-requests", {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          cache: "no-store",
+        });
+        if (configResponse.ok) {
+          const configData = await configResponse.json();
+          copierPending += Number(configData?.pending_count || 0);
+        }
+
+        if (!cancelled) setCopierCount(copierPending);
       } catch {
         // Le badge ne doit jamais bloquer le back-office.
       }
