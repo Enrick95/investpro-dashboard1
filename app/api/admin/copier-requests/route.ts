@@ -83,8 +83,12 @@ export async function GET(request: Request) {
     );
   }
 
-  const userIds = Array.from(
-    new Set((data || []).map((row: any) => row.user_id).filter(Boolean))
+  const userIds: string[] = Array.from(
+    new Set<string>(
+      (data || [])
+        .map((row: any) => String(row.user_id || ""))
+        .filter((id: string) => Boolean(id))
+    )
   );
 
   const profileMap = new Map<string, any>();
