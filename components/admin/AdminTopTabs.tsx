@@ -11,6 +11,7 @@ const tabs = [
   { label: "Utilisateurs", href: "/dashboard/admin/utilisateurs" },
   { label: "Modération", href: "/dashboard/admin/moderation" },
   { label: "Inbox", href: "/dashboard/admin/inbox" },
+  { label: "Copieur", href: "/dashboard/admin/copieur" },
   { label: "Système", href: "/dashboard/admin/systeme" },
   { label: "Navigation", href: "/dashboard/admin/navigation" },
 ];
@@ -23,6 +24,7 @@ export default function AdminTopTabs({
   const pathname = usePathname();
   const supabase = useMemo(() => createClient(), []);
   const [inboxCount, setInboxCount] = useState(0);
+  const [copierCount, setCopierCount] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -52,6 +54,20 @@ export default function AdminTopTabs({
 
         if (!cancelled) {
           setInboxCount(count);
+        }
+
+        const copierResponse = await fetch("/api/admin/copier-requests", {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          cache: "no-store",
+        });
+
+        if (copierResponse.ok) {
+          const copierData = await copierResponse.json();
+          if (!cancelled) {
+            setCopierCount(Number(copierData?.pending_count || 0));
+          }
         }
       } catch {
         // Le badge ne doit jamais bloquer le back-office.
@@ -112,6 +128,17 @@ export default function AdminTopTabs({
                   }}
                 >
                   {inboxCount > 99 ? "99+" : inboxCount}
+                </span>
+              ) : null}
+              {tab.label === "Copieur" && copierCount > 0 ? (
+                <span
+                  className="inline-flex min-w-5 h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold"
+                  style={{
+                    background: "var(--gold)",
+                    color: "#090909",
+                  }}
+                >
+                  {copierCount > 99 ? "99+" : copierCount}
                 </span>
               ) : null}
             </span>
