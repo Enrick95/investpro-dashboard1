@@ -4,6 +4,7 @@ import MetaSyncPanel from "@/components/metasync/MetaSyncPanel";
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -184,6 +185,10 @@ function accountTypeLabel(
 ========================================================= */
 
 export default function ComptesPage() {
+  const deletingRef = useRef(false);
+  const [deletingAccountId, setDeletingAccountId] = useState<number | null>(null);
+  const [syncPanelVersion, setSyncPanelVersion] = useState(0);
+
   const supabase =
     useMemo(
       () =>
@@ -655,78 +660,49 @@ export default function ComptesPage() {
      DELETE
   ========================================================= */
 
-  async function deleteAccount(
-    account: TradingAccount
-  ) {
-    const confirmed =
-      window.confirm(
-        `Supprimer le compte "${account.name}" ?`
-      );
-
-    if (
-      !confirmed
-    ) {
-      return;
-    }
-
-    const {
-      error,
-    } =
-      await supabase
-        .from(
-          "trading_accounts"
-        )
-        .delete()
-        .eq(
-          "id",
-          account.id
-        );
-
-    if (error) {
-      console.error(
-        "Erreur suppression compte :",
-        error
-      );
-
-      pushNotif({
-        kind:
-          "error",
-
-        title:
-          "Mes comptes",
-
-        message:
-          "Impossible de supprimer ce compte.",
-
-        ttlMs:
-          8000,
-      });
-
-      return;
-    }
-
-    setAccounts(
-      (current) =>
-        current.filter(
-          (item) =>
-            item.id !==
-            account.id
-        )
+  async function deleteAccount(account: TradingAccount) {
+    if (deletingRef.current) return;
+    const confirmed = window.confirm(
+      `Supprimer le compte "${account.name}" du site ?\n\n` +
+      "Sa connexion et tous les trades de son journal sur InvestPro seront supprimés, y compris leurs notes. " +
+      "Ton compte chez le broker ne sera pas supprimé.\n\n" +
+      "En le reconnectant, l’historique encore disponible chez le broker pourra être réimporté. " +
+      "Les notes et saisies manuelles ne seront pas récupérées."
     );
-
-    pushNotif({
-      kind:
-        "success",
-
-      title:
-        "Mes comptes",
-
-      message:
-        "Compte supprimé.",
-
-      ttlMs:
-        5000,
-    });
+    if (!confirmed) return;
+    deletingRef.current = true;
+    setDeletingAccountId(account.id);
+    try {
+      const { data, error } = await supabase.rpc("investpro_delete_trading_account", {
+        p_account_id: account.id,
+      });
+      if (error) throw error;
+      if (String(data) !== String(account.id)) {
+        throw new Error("La suppression n’a pas été confirmée. Actualise la page avant de réessayer.");
+      }
+      setAccounts((current) => current.filter((item) => item.id !== account.id));
+      setSyncPanelVersion((version) => version + 1);
+      pushNotif({
+        kind: "success",
+        title: "Mes comptes",
+        message: "Compte et historique supprimés du site. Synchronisation retirée.",
+        ttlMs: 6000,
+      });
+    } catch (error: unknown) {
+      console.error("Erreur suppression compte :", error);
+      const code = typeof error === "object" && error !== null && "code" in error ? String(error.code) : "";
+      const message = code === "PGRST202" || code === "42883"
+        ? "Le correctif de suppression doit d’abord être installé dans Supabase."
+        : code === "42501"
+        ? "Compte inaccessible. Actualise la page et vérifie ta connexion."
+        : code === "0A000"
+        ? "Ce connecteur nécessite une procédure de déconnexion dédiée avant suppression."
+        : "Suppression non confirmée. Actualise la page ; si le compte est toujours présent, réessaie ou contacte le support.";
+      pushNotif({ kind: "error", title: "Mes comptes", message, ttlMs: 10000 });
+    } finally {
+      deletingRef.current = false;
+      setDeletingAccountId(null);
+    }
   }
 
   /* =========================================================
@@ -745,7 +721,7 @@ export default function ComptesPage() {
   return (
     <>
       <div className="investpro-mobile-page space-y-4 pb-4 lg:space-y-5 lg:pb-10">
-        <MetaSyncPanel />
+        <MetaSyncPanel key={syncPanelVersion} />
         {/* =====================================================
             HEADER
         ===================================================== */}
@@ -994,6 +970,8 @@ export default function ComptesPage() {
               {accounts.map(
                 (account) => (
                   <AccountCard
+                    deleting={deletingAccountId === account.id}
+                    deleteDisabled={deletingAccountId !== null}
                     key={
                       account.id
                     }
@@ -1684,10 +1662,14 @@ export default function ComptesPage() {
 ========================================================= */
 
 function AccountCard({
+  deleting,
+  deleteDisabled,
   account,
   onEdit,
   onDelete,
 }: {
+  deleting: boolean;
+  deleteDisabled: boolean;
   account:
     TradingAccount;
 
@@ -1894,7 +1876,9 @@ function AccountCard({
                 hover:bg-red-500/10
                 hover:text-red-400
               "
-              title="Supprimer"
+              disabled={deleteDisabled}
+              aria-busy={deleting}
+              title={deleting ? "Suppression en cours…" : "Supprimer"}
             >
               <Trash2
                 size={14}
