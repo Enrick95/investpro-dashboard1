@@ -61,6 +61,221 @@ type ActivationRequest = {
   activated_at: string | null;
 };
 
+type BrokerServerPreset = {
+  broker: string;
+  servers: string[];
+};
+
+const BROKER_SERVER_PRESETS: Record<"MT4" | "MT5", BrokerServerPreset[]> = {
+  MT4: [
+    {
+      broker: "Axi",
+      servers: [
+        "Axi-US02-Live",
+        "Axi-US03-Demo",
+        "Axi-US03-Live",
+        "Axi-US05-Live",
+        "Axi-US06-Live",
+        "Axi-US07-Live",
+        "Axi-US09-Live",
+        "Axi-US10-Live",
+        "Axi-US12-Live",
+        "Axi-US15-Live",
+        "Axi-US16-Live",
+        "Axi-US17-Live",
+        "Axi-US18-Live",
+        "Axi-US888-Demo",
+        "Axi-US888-Live",
+      ],
+    },
+    {
+      broker: "FTMO",
+      servers: ["FTMO-Demo2", "FTMO-Server", "FTMO-Server2", "FTMO-Server3"],
+    },
+    {
+      broker: "Fusion Markets",
+      servers: ["FusionMarkets-Demo", "FusionMarkets-Live", "FusionMarkets-Live 3"],
+    },
+    {
+      broker: "PU Prime",
+      servers: ["PUPrime-Live 5", "PUPrime-Live5", "PUPrime-Demo"],
+    },
+  ],
+  MT5: [
+    {
+      broker: "Axi",
+      servers: [
+        "Axi-US50-Demo",
+        "Axi-US50-Live",
+        "Axi-US51-Live",
+        "Axi-US52-Live",
+        "Axi-US53-Live",
+        "Axi-US54-Live",
+        "Axi-US88-Live",
+      ],
+    },
+    {
+      broker: "FTMO",
+      servers: [
+        "FTMO-Demo",
+        "FTMO-Demo2",
+        "FTMO-Server",
+        "FTMO-Server2",
+        "FTMO-Server3",
+        "FTMO-Server4",
+        "FTMO-Server5",
+      ],
+    },
+    {
+      broker: "Fusion Markets",
+      servers: [
+        "FusionMarkets-Demo",
+        "FusionMarkets-Live",
+        "FusionMarketsAU-Demo",
+        "FusionMarketsAU-Live",
+        "FusionMarketsInternational-MT5_2",
+        "MegaFusionGroupPty-Trade",
+      ],
+    },
+    {
+      broker: "PU Prime",
+      servers: [
+        "PuPrime-Live",
+        "PuPrime-Live2",
+        "PuPrime-Live 4",
+        "PuPrime-Live 5",
+        "PuPrime-Live 6",
+        "PuPrime-Live7",
+        "PuPrime-Demo",
+        "PuPrimeTrading-Live",
+      ],
+    },
+    {
+      broker: "Blueberry Markets",
+      servers: [
+        "BlueberryMarkets-Live",
+        "BlueberryMarkets-Live02",
+        "BlueberryMarkets-Demo",
+        "BlueberryMarkets-Demo02",
+        "BlueberryMarketsV-Live3",
+        "BlueberryMarketsSVG-Live",
+      ],
+    },
+    {
+      broker: "Raise Global",
+      servers: ["RaiseGlobal-Live", "RaiseGlobalSA-LIVE"],
+    },
+    {
+      broker: "VT Markets",
+      servers: [
+        "VTMarkets-Live",
+        "VTMarkets-Live 2",
+        "VTMarkets-Live 3",
+        "VTMarkets-Live 4",
+        "VTMarkets-Live 5",
+        "VTMarkets-Live 6",
+        "VTMarkets-Demo",
+      ],
+    },
+    {
+      broker: "FundingPips",
+      servers: ["FundingPips-SIM", "FundingPips2-SIM"],
+    },
+    {
+      broker: "IronFX / Notesco",
+      servers: ["IronFX-Real1", "IronFX-Demo1"],
+    },
+    {
+      broker: "RoboForex",
+      servers: ["RoboForex-Pro", "RoboForex-ECN"],
+    },
+    {
+      broker: "Vantage",
+      servers: [
+        "VantageFX-Live",
+        "VantageFX-Live 3",
+        "VantageFX-Live 4",
+        "VantageFX-Live 5",
+        "VantageFX-Live 6",
+        "VantageFX-Live 7",
+        "VantageFX-Live 8",
+        "VantageFX-Live 9",
+        "VantageFX-Live 10",
+        "VantageFX-Live 11",
+        "VantageFX-Live 12",
+        "VantageFX-Live 14",
+        "VantageFX-Live 15",
+        "VantageFX-Live 17",
+        "VantageFX-Live 19",
+        "VantageFX-Live 21",
+        "VantageFX-Demo",
+      ],
+    },
+    {
+      broker: "Eightcap",
+      servers: [
+        "Eightcap-Live",
+        "Eightcap-Demo",
+        "EightcapGlobal-Live",
+        "EightcapEU-Live",
+      ],
+    },
+    {
+      broker: "IC Markets",
+      servers: [
+        "ICMarketsEU-MT5-5",
+        "ICMarketsEU-Demo",
+        "ICMarketsInternational-Demo",
+        "ICMarketsInternational-MT5",
+        "ICMarketsInternational-MT5-4",
+        "ICMarketsInternational-MT5-2",
+        "ICMarketsGRP-MT5",
+        "ICMarketsGRP-Demo",
+        "ICMarketsKE-MT5-7",
+        "ICMarketsKE-Demo",
+        "ICMarkets-MT5",
+        "ICMarkets-MT5-2",
+        "ICMarkets-MT5-4",
+        "ICMarkets-Demo",
+      ],
+    },
+    {
+      broker: "OANDA",
+      servers: [
+        "OANDA-Live-1",
+        "OANDA-Demo-1",
+        "OANDA-Prop Trader",
+        "Oanda-Japan MT5 Live",
+        "Oanda-Japan MT5 Demo",
+        "OANDA_UK-Demo-1",
+        "OANDA_UK-Live-1",
+        "OANDA_SG-Demo-1",
+        "OANDA_SG-Live-1",
+        "OANDA_Canada-Demo-1",
+        "OANDA_Global-Demo-1",
+        "OANDA_Global-Live-1",
+        "OANDATMS-MT5",
+      ],
+    },
+    {
+      broker: "AvaTrade",
+      servers: ["AvaTradeMarkets-Demo 1-MT5", "AvaTradeMarkets-Real 1-MT5"],
+    },
+    {
+      broker: "MetaQuotes",
+      servers: ["MetaQuotes-Demo"],
+    },
+  ],
+};
+
+function brokerForServer(platform: "MT4" | "MT5", server: string) {
+  return (
+    BROKER_SERVER_PRESETS[platform].find((group) =>
+      group.servers.includes(server)
+    )?.broker || ""
+  );
+}
+
 function cn(...items: Array<string | false | null | undefined>) {
   return items.filter(Boolean).join(" ");
 }
@@ -102,6 +317,8 @@ export default function CopieurPage() {
   const [platform, setPlatform] = useState<"MT4" | "MT5">("MT5");
   const [login, setLogin] = useState("");
   const [server, setServer] = useState("");
+  const [serverChoice, setServerChoice] = useState("");
+  const [customServer, setCustomServer] = useState("");
   const [password, setPassword] = useState("");
   const [consent, setConsent] = useState(false);
 
@@ -113,6 +330,7 @@ export default function CopieurPage() {
   const [requestOpen, setRequestOpen] = useState(false);
   const [activationRequests, setActivationRequests] = useState<ActivationRequest[]>([]);
   const [requestBusy, setRequestBusy] = useState(false);
+  const [requestServerChoice, setRequestServerChoice] = useState("");
   const [requestForm, setRequestForm] = useState({
     alias: "",
     broker: "",
@@ -166,11 +384,19 @@ export default function CopieurPage() {
 
   async function submitActivationRequest() {
     const form = requestForm;
+    const effectiveServer =
+      requestServerChoice === "__OTHER__"
+        ? form.server.trim()
+        : requestServerChoice.trim();
+    const effectiveBroker =
+      requestServerChoice === "__OTHER__"
+        ? form.broker.trim()
+        : brokerForServer(form.platform, effectiveServer);
 
     if (
       !form.alias.trim() ||
       !/^\d{1,20}$/.test(form.login.trim()) ||
-      !form.server.trim() ||
+      !effectiveServer ||
       !form.password
     ) {
       setError(true);
@@ -188,7 +414,11 @@ export default function CopieurPage() {
           ...(await authHeaders()),
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          broker: effectiveBroker,
+          server: effectiveServer,
+        }),
       });
 
       const data = await response.json();
@@ -205,6 +435,7 @@ export default function CopieurPage() {
         password: "",
         note: "",
       });
+      setRequestServerChoice("");
       setRequestOpen(false);
       setMessage(
         data.message ||
@@ -315,7 +546,10 @@ export default function CopieurPage() {
   }
 
   async function addReceiver() {
-    if (!alias.trim() || !/^\d{1,15}$/.test(login) || !server.trim() || !password || !consent) {
+    const effectiveServer =
+      serverChoice === "__OTHER__" ? customServer.trim() : serverChoice.trim();
+
+    if (!alias.trim() || !/^\d{1,15}$/.test(login) || !effectiveServer || !password || !consent) {
       setError(true);
       setMessage("Complète les informations du compte et confirme l’autorisation.");
       return;
@@ -323,13 +557,15 @@ export default function CopieurPage() {
     setBusy(true);
     setError(false);
     try {
-      const data = await post({ action: "connect", alias: alias.trim(), platform, login, server: server.trim(), password, consent: true });
+      const data = await post({ action: "connect", alias: alias.trim(), platform, login, server: effectiveServer, password, consent: true });
       setPassword("");
       setConsent(false);
       setAddOpen(false);
       setAlias("");
       setLogin("");
       setServer("");
+      setServerChoice("");
+      setCustomServer("");
       await loadRows();
       if (data.receiverId) {
         setSelectedReceiverId(data.receiverId);
@@ -639,29 +875,58 @@ export default function CopieurPage() {
                     placeholder="Ex. Compte perso"
                   />
                 </Field>
-                <Field label="Broker (facultatif)">
-                  <input
-                    className="ip-field"
-                    value={requestForm.broker}
-                    onChange={(e) =>
-                      setRequestForm((v) => ({ ...v, broker: e.target.value }))
-                    }
-                    placeholder="Ex. PU Prime"
-                  />
-                </Field>
                 <Field label="Plateforme">
                   <select
                     className="ip-field"
                     value={requestForm.platform}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const next = e.target.value as "MT4" | "MT5";
                       setRequestForm((v) => ({
                         ...v,
-                        platform: e.target.value as "MT4" | "MT5",
-                      }))
-                    }
+                        platform: next,
+                        broker: "",
+                        server: "",
+                      }));
+                      setRequestServerChoice("");
+                    }}
                   >
                     <option value="MT5">MetaTrader 5</option>
                     <option value="MT4">MetaTrader 4</option>
+                  </select>
+                </Field>
+                <Field label="Broker / serveur">
+                  <select
+                    className="ip-field"
+                    value={requestServerChoice}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setRequestServerChoice(value);
+                      if (value !== "__OTHER__") {
+                        setRequestForm((v) => ({
+                          ...v,
+                          broker: brokerForServer(v.platform, value),
+                          server: value,
+                        }));
+                      } else {
+                        setRequestForm((v) => ({
+                          ...v,
+                          broker: "",
+                          server: "",
+                        }));
+                      }
+                    }}
+                  >
+                    <option value="">Choisir un serveur</option>
+                    {BROKER_SERVER_PRESETS[requestForm.platform].map((group) => (
+                      <optgroup key={group.broker} label={group.broker}>
+                        {group.servers.map((item) => (
+                          <option key={item} value={item}>
+                            {item} ({requestForm.platform})
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                    <option value="__OTHER__">Mon serveur n’est pas dans la liste</option>
                   </select>
                 </Field>
                 <Field label="Numéro de compte">
@@ -675,16 +940,36 @@ export default function CopieurPage() {
                     placeholder="Ex. 16597794"
                   />
                 </Field>
-                <Field label="Serveur">
-                  <input
-                    className="ip-field"
-                    value={requestForm.server}
-                    onChange={(e) =>
-                      setRequestForm((v) => ({ ...v, server: e.target.value }))
-                    }
-                    placeholder="Ex. PUPrime-Live7"
-                  />
-                </Field>
+                {requestServerChoice === "__OTHER__" ? (
+                  <>
+                    <Field label="Broker">
+                      <input
+                        className="ip-field"
+                        value={requestForm.broker}
+                        onChange={(e) =>
+                          setRequestForm((v) => ({
+                            ...v,
+                            broker: e.target.value,
+                          }))
+                        }
+                        placeholder="Ex. PU Prime"
+                      />
+                    </Field>
+                    <Field label="Serveur exact">
+                      <input
+                        className="ip-field"
+                        value={requestForm.server}
+                        onChange={(e) =>
+                          setRequestForm((v) => ({
+                            ...v,
+                            server: e.target.value,
+                          }))
+                        }
+                        placeholder="Ex. PUPrime-Live7"
+                      />
+                    </Field>
+                  </>
+                ) : null}
                 <Field label="Mot de passe MetaTrader">
                   <input
                     className="ip-field"
@@ -758,9 +1043,58 @@ export default function CopieurPage() {
             <div className="p-5 md:p-6">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <Field label="Nom / alias"><input className="ip-field" value={alias} onChange={(e) => setAlias(e.target.value)} placeholder="Ex. Prop 100K" /></Field>
-                <Field label="Plateforme"><select className="ip-field" value={platform} onChange={(e) => setPlatform(e.target.value as "MT4" | "MT5")}><option value="MT5">MetaTrader 5</option><option value="MT4">MetaTrader 4</option></select></Field>
+                <Field label="Plateforme">
+                  <select
+                    className="ip-field"
+                    value={platform}
+                    onChange={(e) => {
+                      setPlatform(e.target.value as "MT4" | "MT5");
+                      setServerChoice("");
+                      setServer("");
+                      setCustomServer("");
+                    }}
+                  >
+                    <option value="MT5">MetaTrader 5</option>
+                    <option value="MT4">MetaTrader 4</option>
+                  </select>
+                </Field>
                 <Field label="Numéro de compte"><input className="ip-field" inputMode="numeric" value={login} onChange={(e) => setLogin(e.target.value)} placeholder="Ex. 3002159" /></Field>
-                <Field label="Serveur broker"><input className="ip-field" value={server} onChange={(e) => setServer(e.target.value)} placeholder="Ex. Broker-Live 3" /></Field>
+                <Field label="Broker / serveur">
+                  <select
+                    className="ip-field"
+                    value={serverChoice}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setServerChoice(value);
+                      setServer(value === "__OTHER__" ? "" : value);
+                      if (value !== "__OTHER__") setCustomServer("");
+                    }}
+                  >
+                    <option value="">Choisir un serveur</option>
+                    {BROKER_SERVER_PRESETS[platform].map((group) => (
+                      <optgroup key={group.broker} label={group.broker}>
+                        {group.servers.map((item) => (
+                          <option key={item} value={item}>
+                            {item} ({platform})
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                    <option value="__OTHER__">Mon serveur n’est pas dans la liste</option>
+                  </select>
+                </Field>
+                {serverChoice === "__OTHER__" ? (
+                  <div className="md:col-span-2">
+                    <Field label="Serveur exact">
+                      <input
+                        className="ip-field"
+                        value={customServer}
+                        onChange={(e) => setCustomServer(e.target.value)}
+                        placeholder="Ex. MonBroker-Live01"
+                      />
+                    </Field>
+                  </div>
+                ) : null}
                 <div className="md:col-span-2"><Field label="Mot de passe MetaTrader"><input className="ip-field" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} /></Field></div>
               </div>
               <div className="mt-4 rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4"><div className="flex gap-3"><LockKeyhole size={16} className="mt-0.5 text-[color:var(--gold)]" /><div><div className="text-[10px] font-semibold text-white">Le risque se règle après</div><p className="mt-1 text-[9px] leading-5 text-white/35">Lots, risque %, SL/TP, protections et mapping sont séparés de la connexion.</p></div></div></div>
