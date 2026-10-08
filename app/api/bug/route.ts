@@ -5,8 +5,9 @@ export async function POST(request: Request) {
   try {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!url || !key) {
+    if (!url || !key || !serviceRoleKey) {
       return NextResponse.json(
         { error: "Configuration Supabase incomplète." },
         { status: 500 }
@@ -20,14 +21,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
     }
 
-    const supabase = createClient(url, key, {
+    const supabaseAuth = createClient(url, key, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
     const {
       data: { user },
       error: userError,
-    } = await supabase.auth.getUser(token);
+    } = await supabaseAuth.auth.getUser(token);
 
     if (userError || !user) {
       return NextResponse.json({ error: "Session invalide." }, { status: 401 });
@@ -63,7 +64,14 @@ export async function POST(request: Request) {
         dataUrl: String(item?.dataUrl || "").slice(0, 2_200_000),
       }));
 
-    const { data, error } = await supabase
+    // L'utilisateur est vérifié avec son token ci-dessus.
+    // L'insertion est ensuite faite côté serveur avec la Service Role afin
+    // d'éviter que la RLS interprète la requête comme anonyme.
+    const supabaseAdmin = createClient(url, serviceRoleKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+
+    const { data, error } = await supabaseAdmin
       .from("bug_reports")
       .insert({
         user_id: user.id,
