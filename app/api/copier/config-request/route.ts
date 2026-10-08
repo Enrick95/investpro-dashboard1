@@ -1,3 +1,4 @@
+import { assertOwnedMasters } from "@/lib/copier/masterOwnership";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
@@ -130,6 +131,12 @@ export async function POST(request: Request) {
     const admin = createAdmin(url, service, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
+
+    try {
+      await assertOwnedMasters(admin, user.id, requestedConfig.masters.map((m: { id: string }) => m.id));
+    } catch {
+      return NextResponse.json({ error: "Compte maître non associé à votre espace." }, { status: 403 });
+    }
 
     const { data: existing } = await admin
       .from("copier_configuration_requests")

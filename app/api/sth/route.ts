@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as databaseClient, type SupabaseClient } from "@supabase/supabase-js";
 import { partnerCall, lotValue } from "@/lib/sth/client";
+import { ownedMasterIds, assertOwnedMasters } from "@/lib/copier/masterOwnership";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -18,6 +19,8 @@ const messages: Record<string, string> = {
   INPUT: "Paramètres invalides.",
   DB: "La connexion base de données du copieur est indisponible.",
   RECEIVER: "Compte receveur introuvable.",
+  MASTER_NOT_OWNED: "Ce compte maître n’appartient pas à votre espace InvestPro.",
+  MASTER_OWNERSHIP_UNAVAILABLE: "Liste privée des comptes maîtres indisponible.",
 };
 
 function json(body: unknown, status = 200) {
@@ -70,6 +73,8 @@ export async function GET(req: Request) {
     const receiverId = url.searchParams.get("receiverId");
     const providerUserId = await providerUserFor(db, user.id, receiverId);
     const status = await partnerCall("get-user-status", providerUserId);
+    const owned = await ownedMasterIds(db, user.id);
+    status.masterAccountsList = status.masterAccountsList.filter((m) => owned.has(m.id));
 
     return json({
       enabled: true,
@@ -169,6 +174,7 @@ export async function POST(req: Request) {
           return { id: m.id, lots: lotValue(m.lots) };
         }),
       };
+      await assertOwnedMasters(db, user.id, Array.from(ids));
       endpoint = "join-master-account";
     } else if (b.action === "disconnect" && b.consent === true) {
       providerUserId = await providerUserFor(db, user.id, receiverId);
@@ -195,8 +201,9 @@ export async function POST(req: Request) {
       await db.from("copier_receivers").update(patch).eq("id", receiverId).eq("user_id", user.id);
     }
 
+    const owned = await ownedMasterIds(db, user.id);
     return json({
-      status,
+      status: { ...status, masterAccountsList: status.masterAccountsList.filter((m) => owned.has(m.id)) },
       receiverId: receiverId || "legacy",
       message: "État confirmé par Social Trade Hub.",
     });

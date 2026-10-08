@@ -18,6 +18,7 @@ import { createClient } from "@/lib/supabase/client";
 type RequestRow = {
   id: string;
   provider_user_id: string;
+  provider_master_id?: string;
   alias: string;
   broker: string;
   platform: string;
@@ -78,6 +79,7 @@ export default function AdminCopierRequestsPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [revealed, setRevealed] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [masterIds, setMasterIds] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
 
   async function headers(): Promise<Record<string, string>> {
@@ -103,6 +105,10 @@ export default function AdminCopierRequestsPage() {
       if (!response.ok) throw new Error(data.error || "Chargement impossible.");
 
       setRows(data.requests || []);
+      setMasterIds((previous) => ({
+        ...Object.fromEntries((data.requests || []).map((row: RequestRow) => [row.id, row.provider_master_id || ""])),
+        ...previous,
+      }));
       setNotes(
         Object.fromEntries(
           (data.requests || []).map((row: RequestRow) => [
@@ -167,6 +173,21 @@ export default function AdminCopierRequestsPage() {
     } finally {
       setBusyId(null);
     }
+  }
+
+  async function assignMaster(row: RequestRow) {
+    setBusyId(row.id); setError("");
+    try {
+      const response = await fetch("/api/admin/copier-requests", {
+        method: "POST",
+        headers: { ...(await headers()), "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "assign_master", id: row.id, master_id: masterIds[row.id] }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Association impossible.");
+      await load(true);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Erreur."); }
+    finally { setBusyId(null); }
   }
 
   async function update(row: RequestRow, status: string) {
@@ -354,6 +375,16 @@ export default function AdminCopierRequestsPage() {
                     </p>
                   </div>
 
+                  {row.status === "activated" && (
+                    <div className="mt-3 rounded-2xl border border-[color:var(--gold-border)] p-4">
+                      <label className="block text-xs font-semibold text-white">Master du client — ID réel de l’envoyeur</label>
+                      <p className="mt-1 text-[10px] text-white/50">Copie l’identifiant exact de l’envoyeur depuis la plateforme interne. Pas le numéro MT4, ni l’identifiant du receveur.</p>
+                      <input value={masterIds[row.id] || ""} onChange={(e) => setMasterIds((cur) => ({ ...cur, [row.id]: e.target.value }))}
+                        placeholder="ID du Master" className="mt-3 w-full rounded-lg border border-white/10 bg-black/30 p-3 text-xs text-white" />
+                      <button disabled={busyId === row.id || !masterIds[row.id]?.trim()} onClick={() => void assignMaster(row)}
+                        className="mt-2 rounded-lg bg-[color:var(--gold)] px-4 py-2 text-xs font-semibold text-black disabled:opacity-50">Associer ce Master au client</button>
+                    </div>
+                  )}
                   <div className="mt-3 rounded-2xl border border-white/[0.06] bg-black/20 p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div>
