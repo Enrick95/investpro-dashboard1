@@ -15,7 +15,6 @@ import {
   LockKeyhole,
   Pause,
   Plus,
-  Send,
   RefreshCw,
   Settings2,
   ShieldCheck,
@@ -46,235 +45,6 @@ type Receiver = {
 type SelectedMaster = Record<string, { on: boolean; lots: string }>;
 type RiskMode = "fixed" | "mirror" | "balance" | "equity" | "percent";
 type LooseAccount = Record<string, unknown>;
-
-type ActivationRequest = {
-  id: string;
-  alias: string;
-  broker: string;
-  platform: "MT4" | "MT5";
-  login: string;
-  server: string;
-  status: "pending" | "processing" | "activated" | "rejected";
-  admin_note: string;
-  provider_user_id: string;
-  created_at: string;
-  activated_at: string | null;
-};
-
-type BrokerServerPreset = {
-  broker: string;
-  servers: string[];
-};
-
-const BROKER_SERVER_PRESETS: Record<"MT4" | "MT5", BrokerServerPreset[]> = {
-  MT4: [
-    {
-      broker: "Axi",
-      servers: [
-        "Axi-US02-Live",
-        "Axi-US03-Demo",
-        "Axi-US03-Live",
-        "Axi-US05-Live",
-        "Axi-US06-Live",
-        "Axi-US07-Live",
-        "Axi-US09-Live",
-        "Axi-US10-Live",
-        "Axi-US12-Live",
-        "Axi-US15-Live",
-        "Axi-US16-Live",
-        "Axi-US17-Live",
-        "Axi-US18-Live",
-        "Axi-US888-Demo",
-        "Axi-US888-Live",
-      ],
-    },
-    {
-      broker: "FTMO",
-      servers: ["FTMO-Demo2", "FTMO-Server", "FTMO-Server2", "FTMO-Server3"],
-    },
-    {
-      broker: "Fusion Markets",
-      servers: ["FusionMarkets-Demo", "FusionMarkets-Live", "FusionMarkets-Live 3"],
-    },
-    {
-      broker: "PU Prime",
-      servers: ["PUPrime-Live 5", "PUPrime-Live5", "PUPrime-Demo"],
-    },
-  ],
-  MT5: [
-    {
-      broker: "Axi",
-      servers: [
-        "Axi-US50-Demo",
-        "Axi-US50-Live",
-        "Axi-US51-Live",
-        "Axi-US52-Live",
-        "Axi-US53-Live",
-        "Axi-US54-Live",
-        "Axi-US88-Live",
-      ],
-    },
-    {
-      broker: "FTMO",
-      servers: [
-        "FTMO-Demo",
-        "FTMO-Demo2",
-        "FTMO-Server",
-        "FTMO-Server2",
-        "FTMO-Server3",
-        "FTMO-Server4",
-        "FTMO-Server5",
-      ],
-    },
-    {
-      broker: "Fusion Markets",
-      servers: [
-        "FusionMarkets-Demo",
-        "FusionMarkets-Live",
-        "FusionMarketsAU-Demo",
-        "FusionMarketsAU-Live",
-        "FusionMarketsInternational-MT5_2",
-        "MegaFusionGroupPty-Trade",
-      ],
-    },
-    {
-      broker: "PU Prime",
-      servers: [
-        "PuPrime-Live",
-        "PuPrime-Live2",
-        "PuPrime-Live 4",
-        "PuPrime-Live 5",
-        "PuPrime-Live 6",
-        "PuPrime-Live7",
-        "PuPrime-Demo",
-        "PuPrimeTrading-Live",
-      ],
-    },
-    {
-      broker: "Blueberry Markets",
-      servers: [
-        "BlueberryMarkets-Live",
-        "BlueberryMarkets-Live02",
-        "BlueberryMarkets-Demo",
-        "BlueberryMarkets-Demo02",
-        "BlueberryMarketsV-Live3",
-        "BlueberryMarketsSVG-Live",
-      ],
-    },
-    {
-      broker: "Raise Global",
-      servers: ["RaiseGlobal-Live", "RaiseGlobalSA-LIVE"],
-    },
-    {
-      broker: "VT Markets",
-      servers: [
-        "VTMarkets-Live",
-        "VTMarkets-Live 2",
-        "VTMarkets-Live 3",
-        "VTMarkets-Live 4",
-        "VTMarkets-Live 5",
-        "VTMarkets-Live 6",
-        "VTMarkets-Demo",
-      ],
-    },
-    {
-      broker: "FundingPips",
-      servers: ["FundingPips-SIM", "FundingPips2-SIM"],
-    },
-    {
-      broker: "IronFX / Notesco",
-      servers: ["IronFX-Real1", "IronFX-Demo1"],
-    },
-    {
-      broker: "RoboForex",
-      servers: ["RoboForex-Pro", "RoboForex-ECN"],
-    },
-    {
-      broker: "Vantage",
-      servers: [
-        "VantageFX-Live",
-        "VantageFX-Live 3",
-        "VantageFX-Live 4",
-        "VantageFX-Live 5",
-        "VantageFX-Live 6",
-        "VantageFX-Live 7",
-        "VantageFX-Live 8",
-        "VantageFX-Live 9",
-        "VantageFX-Live 10",
-        "VantageFX-Live 11",
-        "VantageFX-Live 12",
-        "VantageFX-Live 14",
-        "VantageFX-Live 15",
-        "VantageFX-Live 17",
-        "VantageFX-Live 19",
-        "VantageFX-Live 21",
-        "VantageFX-Demo",
-      ],
-    },
-    {
-      broker: "Eightcap",
-      servers: [
-        "Eightcap-Live",
-        "Eightcap-Demo",
-        "EightcapGlobal-Live",
-        "EightcapEU-Live",
-      ],
-    },
-    {
-      broker: "IC Markets",
-      servers: [
-        "ICMarketsEU-MT5-5",
-        "ICMarketsEU-Demo",
-        "ICMarketsInternational-Demo",
-        "ICMarketsInternational-MT5",
-        "ICMarketsInternational-MT5-4",
-        "ICMarketsInternational-MT5-2",
-        "ICMarketsGRP-MT5",
-        "ICMarketsGRP-Demo",
-        "ICMarketsKE-MT5-7",
-        "ICMarketsKE-Demo",
-        "ICMarkets-MT5",
-        "ICMarkets-MT5-2",
-        "ICMarkets-MT5-4",
-        "ICMarkets-Demo",
-      ],
-    },
-    {
-      broker: "OANDA",
-      servers: [
-        "OANDA-Live-1",
-        "OANDA-Demo-1",
-        "OANDA-Prop Trader",
-        "Oanda-Japan MT5 Live",
-        "Oanda-Japan MT5 Demo",
-        "OANDA_UK-Demo-1",
-        "OANDA_UK-Live-1",
-        "OANDA_SG-Demo-1",
-        "OANDA_SG-Live-1",
-        "OANDA_Canada-Demo-1",
-        "OANDA_Global-Demo-1",
-        "OANDA_Global-Live-1",
-        "OANDATMS-MT5",
-      ],
-    },
-    {
-      broker: "AvaTrade",
-      servers: ["AvaTradeMarkets-Demo 1-MT5", "AvaTradeMarkets-Real 1-MT5"],
-    },
-    {
-      broker: "MetaQuotes",
-      servers: ["MetaQuotes-Demo"],
-    },
-  ],
-};
-
-function brokerForServer(platform: "MT4" | "MT5", server: string) {
-  return (
-    BROKER_SERVER_PRESETS[platform].find((group) =>
-      group.servers.includes(server)
-    )?.broker || ""
-  );
-}
 
 function cn(...items: Array<string | false | null | undefined>) {
   return items.filter(Boolean).join(" ");
@@ -317,8 +87,6 @@ export default function CopieurPage() {
   const [platform, setPlatform] = useState<"MT4" | "MT5">("MT5");
   const [login, setLogin] = useState("");
   const [server, setServer] = useState("");
-  const [serverChoice, setServerChoice] = useState("");
-  const [customServer, setCustomServer] = useState("");
   const [password, setPassword] = useState("");
   const [consent, setConsent] = useState(false);
 
@@ -327,19 +95,6 @@ export default function CopieurPage() {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [disconnectOpen, setDisconnectOpen] = useState(false);
   const [disconnectConsent, setDisconnectConsent] = useState(false);
-  const [requestOpen, setRequestOpen] = useState(false);
-  const [activationRequests, setActivationRequests] = useState<ActivationRequest[]>([]);
-  const [requestBusy, setRequestBusy] = useState(false);
-  const [requestServerChoice, setRequestServerChoice] = useState("");
-  const [requestForm, setRequestForm] = useState({
-    alias: "",
-    broker: "",
-    platform: "MT5" as "MT4" | "MT5",
-    login: "",
-    server: "",
-    password: "",
-    note: "",
-  });
 
   const virtualReceivers = useMemo(() => {
     const rows: Array<Receiver & { legacy?: boolean }> = receivers.map((r) => ({ ...r }));
@@ -360,97 +115,6 @@ export default function CopieurPage() {
     }
     return rows;
   }, [receivers, legacyConnected]);
-
-  async function authHeaders(): Promise<Record<string, string>> {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session?.access_token) return {};
-    return { Authorization: `Bearer ${session.access_token}` };
-  }
-
-  async function loadActivationRequests() {
-    const response = await fetch("/api/copier/request", {
-      headers: await authHeaders(),
-      cache: "no-store",
-    });
-
-    if (!response.ok) return;
-
-    const data = await response.json();
-    setActivationRequests((data.requests || []) as ActivationRequest[]);
-  }
-
-  async function submitActivationRequest() {
-    const form = requestForm;
-    const effectiveServer =
-      requestServerChoice === "__OTHER__"
-        ? form.server.trim()
-        : requestServerChoice.trim();
-    const effectiveBroker =
-      requestServerChoice === "__OTHER__"
-        ? form.broker.trim()
-        : brokerForServer(form.platform, effectiveServer);
-
-    if (
-      !form.alias.trim() ||
-      !/^\d{1,20}$/.test(form.login.trim()) ||
-      !effectiveServer ||
-      !form.password
-    ) {
-      setError(true);
-      setMessage("Complète les informations du compte à activer.");
-      return;
-    }
-
-    setRequestBusy(true);
-    setError(false);
-
-    try {
-      const response = await fetch("/api/copier/request", {
-        method: "POST",
-        headers: {
-          ...(await authHeaders()),
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...form,
-          broker: effectiveBroker,
-          server: effectiveServer,
-        }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || "Impossible d’envoyer la demande.");
-      }
-
-      setRequestForm({
-        alias: "",
-        broker: "",
-        platform: "MT5",
-        login: "",
-        server: "",
-        password: "",
-        note: "",
-      });
-      setRequestServerChoice("");
-      setRequestOpen(false);
-      setMessage(
-        data.message ||
-          "Demande envoyée. Elle apparaîtra ici dès que l’équipe l’aura activée."
-      );
-      await loadActivationRequests();
-    } catch (cause) {
-      setError(true);
-      setMessage(
-        cause instanceof Error ? cause.message : "Demande impossible."
-      );
-    } finally {
-      setRequestBusy(false);
-    }
-  }
 
   async function loadRows() {
     const { data: { user } } = await supabase.auth.getUser();
@@ -484,7 +148,7 @@ export default function CopieurPage() {
     setBusy(true);
     setError(false);
     try {
-      await Promise.all([loadRows(), loadActivationRequests()]);
+      await loadRows();
       const legacy = await fetch("/api/sth?receiverId=legacy", { cache: "no-store" });
       const legacyData = await legacy.json();
       if (legacy.ok) {
@@ -546,10 +210,7 @@ export default function CopieurPage() {
   }
 
   async function addReceiver() {
-    const effectiveServer =
-      serverChoice === "__OTHER__" ? customServer.trim() : serverChoice.trim();
-
-    if (!alias.trim() || !/^\d{1,15}$/.test(login) || !effectiveServer || !password || !consent) {
+    if (!alias.trim() || !/^\d{1,15}$/.test(login) || !server.trim() || !password || !consent) {
       setError(true);
       setMessage("Complète les informations du compte et confirme l’autorisation.");
       return;
@@ -557,15 +218,13 @@ export default function CopieurPage() {
     setBusy(true);
     setError(false);
     try {
-      const data = await post({ action: "connect", alias: alias.trim(), platform, login, server: effectiveServer, password, consent: true });
+      const data = await post({ action: "connect", alias: alias.trim(), platform, login, server: server.trim(), password, consent: true });
       setPassword("");
       setConsent(false);
       setAddOpen(false);
       setAlias("");
       setLogin("");
       setServer("");
-      setServerChoice("");
-      setCustomServer("");
       await loadRows();
       if (data.receiverId) {
         setSelectedReceiverId(data.receiverId);
@@ -709,14 +368,7 @@ export default function CopieurPage() {
       <Panel>
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <Heading eyebrow="RECEVEURS" title="Mes comptes de copie" text="Ajoute autant de comptes que nécessaire pendant la bêta. Les réglages viennent ensuite." icon={<WalletCards size={17} />} />
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <button onClick={() => setRequestOpen(true)} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-5 text-xs font-semibold text-[color:var(--gold)]">
-              <Send size={14} /> Ajouter mon compte au copieur
-            </button>
-            <button onClick={() => setAddOpen(true)} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-xs font-semibold text-black">
-              <Plus size={15} /> Ajouter un compte receveur
-            </button>
-          </div>
+          <button onClick={() => setAddOpen(true)} className="inline-flex h-11 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-xs font-semibold text-black"><Plus size={15} /> Ajouter un compte</button>
         </div>
 
         <div className="mt-5 overflow-hidden rounded-[20px] border border-white/[0.07]">
@@ -746,35 +398,6 @@ export default function CopieurPage() {
           })}
         </div>
         <div className="mt-3 text-[8px] leading-4 text-white/25">Solde, equity et P&L sont repris des comptes MetaTrader déjà synchronisés dans InvestPro. Si aucune donnée correspondante n’existe, “—” s’affiche.</div>
-
-        {activationRequests.length > 0 ? (
-          <div className="mt-5 rounded-[18px] border border-white/[0.06] bg-black/20 p-4">
-            <div className="flex items-center gap-2">
-              <Send size={14} className="text-[color:var(--gold)]" />
-              <div className="text-[10px] font-semibold text-white">
-                Mes demandes d’activation
-              </div>
-            </div>
-            <div className="mt-3 space-y-2">
-              {activationRequests.slice(0, 5).map((request) => (
-                <div
-                  key={request.id}
-                  className="flex flex-col gap-2 rounded-xl border border-white/[0.06] bg-black/20 px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div>
-                    <div className="text-[10px] font-semibold text-white">
-                      {request.alias}
-                    </div>
-                    <div className="mt-1 text-[8px] text-white/30">
-                      {request.platform} · {request.login} · {request.server}
-                    </div>
-                  </div>
-                  <RequestStatus status={request.status} />
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
       </Panel>
 
       {selectedReceiver ? (
@@ -838,204 +461,6 @@ export default function CopieurPage() {
         </Panel>
       ) : null}
 
-      {requestOpen ? (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
-          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[26px] border border-[color:var(--gold-border)] bg-[#0b0d0b] shadow-2xl">
-            <div className="flex items-start justify-between border-b border-white/[0.06] p-5 md:p-6">
-              <div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1 text-[8px] font-bold uppercase text-[color:var(--gold)]">
-                  <Send size={11} /> Ajout au Copier Engine
-                </div>
-                <h2 className="mt-3 text-xl font-semibold text-white">
-                  Ajouter mon compte au copieur
-                </h2>
-                <p className="mt-1 max-w-xl text-[10px] leading-5 text-white/35">
-                  Envoie les informations MT4/MT5 à l’équipe InvestPro. Nous
-                  activons le compte dans Social Trade Hub, puis il apparaîtra
-                  automatiquement dans ton Copier Engine.
-                </p>
-              </div>
-              <button
-                onClick={() => setRequestOpen(false)}
-                className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/45"
-              >
-                <X size={17} />
-              </button>
-            </div>
-
-            <div className="p-5 md:p-6">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <Field label="Nom / alias">
-                  <input
-                    className="ip-field"
-                    value={requestForm.alias}
-                    onChange={(e) =>
-                      setRequestForm((v) => ({ ...v, alias: e.target.value }))
-                    }
-                    placeholder="Ex. Compte perso"
-                  />
-                </Field>
-                <Field label="Plateforme">
-                  <select
-                    className="ip-field"
-                    value={requestForm.platform}
-                    onChange={(e) => {
-                      const next = e.target.value as "MT4" | "MT5";
-                      setRequestForm((v) => ({
-                        ...v,
-                        platform: next,
-                        broker: "",
-                        server: "",
-                      }));
-                      setRequestServerChoice("");
-                    }}
-                  >
-                    <option value="MT5">MetaTrader 5</option>
-                    <option value="MT4">MetaTrader 4</option>
-                  </select>
-                </Field>
-                <Field label="Broker / serveur">
-                  <select
-                    className="ip-field"
-                    value={requestServerChoice}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setRequestServerChoice(value);
-                      if (value !== "__OTHER__") {
-                        setRequestForm((v) => ({
-                          ...v,
-                          broker: brokerForServer(v.platform, value),
-                          server: value,
-                        }));
-                      } else {
-                        setRequestForm((v) => ({
-                          ...v,
-                          broker: "",
-                          server: "",
-                        }));
-                      }
-                    }}
-                  >
-                    <option value="">Choisir un serveur</option>
-                    {BROKER_SERVER_PRESETS[requestForm.platform].map((group) => (
-                      <optgroup key={group.broker} label={group.broker}>
-                        {group.servers.map((item) => (
-                          <option key={item} value={item}>
-                            {item} ({requestForm.platform})
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                    <option value="__OTHER__">Mon serveur n’est pas dans la liste</option>
-                  </select>
-                </Field>
-                <Field label="Numéro de compte">
-                  <input
-                    className="ip-field"
-                    inputMode="numeric"
-                    value={requestForm.login}
-                    onChange={(e) =>
-                      setRequestForm((v) => ({ ...v, login: e.target.value }))
-                    }
-                    placeholder="Ex. 16597794"
-                  />
-                </Field>
-                {requestServerChoice === "__OTHER__" ? (
-                  <>
-                    <Field label="Broker">
-                      <input
-                        className="ip-field"
-                        value={requestForm.broker}
-                        onChange={(e) =>
-                          setRequestForm((v) => ({
-                            ...v,
-                            broker: e.target.value,
-                          }))
-                        }
-                        placeholder="Ex. PU Prime"
-                      />
-                    </Field>
-                    <Field label="Serveur exact">
-                      <input
-                        className="ip-field"
-                        value={requestForm.server}
-                        onChange={(e) =>
-                          setRequestForm((v) => ({
-                            ...v,
-                            server: e.target.value,
-                          }))
-                        }
-                        placeholder="Ex. PUPrime-Live7"
-                      />
-                    </Field>
-                  </>
-                ) : null}
-                <Field label="Mot de passe MetaTrader">
-                  <input
-                    className="ip-field"
-                    type="password"
-                    autoComplete="new-password"
-                    value={requestForm.password}
-                    onChange={(e) =>
-                      setRequestForm((v) => ({
-                        ...v,
-                        password: e.target.value,
-                      }))
-                    }
-                  />
-                </Field>
-                <div className="md:col-span-2">
-                  <Field label="Message / précision (facultatif)">
-                    <textarea
-                      value={requestForm.note}
-                      onChange={(e) =>
-                        setRequestForm((v) => ({ ...v, note: e.target.value }))
-                      }
-                      placeholder="Ex. Compte principal à utiliser pour COPY INVESTPRO…"
-                      className="min-h-24 w-full rounded-xl border border-white/[0.08] bg-black/30 p-3 text-xs text-white outline-none focus:border-[color:var(--gold-border)]"
-                    />
-                  </Field>
-                </div>
-              </div>
-
-              <div className="mt-4 rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4">
-                <div className="flex gap-3">
-                  <LockKeyhole
-                    size={16}
-                    className="mt-0.5 shrink-0 text-[color:var(--gold)]"
-                  />
-                  <div>
-                    <div className="text-[10px] font-semibold text-white">
-                      Transmission sécurisée
-                    </div>
-                    <p className="mt-1 text-[9px] leading-5 text-white/35">
-                      Le mot de passe est chiffré côté serveur. Seul
-                      l’administrateur InvestPro autorisé peut l’afficher pour
-                      effectuer l’activation Social Trade Hub.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-5 flex justify-end">
-                <button
-                  disabled={requestBusy}
-                  onClick={() => void submitActivationRequest()}
-                  className="inline-flex h-11 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-xs font-semibold text-black disabled:opacity-40"
-                >
-                  {requestBusy ? (
-                    <Loader2 size={14} className="animate-spin" />
-                  ) : (
-                    <Send size={14} />
-                  )}
-                  Envoyer ma demande
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
       {addOpen ? (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
           <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[26px] border border-[color:var(--gold-border)] bg-[#0b0d0b] shadow-2xl">
@@ -1043,58 +468,9 @@ export default function CopieurPage() {
             <div className="p-5 md:p-6">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <Field label="Nom / alias"><input className="ip-field" value={alias} onChange={(e) => setAlias(e.target.value)} placeholder="Ex. Prop 100K" /></Field>
-                <Field label="Plateforme">
-                  <select
-                    className="ip-field"
-                    value={platform}
-                    onChange={(e) => {
-                      setPlatform(e.target.value as "MT4" | "MT5");
-                      setServerChoice("");
-                      setServer("");
-                      setCustomServer("");
-                    }}
-                  >
-                    <option value="MT5">MetaTrader 5</option>
-                    <option value="MT4">MetaTrader 4</option>
-                  </select>
-                </Field>
+                <Field label="Plateforme"><select className="ip-field" value={platform} onChange={(e) => setPlatform(e.target.value as "MT4" | "MT5")}><option value="MT5">MetaTrader 5</option><option value="MT4">MetaTrader 4</option></select></Field>
                 <Field label="Numéro de compte"><input className="ip-field" inputMode="numeric" value={login} onChange={(e) => setLogin(e.target.value)} placeholder="Ex. 3002159" /></Field>
-                <Field label="Broker / serveur">
-                  <select
-                    className="ip-field"
-                    value={serverChoice}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setServerChoice(value);
-                      setServer(value === "__OTHER__" ? "" : value);
-                      if (value !== "__OTHER__") setCustomServer("");
-                    }}
-                  >
-                    <option value="">Choisir un serveur</option>
-                    {BROKER_SERVER_PRESETS[platform].map((group) => (
-                      <optgroup key={group.broker} label={group.broker}>
-                        {group.servers.map((item) => (
-                          <option key={item} value={item}>
-                            {item} ({platform})
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                    <option value="__OTHER__">Mon serveur n’est pas dans la liste</option>
-                  </select>
-                </Field>
-                {serverChoice === "__OTHER__" ? (
-                  <div className="md:col-span-2">
-                    <Field label="Serveur exact">
-                      <input
-                        className="ip-field"
-                        value={customServer}
-                        onChange={(e) => setCustomServer(e.target.value)}
-                        placeholder="Ex. MonBroker-Live01"
-                      />
-                    </Field>
-                  </div>
-                ) : null}
+                <Field label="Serveur broker"><input className="ip-field" value={server} onChange={(e) => setServer(e.target.value)} placeholder="Ex. Broker-Live 3" /></Field>
                 <div className="md:col-span-2"><Field label="Mot de passe MetaTrader"><input className="ip-field" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} /></Field></div>
               </div>
               <div className="mt-4 rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4"><div className="flex gap-3"><LockKeyhole size={16} className="mt-0.5 text-[color:var(--gold)]" /><div><div className="text-[10px] font-semibold text-white">Le risque se règle après</div><p className="mt-1 text-[9px] leading-5 text-white/35">Lots, risque %, SL/TP, protections et mapping sont séparés de la connexion.</p></div></div></div>
@@ -1120,28 +496,4 @@ function Cell({ label, value, positive, negative }: { label: string; value: stri
 function State({ active, label }: { active: boolean; label: string }) { return <span className={cn("rounded-full border px-2 py-0.5 text-[7px] font-bold uppercase", active ? "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-400" : "border-white/[0.08] text-white/35")}>{label}</span>; }
 function Risk({ active = false, locked = false, label, desc, onClick }: { active?: boolean; locked?: boolean; label: string; desc: string; onClick: () => void }) { return <button disabled={locked} onClick={locked ? undefined : onClick} className={cn("flex w-full items-center gap-3 rounded-xl border p-3 text-left", active ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]" : "border-white/[0.06] bg-black/20", locked && "cursor-not-allowed opacity-45")}><div className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.07] text-white/30">{locked ? <LockKeyhole size={13} /> : <Target size={13} />}</div><div className="flex-1"><div className="text-[10px] font-semibold text-white">{label}</div><div className="mt-0.5 text-[8px] text-white/30">{desc}</div></div>{active ? <CheckCircle2 size={14} className="text-emerald-400" /> : null}</button>; }
 function Prepared({ label }: { label: string }) { return <div className="flex items-center justify-between rounded-xl border border-white/[0.06] bg-black/20 p-3"><div className="text-[9px] font-semibold text-white/55">{label}</div><span className="rounded-full border border-white/[0.07] px-2 py-0.5 text-[7px] font-bold uppercase text-white/25">Prévu</span></div>; }
-function RequestStatus({ status }: { status: ActivationRequest["status"] }) {
-  const labels = {
-    pending: "En attente",
-    processing: "Activation en cours",
-    activated: "Activé",
-    rejected: "Refusé",
-  } as const;
-
-  return (
-    <span
-      className={cn(
-        "rounded-full border px-2.5 py-1 text-[8px] font-bold uppercase",
-        status === "activated"
-          ? "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-400"
-          : status === "rejected"
-          ? "border-red-500/20 bg-red-500/[0.05] text-red-300"
-          : "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]"
-      )}
-    >
-      {labels[status]}
-    </span>
-  );
-}
-
 function Summary({ label, value, green }: { label: string; value: string; green?: boolean }) { return <div className="rounded-2xl border border-white/[0.06] bg-black/20 p-4"><div className="text-[8px] uppercase tracking-[0.1em] text-white/25">{label}</div><div className={cn("mt-2 text-sm font-semibold", green ? "text-emerald-400" : "text-white")}>{value}</div></div>; }
