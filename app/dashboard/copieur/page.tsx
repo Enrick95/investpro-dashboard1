@@ -475,10 +475,10 @@ export default function CopieurPage() {
           <Heading eyebrow="RECEVEURS" title="Mes comptes de copie" text="Ajoute autant de comptes que nécessaire pendant la bêta. Les réglages viennent ensuite." icon={<WalletCards size={17} />} />
           <div className="flex flex-col gap-2 sm:flex-row">
             <button onClick={() => setRequestOpen(true)} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-5 text-xs font-semibold text-[color:var(--gold)]">
-              <Send size={14} /> Demander une activation
+              <Send size={14} /> Ajouter mon compte au copieur
             </button>
             <button onClick={() => setAddOpen(true)} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-xs font-semibold text-black">
-              <Plus size={15} /> Ajouter directement
+              <Plus size={15} /> Ajouter un compte receveur
             </button>
           </div>
         </div>
@@ -608,10 +608,10 @@ export default function CopieurPage() {
             <div className="flex items-start justify-between border-b border-white/[0.06] p-5 md:p-6">
               <div>
                 <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1 text-[8px] font-bold uppercase text-[color:var(--gold)]">
-                  <Send size={11} /> Activation par InvestPro
+                  <Send size={11} /> Ajout au Copier Engine
                 </div>
                 <h2 className="mt-3 text-xl font-semibold text-white">
-                  Faire ajouter mon compte
+                  Ajouter mon compte au copieur
                 </h2>
                 <p className="mt-1 max-w-xl text-[10px] leading-5 text-white/35">
                   Envoie les informations MT4/MT5 à l’équipe InvestPro. Nous
