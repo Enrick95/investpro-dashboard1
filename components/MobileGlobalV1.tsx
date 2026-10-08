@@ -474,20 +474,20 @@ export default function MobileGlobalV1() {
             <div className="ip-more-scroll">
               <MenuGroup title="Trading">
                 {tradingTiles.map((item) => (
-                  <MenuTile key={item.href} {...item} onClick={() => setMoreOpen(false)} />
+                  <MenuTile {...item} onClick={() => setMoreOpen(false)} />
                 ))}
               </MenuGroup>
 
               <MenuGroup title="Marchés & analyse">
                 {marketTiles.map((item) => (
-                  <MenuTile key={item.href} {...item} onClick={() => setMoreOpen(false)} />
+                  <MenuTile {...item} onClick={() => setMoreOpen(false)} />
                 ))}
               </MenuGroup>
 
               {communityTiles.length ? (
                 <MenuGroup title="Communauté">
                   {communityTiles.map((item) => (
-                    <MenuTile key={item.href} {...item} onClick={() => setMoreOpen(false)} />
+                    <MenuTile {...item} onClick={() => setMoreOpen(false)} />
                   ))}
                 </MenuGroup>
               ) : null}
@@ -495,14 +495,14 @@ export default function MobileGlobalV1() {
               {ecosystemTiles.length ? (
                 <MenuGroup title="Écosystème">
                   {ecosystemTiles.map((item) => (
-                    <MenuTile key={item.href} {...item} onClick={() => setMoreOpen(false)} />
+                    <MenuTile {...item} onClick={() => setMoreOpen(false)} />
                   ))}
                 </MenuGroup>
               ) : null}
 
               <MenuGroup title="Compte">
                 {accountTiles.map((item) => (
-                  <MenuTile key={item.href} {...item} onClick={() => setMoreOpen(false)} />
+                  <MenuTile {...item} onClick={() => setMoreOpen(false)} />
                 ))}
               </MenuGroup>
 
