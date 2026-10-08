@@ -14,9 +14,16 @@ export default function AdminNavigationPage() {
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState("");
 
-  async function authHeaders() {
+  async function authHeaders(): Promise<Record<string, string>> {
     const { data: { session } } = await supabase.auth.getSession();
-    return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
+
+    if (!session?.access_token) {
+      return {};
+    }
+
+    return {
+      Authorization: `Bearer ${session.access_token}`,
+    };
   }
 
   async function load() {
