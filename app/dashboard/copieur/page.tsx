@@ -105,21 +105,6 @@ type ActivationRequest = {
   activated_at: string | null;
 };
 
-
-type ConfigurationRequest = {
-  id: string;
-  receiver_id: string;
-  requested_config: {
-    masters?: Array<{ id: string; name: string; lots: number }>;
-    risk?: RiskSettings;
-  };
-  status: "pending" | "processing" | "applied" | "rejected";
-  admin_note: string | null;
-  created_at: string;
-  updated_at: string;
-  applied_at: string | null;
-};
-
 type BrokerServerPreset = {
   broker: string;
   servers: string[];
@@ -390,8 +375,6 @@ export default function CopieurPage() {
   const [disconnectConsent, setDisconnectConsent] = useState(false);
   const [requestOpen, setRequestOpen] = useState(false);
   const [activationRequests, setActivationRequests] = useState<ActivationRequest[]>([]);
-  const [configurationRequests, setConfigurationRequests] = useState<ConfigurationRequest[]>([]);
-  const [configSubmitBusy, setConfigSubmitBusy] = useState(false);
   const [requestBusy, setRequestBusy] = useState(false);
   const [requestServerChoice, setRequestServerChoice] = useState("");
   const [requestForm, setRequestForm] = useState({
@@ -412,7 +395,7 @@ export default function CopieurPage() {
         alias: "Compte connecté existant",
         platform: "MT5",
         login: "Historique",
-        server: "Social Trade Hub",
+        server: "InvestPro Copier Engine",
         status: "connected",
         is_primary: true,
         config: {},
@@ -443,17 +426,6 @@ export default function CopieurPage() {
 
     const data = await response.json();
     setActivationRequests((data.requests || []) as ActivationRequest[]);
-  }
-
-
-  async function loadConfigurationRequests() {
-    const response = await fetch("/api/copier/config-request", {
-      headers: await authHeaders(),
-      cache: "no-store",
-    });
-    if (!response.ok) return;
-    const data = await response.json();
-    setConfigurationRequests((data.requests || []) as ConfigurationRequest[]);
   }
 
   async function submitActivationRequest() {
@@ -558,7 +530,7 @@ export default function CopieurPage() {
     setBusy(true);
     setError(false);
     try {
-      await Promise.all([loadRows(), loadActivationRequests(), loadConfigurationRequests()]);
+      await Promise.all([loadRows(), loadActivationRequests()]);
       const legacy = await fetch("/api/sth?receiverId=legacy", { cache: "no-store" });
       const legacyData = await legacy.json();
       if (legacy.ok) {
@@ -664,65 +636,79 @@ export default function CopieurPage() {
     setMasterConsent(false);
   }
 
-  async function submitManualConfiguration() {
+  async function saveRiskSettings() {
     if (!selectedReceiverId || selectedReceiverId === "legacy") {
       setError(true);
-      setMessage("Sélectionne un compte receveur InvestPro avant d’envoyer une configuration.");
+      setMessage(
+        "Les réglages avancés nécessitent un compte receveur InvestPro. Le compte historique doit d’abord être ajouté comme receveur."
+      );
       return;
     }
 
-    const masters = (selectedStatus?.masterAccountsList || [])
-      .filter((master) => selectedMasters[master.id]?.on)
-      .map((master) => ({
-        id: master.id,
-        name: master.name,
-        lots: Number(selectedMasters[master.id]?.lots || 0.01),
-      }));
-
-    if (!masters.length) {
-      setError(true);
-      setMessage("Sélectionne au moins une stratégie maître.");
-      return;
-    }
-
-    setConfigSubmitBusy(true);
+    setRiskBusy(true);
     setError(false);
+
     try {
-      const response = await fetch("/api/copier/config-request", {
-        method: "POST",
+      const response = await fetch("/api/copier/settings", {
+        method: "PATCH",
         headers: {
           ...(await authHeaders()),
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           receiverId: selectedReceiverId,
-          config: {
-            masters,
-            risk: riskSettings,
-          },
+          settings: riskSettings,
         }),
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Envoi impossible.");
 
-      setMasterConsent(false);
-      setMessage(data.message || "Configuration transmise à InvestPro.");
-      await Promise.all([loadRows(), loadConfigurationRequests()]);
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Impossible d’enregistrer le Risk Engine.");
+      }
+
+      setRiskSavedAt(new Date().toLocaleTimeString("fr-FR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }));
+
+      await loadRows();
+
+      if (riskSettings.mode === "fixed") {
+        setMessage(
+          "Risk Engine enregistré. Le mode Lots fixes reste synchronisé avec le moteur de copie InvestPro."
+        );
+      } else {
+        setMessage(
+          "Réglages enregistrés dans InvestPro. Cette configuration sera appliquée après validation par l’équipe InvestPro."
+        );
+      }
     } catch (cause) {
       setError(true);
-      setMessage(cause instanceof Error ? cause.message : "Impossible d’envoyer la configuration.");
+      setMessage(
+        cause instanceof Error
+          ? cause.message
+          : "Impossible d’enregistrer le Risk Engine."
+      );
     } finally {
-      setConfigSubmitBusy(false);
+      setRiskBusy(false);
     }
   }
 
   async function saveMasters() {
-    if (!masterConsent) {
+    if (!selectedReceiverId) return;
+    setBusy(true);
+    setError(false);
+    try {
+      const masters = (Object.entries(selectedMasters) as Array<[string, { on: boolean; lots: string }]>).filter(([, v]) => v.on).map(([id, v]) => ({ id, lots: Number(v.lots) }));
+      const data = await post({ action: "masters", receiverId: selectedReceiverId, consent: masterConsent, masters });
+      if (data.status) applyStatus(data.status);
+      setMessage("Configuration enregistrée.");
+    } catch (cause) {
       setError(true);
-      setMessage("Confirme les stratégies et volumes avant l’envoi.");
-      return;
+      setMessage(cause instanceof Error ? cause.message : "Enregistrement impossible.");
+    } finally {
+      setBusy(false);
     }
-    await submitManualConfiguration();
   }
 
   async function disconnect() {
@@ -746,9 +732,6 @@ export default function CopieurPage() {
   const activeMasters = selectedStatus?.masterAccountsList.filter((m) => selectedMasters[m.id]?.on) || [];
   const totalLots = activeMasters.reduce((sum, m) => sum + Number(selectedMasters[m.id]?.lots || 0), 0);
   const selectedReceiver = virtualReceivers.find((r) => r.id === selectedReceiverId) || null;
-  const selectedConfigurationRequest = configurationRequests.find(
-    (request) => request.receiver_id === selectedReceiverId
-  ) || null;
 
   useEffect(() => {
     if (!selectedReceiver || selectedReceiver.id === "legacy") {
@@ -758,9 +741,7 @@ export default function CopieurPage() {
     }
 
     const config = (selectedReceiver.config || {}) as Record<string, unknown>;
-    const requested = (config.requested_configuration || {}) as { risk?: Partial<RiskSettings> };
-    const applied = (config.applied_configuration || {}) as { risk?: Partial<RiskSettings> };
-    const saved = (requested.risk || applied.risk || config.risk_engine || {}) as Partial<RiskSettings>;
+    const saved = (config.risk_engine || {}) as Partial<RiskSettings>;
 
     setRiskSettings({
       ...DEFAULT_RISK_SETTINGS,
@@ -845,7 +826,7 @@ export default function CopieurPage() {
           <div className="text-xs font-semibold text-white">Offre actuelle</div>
           <div className="mt-4 space-y-2">
             <InfoRow label="Receveurs" value="Illimités · Bêta" />
-            <InfoRow label="Validation" value="Manuelle · sécurisée" />
+            <InfoRow label="Mode opérationnel" value="Lots fixes" />
             <InfoRow label="Monétisation" value="Prête pour plus tard" />
           </div>
         </Panel>
@@ -923,26 +904,7 @@ export default function CopieurPage() {
       </Panel>
 
       {selectedReceiver ? (
-        <>
-          <Panel>
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]">
-                  <ShieldCheck size={16} />
-                </div>
-                <div>
-                  <div className="text-[8px] font-bold uppercase tracking-[0.12em] text-[color:var(--gold)]">VALIDATION MANUELLE</div>
-                  <div className="mt-1 text-sm font-semibold text-white">Tes réglages sont appliqués par InvestPro dans Social Trade Hub</div>
-                  <p className="mt-1 max-w-3xl text-[9px] leading-5 text-white/35">
-                    Choisis la stratégie, le risque et les protections ci-dessous. Ta configuration est ensuite envoyée à l’équipe InvestPro. Elle n’est active qu’après notre confirmation.
-                  </p>
-                </div>
-              </div>
-              <ConfigRequestStatus request={selectedConfigurationRequest} />
-            </div>
-          </Panel>
-
-          <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+        <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
           <Panel className="xl:col-span-8">
             <Heading eyebrow="CONFIGURATION" title={selectedReceiver.alias} text={`${selectedReceiver.platform} · ${selectedReceiver.login} · ${selectedReceiver.server}`} icon={<SlidersHorizontal size={17} />} />
             <div className="mt-5 space-y-3">
@@ -1130,27 +1092,33 @@ export default function CopieurPage() {
                       className="mt-0.5 shrink-0 text-amber-300"
                     />
                     <p className="text-[8px] leading-4 text-amber-100/60">
-                      Ce réglage sera transmis à l’équipe InvestPro. Il ne sera
-                      considéré actif qu’après application manuelle dans Social
-                      Trade Hub puis confirmation dans ton espace.
+                      Ce mode est maintenant configurable et enregistré dans
+                      InvestPro. Certains modes nécessitent encore une validation
+                      par l’équipe InvestPro avant d’être appliqués au
+                      moteur de copie.
                     </p>
                   </div>
                 </div>
               ) : null}
 
               <button
-                disabled={configSubmitBusy || selectedReceiverId === "legacy"}
-                onClick={() => void submitManualConfiguration()}
+                disabled={riskBusy || selectedReceiverId === "legacy"}
+                onClick={() => void saveRiskSettings()}
                 className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 text-[10px] font-semibold text-[color:var(--gold)] disabled:opacity-40"
               >
-                {configSubmitBusy ? (
+                {riskBusy ? (
                   <Loader2 size={13} className="animate-spin" />
                 ) : (
                   <ShieldCheck size={13} />
                 )}
-                Envoyer les réglages à InvestPro
+                Enregistrer le Risk Engine
               </button>
 
+              {riskSavedAt ? (
+                <div className="mt-2 text-center text-[8px] text-emerald-400/70">
+                  Enregistré à {riskSavedAt}
+                </div>
+              ) : null}
             </Panel>
 
             <Panel>
@@ -1297,23 +1265,22 @@ export default function CopieurPage() {
                   </Field>
 
                   <button
-                    disabled={configSubmitBusy || selectedReceiverId === "legacy"}
-                    onClick={() => void submitManualConfiguration()}
+                    disabled={riskBusy || selectedReceiverId === "legacy"}
+                    onClick={() => void saveRiskSettings()}
                     className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-[color:var(--gold)] px-4 text-[10px] font-semibold text-black disabled:opacity-40"
                   >
-                    {configSubmitBusy ? (
+                    {riskBusy ? (
                       <Loader2 size={13} className="animate-spin" />
                     ) : (
                       <Settings2 size={13} />
                     )}
-                    Mettre à jour ma demande
+                    Enregistrer les réglages avancés
                   </button>
                 </div>
               ) : null}
             </Panel>
           </div>
-          </section>
-        </>
+        </section>
       ) : null}
 
       <Panel>
@@ -1341,7 +1308,7 @@ export default function CopieurPage() {
                 </h2>
                 <p className="mt-1 max-w-xl text-[10px] leading-5 text-white/35">
                   Envoie les informations MT4/MT5 à l’équipe InvestPro. Nous
-                  activons le compte dans Social Trade Hub, puis il apparaîtra
+                  activons le compte dans notre infrastructure de copie, puis il apparaîtra
                   automatiquement dans ton Copier Engine.
                 </p>
               </div>
@@ -1501,7 +1468,7 @@ export default function CopieurPage() {
                     <p className="mt-1 text-[9px] leading-5 text-white/35">
                       Le mot de passe est chiffré côté serveur. Seul
                       l’administrateur InvestPro autorisé peut l’afficher pour
-                      effectuer l’activation Social Trade Hub.
+                      effectuer l’activation technique du compte.
                     </p>
                   </div>
                 </div>
@@ -1588,7 +1555,7 @@ export default function CopieurPage() {
                 <div className="md:col-span-2"><Field label="Mot de passe MetaTrader"><input className="ip-field" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} /></Field></div>
               </div>
               <div className="mt-4 rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4"><div className="flex gap-3"><LockKeyhole size={16} className="mt-0.5 text-[color:var(--gold)]" /><div><div className="text-[10px] font-semibold text-white">Le risque se règle après</div><p className="mt-1 text-[9px] leading-5 text-white/35">Lots, risque %, SL/TP, protections et mapping sont séparés de la connexion.</p></div></div></div>
-              <label className="mt-4 flex items-start gap-3 rounded-2xl border border-white/[0.06] bg-black/20 p-4 text-[10px] leading-5 text-white/50"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[#d4a934]" />J’autorise la transmission des identifiants à Social Trade Hub pour établir la connexion.</label>
+              <label className="mt-4 flex items-start gap-3 rounded-2xl border border-white/[0.06] bg-black/20 p-4 text-[10px] leading-5 text-white/50"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[#d4a934]" />J’autorise InvestPro à utiliser ces identifiants pour établir et maintenir la connexion de copie via son infrastructure technique.</label>
               <div className="mt-5 flex items-center justify-between gap-3"><div className="text-[8px] text-white/25">Le mot de passe n’est jamais stocké dans copier_receivers.</div><button disabled={busy || !consent} onClick={() => void addReceiver()} className="inline-flex h-11 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-xs font-semibold text-black disabled:opacity-40">{busy ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />} Connecter ce compte</button></div>
             </div>
           </div>
@@ -1733,45 +1700,6 @@ function ToggleSetting({
     </button>
   );
 }
-function ConfigRequestStatus({ request }: { request: ConfigurationRequest | null }) {
-  if (!request) {
-    return (
-      <span className="rounded-full border border-white/[0.08] bg-white/[0.02] px-3 py-1.5 text-[8px] font-bold uppercase text-white/35">
-        Aucune demande envoyée
-      </span>
-    );
-  }
-
-  const labels = {
-    pending: "En attente InvestPro",
-    processing: "Application en cours",
-    applied: "Appliquée & confirmée",
-    rejected: "À corriger",
-  } as const;
-
-  return (
-    <div className="text-right">
-      <span
-        className={cn(
-          "inline-flex rounded-full border px-3 py-1.5 text-[8px] font-bold uppercase",
-          request.status === "applied"
-            ? "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-400"
-            : request.status === "rejected"
-            ? "border-red-500/20 bg-red-500/[0.05] text-red-300"
-            : "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]"
-        )}
-      >
-        {labels[request.status]}
-      </span>
-      {request.status === "applied" && request.applied_at ? (
-        <div className="mt-1 text-[8px] text-white/25">
-          Confirmée le {new Date(request.applied_at).toLocaleString("fr-FR")}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 function RequestStatus({ status }: { status: ActivationRequest["status"] }) {
   const labels = {
     pending: "En attente",
