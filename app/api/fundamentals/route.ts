@@ -10,10 +10,16 @@ export async function POST(req:Request){
  try{
   const auth=await createClient();const {data:{user},error:authError}=await auth.auth.getUser();
   if(authError||!user)return respond({error:'Connectez-vous pour consulter une analyse.'},401);
-  const origin=process.env.FUNDAMENTALS_SITE_ORIGIN||process.env.TELEGRAM_SITE_ORIGIN;
-  if(!origin||req.headers.get('origin')!==new URL(origin).origin)return respond({error:'Adresse du site non autorisée.'},403);
-  const allowed=(process.env.FUNDAMENTALS_USER_IDS||process.env.TELEGRAM_ADMIN_USER_IDS||'').split(',').map(v=>v.trim());
-  if(!allowed.includes(user.id)&&!allowed.includes('*'))return respond({error:'La synthèse IA est en phase pilote. Les sources économiques restent accessibles.'},403);
+  const requestOrigin=req.headers.get('origin');
+  const currentOrigin=new URL(req.url).origin;
+  const configuredOrigins=[process.env.FUNDAMENTALS_SITE_ORIGIN,process.env.TELEGRAM_SITE_ORIGIN,process.env.NEXT_PUBLIC_SITE_URL,'https://investprotrading.fr','https://www.investprotrading.fr']
+    .filter(Boolean)
+    .flatMap(value=>{try{return [new URL(String(value)).origin]}catch{return []}});
+  const normalizedRequestOrigin=requestOrigin?(()=>{try{return new URL(requestOrigin).origin}catch{return ''}})():'';
+  const allowedOrigin=!!normalizedRequestOrigin&&(normalizedRequestOrigin===currentOrigin||configuredOrigins.includes(normalizedRequestOrigin));
+  if(!allowedOrigin)return respond({error:'Adresse du site non autorisée.'},403);
+  // La phase pilote est terminée : tout membre InvestPro authentifié peut demander
+  // une synthèse. Les quotas serveur Supabase restent appliqués.
   if(!process.env.OPENAI_API_KEY)return respond({error:'La synthèse IA n’est pas encore activée. Consultez les sources des deux devises ci-dessous.'},503);
   if(Number(req.headers.get('content-length')||0)>1024)return respond({error:'Requête trop longue.'},413);
   const text=await req.text();if(text.length>1024)return respond({error:'Requête trop longue.'},413);

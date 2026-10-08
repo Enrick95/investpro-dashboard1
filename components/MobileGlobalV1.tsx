@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { defaultVisibility, type NavigationKey } from "@/lib/navigation/config";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   BarChart3,
@@ -27,6 +28,8 @@ import {
   WalletCards,
   X,
   Zap,
+  Handshake,
+  Repeat2,
 } from "lucide-react";
 
 type NavItem = {
@@ -98,6 +101,7 @@ function InstallMenuTile({ onClick }: { onClick: () => void }) {
 export default function MobileGlobalV1() {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [visibility, setVisibility] = useState<Record<NavigationKey, boolean>>(defaultVisibility());
 
   function openInstallGuide() {
     setMoreOpen(false);
@@ -112,6 +116,19 @@ export default function MobileGlobalV1() {
 
   useEffect(() => {
     setMoreOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/navigation", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((data) => {
+        if (!cancelled && data?.visibility) {
+          setVisibility((current) => ({ ...current, ...data.visibility }));
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
   }, [pathname]);
 
   useEffect(() => {
@@ -344,36 +361,50 @@ export default function MobileGlobalV1() {
 
   const tradingTiles = useMemo(
     () => [
-      { href: "/dashboard/comptes", label: "Comptes", icon: <WalletCards size={20} /> },
-      { href: "/dashboard/connexions", label: "Connexions", icon: <Cable size={20} /> },
-      { href: "/dashboard/plan", label: "Plan trading", icon: <ClipboardCheck size={20} /> },
-      { href: "/dashboard/simulateur", label: "Simulateur", icon: <Target size={20} /> },
-      { href: "/dashboard/rapport-mensuel", label: "Bilan mensuel", icon: <ChartNoAxesCombined size={20} /> },
-      { href: "/dashboard/classement", label: "Classement", icon: <Trophy size={20} /> },
-      { href: "/dashboard/defis", label: "Défis", icon: <Zap size={20} /> },
-      { href: "/dashboard/performances-vip", label: "VIP", icon: <TrendingUp size={20} /> },
-    ],
-    []
+      { key: "accounts" as NavigationKey, href: "/dashboard/comptes", label: "Comptes", icon: <WalletCards size={20} /> },
+      { key: "connections" as NavigationKey, href: "/dashboard/connexions", label: "Connexions", icon: <Cable size={20} /> },
+      { key: "plan" as NavigationKey, href: "/dashboard/plan", label: "Plan trading", icon: <ClipboardCheck size={20} /> },
+      { key: "risk" as NavigationKey, href: "/dashboard/simulateur", label: "Simulateur", icon: <Target size={20} /> },
+      { key: "reports" as NavigationKey, href: "/dashboard/rapport-mensuel", label: "Bilan mensuel", icon: <ChartNoAxesCombined size={20} /> },
+      { key: "copy" as NavigationKey, href: "/dashboard/copieur", label: "Copieur", icon: <Repeat2 size={20} /> },
+    ].filter((item) => visibility[item.key] !== false),
+    [visibility]
   );
 
-  const toolTiles = useMemo(
+  const marketTiles = useMemo(
     () => [
-      { href: "/dashboard/calendrier", label: "Calendrier éco", icon: <CalendarDays size={20} /> },
-      { href: "/dashboard/tradingview", label: "TradingView", icon: <LineChart size={20} /> },
-      { href: "/dashboard/analyse-fondamentale", label: "Analyse fonda.", icon: <Landmark size={20} /> },
-      { href: "/dashboard/financialjuice", label: "FinancialJuice", icon: <Newspaper size={20} /> },
-    ],
-    []
+      { key: "calendar" as NavigationKey, href: "/dashboard/calendrier", label: "Calendrier éco", icon: <CalendarDays size={20} /> },
+      { key: "tradingview" as NavigationKey, href: "/dashboard/tradingview", label: "TradingView", icon: <LineChart size={20} /> },
+      { key: "fundamentals" as NavigationKey, href: "/dashboard/analyse-fondamentale", label: "Analyse fonda.", icon: <Landmark size={20} /> },
+      { key: "financialjuice" as NavigationKey, href: "/dashboard/financialjuice", label: "FinancialJuice", icon: <Newspaper size={20} /> },
+    ].filter((item) => visibility[item.key] !== false),
+    [visibility]
   );
 
-  const academyTiles = useMemo(
+  const communityTiles = useMemo(
     () => [
-      { href: "/dashboard/academy", label: "Formations", icon: <GraduationCap size={20} /> },
-      { href: "/dashboard/academy/bibliotheque", label: "Bibliothèque", icon: <Library size={20} /> },
-      { href: "/dashboard/academy/progression", label: "Progression", icon: <TrendingUp size={20} /> },
-      { href: "/dashboard/profil", label: "Mon profil", icon: <CircleUserRound size={20} /> },
-    ],
-    []
+      { key: "vip" as NavigationKey, href: "/dashboard/performances-vip", label: "Performances VIP", icon: <TrendingUp size={20} /> },
+      { key: "ranking" as NavigationKey, href: "/dashboard/classement", label: "Classement", icon: <Trophy size={20} /> },
+      { key: "challenges" as NavigationKey, href: "/dashboard/challenges", label: "Challenges", icon: <Zap size={20} /> },
+    ].filter((item) => visibility[item.key] !== false),
+    [visibility]
+  );
+
+  const ecosystemTiles = useMemo(
+    () => [
+      { key: "partners" as NavigationKey, href: "/dashboard/partenaires", label: "Partenaires", icon: <Handshake size={20} /> },
+    ].filter((item) => visibility[item.key] !== false),
+    [visibility]
+  );
+
+  const accountTiles = useMemo(
+    () => [
+      { key: "academy" as NavigationKey, href: "/dashboard/academy", label: "Formations", icon: <GraduationCap size={20} /> },
+      { key: "library" as NavigationKey, href: "/dashboard/academy/bibliotheque", label: "Bibliothèque", icon: <Library size={20} /> },
+      { key: "progression" as NavigationKey, href: "/dashboard/academy/progression", label: "Progression", icon: <TrendingUp size={20} /> },
+      { key: "profile" as NavigationKey, href: "/dashboard/profil", label: "Mon profil", icon: <CircleUserRound size={20} /> },
+    ].filter((item) => visibility[item.key] !== false),
+    [visibility]
   );
 
   return (
@@ -447,14 +478,30 @@ export default function MobileGlobalV1() {
                 ))}
               </MenuGroup>
 
-              <MenuGroup title="Outils">
-                {toolTiles.map((item) => (
+              <MenuGroup title="Marchés & analyse">
+                {marketTiles.map((item) => (
                   <MenuTile key={item.href} {...item} onClick={() => setMoreOpen(false)} />
                 ))}
               </MenuGroup>
 
-              <MenuGroup title="Academy & compte">
-                {academyTiles.map((item) => (
+              {communityTiles.length ? (
+                <MenuGroup title="Communauté">
+                  {communityTiles.map((item) => (
+                    <MenuTile key={item.href} {...item} onClick={() => setMoreOpen(false)} />
+                  ))}
+                </MenuGroup>
+              ) : null}
+
+              {ecosystemTiles.length ? (
+                <MenuGroup title="Écosystème">
+                  {ecosystemTiles.map((item) => (
+                    <MenuTile key={item.href} {...item} onClick={() => setMoreOpen(false)} />
+                  ))}
+                </MenuGroup>
+              ) : null}
+
+              <MenuGroup title="Compte">
+                {accountTiles.map((item) => (
                   <MenuTile key={item.href} {...item} onClick={() => setMoreOpen(false)} />
                 ))}
               </MenuGroup>

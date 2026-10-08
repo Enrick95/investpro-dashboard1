@@ -21,6 +21,7 @@ import {
   WalletCards,
   X,
   Zap,
+  Handshake,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -48,6 +49,7 @@ const pageItems: SearchItem[] = [
   { label: "Santé du compte", hint: "Sécurité & connexions", href: "/dashboard/sante", icon: HeartPulse, kind: "page" },
   { label: "Sauvegarde & export", hint: "JSON / CSV", href: "/dashboard/sauvegarde", icon: DatabaseBackup, kind: "page" },
   { label: "Abonnement", hint: "Plan InvestPro", href: "/dashboard/abonnement", icon: CircleDollarSign, kind: "page" },
+  { label: "Partenaires", hint: "Écosystème InvestPro", href: "/dashboard/partenaires", icon: Handshake, kind: "page" },
   { label: "Profil", hint: "Préférences trader", href: "/dashboard/profil", icon: UserRound, kind: "page" },
   { label: "Paramètres", hint: "Compte & sécurité", href: "/dashboard/compte", icon: Settings2, kind: "page" },
 ];
