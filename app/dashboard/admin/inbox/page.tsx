@@ -123,7 +123,25 @@ export default function AdminInboxPage() {
   }
 
   useEffect(() => {
-    load();
+    void load();
+
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void load(true);
+      }
+    }, 20_000);
+
+    const onFocus = () => {
+      void load(true);
+    };
+
+    window.addEventListener("focus", onFocus);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+    };
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -218,6 +236,10 @@ export default function AdminInboxPage() {
           <p className="mt-1 text-sm text-[color:var(--muted)]">
             Support, bugs et demandes de suppression réunis dans le back-office.
           </p>
+          <div className="mt-2 inline-flex items-center gap-2 text-[9px] text-emerald-400/80">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            Actualisation automatique toutes les 20 secondes
+          </div>
         </div>
 
         <button
