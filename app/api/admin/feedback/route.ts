@@ -1,3 +1,5 @@
+import { authenticateAdmin } from "@/lib/admin/permissions";
+import { canAdmin } from "@/lib/admin/permissions";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -13,7 +15,7 @@ async function verifyAdmin(request: Request) {
   const client = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
   const { data, error } = await client.auth.getUser(token);
   if (error || !data.user) throw new Error("UNAUTHORIZED");
-  if (!adminIds().includes(data.user.id)) throw new Error("FORBIDDEN");
+  if (!await canAdmin(data.user.id, "feedback")) throw new Error("FORBIDDEN");
   return { user: data.user, admin: createClient(url, service, { auth: { persistSession: false, autoRefreshToken: false } }) };
 }
 
@@ -30,6 +32,8 @@ export async function GET(request: Request) {
   } catch(error:any) { const m=String(error?.message||""); return NextResponse.json({ok:false,error:m==="FORBIDDEN"?"Accès refusé.":"Feedback indisponible."},{status:m==="FORBIDDEN"?403:500}); }
 }
 export async function PATCH(request: Request) {
+  const pcheck=await authenticateAdmin(request,"feedback_write");
+  if("error" in pcheck)return NextResponse.json({error:pcheck.error},{status:pcheck.status});
   try {
     const { admin } = await verifyAdmin(request);
     const body=await request.json();

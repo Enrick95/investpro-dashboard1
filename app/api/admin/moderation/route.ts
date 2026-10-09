@@ -1,3 +1,4 @@
+import { canAdmin } from "@/lib/admin/permissions";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -47,7 +48,7 @@ async function verifyAdmin(request: Request) {
     };
   }
 
-  if (!getAdminIds().includes(user.id)) {
+  if (!await canAdmin(user.id, "moderation")) {
     return {
       response: NextResponse.json(
         { error: "Accès administrateur refusé." },

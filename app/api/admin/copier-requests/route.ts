@@ -1,3 +1,5 @@
+import { authenticateAdmin } from "@/lib/admin/permissions";
+import { canAdmin } from "@/lib/admin/permissions";
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -48,7 +50,7 @@ async function verifyAdmin(request: Request) {
     };
   }
 
-  if (!getAdminIds().includes(user.id)) {
+  if (!await canAdmin(user.id, "copier")) {
     return {
       response: NextResponse.json(
         { error: "Accès administrateur refusé." },
@@ -151,6 +153,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const pcheck=await authenticateAdmin(request,"copier_write");
+  if("error" in pcheck)return NextResponse.json({error:pcheck.error},{status:pcheck.status});
   const verified = await verifyAdmin(request);
   if ("response" in verified && verified.response) return verified.response;
 
@@ -204,6 +208,8 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const pcheck=await authenticateAdmin(request,"copier_write");
+  if("error" in pcheck)return NextResponse.json({error:pcheck.error},{status:pcheck.status});
   const verified = await verifyAdmin(request);
   if ("response" in verified && verified.response) return verified.response;
 
@@ -315,7 +321,7 @@ export async function PATCH(request: Request) {
     ok: true,
     message:
       status === "activated"
-        ? "Compte marqué actif : il est maintenant visible dans le Copier Engine du membre."
+        ? "Compte marqué actif : il est maintenant visible dans InvestPro Copier du membre."
         : "Demande mise à jour.",
   });
 }

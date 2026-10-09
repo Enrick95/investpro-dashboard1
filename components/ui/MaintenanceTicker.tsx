@@ -12,7 +12,7 @@ function buildMessages(maintTerminal: boolean, maintCopier: boolean) {
     return [
       "🚧 MAINTENANCE ACTIVE",
       "TERMINAL INDISPONIBLE",
-      "COPIEUR INDISPONIBLE",
+      "INVESTPRO COPIER INDISPONIBLE",
       "SURVOLEZ POUR PAUSE",
       "MERCI DE VOTRE PATIENCE",
       "• INVESTPRO •",
@@ -32,7 +32,7 @@ function buildMessages(maintTerminal: boolean, maintCopier: boolean) {
   if (maintCopier) {
     return [
       "🚧 MAINTENANCE ACTIVE",
-      "COPIEUR INDISPONIBLE",
+      "INVESTPRO COPIER INDISPONIBLE",
       "SURVOLEZ POUR PAUSE",
       "MERCI DE VOTRE PATIENCE",
       "• INVESTPRO •",

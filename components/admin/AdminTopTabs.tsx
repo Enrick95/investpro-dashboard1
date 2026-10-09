@@ -11,17 +11,19 @@ const tabs = [
   { label: "Utilisateurs", href: "/dashboard/admin/utilisateurs" },
   { label: "Modération", href: "/dashboard/admin/moderation" },
   { label: "Inbox", href: "/dashboard/admin/inbox" },
-  { label: "Copieur", href: "/dashboard/admin/copieur" },
+  { label: "InvestPro Copier", href: "/dashboard/admin/copieur" },
   { label: "Système", href: "/dashboard/admin/systeme" },
   { label: "Navigation", href: "/dashboard/admin/navigation" },
+  { label: "Équipe", href: "/dashboard/admin/staff" },
 ];
 
 export default function AdminTopTabs({
-  onRevoke,
+  onRevoke, permissions,
 }: {
-  onRevoke?: () => void;
+  onRevoke?: () => void; permissions?: string[];
 }) {
   const pathname = usePathname();
+  const tabsAllowed = tabs.filter(t=>!permissions||permissions.includes(({Overview:"overview",Finance:"finance",Utilisateurs:"users",Modération:"moderation",Inbox:"inbox","InvestPro Copier":"copier",Système:"system",Navigation:"navigation",Équipe:"staff"} as Record<string,string>)[t.label]));
   const supabase = useMemo(() => createClient(), []);
   const [inboxCount, setInboxCount] = useState(0);
   const [copierCount, setCopierCount] = useState(0);
@@ -109,7 +111,7 @@ export default function AdminTopTabs({
 
   return (
     <div className="flex flex-wrap gap-2">
-      {tabs.map((tab) => {
+      {tabsAllowed.map((tab) => {
         const active =
           pathname === tab.href ||
           (tab.href !== "/dashboard/admin" && pathname.startsWith(tab.href));
@@ -142,7 +144,7 @@ export default function AdminTopTabs({
                   {inboxCount > 99 ? "99+" : inboxCount}
                 </span>
               ) : null}
-              {tab.label === "Copieur" && copierCount > 0 ? (
+              {tab.label === "InvestPro Copier" && copierCount > 0 ? (
                 <span
                   className="inline-flex min-w-5 h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold"
                   style={{

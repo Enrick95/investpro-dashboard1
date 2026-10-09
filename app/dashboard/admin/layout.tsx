@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { ShieldCheck, Loader2 } from "lucide-react";
 
 import AdminTopTabs from "../../../components/admin/AdminTopTabs";
@@ -15,6 +15,9 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const [permissions,setPermissions]=useState<string[]>([]);
+  const [owner,setOwner]=useState(false);
   const supabase = useMemo(() => createClient(), []);
 
   const [adminState, setAdminState] = useState<AdminState>("checking");
@@ -35,7 +38,7 @@ export default function AdminLayout({
 
         // On utilise l'API admin existante : elle vérifie réellement
         // l'utilisateur Supabase côté serveur via INVESTPRO_ADMIN_USER_IDS.
-        const response = await fetch("/api/admin/overview", {
+        const response = await fetch("/api/admin/me", {
           headers: {
             Authorization: `Bearer ${session.access_token}`,
           },
@@ -53,11 +56,10 @@ export default function AdminLayout({
           throw new Error("Vérification administrateur impossible.");
         }
 
-        // Cookie utilisé uniquement pour laisser passer le middleware existant.
-        // La vraie sécurité reste faite côté API serveur.
-        document.cookie =
-          "ip_admin=1; Path=/; Max-Age=28800; SameSite=Lax; Secure";
-
+        const info=await response.json();
+        if(cancelled)return;
+        setPermissions(info.permissions||[]);
+        setOwner(info.owner===true);
         setAdminState("allowed");
       } catch (error) {
         console.error("Admin auth:", error);
@@ -74,6 +76,8 @@ export default function AdminLayout({
       cancelled = true;
     };
   }, [router, supabase]);
+  const section=pathname.includes("/staff")?"staff":pathname.includes("/finance")?"finance":pathname.includes("/copieur")?"copier":pathname.includes("/navigation")?"navigation":pathname.includes("/systeme")?"system":pathname.includes("/moderation")?"moderation":pathname.includes("/inbox")?"inbox":pathname.includes("/utilisateurs")?"users":pathname.includes("/analytics")?"analytics":pathname.includes("/feedback")?"feedback":"overview";
+  const sectionAllowed=owner||permissions.includes(section);
 
   if (adminState === "checking") {
     return (
@@ -135,6 +139,7 @@ export default function AdminLayout({
     );
   }
 
+  if(!sectionAllowed)return <div className="p-8 text-red-300">Accès refusé : vous ne disposez pas des permissions pour cette rubrique.</div>;
   return (
     <div className="min-h-[calc(100vh-64px)] px-6 py-6">
       <div className="mx-auto w-full max-w-[1600px]">
@@ -163,7 +168,7 @@ export default function AdminLayout({
         </div>
 
         <div className="mt-4">
-          <AdminTopTabs />
+          <AdminTopTabs permissions={permissions} />
         </div>
 
         <div className="mt-5">{children}</div>

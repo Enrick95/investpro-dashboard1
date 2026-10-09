@@ -1,3 +1,5 @@
+import { authenticateAdmin } from "@/lib/admin/permissions";
+import { canAdmin } from "@/lib/admin/permissions";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -47,7 +49,7 @@ async function verifyAdmin(request: Request) {
     };
   }
 
-  if (!getAdminIds().includes(user.id)) {
+  if (!await canAdmin(user.id, "inbox")) {
     return {
       response: NextResponse.json(
         { error: "Accès administrateur refusé." },
@@ -211,6 +213,8 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const pcheck=await authenticateAdmin(request,"inbox_write");
+  if("error" in pcheck)return NextResponse.json({error:pcheck.error},{status:pcheck.status});
   const verified = await verifyAdmin(request);
   if ("response" in verified && verified.response) return verified.response;
 

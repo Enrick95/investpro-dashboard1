@@ -92,7 +92,7 @@ export default function Sidebar() {
 
         <Section title="Terminal" />
         <div className="space-y-1">
-          <Item href="/dashboard/copieur" label="Copieur de positions" badge="BETA" />
+          <Item href="/dashboard/copieur" label="InvestPro Copier" badge="BETA" />
           {isLogged && <Item href="/dashboard/terminal" label="Terminal de trading" badge="BETA" />}
         </div>
 
