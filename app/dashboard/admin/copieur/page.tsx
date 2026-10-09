@@ -254,10 +254,10 @@ export default function AdminCopierRequestsPage() {
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="text-[9px] font-bold uppercase tracking-[0.14em] text-[color:var(--gold)]">
-              COPIER ENGINE · ADMIN
+              INVESTPRO COPIER · ADMIN
             </div>
             <h1 className="mt-2 text-2xl font-semibold text-white">
-              Copieur · activations & réglages
+              InvestPro Copier · activations & réglages
             </h1>
             <p className="mt-1 text-sm text-[color:var(--muted)]">
               Active les comptes puis applique manuellement les réglages demandés dans Social Trade Hub.
@@ -301,7 +301,7 @@ export default function AdminCopierRequestsPage() {
             Aucune demande
           </div>
           <div className="mt-1 text-xs text-white/35">
-            Les demandes envoyées depuis le Copier Engine apparaîtront ici.
+            Les demandes envoyées depuis InvestPro Copier apparaîtront ici.
           </div>
         </section>
       ) : (

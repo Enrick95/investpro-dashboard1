@@ -12,12 +12,12 @@ export default function MaintenanceModal({
   target: "terminal" | "copieur";
 }) {
   const title =
-    target === "terminal" ? "Terminal en maintenance" : "Copieur en maintenance";
+    target === "terminal" ? "Terminal en maintenance" : "InvestPro Copier en maintenance";
 
   const desc =
     target === "terminal"
       ? "Le terminal est temporairement indisponible. Revenez dans quelques instants."
-      : "Le copieur est temporairement indisponible. Revenez dans quelques instants.";
+      : "InvestPro Copier est temporairement indisponible. Revenez dans quelques instants.";
 
   return (
     <Modal

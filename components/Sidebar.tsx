@@ -14,7 +14,7 @@ const menu:MenuItem[]=[
  {key:'plan',g:'TRADING',p:'/plan',l:'Plan de trading',i:ClipboardCheck},
  {key:'risk',g:'TRADING',p:'/simulateur',l:'Simulateur risque',i:Calculator},
  {key:'reports',g:'TRADING',p:'/rapports',l:'Rapports',i:BarChart3},
- {key:'copy',g:'TRADING',p:'/copieur',l:'Copieur multi-comptes',i:Repeat2},
+ {key:'copy',g:'TRADING',p:'/copieur',l:'InvestPro Copier',i:Repeat2},
  {key:'tradingview',g:'MARCHÉS & ANALYSE',p:'/tradingview',l:'TradingView',i:BarChart3},
  {key:'calendar',g:'MARCHÉS & ANALYSE',p:'/calendrier',l:'Calendrier éco',i:CalendarDays},
  {key:'fundamentals',g:'MARCHÉS & ANALYSE',p:'/analyse-fondamentale',l:'Analyse fondamentale',i:Globe2},

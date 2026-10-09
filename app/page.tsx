@@ -74,7 +74,7 @@ const faq = [
     "Oui. InvestPro permet de centraliser plusieurs comptes et de distinguer les comptes manuels des comptes synchronisés.",
   ],
   [
-    "Le copy trading est-il disponible ?",
+    "InvestPro Copier est-il disponible ?",
     "Le module multi-comptes et les outils de copie sont intégrés à l’écosystème InvestPro selon les connexions et accès disponibles.",
   ],
   [

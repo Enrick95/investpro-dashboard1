@@ -345,7 +345,7 @@ export default function CopieurPage() {
   const [enabled, setEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
-  const [message, setMessage] = useState("Chargement du Copier Engine…");
+  const [message, setMessage] = useState("Chargement d’InvestPro Copier…");
   const [checked, setChecked] = useState("");
   const [maxLots, setMaxLots] = useState(0.1);
 
@@ -554,7 +554,7 @@ export default function CopieurPage() {
         setSelectedStatus(null);
         setSelectedMasters({});
       }
-      setMessage("Copier Engine actualisé.");
+      setMessage("InvestPro Copier actualisé.");
     } catch (cause) {
       setError(true);
       setMessage(cause instanceof Error ? cause.message : "Connexion indisponible.");
@@ -777,7 +777,7 @@ export default function CopieurPage() {
         <div className="relative grid grid-cols-1 gap-6 p-6 lg:grid-cols-[1.25fr_.75fr] lg:p-8">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.15em] text-[color:var(--gold)]">
-              <Copy size={12} /> Copier Engine · Multi-receveurs
+              <Copy size={12} /> InvestPro Copier · Multi-receveurs
             </div>
             <h1 className="mt-5 max-w-3xl text-3xl font-semibold leading-tight text-white md:text-[40px]">
               Un trade. <span className="text-[color:var(--gold)]">Plusieurs comptes.</span><br />Une seule interface de contrôle.
@@ -809,7 +809,7 @@ export default function CopieurPage() {
                 <Activity size={18} />
               </div>
               <div>
-                <h2 className="text-base font-semibold text-white">État du Copier Engine</h2>
+                <h2 className="text-base font-semibold text-white">État d’InvestPro Copier</h2>
                 <p className="mt-1 text-[10px] leading-5 text-white/40">Chaque nouveau receveur possède son propre identifiant côté moteur de copie.</p>
                 <div className="mt-1 text-[8px] text-white/25">Dernière vérification : {checked || "—"}</div>
               </div>
@@ -837,7 +837,7 @@ export default function CopieurPage() {
           <Heading eyebrow="RECEVEURS" title="Mes comptes de copie" text="Ajoute autant de comptes que nécessaire pendant la bêta. Les réglages viennent ensuite." icon={<WalletCards size={17} />} />
           <div className="flex flex-col gap-2 sm:flex-row">
             <button onClick={() => setRequestOpen(true)} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-5 text-xs font-semibold text-[color:var(--gold)]">
-              <Send size={14} /> Ajouter mon compte au copieur
+              <Send size={14} /> Ajouter mon compte à InvestPro Copier
             </button>
             <button onClick={() => setAddOpen(true)} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-xs font-semibold text-black">
               <Plus size={15} /> Ajouter un compte receveur
@@ -1284,7 +1284,7 @@ export default function CopieurPage() {
       ) : null}
 
       <Panel>
-        <Heading eyebrow="VUE D’ENSEMBLE" title="Copier Engine" text="Architecture prête pour limiter les comptes selon l’abonnement plus tard." icon={<Sparkles size={17} />} />
+        <Heading eyebrow="VUE D’ENSEMBLE" title="InvestPro Copier" text="Architecture prête pour limiter les comptes selon l’abonnement plus tard." icon={<Sparkles size={17} />} />
         <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4"><Summary label="Receveurs" value={String(virtualReceivers.length)} /><Summary label="Masters actifs" value={String(activeMasters.length)} /><Summary label="Mode actif" value={riskModeLabel(riskSettings.mode)} /><Summary label="Limite actuelle" value="Illimité · Bêta" green /></div>
       </Panel>
 
@@ -1301,15 +1301,15 @@ export default function CopieurPage() {
             <div className="flex items-start justify-between border-b border-white/[0.06] p-5 md:p-6">
               <div>
                 <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1 text-[8px] font-bold uppercase text-[color:var(--gold)]">
-                  <Send size={11} /> Ajout au Copier Engine
+                  <Send size={11} /> Ajout à InvestPro Copier
                 </div>
                 <h2 className="mt-3 text-xl font-semibold text-white">
-                  Ajouter mon compte au copieur
+                  Ajouter mon compte à InvestPro Copier
                 </h2>
                 <p className="mt-1 max-w-xl text-[10px] leading-5 text-white/35">
                   Envoie les informations MT4/MT5 à l’équipe InvestPro. Nous
                   activons le compte dans notre infrastructure de copie, puis il apparaîtra
-                  automatiquement dans ton Copier Engine.
+                  automatiquement dans InvestPro Copier.
                 </p>
               </div>
               <button

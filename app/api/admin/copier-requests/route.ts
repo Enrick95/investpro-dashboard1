@@ -321,7 +321,7 @@ export async function PATCH(request: Request) {
     ok: true,
     message:
       status === "activated"
-        ? "Compte marqué actif : il est maintenant visible dans le Copier Engine du membre."
+        ? "Compte marqué actif : il est maintenant visible dans InvestPro Copier du membre."
         : "Demande mise à jour.",
   });
 }

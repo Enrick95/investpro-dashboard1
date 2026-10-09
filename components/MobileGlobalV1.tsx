@@ -366,7 +366,7 @@ export default function MobileGlobalV1() {
       { key: "plan" as NavigationKey, href: "/dashboard/plan", label: "Plan trading", icon: <ClipboardCheck size={20} /> },
       { key: "risk" as NavigationKey, href: "/dashboard/simulateur", label: "Simulateur", icon: <Target size={20} /> },
       { key: "reports" as NavigationKey, href: "/dashboard/rapport-mensuel", label: "Bilan mensuel", icon: <ChartNoAxesCombined size={20} /> },
-      { key: "copy" as NavigationKey, href: "/dashboard/copieur", label: "Copieur", icon: <Repeat2 size={20} /> },
+      { key: "copy" as NavigationKey, href: "/dashboard/copieur", label: "InvestPro Copier", icon: <Repeat2 size={20} /> },
     ].filter((item) => visibility[item.key] !== false),
     [visibility]
   );
