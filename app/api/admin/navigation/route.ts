@@ -1,3 +1,5 @@
+import { authenticateAdmin } from "@/lib/admin/permissions";
+import { canAdmin } from "@/lib/admin/permissions";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { defaultVisibility, navigationDefinitions } from "@/lib/navigation/config";
@@ -22,7 +24,7 @@ async function getAdmin(request: Request) {
   const publicClient = createClient(url, publishable, { auth: { persistSession: false, autoRefreshToken: false } });
   const { data: { user }, error } = await publicClient.auth.getUser(token);
   if (error || !user) return { error: "Session invalide.", status: 401 } as const;
-  if (!adminIds().includes(user.id)) return { error: "Accès administrateur refusé.", status: 403 } as const;
+  if (!await canAdmin(user.id, "navigation")) return { error: "Accès administrateur refusé.", status: 403 } as const;
 
   const admin = createClient(url, service, { auth: { persistSession: false, autoRefreshToken: false } });
   return { admin, user } as const;
@@ -46,6 +48,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const pcheck=await authenticateAdmin(request,"navigation");
+  if("error" in pcheck)return NextResponse.json({error:pcheck.error},{status:pcheck.status});
   const auth = await getAdmin(request);
   if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 

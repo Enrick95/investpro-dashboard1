@@ -1,3 +1,5 @@
+import { authenticateAdmin } from "@/lib/admin/permissions";
+import { canAdmin } from "@/lib/admin/permissions";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -26,7 +28,7 @@ async function verifyAdmin(request: Request) {
   });
   const { data: { user } } = await auth.auth.getUser(token);
   if (!user) return { response: NextResponse.json({ error: "Session invalide." }, { status: 401 }) };
-  if (!getAdminIds().includes(user.id)) {
+  if (!await canAdmin(user.id, "copier")) {
     return { response: NextResponse.json({ error: "Accès administrateur refusé." }, { status: 403 }) };
   }
 
@@ -100,6 +102,8 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const pcheck=await authenticateAdmin(request,"copier_write");
+  if("error" in pcheck)return NextResponse.json({error:pcheck.error},{status:pcheck.status});
   const verified = await verifyAdmin(request);
   if ("response" in verified && verified.response) return verified.response;
   const { admin, requester } = verified as any;

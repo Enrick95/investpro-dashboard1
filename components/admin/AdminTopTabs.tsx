@@ -14,14 +14,16 @@ const tabs = [
   { label: "Copieur", href: "/dashboard/admin/copieur" },
   { label: "Système", href: "/dashboard/admin/systeme" },
   { label: "Navigation", href: "/dashboard/admin/navigation" },
+  { label: "Équipe", href: "/dashboard/admin/staff" },
 ];
 
 export default function AdminTopTabs({
-  onRevoke,
+  onRevoke, permissions,
 }: {
-  onRevoke?: () => void;
+  onRevoke?: () => void; permissions?: string[];
 }) {
   const pathname = usePathname();
+  const tabsAllowed = tabs.filter(t=>!permissions||permissions.includes(({Overview:"overview",Finance:"finance",Utilisateurs:"users",Modération:"moderation",Inbox:"inbox",Copieur:"copier",Système:"system",Navigation:"navigation",Équipe:"staff"} as Record<string,string>)[t.label]));
   const supabase = useMemo(() => createClient(), []);
   const [inboxCount, setInboxCount] = useState(0);
   const [copierCount, setCopierCount] = useState(0);
@@ -109,7 +111,7 @@ export default function AdminTopTabs({
 
   return (
     <div className="flex flex-wrap gap-2">
-      {tabs.map((tab) => {
+      {tabsAllowed.map((tab) => {
         const active =
           pathname === tab.href ||
           (tab.href !== "/dashboard/admin" && pathname.startsWith(tab.href));

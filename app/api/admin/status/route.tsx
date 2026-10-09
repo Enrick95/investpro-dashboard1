@@ -1,16 +1,3 @@
 import { NextResponse } from "next/server";
-
-export async function GET(req: Request) {
-  const cookie = req.headers.get("cookie") || "";
-
-  const isAdmin = cookie.includes("ip_admin=1");
-  const maintTerminal = cookie.includes("ip_maint_terminal=1");
-  const maintCopier = cookie.includes("ip_maint_copier=1");
-
-  return NextResponse.json({
-    ok: true,
-    isAdmin,
-    maintTerminal,
-    maintCopier,
-  });
-}
+import { authenticateAdmin } from "@/lib/admin/permissions";
+export async function GET(request:Request){const result=await authenticateAdmin(request);return NextResponse.json({ok:true,isAdmin:!("error" in result),permissions:"error" in result?[]:result.access.permissions,owner:"error" in result?false:result.access.owner});}

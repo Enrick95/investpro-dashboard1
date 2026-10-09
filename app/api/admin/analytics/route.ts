@@ -1,3 +1,4 @@
+import { canAdmin } from "@/lib/admin/permissions";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -13,7 +14,7 @@ async function verifyAdmin(request: Request) {
   const client = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
   const { data, error } = await client.auth.getUser(token);
   if (error || !data.user) throw new Error("UNAUTHORIZED");
-  if (!adminIds().includes(data.user.id)) throw new Error("FORBIDDEN");
+  if (!await canAdmin(data.user.id, "analytics")) throw new Error("FORBIDDEN");
   return { user: data.user, admin: createClient(url, service, { auth: { persistSession: false, autoRefreshToken: false } }) };
 }
 
