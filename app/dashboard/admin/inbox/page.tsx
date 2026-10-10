@@ -445,19 +445,6 @@ export default function AdminInboxPage() {
                 </section>
               ) : null}
 
-              <label className="mt-4 block">
-                  <div className="mb-2 text-[9px] text-white/35">
-                    Réponse visible par le membre
-                  </div>
-                  <textarea
-                    value={reply}
-                    onChange={(e) => setReply(e.target.value)}
-                    rows={5}
-                    className="w-full rounded-xl border border-white/[0.07] bg-black/20 p-3 text-xs text-white outline-none"
-                    placeholder="Écris ta réponse..."
-                  />
-                </label>
-              ) : null}
 
               <label className="mt-4 block">
                 <div className="mb-2 text-[9px] text-white/35">
