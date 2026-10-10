@@ -371,6 +371,8 @@ export default function CopieurPage() {
   const [riskSavedAt, setRiskSavedAt] = useState<string>("");
   const [riskBusy, setRiskBusy] = useState(false);
   const [masterConsent, setMasterConsent] = useState(false);
+  const [masterSaveState, setMasterSaveState] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const [riskSaveState, setRiskSaveState] = useState<"idle" | "saving" | "saved" | "pending" | "failed">("idle");
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [disconnectOpen, setDisconnectOpen] = useState(false);
   const [disconnectConsent, setDisconnectConsent] = useState(false);
@@ -630,11 +632,13 @@ export default function CopieurPage() {
   function toggleMaster(id: string) {
     setSelectedMasters((cur) => ({ ...cur, [id]: { ...(cur[id] || { lots: "0.01" }), on: !cur[id]?.on } }));
     setMasterConsent(false);
+    setMasterSaveState("idle");
   }
 
   function changeLots(id: string, lots: string) {
     setSelectedMasters((cur) => ({ ...cur, [id]: { ...(cur[id] || { on: false }), lots } }));
     setMasterConsent(false);
+    setMasterSaveState("idle");
   }
 
   async function saveRiskSettings() {
@@ -647,6 +651,7 @@ export default function CopieurPage() {
     }
 
     setRiskBusy(true);
+    setRiskSaveState("saving");
     setError(false);
 
     try {
@@ -674,6 +679,7 @@ export default function CopieurPage() {
       }));
 
       await loadRows();
+      setRiskSaveState(data.requestStatus === "pending" ? "pending" : "saved");
 
       if (riskSettings.mode === "fixed") {
         setMessage(
@@ -685,6 +691,7 @@ export default function CopieurPage() {
         );
       }
     } catch (cause) {
+      setRiskSaveState("failed");
       setError(true);
       setMessage(
         cause instanceof Error
@@ -699,13 +706,16 @@ export default function CopieurPage() {
   async function saveMasters() {
     if (!selectedReceiverId) return;
     setBusy(true);
+    setMasterSaveState("saving");
     setError(false);
     try {
       const masters = (Object.entries(selectedMasters) as Array<[string, { on: boolean; lots: string }]>).filter(([, v]) => v.on).map(([id, v]) => ({ id, lots: Number(v.lots) }));
       const data = await post({ action: "masters", receiverId: selectedReceiverId, consent: masterConsent, masters });
       if (data.status) applyStatus(data.status);
-      setMessage("Configuration enregistrée.");
+      setMasterSaveState("saved");
+      setMessage("Configuration confirmée par le moteur de copie.");
     } catch (cause) {
+      setMasterSaveState("failed");
       setError(true);
       setMessage(cause instanceof Error ? cause.message : "Enregistrement impossible.");
     } finally {
@@ -955,7 +965,7 @@ export default function CopieurPage() {
               })}
             </div>
             <label className="mt-5 flex items-start gap-3 rounded-2xl border border-white/[0.06] bg-black/20 p-4 text-[10px] leading-5 text-white/50"><input type="checkbox" checked={masterConsent} onChange={(e) => setMasterConsent(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[#d4a934]" /> Je confirme les stratégies et volumes sélectionnés.</label>
-            <div className="mt-4 flex items-center justify-between gap-3"><div className="text-[9px] text-white/30">{activeMasters.length} master(s) actif(s) · {totalLots.toFixed(2)} lots</div><button disabled={busy || !masterConsent} onClick={() => void saveMasters()} className="inline-flex h-11 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-xs font-semibold text-black disabled:opacity-40"><ShieldCheck size={14} /> Enregistrer</button></div>
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><div><div className="text-[9px] text-white/30">{activeMasters.length} master(s) actif(s) · {totalLots.toFixed(2)} lots</div><div role="status" aria-live="polite" className={cn("mt-2 flex items-center gap-1.5 text-[11px]", masterSaveState === "saved" ? "text-emerald-400" : masterSaveState === "failed" ? "text-red-400" : "text-white/45")}>{masterSaveState === "saved" ? <><CheckCircle2 size={14}/> Enregistré et confirmé par le moteur</> : masterSaveState === "saving" ? <><Loader2 size={14} className="animate-spin"/> Enregistrement en cours…</> : masterSaveState === "failed" ? <><AlertTriangle size={14}/> Échec : configuration non confirmée</> : "Coche la confirmation, puis enregistre tes changements."}</div></div><button disabled={busy || !masterConsent} onClick={() => void saveMasters()} className="inline-flex h-11 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-xs font-semibold text-black disabled:opacity-40">{masterSaveState === "saving" ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />} {masterSaveState === "saving" ? "Enregistrement…" : "Enregistrer"}</button></div>
           </Panel>
 
           <div className="space-y-4 xl:col-span-4">
@@ -1113,14 +1123,12 @@ export default function CopieurPage() {
                 ) : (
                   <ShieldCheck size={13} />
                 )}
-                Enregistrer le Risk Engine
+                {riskBusy ? "Enregistrement…" : "Enregistrer le Risk Engine"}
               </button>
 
-              {riskSavedAt ? (
-                <div className="mt-2 text-center text-[8px] text-emerald-400/70">
-                  Enregistré à {riskSavedAt}
-                </div>
-              ) : null}
+              <div role="status" aria-live="polite" className={cn("mt-2 text-center text-[10px]", riskSaveState === "failed" ? "text-red-400" : riskSaveState === "saved" ? "text-emerald-400" : riskSaveState === "pending" ? "text-amber-400" : "text-white/40")}>
+                {riskSaveState === "saving" ? "Enregistrement en cours…" : riskSaveState === "pending" ? "Réglages enregistrés · application au moteur en attente de validation admin" : riskSaveState === "saved" ? `Réglages enregistrés dans InvestPro à ${riskSavedAt} · vérifier l'état réel du moteur` : riskSaveState === "failed" ? "Enregistrement non confirmé. Consulte le message d'erreur." : "Les modes avancés ne sont pas appliqués automatiquement au moteur."}
+              </div>
             </Panel>
 
             <Panel>
