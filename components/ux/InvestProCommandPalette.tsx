@@ -189,18 +189,6 @@ export default function InvestProCommandPalette() {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="ip-command-trigger"
-        aria-label="Ouvrir la navigation rapide"
-        title="Recherche InvestPro (Ctrl/⌘ + K)"
-      >
-        <Search size={15} />
-        <span>Accès rapide</span>
-        <kbd>⌘K</kbd>
-      </button>
-
       {open ? (
         <div
           className="ip-command-backdrop"
