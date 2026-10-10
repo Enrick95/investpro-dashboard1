@@ -25,7 +25,6 @@ import {
   Unplug,
   WalletCards,
   X,
-  Trash2,
   Zap,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -357,6 +356,8 @@ export default function CopieurPage() {
   const [selectedReceiverId, setSelectedReceiverId] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<SthStatus | null>(null);
   const [selectedMasters, setSelectedMasters] = useState<SelectedMaster>({});
+  const [guideStep, setGuideStep] = useState<1 | 2 | 3 | 4>(1);
+  const [lastConfirmed, setLastConfirmed] = useState("");
 
   const [addOpen, setAddOpen] = useState(false);
   const [alias, setAlias] = useState("");
@@ -375,8 +376,6 @@ export default function CopieurPage() {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [disconnectOpen, setDisconnectOpen] = useState(false);
   const [disconnectConsent, setDisconnectConsent] = useState(false);
-  const [configSaved, setConfigSaved] = useState(false);
-  const [removeBusy, setRemoveBusy] = useState(false);
   const [requestOpen, setRequestOpen] = useState(false);
   const [activationRequests, setActivationRequests] = useState<ActivationRequest[]>([]);
   const [requestBusy, setRequestBusy] = useState(false);
@@ -517,7 +516,6 @@ export default function CopieurPage() {
     setSelectedStatus(status);
     setSelectedMasters(Object.fromEntries(status.masterAccountsList.map((m) => [m.id, { on: m.userIsSubscribed, lots: String(m.lots) }])));
     setMasterConsent(false);
-    setConfigSaved(true);
     setChecked(new Date().toLocaleString("fr-FR"));
   }
 
@@ -572,6 +570,8 @@ export default function CopieurPage() {
 
   async function selectReceiver(id: string) {
     setSelectedReceiverId(id);
+    setGuideStep(2);
+    setLastConfirmed("");
     setBusy(true);
     setError(false);
     try {
@@ -622,7 +622,8 @@ export default function CopieurPage() {
         setSelectedReceiverId(data.receiverId);
         if (data.status) applyStatus(data.status);
       }
-      setMessage("Nouveau compte receveur connecté.");
+      setGuideStep(2);
+      setMessage("Compte connecté. Choisis maintenant le Master à copier, puis règle le risque.");
     } catch (cause) {
       setError(true);
       setMessage(cause instanceof Error ? cause.message : "Connexion impossible.");
@@ -632,15 +633,15 @@ export default function CopieurPage() {
   }
 
   function toggleMaster(id: string) {
+    setLastConfirmed("");
     setSelectedMasters((cur) => ({ ...cur, [id]: { ...(cur[id] || { lots: "0.01" }), on: !cur[id]?.on } }));
     setMasterConsent(false);
-    setConfigSaved(false);
   }
 
   function changeLots(id: string, lots: string) {
+    setLastConfirmed("");
     setSelectedMasters((cur) => ({ ...cur, [id]: { ...(cur[id] || { on: false }), lots } }));
     setMasterConsent(false);
-    setConfigSaved(false);
   }
 
   async function saveRiskSettings() {
@@ -710,8 +711,9 @@ export default function CopieurPage() {
       const masters = (Object.entries(selectedMasters) as Array<[string, { on: boolean; lots: string }]>).filter(([, v]) => v.on).map(([id, v]) => ({ id, lots: Number(v.lots) }));
       const data = await post({ action: "masters", receiverId: selectedReceiverId, consent: masterConsent, masters });
       if (data.status) applyStatus(data.status);
-      setConfigSaved(true);
-      setMessage("Configuration confirmée par le moteur de copie.");
+      setLastConfirmed(new Date().toLocaleString("fr-FR"));
+      setGuideStep(4);
+      setMessage("Association des Masters enregistrée. Vérifie les réglages de risque avant de considérer la configuration terminée.");
     } catch (cause) {
       setError(true);
       setMessage(cause instanceof Error ? cause.message : "Enregistrement impossible.");
@@ -735,28 +737,6 @@ export default function CopieurPage() {
       setMessage(cause instanceof Error ? cause.message : "Déconnexion impossible.");
     } finally {
       setBusy(false);
-    }
-  }
-
-  async function removeReceiver() {
-    if (!selectedReceiverId || selectedReceiverId === "legacy" || removeBusy || busy) return;
-    const name = selectedReceiverId && virtualReceivers.find((r) => r.id === selectedReceiverId)?.alias;
-    if (!window.confirm(`Retirer définitivement « ${name || "ce compte"} » de tes receveurs ?\nLa déconnexion sera demandée au moteur avant le retrait. Les positions déjà ouvertes ne sont pas clôturées automatiquement.`)) return;
-    setRemoveBusy(true);
-    setError(false);
-    try {
-      await post({ action: "remove", receiverId: selectedReceiverId, consent: true });
-      setSelectedReceiverId(null);
-      setSelectedStatus(null);
-      setSelectedMasters({});
-      setConfigSaved(false);
-      await loadRows();
-      setMessage("Compte déconnecté du moteur et retiré de ta liste de receveurs.");
-    } catch (cause) {
-      setError(true);
-      setMessage(cause instanceof Error ? cause.message : "Retrait impossible ; le compte est conservé.");
-    } finally {
-      setRemoveBusy(false);
     }
   }
 
@@ -801,6 +781,12 @@ export default function CopieurPage() {
     };
   }
 
+  function goToStep(step: 1 | 2 | 3 | 4) {
+    setGuideStep(step);
+    const anchor = step === 1 ? "copier-receivers" : step === 2 ? "copier-masters" : step === 3 ? "copier-risk" : "copier-summary";
+    requestAnimationFrame(() => document.getElementById(anchor)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }
+
   return (
     <main className="mx-auto max-w-[1500px] space-y-5 pb-10">
       <section className="relative overflow-hidden rounded-[28px] border border-[color:var(--gold-border)] bg-[color:var(--panel)]">
@@ -829,6 +815,35 @@ export default function CopieurPage() {
             <Metric label="Masters actifs" value={String(activeMasters.length)} />
             <Metric label="Accès bêta" value="Illimité" />
           </div>
+        </div>
+      </section>
+
+      <section aria-label="Assistant de configuration" className="rounded-[24px] border border-[color:var(--gold-border)] bg-[color:var(--panel)] p-5 md:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="text-[9px] font-bold uppercase tracking-[.16em] text-[color:var(--gold)]">Configuration guidée</div>
+            <h2 className="mt-1 text-xl font-semibold text-white">Configure ta copie étape par étape</h2>
+            <p className="mt-1 text-xs text-white/50">Chaque compte receveur peut avoir ses propres Masters et ses propres lots. Sélectionne un receveur pour commencer.</p>
+          </div>
+          <button type="button" onClick={() => setAddOpen(true)} className="inline-flex items-center gap-2 rounded-xl bg-[color:var(--gold)] px-4 py-3 text-xs font-semibold text-black"><Plus size={15}/> Ajouter un autre receveur</button>
+        </div>
+        <div className="mt-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          {([
+            { n: 1 as const, title: "1. Receveur", desc: "Choisis le compte qui recevra les ordres" },
+            { n: 2 as const, title: "2. Master", desc: "Active le Master pour ce receveur" },
+            { n: 3 as const, title: "3. Risque", desc: "Définis les lots et protections" },
+            { n: 4 as const, title: "4. Vérification", desc: "Contrôle ce qui a été enregistré" },
+          ]).map((item) => (
+            <button key={item.n} type="button" onClick={() => goToStep(item.n)} className={cn("rounded-xl border p-3 text-left transition-colors", guideStep === item.n ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]" : "border-white/[0.07] bg-black/20 hover:border-white/20")}>
+              <div className={cn("text-xs font-semibold", guideStep === item.n ? "text-[color:var(--gold)]" : "text-white")}>{item.title}</div>
+              <p className="mt-1 text-[10px] leading-4 text-white/45">{item.desc}</p>
+            </button>
+          ))}
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-2 text-[10px]">
+          <span className="text-white/45">Receveur sélectionné :</span>
+          <span className="font-semibold text-white">{selectedReceiverId ? (virtualReceivers.find((r) => r.id === selectedReceiverId)?.alias || "Chargement…") : "Aucun"}</span>
+          <span className="ml-auto text-white/40">Une connexion au moteur ne garantit pas une copie active ni une synchronisation MetaTrader.</span>
         </div>
       </section>
 
@@ -863,6 +878,7 @@ export default function CopieurPage() {
         </Panel>
       </section>
 
+      <div id="copier-receivers" className="scroll-mt-8">
       <Panel>
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <Heading eyebrow="RECEVEURS" title="Mes comptes de copie" text="Ajoute autant de comptes que nécessaire pendant la bêta. Les réglages viennent ensuite." icon={<WalletCards size={17} />} />
@@ -933,18 +949,12 @@ export default function CopieurPage() {
           </div>
         ) : null}
       </Panel>
+      </div>
 
       {selectedReceiver ? (
         <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-          <Panel className="xl:col-span-8">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <Heading eyebrow="CONFIGURATION" title={selectedReceiver.alias} text={`${selectedReceiver.platform} · ${selectedReceiver.login} · ${selectedReceiver.server}`} icon={<SlidersHorizontal size={17} />} />
-              {selectedReceiver.id !== "legacy" ? <button disabled={removeBusy || busy} onClick={() => void removeReceiver()} className="inline-flex items-center gap-2 rounded-xl border border-red-500/25 bg-red-500/[0.06] px-3 py-2 text-[10px] font-semibold text-red-300 disabled:opacity-40"><Trash2 size={13} /> {removeBusy ? "Retrait en cours…" : "Retirer ce receveur"}</button> : null}
-            </div>
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px]">
-              <span className={cn("rounded-full border px-3 py-1.5", selectedReceiver.status === "connected" ? "border-emerald-500/25 text-emerald-400" : "border-amber-500/25 text-amber-300")}>{selectedReceiver.status === "connected" ? "Compte connecté" : selectedReceiver.status === "paused" ? "Compte déconnecté" : "Connexion à vérifier"}</span>
-              {busy ? <span className="text-white/50">Synchronisation…</span> : configSaved && selectedStatus ? <span className="inline-flex items-center gap-1 text-emerald-400"><CheckCircle2 size={13}/> Réglages relus depuis le moteur</span> : <span className="text-amber-300">Modifications non confirmées</span>}
-            </div>
+          <div id="copier-masters" className="scroll-mt-8 xl:col-span-8"><Panel>
+            <Heading eyebrow="CONFIGURATION" title={selectedReceiver.alias} text={`${selectedReceiver.platform} · ${selectedReceiver.login} · ${selectedReceiver.server}`} icon={<SlidersHorizontal size={17} />} />
             <div className="mt-5 space-y-3">
               {(selectedStatus?.masterAccountsList || []).map((master, index) => {
                 const current = selectedMasters[master.id] || { on: false, lots: "0.01" };
@@ -991,10 +1001,12 @@ export default function CopieurPage() {
               })}
             </div>
             <label className="mt-5 flex items-start gap-3 rounded-2xl border border-white/[0.06] bg-black/20 p-4 text-[10px] leading-5 text-white/50"><input type="checkbox" checked={masterConsent} onChange={(e) => setMasterConsent(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[#d4a934]" /> Je confirme les stratégies et volumes sélectionnés.</label>
-            <div className="mt-4 flex items-center justify-between gap-3"><div className="text-[9px] text-white/30">{activeMasters.length} master(s) actif(s) · {totalLots.toFixed(2)} lots</div><button disabled={busy || !masterConsent} onClick={() => void saveMasters()} className="inline-flex h-11 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-xs font-semibold text-black disabled:opacity-40">{busy ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />} {busy ? "Enregistrement…" : "Enregistrer"}</button></div>
-          </Panel>
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><div className="text-[10px] text-white/50">{activeMasters.length} Master(s) sélectionné(s) · {totalLots.toFixed(2)} lots. Les changements restent en attente tant que tu n'as pas enregistré.</div><button disabled={busy || !masterConsent} onClick={() => void saveMasters()} className="inline-flex h-11 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-xs font-semibold text-black disabled:opacity-40">{busy ? <Loader2 size={14} className="animate-spin"/> : <ShieldCheck size={14} />} {busy ? "Enregistrement…" : "Enregistrer l'association"}</button></div>
+            {lastConfirmed ? <p role="status" className="mt-3 flex items-center gap-2 text-[11px] text-emerald-400"><CheckCircle2 size={14}/> Association enregistrée à {lastConfirmed}. Vérifie ensuite le Risk Engine.</p> : null}
+            <button type="button" onClick={() => goToStep(3)} className="mt-4 text-xs font-semibold text-[color:var(--gold)]">Étape suivante : régler le risque →</button>
+          </Panel></div>
 
-          <div className="space-y-4 xl:col-span-4">
+          <div id="copier-risk" className="scroll-mt-8 space-y-4 xl:col-span-4">
             <Panel>
               <Heading
                 eyebrow="RISK ENGINE"
@@ -1321,10 +1333,14 @@ export default function CopieurPage() {
         </section>
       ) : null}
 
-      <Panel>
+      <div id="copier-summary" className="scroll-mt-8"><Panel>
         <Heading eyebrow="VUE D’ENSEMBLE" title="InvestPro Copier" text="Architecture prête pour limiter les comptes selon l’abonnement plus tard." icon={<Sparkles size={17} />} />
-        <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4"><Summary label="Receveurs" value={String(virtualReceivers.length)} /><Summary label="Masters actifs" value={String(activeMasters.length)} /><Summary label="Mode actif" value={riskModeLabel(riskSettings.mode)} /><Summary label="Limite actuelle" value="Illimité · Bêta" green /></div>
-      </Panel>
+        <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4"><Summary label="Receveurs" value={String(virtualReceivers.length)} /><Summary label="Masters sélectionnés" value={String(activeMasters.length)} /><Summary label="Mode configuré" value={riskModeLabel(riskSettings.mode)} /><Summary label="Limite actuelle" value="Illimité · Bêta" green /></div>
+        <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4 text-[11px] leading-5 text-white/55">
+          <strong className="text-white">Avant de copier en réel :</strong> vérifie le compte receveur, l'association enregistrée, le mode de lots effectivement pris en charge et le statut opérationnel du moteur. Les soldes indisponibles restent affichés « — » jusqu'à synchronisation MetaTrader.
+        </div>
+        <button type="button" onClick={() => goToStep(1)} className="mt-4 inline-flex items-center gap-2 rounded-xl border border-[color:var(--gold-border)] px-4 py-2 text-xs text-[color:var(--gold)]"><Plus size={14}/> Configurer un autre compte receveur</button>
+      </Panel></div>
 
       {selectedReceiver && selectedStatus?.isTradingAccountConnected ? (
         <Panel>
