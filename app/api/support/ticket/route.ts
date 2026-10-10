@@ -45,9 +45,19 @@ export async function GET(request: Request) {
   const verified = await getUser(request);
   if ("response" in verified && verified.response) return verified.response;
 
-  const { user, supabase } = verified as any;
+  const { user } = verified as { user: { id: string } };
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    return NextResponse.json({ error: "Configuration serveur incomplète." }, { status: 500 });
+  }
+  // La session est vérifiée par getUser. La clé serveur permet de lire
+  // les tickets malgré les règles RLS; la requête reste limitée à user.id.
+  const serverDb = createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
 
-  const { data, error } = await supabase
+  const { data, error } = await serverDb
     .from("support_tickets")
     .select("id,subject,message,status,admin_reply,created_at,updated_at,answered_at")
     .eq("user_id", user.id)
@@ -55,8 +65,9 @@ export async function GET(request: Request) {
     .limit(30);
 
   if (error) {
+    console.error("[support/ticket] list failed", { code: error.code, message: error.message });
     return NextResponse.json(
-      { error: "Le module support n’est pas encore initialisé." },
+      { error: "Impossible de charger les conversations." },
       { status: 500 }
     );
   }
