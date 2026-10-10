@@ -73,6 +73,7 @@ export default function AdminInboxPage() {
   const [filter, setFilter] = useState<"all" | "support" | "bug" | "deletion">("all");
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
+  const [supportFilter,setSupportFilter]=useState<"all"|"open"|"closed">("all");
   const [reply, setReply] = useState("");
   const [note, setNote] = useState("");
   const [chatMessages,setChatMessages]=useState<ChatMessage[]>([]);
@@ -207,6 +208,7 @@ export default function AdminInboxPage() {
 
     return (data?.items || []).filter((item) => {
       if (filter !== "all" && item.kind !== filter) return false;
+      if(item.kind==="support" && supportFilter!=="all" && (supportFilter==="closed") !== (item.status==="closed")) return false;
       if (!q) return true;
 
       return [
@@ -220,7 +222,7 @@ export default function AdminInboxPage() {
         .toLowerCase()
         .includes(q);
     });
-  }, [data, filter, query]);
+  }, [data, filter, query, supportFilter]);
 
   if (loading) {
     return (
@@ -288,6 +290,9 @@ export default function AdminInboxPage() {
               />
             </div>
 
+            <div className="mt-3 flex flex-wrap gap-2">
+              {(["all", "open", "closed"] as const).map(v=><button key={v} type="button" onClick={()=>{setFilter("support");setSupportFilter(v)}} className={`rounded-lg border px-3 py-2 text-[10px] ${filter==="support"&&supportFilter===v?"border-amber-500 text-amber-300":"border-white/10 text-white/60"}`}>{v==="all"?"Tous les supports":v==="open"?"Ouverts / En cours":"Clôturés"}</button>)}
+            </div>
             <div className="mt-3 flex flex-wrap gap-2">
               {(["all", "support", "bug", "deletion"] as const).map((value) => (
                 <button
@@ -432,6 +437,14 @@ export default function AdminInboxPage() {
                   </div>
                 </div>
               </div>
+
+              {selected.kind === "support" ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button type="button" disabled={saving||status==="closed"} onClick={()=>setStatus("closed")} className="rounded-lg border border-amber-500/40 px-3 py-2 text-xs text-amber-300 disabled:opacity-40">Clôturer la conversation</button>
+                  <button type="button" disabled={saving||status!=="closed"} onClick={()=>setStatus("open")} className="rounded-lg border border-white/20 px-3 py-2 text-xs disabled:opacity-40">Rouvrir la conversation</button>
+                  <span className="self-center text-[10px] text-white/50">Clique ensuite sur « Enregistrer » pour confirmer.</span>
+                </div>
+              ) : null}
 
               {selected.kind === "support" ? (
                 <section className="mt-4 rounded-xl border border-amber-500/20 bg-black/20 p-3">
