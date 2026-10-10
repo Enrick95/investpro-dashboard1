@@ -317,6 +317,33 @@ export async function PATCH(request: Request) {
     );
   }
 
+  if (status === "activated" && current.status !== "activated") {
+    const eventKey = `copier-activation-${current.id}`;
+    const title = "Compte InvestPro Copier activé";
+    const message = `Votre compte ${String(current.alias || "MetaTrader").slice(0, 80)} est activé. Vous pouvez continuer sa configuration depuis InvestPro Copier.`;
+    const { error: notifError } = await admin.from("investpro_notifications").upsert({
+      user_id: current.user_id, event_key: eventKey, title, message, href: "/dashboard/copieur",
+    }, { onConflict: "event_key", ignoreDuplicates: true });
+    if (notifError) console.error("[copier-activation] notification non enregistrée", notifError.message);
+    // E-mail optionnel : uniquement si RESEND_API_KEY et INVESTPRO_EMAIL_FROM sont configurés.
+    const key = process.env.RESEND_API_KEY;
+    const sender = process.env.INVESTPRO_EMAIL_FROM;
+    if (key && sender && !notifError) {
+      try {
+        const { data: recipient } = await admin.auth.admin.getUserById(current.user_id);
+        const email = recipient?.user?.email;
+        if (email) {
+          const mail = await fetch("https://api.resend.com/emails", {
+            method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ from: sender, to: [email], subject: title,
+              text: `${message}\n\nhttps://www.investprotrading.fr/dashboard/copieur\n\nL’équipe InvestPro Trading` }),
+            signal: AbortSignal.timeout(8000),
+          });
+          if (!mail.ok) console.error("[copier-activation] e-mail non envoyé", mail.status);
+        }
+      } catch (mailError) { console.error("[copier-activation] e-mail indisponible", mailError); }
+    }
+  }
   return NextResponse.json({
     ok: true,
     message:
