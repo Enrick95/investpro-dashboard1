@@ -237,6 +237,9 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Statut invalide." }, { status: 400 });
     }
 
+    const { data: existing } = await admin.from("support_tickets").select("status").eq("id", id).maybeSingle();
+    if (!existing) return NextResponse.json({error:"Conversation introuvable"},{status:404});
+    if (existing.status === "closed") return NextResponse.json({error:"Une conversation clôturée ne peut pas être rouverte."},{status:409});
     const payload: any = {
       status,
       admin_note: adminNote || null,
@@ -254,7 +257,8 @@ export async function PATCH(request: Request) {
     const { error } = await admin
       .from("support_tickets")
       .update(payload)
-      .eq("id", id);
+      .eq("id", id)
+      .neq("status", "closed");
 
     if (error) throw error;
   }

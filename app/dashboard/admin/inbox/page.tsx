@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
-type ChatMessage = {id:string;sender_role:string;body:string;created_at:string};
+type ChatMessage = {id:string;sender_role:string;body:string;created_at:string;attachment_url?: string | null;};
 type Item = {
   kind: "support" | "bug" | "deletion";
   id: string;
@@ -79,6 +79,7 @@ export default function AdminInboxPage() {
   const [chatMessages,setChatMessages]=useState<ChatMessage[]>([]);
   const [chatDraft,setChatDraft]=useState("");
   const [chatBusy,setChatBusy]=useState(false);
+  const [chatFile,setChatFile]=useState<File|null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -154,6 +155,7 @@ export default function AdminInboxPage() {
     const token=await getToken();if(!token)return;
     try{const r=await fetch(`/api/admin/support/messages?ticket_id=${encodeURIComponent(id)}`,{headers:{Authorization:`Bearer ${token}`},cache:"no-store"});const j=await r.json();if(r.ok)setChatMessages(j.messages||[]);else setError(j.error||"Historique indisponible")}catch{setError("Historique indisponible")}
   }
+  async function sendChatFile(){if(!selected||!chatFile)return;setChatBusy(true);try{const token=await getToken();if(!token)throw Error("Non authentifié");const fd=new FormData();fd.set("ticket_id",selected.id);fd.set("file",chatFile);const r=await fetch("/api/admin/support/attachment",{method:"POST",headers:{Authorization:`Bearer ${token}`},body:fd});const j=await r.json();if(!r.ok)throw Error(j.error||"Erreur");setChatFile(null);await loadChat(selected.id)}catch(e:any){setError(e.message||"Erreur")}finally{setChatBusy(false)}}
   async function sendChat(){
     if(!selected||selected.kind!=="support"||!chatDraft.trim())return;
     setChatBusy(true);setError("");
@@ -165,6 +167,27 @@ export default function AdminInboxPage() {
     setStatus(item.status);
     setReply(item.admin_reply || "");
     setNote(item.admin_note || "");
+  }
+
+  async function closeConversation() {
+    if (!selected || selected.kind !== "support" || selected.status === "closed") return;
+    if (!window.confirm("Clôturer définitivement cette conversation ? Le client devra ouvrir une nouvelle demande.")) return;
+    setSaving(true);setError("");
+    try {
+      const token = await getToken();
+      if (!token) throw new Error("Session expirée");
+      const response = await fetch("/api/admin/inbox", {
+        method: "PATCH",
+        headers: {Authorization: `Bearer ${token}`, "Content-Type": "application/json"},
+        body: JSON.stringify({kind:"support", id:selected.id, user_id:selected.user_id,status:"closed",admin_note:note})
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Clôture impossible");
+      setStatus("closed");
+      await load(true);
+      await loadChat(selected.id);
+    } catch (e) { setError(e instanceof Error ? e.message : "Clôture impossible"); }
+    finally {setSaving(false);}
   }
 
   async function save() {
@@ -440,9 +463,9 @@ export default function AdminInboxPage() {
 
               {selected.kind === "support" ? (
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <button type="button" disabled={saving||status==="closed"} onClick={()=>setStatus("closed")} className="rounded-lg border border-amber-500/40 px-3 py-2 text-xs text-amber-300 disabled:opacity-40">Clôturer la conversation</button>
-                  <button type="button" disabled={saving||status!=="closed"} onClick={()=>setStatus("open")} className="rounded-lg border border-white/20 px-3 py-2 text-xs disabled:opacity-40">Rouvrir la conversation</button>
-                  <span className="self-center text-[10px] text-white/50">Clique ensuite sur « Enregistrer » pour confirmer.</span>
+                  <button type="button" disabled={saving||status==="closed"} onClick={()=>void closeConversation()} className="rounded-lg border border-amber-500/40 px-3 py-2 text-xs text-amber-300 disabled:opacity-40">Clôturer la conversation</button>
+
+                  <span className="self-center text-[10px] text-white/50">La clôture est définitive et enregistrée immédiatement.</span>
                 </div>
               ) : null}
 
@@ -450,10 +473,12 @@ export default function AdminInboxPage() {
                 <section className="mt-4 rounded-xl border border-amber-500/20 bg-black/20 p-3">
                   <div className="mb-2 text-xs font-semibold text-amber-300">Conversation avec le membre</div>
                   <div className="max-h-64 min-h-32 space-y-2 overflow-y-auto rounded-lg border border-white/10 p-2">
-                    {chatMessages.map(m=><div key={m.id} className={`flex ${m.sender_role==="staff"?"justify-end":"justify-start"}`}><div className={`max-w-[85%] rounded-xl p-2 text-xs ${m.sender_role==="staff"?"bg-amber-500/20":"bg-white/10"}`}><div className="mb-1 text-[10px] text-amber-300">{m.sender_role==="staff"?"Équipe InvestPro":"Client"}</div><div className="whitespace-pre-wrap break-words">{m.body}</div><div className="mt-1 text-[9px] text-white/40">{dateLabel(m.created_at)}</div></div></div>)}
+                    {chatMessages.map(m=><div key={m.id} className={`flex ${m.sender_role==="staff"?"justify-end":"justify-start"}`}><div className={`max-w-[85%] rounded-xl p-2 text-xs ${m.sender_role==="staff"?"bg-amber-500/20":"bg-white/10"}`}><div className="mb-1 text-[10px] text-amber-300">{m.sender_role==="staff"?"Équipe InvestPro":"Client"}</div><div className="whitespace-pre-wrap break-words">{m.body}</div>{m.attachment_url?<a href={m.attachment_url} target="_blank" rel="noopener noreferrer"><img src={m.attachment_url} alt="Pièce jointe" className="mt-2 max-h-44 rounded"/></a>:null}<div className="mt-1 text-[9px] text-white/40">{dateLabel(m.created_at)}</div></div></div>)}
                   </div>
+                  {status==="closed"?<p className="mt-2 text-xs text-amber-300">🔒 Conversation définitivement clôturée.</p>:null}
+                  {status!=="closed"?<div className="mt-3 flex gap-2 text-xs"><input type="file" aria-label="Envoyer une image" accept="image/png,image/jpeg,image/webp" onChange={e=>setChatFile(e.target.files?.[0]||null)} className="min-w-0"/>{chatFile?<button type="button" disabled={chatBusy} onClick={()=>void sendChatFile()} className="rounded bg-amber-400 px-2 text-black">Envoyer l’image</button>:null}</div>:null}
                   <textarea value={chatDraft} onChange={e=>setChatDraft(e.target.value)} maxLength={8000} rows={3} placeholder="Répondre au client…" className="mt-3 w-full rounded-lg border border-white/10 bg-black/30 p-3 text-xs text-white"/>
-                  <button type="button" onClick={()=>void sendChat()} disabled={chatBusy||!chatDraft.trim()} className="mt-2 w-full rounded-lg bg-amber-400 p-3 text-xs font-bold text-black disabled:opacity-40">{chatBusy?"Envoi en cours…":"Envoyer la réponse"}</button>
+                  <button type="button" onClick={()=>void sendChat()} disabled={chatBusy||!chatDraft.trim()||status==="closed"} className="mt-2 w-full rounded-lg bg-amber-400 p-3 text-xs font-bold text-black disabled:opacity-40">{chatBusy?"Envoi en cours…":"Envoyer la réponse"}</button>
                   <p className="mt-2 text-[10px] text-white/50">Une réponse envoyée déclenche une notification dans InvestPro.</p>
                 </section>
               ) : null}

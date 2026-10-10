@@ -10,9 +10,9 @@ export async function GET(req:Request){
  if(!/^[0-9a-f-]{36}$/i.test(id))return NextResponse.json({error:"Conversation invalide"},{status:400});
  const {data:ticket}=await ctx.admin.from("support_tickets").select("id").eq("id",id).maybeSingle();
  if(!ticket)return NextResponse.json({error:"Conversation introuvable"},{status:404});
- const {data,error}=await ctx.admin.from("support_messages").select("id,sender_role,body,created_at").eq("ticket_id",id).order("created_at",{ascending:true}).limit(300);
+ const {data,error}=await ctx.admin.from("support_messages").select("id,sender_role,body,created_at,attachment_path").eq("ticket_id",id).order("created_at",{ascending:true}).limit(300);
  if(error){console.error("[admin/chat] read",error.code);return NextResponse.json({error:"Historique indisponible"},{status:503});}
- return NextResponse.json({messages:data||[]},{headers:{"Cache-Control":"no-store"}});
+ return NextResponse.json({messages:await Promise.all((data||[]).map(async (m:any)=>({...m,attachment_url:m.attachment_path?(await ctx.admin.storage.from("support-attachments").createSignedUrl(m.attachment_path,600)).data?.signedUrl||null:null})))},{headers:{"Cache-Control":"no-store"}});
 }
 export async function POST(req:Request){
  const permitted=await authenticateAdmin(req,"inbox_write");if("error" in permitted)return NextResponse.json({error:permitted.error},{status:permitted.status});
@@ -21,8 +21,8 @@ export async function POST(req:Request){
  if(!/^[0-9a-f-]{36}$/i.test(id)||body.length<1||body.length>8000)return NextResponse.json({error:"Message invalide"},{status:400});
  const {data:ticket}=await ctx.admin.from("support_tickets").select("id,user_id,status").eq("id",id).maybeSingle();
  if(!ticket)return NextResponse.json({error:"Conversation introuvable"},{status:404});
- if(ticket.status==="closed")return NextResponse.json({error:"Rouvrez la conversation avant de répondre"},{status:409});
- const {data,error}=await ctx.admin.from("support_messages").insert({ticket_id:id,sender_id:ctx.user.id,sender_role:"staff",body}).select("id,sender_role,body,created_at").single();
+ if(ticket.status==="closed")return NextResponse.json({error:"Conversation définitivement clôturée"},{status:409});
+ const {data,error}=await ctx.admin.from("support_messages").insert({ticket_id:id,sender_id:ctx.user.id,sender_role:"staff",body}).select("id,sender_role,body,created_at,attachment_path").single();
  if(error){console.error("[admin/chat] insert",error.code);return NextResponse.json({error:"Réponse impossible"},{status:503});}
  const now=new Date().toISOString();
  await ctx.admin.from("support_tickets").update({status:"answered",admin_reply:body,answered_at:now,updated_at:now,assigned_admin_id:ctx.user.id}).eq("id",id);
