@@ -9,7 +9,10 @@ export default function InvestProHelpCenter(){
  const [open,setOpen]=useState(false),[tab,setTab]=useState<"help"|"notices">("help");
  const [subject,setSubject]=useState("InvestPro Copier"),[message,setMessage]=useState(""),[busy,setBusy]=useState(false),[feedback,setFeedback]=useState("");
  const [tickets,setTickets]=useState<Ticket[]>([]),[notices,setNotices]=useState<Notice[]>([]);
- async function headers(){const {data:{session}}=await db.auth.getSession();return session?.access_token?{Authorization:`Bearer ${session.access_token}`}:{ };}
+ async function headers(): Promise<Record<string, string>> {
+  const { data: { session } } = await db.auth.getSession();
+  return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
+ }
  async function load(){try{const h=await headers();const [t,n]=await Promise.all([
  fetch("/api/support/ticket",{headers:h,cache:"no-store"}),fetch("/api/notifications",{cache:"no-store"})]);
  if(t.ok)setTickets((await t.json()).tickets||[]);if(n.ok)setNotices((await n.json()).notifications||[]);
