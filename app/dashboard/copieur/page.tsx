@@ -25,6 +25,7 @@ import {
   Unplug,
   WalletCards,
   X,
+  Trash2,
   Zap,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -371,11 +372,11 @@ export default function CopieurPage() {
   const [riskSavedAt, setRiskSavedAt] = useState<string>("");
   const [riskBusy, setRiskBusy] = useState(false);
   const [masterConsent, setMasterConsent] = useState(false);
-  const [masterSaveState, setMasterSaveState] = useState<"idle" | "saving" | "saved" | "failed">("idle");
-  const [riskSaveState, setRiskSaveState] = useState<"idle" | "saving" | "saved" | "pending" | "failed">("idle");
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [disconnectOpen, setDisconnectOpen] = useState(false);
   const [disconnectConsent, setDisconnectConsent] = useState(false);
+  const [configSaved, setConfigSaved] = useState(false);
+  const [removeBusy, setRemoveBusy] = useState(false);
   const [requestOpen, setRequestOpen] = useState(false);
   const [activationRequests, setActivationRequests] = useState<ActivationRequest[]>([]);
   const [requestBusy, setRequestBusy] = useState(false);
@@ -516,6 +517,7 @@ export default function CopieurPage() {
     setSelectedStatus(status);
     setSelectedMasters(Object.fromEntries(status.masterAccountsList.map((m) => [m.id, { on: m.userIsSubscribed, lots: String(m.lots) }])));
     setMasterConsent(false);
+    setConfigSaved(true);
     setChecked(new Date().toLocaleString("fr-FR"));
   }
 
@@ -632,13 +634,13 @@ export default function CopieurPage() {
   function toggleMaster(id: string) {
     setSelectedMasters((cur) => ({ ...cur, [id]: { ...(cur[id] || { lots: "0.01" }), on: !cur[id]?.on } }));
     setMasterConsent(false);
-    setMasterSaveState("idle");
+    setConfigSaved(false);
   }
 
   function changeLots(id: string, lots: string) {
     setSelectedMasters((cur) => ({ ...cur, [id]: { ...(cur[id] || { on: false }), lots } }));
     setMasterConsent(false);
-    setMasterSaveState("idle");
+    setConfigSaved(false);
   }
 
   async function saveRiskSettings() {
@@ -651,7 +653,6 @@ export default function CopieurPage() {
     }
 
     setRiskBusy(true);
-    setRiskSaveState("saving");
     setError(false);
 
     try {
@@ -679,7 +680,6 @@ export default function CopieurPage() {
       }));
 
       await loadRows();
-      setRiskSaveState(data.requestStatus === "pending" ? "pending" : "saved");
 
       if (riskSettings.mode === "fixed") {
         setMessage(
@@ -691,7 +691,6 @@ export default function CopieurPage() {
         );
       }
     } catch (cause) {
-      setRiskSaveState("failed");
       setError(true);
       setMessage(
         cause instanceof Error
@@ -706,16 +705,14 @@ export default function CopieurPage() {
   async function saveMasters() {
     if (!selectedReceiverId) return;
     setBusy(true);
-    setMasterSaveState("saving");
     setError(false);
     try {
       const masters = (Object.entries(selectedMasters) as Array<[string, { on: boolean; lots: string }]>).filter(([, v]) => v.on).map(([id, v]) => ({ id, lots: Number(v.lots) }));
       const data = await post({ action: "masters", receiverId: selectedReceiverId, consent: masterConsent, masters });
       if (data.status) applyStatus(data.status);
-      setMasterSaveState("saved");
+      setConfigSaved(true);
       setMessage("Configuration confirmée par le moteur de copie.");
     } catch (cause) {
-      setMasterSaveState("failed");
       setError(true);
       setMessage(cause instanceof Error ? cause.message : "Enregistrement impossible.");
     } finally {
@@ -738,6 +735,28 @@ export default function CopieurPage() {
       setMessage(cause instanceof Error ? cause.message : "Déconnexion impossible.");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function removeReceiver() {
+    if (!selectedReceiverId || selectedReceiverId === "legacy" || removeBusy || busy) return;
+    const name = selectedReceiverId && virtualReceivers.find((r) => r.id === selectedReceiverId)?.alias;
+    if (!window.confirm(`Retirer définitivement « ${name || "ce compte"} » de tes receveurs ?\nLa déconnexion sera demandée au moteur avant le retrait. Les positions déjà ouvertes ne sont pas clôturées automatiquement.`)) return;
+    setRemoveBusy(true);
+    setError(false);
+    try {
+      await post({ action: "remove", receiverId: selectedReceiverId, consent: true });
+      setSelectedReceiverId(null);
+      setSelectedStatus(null);
+      setSelectedMasters({});
+      setConfigSaved(false);
+      await loadRows();
+      setMessage("Compte déconnecté du moteur et retiré de ta liste de receveurs.");
+    } catch (cause) {
+      setError(true);
+      setMessage(cause instanceof Error ? cause.message : "Retrait impossible ; le compte est conservé.");
+    } finally {
+      setRemoveBusy(false);
     }
   }
 
@@ -918,7 +937,14 @@ export default function CopieurPage() {
       {selectedReceiver ? (
         <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
           <Panel className="xl:col-span-8">
-            <Heading eyebrow="CONFIGURATION" title={selectedReceiver.alias} text={`${selectedReceiver.platform} · ${selectedReceiver.login} · ${selectedReceiver.server}`} icon={<SlidersHorizontal size={17} />} />
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <Heading eyebrow="CONFIGURATION" title={selectedReceiver.alias} text={`${selectedReceiver.platform} · ${selectedReceiver.login} · ${selectedReceiver.server}`} icon={<SlidersHorizontal size={17} />} />
+              {selectedReceiver.id !== "legacy" ? <button disabled={removeBusy || busy} onClick={() => void removeReceiver()} className="inline-flex items-center gap-2 rounded-xl border border-red-500/25 bg-red-500/[0.06] px-3 py-2 text-[10px] font-semibold text-red-300 disabled:opacity-40"><Trash2 size={13} /> {removeBusy ? "Retrait en cours…" : "Retirer ce receveur"}</button> : null}
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px]">
+              <span className={cn("rounded-full border px-3 py-1.5", selectedReceiver.status === "connected" ? "border-emerald-500/25 text-emerald-400" : "border-amber-500/25 text-amber-300")}>{selectedReceiver.status === "connected" ? "Compte connecté" : selectedReceiver.status === "paused" ? "Compte déconnecté" : "Connexion à vérifier"}</span>
+              {busy ? <span className="text-white/50">Synchronisation…</span> : configSaved && selectedStatus ? <span className="inline-flex items-center gap-1 text-emerald-400"><CheckCircle2 size={13}/> Réglages relus depuis le moteur</span> : <span className="text-amber-300">Modifications non confirmées</span>}
+            </div>
             <div className="mt-5 space-y-3">
               {(selectedStatus?.masterAccountsList || []).map((master, index) => {
                 const current = selectedMasters[master.id] || { on: false, lots: "0.01" };
@@ -965,7 +991,7 @@ export default function CopieurPage() {
               })}
             </div>
             <label className="mt-5 flex items-start gap-3 rounded-2xl border border-white/[0.06] bg-black/20 p-4 text-[10px] leading-5 text-white/50"><input type="checkbox" checked={masterConsent} onChange={(e) => setMasterConsent(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[#d4a934]" /> Je confirme les stratégies et volumes sélectionnés.</label>
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><div><div className="text-[9px] text-white/30">{activeMasters.length} master(s) actif(s) · {totalLots.toFixed(2)} lots</div><div role="status" aria-live="polite" className={cn("mt-2 flex items-center gap-1.5 text-[11px]", masterSaveState === "saved" ? "text-emerald-400" : masterSaveState === "failed" ? "text-red-400" : "text-white/45")}>{masterSaveState === "saved" ? <><CheckCircle2 size={14}/> Enregistré et confirmé par le moteur</> : masterSaveState === "saving" ? <><Loader2 size={14} className="animate-spin"/> Enregistrement en cours…</> : masterSaveState === "failed" ? <><AlertTriangle size={14}/> Échec : configuration non confirmée</> : "Coche la confirmation, puis enregistre tes changements."}</div></div><button disabled={busy || !masterConsent} onClick={() => void saveMasters()} className="inline-flex h-11 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-xs font-semibold text-black disabled:opacity-40">{masterSaveState === "saving" ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />} {masterSaveState === "saving" ? "Enregistrement…" : "Enregistrer"}</button></div>
+            <div className="mt-4 flex items-center justify-between gap-3"><div className="text-[9px] text-white/30">{activeMasters.length} master(s) actif(s) · {totalLots.toFixed(2)} lots</div><button disabled={busy || !masterConsent} onClick={() => void saveMasters()} className="inline-flex h-11 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-xs font-semibold text-black disabled:opacity-40">{busy ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />} {busy ? "Enregistrement…" : "Enregistrer"}</button></div>
           </Panel>
 
           <div className="space-y-4 xl:col-span-4">
@@ -1123,12 +1149,14 @@ export default function CopieurPage() {
                 ) : (
                   <ShieldCheck size={13} />
                 )}
-                {riskBusy ? "Enregistrement…" : "Enregistrer le Risk Engine"}
+                Enregistrer le Risk Engine
               </button>
 
-              <div role="status" aria-live="polite" className={cn("mt-2 text-center text-[10px]", riskSaveState === "failed" ? "text-red-400" : riskSaveState === "saved" ? "text-emerald-400" : riskSaveState === "pending" ? "text-amber-400" : "text-white/40")}>
-                {riskSaveState === "saving" ? "Enregistrement en cours…" : riskSaveState === "pending" ? "Réglages enregistrés · application au moteur en attente de validation admin" : riskSaveState === "saved" ? `Réglages enregistrés dans InvestPro à ${riskSavedAt} · vérifier l'état réel du moteur` : riskSaveState === "failed" ? "Enregistrement non confirmé. Consulte le message d'erreur." : "Les modes avancés ne sont pas appliqués automatiquement au moteur."}
-              </div>
+              {riskSavedAt ? (
+                <div className="mt-2 text-center text-[8px] text-emerald-400/70">
+                  Enregistré à {riskSavedAt}
+                </div>
+              ) : null}
             </Panel>
 
             <Panel>

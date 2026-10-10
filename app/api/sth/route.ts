@@ -176,7 +176,7 @@ export async function POST(req: Request) {
       };
       await assertOwnedMasters(db, user.id, Array.from(ids));
       endpoint = "join-master-account";
-    } else if (b.action === "disconnect" && b.consent === true) {
+    } else if ((b.action === "disconnect" || b.action === "remove") && b.consent === true) {
       providerUserId = await providerUserFor(db, user.id, receiverId);
       endpoint = "disconnect";
     } else {
@@ -198,7 +198,14 @@ export async function POST(req: Request) {
         patch.last_connected_at = new Date().toISOString();
       }
       if (b.action === "disconnect") patch.status = "paused";
-      await db.from("copier_receivers").update(patch).eq("id", receiverId).eq("user_id", user.id);
+      if (b.action === "remove") {
+        // Ne retirer la ligne locale qu'après une déconnexion confirmée par le partenaire.
+        const result = await db.from("copier_receivers").delete().eq("id", receiverId).eq("user_id", user.id).select("id");
+        if (result.error || !result.data || result.data.length !== 1) throw Error("DB");
+      } else {
+        const result = await db.from("copier_receivers").update(patch).eq("id", receiverId).eq("user_id", user.id);
+        if (result.error) throw Error("DB");
+      }
     }
 
     const owned = await ownedMasterIds(db, user.id);
