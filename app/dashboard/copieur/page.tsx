@@ -138,7 +138,7 @@ const BROKER_SERVER_PRESETS: Record<"MT4" | "MT5", BrokerServerPreset[]> = {
     },
     {
       broker: "Fusion Markets",
-      servers: ["FusionMarkets-Demo", "FusionMarkets-Live", "FusionMarkets-Live 3"],
+      servers: ["FusionMarkets-Demo", "FusionMarkets-Live", "FusionMarkets-Live 3", "FusionMarkets-Live3"],
     },
     {
       broker: "PU Prime",
@@ -325,6 +325,7 @@ function cn(...items: Array<string | false | null | undefined>) {
 }
 
 function money(v: unknown, c = "USD") {
+  if (v === null || v === undefined || v === "") return "—";
   const n = Number(v);
   if (!Number.isFinite(n)) return "—";
   return `${n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${c}`;
@@ -658,6 +659,7 @@ export default function CopieurPage() {
         body: JSON.stringify({
           receiverId: selectedReceiverId,
           settings: riskSettings,
+          masters: (selectedStatus?.masterAccountsList || []).filter((m) => selectedMasters[m.id]?.on).map((m) => ({ id: m.id, name: m.name, lots: Number(selectedMasters[m.id]?.lots || 0.01) })),
         }),
       });
 
@@ -679,7 +681,7 @@ export default function CopieurPage() {
         );
       } else {
         setMessage(
-          "Réglages enregistrés dans InvestPro. Cette configuration sera appliquée après validation par l’équipe InvestPro."
+          "Demande de Risk Engine envoyée à l’équipe InvestPro. Le réglage actuel reste en place jusqu’à confirmation."
         );
       }
     } catch (cause) {

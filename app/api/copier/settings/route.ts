@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { assertOwnedMasters } from "@/lib/copier/masterOwnership";
 
 type RiskMode = "fixed" | "mirror" | "balance" | "equity" | "percent";
 
@@ -87,6 +89,11 @@ export async function PATCH(request: Request) {
 
     const riskEngine = cleanSettings(body?.settings || {});
 
+    if (riskEngine.mode !== "fixed") {
+      const masters = Array.isArray(body?.masters) ? body.masters : [];
+      if (!masters.length) return NextResponse.json({ error: "Active au moins un Master pour demander ce mode." }, { status: 400 });
+    }
+
     const { error: updateError } = await supabase
       .from("copier_receivers")
       .update({
@@ -106,10 +113,45 @@ export async function PATCH(request: Request) {
       );
     }
 
+    // Les modes avancés ne sont pas pris en charge par les endpoints partenaire connus.
+    // On crée donc une demande de traitement, y compris pour le compte du propriétaire.
+    let requestStatus = "not_required";
+    if (riskEngine.mode !== "fixed") {
+      const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!url || !service) return NextResponse.json({ error: "Configuration serveur incomplète." }, { status: 503 });
+      const admin = createAdminClient(url, service, { auth: { persistSession: false, autoRefreshToken: false } });
+      const rawMasters = Array.isArray(body?.masters) ? body.masters.slice(0, 30) : [];
+      const masters = rawMasters.map((m: any) => ({
+        id: String(m?.id || ""),
+        name: String(m?.name || "Master").slice(0, 200),
+        lots: numberIn(m?.lots, 0.001, 1000, 0.01),
+      }));
+      if (!masters.length || masters.some((m: any) => !m.id || m.id.length > 200)) {
+        return NextResponse.json({ error: "Active au moins un Master avant de demander ce mode de risque." }, { status: 400 });
+      }
+      try { await assertOwnedMasters(admin, user.id, masters.map((m: any) => m.id)); }
+      catch { return NextResponse.json({ error: "Master non autorisé." }, { status: 403 }); }
+      const requestedConfig = {
+        masters,
+        risk: Object.fromEntries(Object.entries(riskEngine).filter(([key]) => !["updated_at", "provider_sync"].includes(key))),
+        submitted_at: new Date().toISOString(),
+      };
+      const { data: existing } = await admin.from("copier_configuration_requests")
+        .select("id").eq("user_id", user.id).eq("receiver_id", receiverId)
+        .in("status", ["pending", "processing"]).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      const action = existing?.id
+        ? admin.from("copier_configuration_requests").update({ requested_config: requestedConfig, status: "pending", admin_note: null, updated_at: new Date().toISOString() }).eq("id", existing.id)
+        : admin.from("copier_configuration_requests").insert({ user_id: user.id, receiver_id: receiverId, requested_config: requestedConfig, status: "pending" });
+      const { error: requestError } = await action;
+      if (requestError) return NextResponse.json({ error: "Réglage sauvegardé, mais demande admin non transmise. Réessayez." }, { status: 503 });
+      requestStatus = "pending";
+    }
     return NextResponse.json({
       ok: true,
       settings: riskEngine,
       providerSync: riskEngine.provider_sync,
+      requestStatus,
     });
   } catch (error) {
     console.error("[copier/settings][PATCH]", error);
