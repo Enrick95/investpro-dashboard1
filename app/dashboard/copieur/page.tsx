@@ -964,7 +964,17 @@ export default function CopieurPage() {
           <section className="relative overflow-hidden rounded-[22px] border border-emerald-500/15 bg-[color:var(--panel)] p-4 md:p-5">
             <div className="pointer-events-none absolute -right-12 -top-14 h-36 w-36 rounded-full bg-cyan-300/[0.06] blur-2xl" />
             <div className="relative flex items-start justify-between gap-3"><div><div className="text-sm font-semibold text-white">Protection &amp; risque</div><div className="mt-1 text-[10px] text-white/40">Réglages du receveur sélectionné</div></div><span className={cn("rounded-full border px-2.5 py-1 text-[8px] font-semibold", riskSaveState === "saved" ? "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-300" : "border-white/[0.08] bg-white/[0.03] text-white/45")}>{riskSaveState === "saved" ? "Enregistré" : riskSaveState === "pending" ? "En attente" : "À vérifier"}</span></div>
-            <div className="mt-4 flex items-center gap-3 rounded-xl bg-emerald-500/[0.055] p-3"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-300"><ShieldCheck size={17} /></span><div><div className="text-[11px] font-semibold text-emerald-200">{riskSettings.drawdown_enabled ? "Protection drawdown active" : "Protection drawdown inactive"}</div><div className="mt-0.5 text-[9px] text-white/40">{riskSettings.drawdown_enabled ? `Limite définie à ${riskSettings.max_drawdown_percent}%` : "Active-la dans les réglages avancés"}</div></div></div>
+            {riskSettings.drawdown_enabled ? (
+              <div className="mt-4 flex items-center gap-3 rounded-xl border border-emerald-500/10 bg-emerald-500/[0.055] p-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-300"><ShieldCheck size={17} /></span>
+                <div><div className="text-[11px] font-semibold text-emerald-200">Protection drawdown active</div><div className="mt-0.5 text-[9px] text-white/40">Limite définie à {riskSettings.max_drawdown_percent}%</div></div>
+              </div>
+            ) : (
+              <div className="mt-4 flex items-center gap-3 rounded-xl border border-amber-500/10 bg-amber-500/[0.045] p-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/[0.08] text-amber-300"><AlertTriangle size={16} /></span>
+                <div><div className="text-[11px] font-semibold text-amber-200">Seuil de perte à définir</div><div className="mt-0.5 text-[9px] text-white/45">Configure une limite pour activer la protection drawdown.</div></div>
+              </div>
+            )}
             <div className="mt-3 space-y-0.5"><div className="flex justify-between gap-3 border-t border-white/[0.06] py-2 text-[10px]"><span className="text-white/45">Mode de calcul</span><strong className="text-white/75">{riskModeLabel(riskSettings.mode)}</strong></div><div className="flex justify-between gap-3 border-t border-white/[0.06] py-2 text-[10px]"><span className="text-white/45">Volume maximum</span><strong className="text-white/75">{riskSettings.max_lots} lots</strong></div></div>
             <button type="button" disabled={!selectedReceiver || selectedReceiver.id === "legacy"} onClick={() => setRiskModalOpen(true)} className="mt-2 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 text-[10px] font-semibold text-[color:var(--gold)] transition hover:bg-[color:var(--gold-soft)]/80 disabled:cursor-not-allowed disabled:opacity-40"><Settings2 size={13} /> Régler le risque</button>
           </section>
@@ -973,9 +983,9 @@ export default function CopieurPage() {
         <section className="grid grid-cols-1 gap-5 xl:grid-cols-[0.9fr_1.7fr]">
           <section className="rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4 md:p-6">
             <div className="flex items-start justify-between gap-3"><div><div className="text-[12px] font-semibold text-white">Compte Master (source)</div><div className="mt-1 text-[10px] text-white/35">Compte sélectionné pour piloter la copie</div></div><State active={Boolean(approvedMaster)} label={approvedMaster ? "Approuvé" : "À approuver"} /></div>
-            <div className="mt-5 rounded-[22px] border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4">
-              <div className="flex items-center justify-between gap-3"><div className="min-w-0"><div className="text-2xl font-semibold text-white">{approvedMaster?.alias || "Aucun Master approuvé"}</div><div className="mt-1 text-[11px] text-white/40">{approvedMaster ? `#${approvedMaster.login} • ${approvedMaster.server}` : "La demande de Master doit être approuvée par un administrateur."}</div></div><button className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-black/20 text-white/70"><Settings2 size={16} /></button></div>
-              <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3"><MiniMetric label="Equity" value={masterEquity == null ? "—" : money(masterEquity, masterCurrency)} /><MiniMetric label="Solde" value={masterBalance == null ? "En attente de sync" : money(masterBalance, masterCurrency)} /><MiniMetric label="P&L jour" value={masterPnl == null ? "—" : money(masterPnl, masterCurrency)} positive={Number(masterPnl) > 0} negative={Number(masterPnl) < 0} /></div>
+            <div className="mt-4 rounded-[18px] border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-3 md:mt-5 md:rounded-[22px] md:p-4">
+              <div className="flex items-center justify-between gap-3"><div className="min-w-0"><div className="break-words text-lg font-semibold leading-tight text-white md:text-2xl">{approvedMaster?.alias || "Aucun Master approuvé"}</div><div className="mt-1 text-[10px] text-white/40 md:text-[11px]">{approvedMaster ? `#${approvedMaster.login} • ${approvedMaster.server}` : "La demande de Master doit être approuvée par un administrateur."}</div></div><button className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/20 text-white/70 md:h-10 md:w-10"><Settings2 size={15} /></button></div>
+              <div className="mt-3 grid grid-cols-3 gap-2 md:mt-5 md:gap-3">{[["Equity", masterEquity == null ? "—" : money(masterEquity, masterCurrency)], ["Solde", masterBalance == null ? "En attente de sync" : money(masterBalance, masterCurrency)], ["P&L jour", masterPnl == null ? "—" : money(masterPnl, masterCurrency)]].map(([label, value], index) => <div key={label} className="min-w-0 rounded-lg border border-white/[0.06] bg-black/20 p-2 md:rounded-xl md:p-3"><div className="text-[7px] uppercase tracking-[0.06em] text-white/30 md:text-[9px] md:tracking-[0.08em]">{label}</div><div className={cn("mt-1 break-words text-[10px] font-semibold leading-snug md:mt-2 md:text-lg", index === 2 && Number(masterPnl) > 0 ? "text-emerald-400" : index === 2 && Number(masterPnl) < 0 ? "text-red-400" : "text-white")}>{value}</div></div>)}</div>
             </div>
 
           </section>
@@ -1273,11 +1283,11 @@ export default function CopieurPage() {
         </div>
       ) : null}
 
-      {addOpen ? (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
-          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[26px] border border-[color:var(--gold-border)] bg-[#0b0d0b] shadow-2xl">
-            <div className="flex items-start justify-between border-b border-white/[0.06] p-5 md:p-6"><div><div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1 text-[8px] font-bold uppercase text-[color:var(--gold)]"><Plus size={11} /> Nouveau receveur</div><h2 className="mt-3 text-xl font-semibold text-white">Ajouter un compte</h2><p className="mt-1 text-[10px] leading-5 text-white/35">Connexion uniquement. Aucun lot ni risque à régler ici.</p></div><button onClick={() => setAddOpen(false)} className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/45"><X size={17} /></button></div>
-            <div className="p-5 md:p-6">
+      {addOpen && typeof document !== "undefined" ? createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-start justify-center overflow-y-auto bg-black/75 px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-[max(12px,env(safe-area-inset-top))] backdrop-blur-sm md:items-center md:overflow-hidden md:p-4">
+          <div role="dialog" aria-modal="true" aria-labelledby="add-receiver-title" className="my-auto flex max-h-[calc(100dvh_-_env(safe-area-inset-top)_-_env(safe-area-inset-bottom)_-_24px)] w-full max-w-3xl flex-col overflow-hidden rounded-[22px] border border-[color:var(--gold-border)] bg-[#0b0d0b] shadow-2xl md:max-h-[90vh] md:rounded-[26px]">
+            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-white/[0.06] bg-[#0b0d0b] p-4 md:p-6"><div className="min-w-0"><div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1 text-[8px] font-bold uppercase text-[color:var(--gold)]"><Plus size={11} /> Nouveau receveur</div><h2 id="add-receiver-title" className="mt-3 text-xl font-semibold text-white">Ajouter un compte</h2><p className="mt-1 text-[10px] leading-5 text-white/35">Connexion uniquement. Aucun lot ni risque à régler ici.</p></div><button onClick={() => setAddOpen(false)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/[0.08] text-white/45" aria-label="Fermer"><X size={17} /></button></div>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 pb-[calc(20px+env(safe-area-inset-bottom))] md:p-6">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <Field label="Nom / alias"><input className="ip-field" value={alias} onChange={(e) => setAlias(e.target.value)} placeholder="Ex. Prop 100K" /></Field>
                 <Field label="Plateforme">
@@ -1339,7 +1349,8 @@ export default function CopieurPage() {
               <div className="mt-5 flex items-center justify-between gap-3"><div className="text-[8px] text-white/25">Le mot de passe n’est jamais stocké dans copier_receivers.</div><button disabled={busy || !consent} onClick={() => void addReceiver()} className="inline-flex h-11 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-xs font-semibold text-black disabled:opacity-40">{busy ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />} Connecter ce compte</button></div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       ) : null}
 
       <style jsx global>{`.ip-field{height:42px;width:100%;min-width:0;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:rgba(0,0,0,.28);padding:0 12px;color:white;font-size:12px;outline:none}.ip-field:focus{border-color:var(--gold-border)}.ip-field::placeholder{color:rgba(255,255,255,.22)}.ip-field option{background:#0b0d0b;color:white}`}</style>
