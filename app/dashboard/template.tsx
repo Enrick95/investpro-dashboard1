@@ -9,7 +9,6 @@ import {
   FileText,
   ChevronRight,
   Clock3,
-  LineChart,
   ShieldCheck,
   Target,
   TrendingUp,
@@ -471,11 +470,7 @@ export default function DashboardTemplate({
         <section className="mb-5 rounded-[24px] border border-[color:var(--gold-border)] bg-[color:var(--panel)] p-4 md:p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gold)]">
-                <LineChart size={11} />
-                Dashboard V4
-              </div>
-              <h2 className="mt-3 text-lg font-semibold text-white">
+              <h2 className="text-lg font-semibold text-white">
                 Analyse rapide
               </h2>
               <p className="mt-1 text-[10px] text-[color:var(--muted)]">
@@ -517,7 +512,7 @@ export default function DashboardTemplate({
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <div className="text-[9px] uppercase tracking-[0.08em] text-white/30">
-                    Mini equity curve
+                    Courbe de capital
                   </div>
                   <div
                     className={[

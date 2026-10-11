@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   Apple,
   Check,
-  ChevronRight,
   Download,
   MonitorSmartphone,
   MoreVertical,
@@ -30,30 +28,18 @@ function isStandaloneMode() {
   return Boolean(mediaStandalone || iosStandalone);
 }
 
-function isMobileDevice() {
-  if (typeof window === "undefined") return false;
-  return (
-    window.matchMedia?.("(max-width: 900px)")?.matches ||
-    /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
-  );
-}
-
 function isIOSDevice() {
   if (typeof navigator === "undefined") return false;
   return /iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
 export default function InstallAppExperience() {
-  const pathname = usePathname();
-
   const [guideOpen, setGuideOpen] = useState(false);
-  const [reminderOpen, setReminderOpen] = useState(false);
   const [tab, setTab] = useState<"ios" | "android">("ios");
   const [deferredPrompt, setDeferredPrompt] = useState<InstallPromptEvent | null>(null);
   const [standalone, setStandalone] = useState(false);
 
   useEffect(() => {
-    const mobile = isMobileDevice();
     const standaloneNow = isStandaloneMode();
 
     setStandalone(standaloneNow);
@@ -61,7 +47,6 @@ export default function InstallAppExperience() {
 
     if (standaloneNow) {
       window.localStorage.setItem("investpro_app_installed", "1");
-      setReminderOpen(false);
       return;
     }
 
@@ -72,75 +57,36 @@ export default function InstallAppExperience() {
 
     const onInstalled = () => {
       window.localStorage.setItem("investpro_app_installed", "1");
-      window.localStorage.removeItem("investpro_install_remind_after");
       setGuideOpen(false);
-      setReminderOpen(false);
       setStandalone(true);
     };
 
     const onOpenGuide = () => {
       setGuideOpen(true);
-      setReminderOpen(false);
     };
 
     window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
     window.addEventListener("appinstalled", onInstalled);
     window.addEventListener("investpro:open-install-guide", onOpenGuide);
 
-    let timer: number | undefined;
-
-    if (
-      mobile &&
-      !pathname.startsWith("/dashboard/onboarding") &&
-      window.localStorage.getItem("investpro_app_installed") !== "1"
-    ) {
-      const remindAfter = Number(
-        window.localStorage.getItem("investpro_install_remind_after") || 0
-      );
-
-      if (!remindAfter || Date.now() >= remindAfter) {
-        timer = window.setTimeout(() => {
-          setReminderOpen(true);
-        }, 2200);
-      }
-    }
-
     return () => {
-      if (timer) window.clearTimeout(timer);
       window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
       window.removeEventListener("appinstalled", onInstalled);
       window.removeEventListener("investpro:open-install-guide", onOpenGuide);
     };
-  }, [pathname]);
-
-  function openGuide() {
-    setReminderOpen(false);
-    setGuideOpen(true);
-  }
+  }, []);
 
   function remindLater() {
-    const sevenDays = 7 * 24 * 60 * 60 * 1000;
-    window.localStorage.setItem(
-      "investpro_install_remind_after",
-      String(Date.now() + sevenDays)
-    );
-    setReminderOpen(false);
+    setGuideOpen(false);
   }
 
   function closeGuide() {
-    const oneDay = 24 * 60 * 60 * 1000;
-    window.localStorage.setItem(
-      "investpro_install_remind_after",
-      String(Date.now() + oneDay)
-    );
     setGuideOpen(false);
   }
 
   function markInstalled() {
     window.localStorage.setItem("investpro_app_installed", "1");
-    window.localStorage.removeItem("investpro_install_remind_after");
     setGuideOpen(false);
-    setReminderOpen(false);
   }
 
   async function installAndroid() {
@@ -152,7 +98,6 @@ export default function InstallAppExperience() {
     if (choice.outcome === "accepted") {
       window.localStorage.setItem("investpro_app_installed", "1");
       setGuideOpen(false);
-      setReminderOpen(false);
     }
 
     setDeferredPrompt(null);
@@ -162,38 +107,6 @@ export default function InstallAppExperience() {
 
   return (
     <>
-      {reminderOpen ? (
-        <div className="ip-install-reminder">
-          <button
-            type="button"
-            className="ip-install-reminder-close"
-            aria-label="Plus tard"
-            onClick={remindLater}
-          >
-            <X size={15} />
-          </button>
-
-          <div className="ip-install-reminder-icon">
-            <Smartphone size={20} />
-          </div>
-
-          <div className="min-w-0 flex-1">
-            <div className="ip-install-reminder-kicker">InvestPro Mobile</div>
-            <div className="ip-install-reminder-title">
-              Mets InvestPro sur ton écran d’accueil
-            </div>
-            <div className="ip-install-reminder-text">
-              Ouvre ton Journal, tes comptes et tes rapports en 1 clic, comme une app.
-            </div>
-          </div>
-
-          <button type="button" className="ip-install-reminder-btn" onClick={openGuide}>
-            Voir comment
-            <ChevronRight size={14} />
-          </button>
-        </div>
-      ) : null}
-
       {guideOpen ? (
         <div className="ip-install-overlay">
           <button
@@ -321,103 +234,18 @@ export default function InstallAppExperience() {
               className="ip-install-later"
               onClick={remindLater}
             >
-              Me le rappeler plus tard
+              Continuer plus tard
             </button>
           </section>
         </div>
       ) : null}
 
       <style jsx global>{`
-        .ip-install-reminder,
         .ip-install-overlay {
           display: none;
         }
 
         @media (max-width: 900px) {
-          .ip-install-reminder {
-            position: fixed;
-            z-index: 1420;
-            left: 12px;
-            right: 12px;
-            bottom: calc(86px + env(safe-area-inset-bottom));
-            display: flex;
-            align-items: center;
-            gap: 11px;
-            padding: 13px 13px 13px 12px;
-            border: 1px solid rgba(224,182,79,.30);
-            border-radius: 18px;
-            background:
-              radial-gradient(circle at 0 0, rgba(224,182,79,.12), transparent 42%),
-              rgba(12,14,12,.97);
-            box-shadow: 0 24px 65px rgba(0,0,0,.58);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-          }
-
-          .ip-install-reminder-close {
-            position: absolute;
-            right: 8px;
-            top: 7px;
-            width: 26px;
-            height: 26px;
-            display: grid;
-            place-items: center;
-            border: 0;
-            background: transparent;
-            color: rgba(255,255,255,.35);
-          }
-
-          .ip-install-reminder-icon {
-            width: 42px;
-            height: 42px;
-            border-radius: 13px;
-            flex: 0 0 auto;
-            display: grid;
-            place-items: center;
-            color: var(--gold, #e0b64f);
-            border: 1px solid rgba(224,182,79,.26);
-            background: rgba(224,182,79,.08);
-          }
-
-          .ip-install-reminder-kicker {
-            color: var(--gold, #e0b64f);
-            font-size: 8px;
-            font-weight: 800;
-            letter-spacing: .12em;
-            text-transform: uppercase;
-          }
-
-          .ip-install-reminder-title {
-            margin-top: 2px;
-            color: white;
-            font-size: 12px;
-            font-weight: 750;
-          }
-
-          .ip-install-reminder-text {
-            margin-top: 2px;
-            padding-right: 4px;
-            color: rgba(255,255,255,.43);
-            font-size: 9px;
-            line-height: 1.35;
-          }
-
-          .ip-install-reminder-btn {
-            height: 38px;
-            flex: 0 0 auto;
-            display: inline-flex;
-            align-items: center;
-            gap: 3px;
-            padding: 0 10px;
-            border-radius: 11px;
-            border: 1px solid rgba(224,182,79,.28);
-            background: rgba(224,182,79,.10);
-            color: var(--gold, #e0b64f);
-            font-size: 9px;
-            font-weight: 750;
-            margin-right: 14px;
-          }
-
           .ip-install-overlay {
             position: fixed;
             inset: 0;

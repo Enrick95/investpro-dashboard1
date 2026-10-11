@@ -921,8 +921,7 @@ export default function CopieurPage() {
         <section className="rounded-[26px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
             <div className="min-w-0">
-              <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 py-2 text-[10px] font-bold text-[color:var(--gold)]">Concept D — Espace de travail à onglets</div>
-              <h1 className="mt-4 text-3xl font-semibold text-white md:text-[40px]">InvestPro Copier</h1>
+              <h1 className="text-3xl font-semibold text-white md:text-[40px]">InvestPro Copier</h1>
               <p className="mt-2 max-w-4xl text-sm leading-6 text-white/50">Configurez et gérez la copie de trades entre vos comptes MetaTrader. Suivez les performances et ajustez vos paramètres en temps réel.</p>
             </div>
             <button onClick={() => setRequestOpen(true)} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-5 text-xs font-semibold text-[color:var(--gold)]"><Send size={14} /> Ajouter une liaison Master</button>

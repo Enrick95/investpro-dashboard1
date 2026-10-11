@@ -17,7 +17,6 @@ import {
   Server,
   ServerCog,
   ShieldCheck,
-  Sparkles,
   WalletCards,
   Wifi,
   WifiOff,
@@ -366,12 +365,7 @@ export default function ConnectionsPage() {
 
         <div className="relative grid gap-6 xl:grid-cols-[1.35fr_.65fr] xl:items-end">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.14em] text-[color:var(--gold)]">
-              <Sparkles size={11} />
-              Connexions V2
-            </div>
-
-            <h1 className="mt-4 text-3xl font-semibold text-white md:text-4xl">
+            <h1 className="text-3xl font-semibold text-white md:text-4xl">
               Ton trading, <span className="text-[color:var(--gold)]">connecté à InvestPro</span>
             </h1>
 
