@@ -11,6 +11,15 @@ function result(message: string, status: number) {
   return NextResponse.json({ error: message }, { status, headers: { "Cache-Control": "no-store" } });
 }
 
+// La fonction RPC existe en SQL, mais ce client Supabase ne fournit pas
+// de schéma TypeScript généré : typer explicitement uniquement ces deux appels.
+type LockRpcClient = {
+  rpc: (name: "investpro_sth_acquire_lock" | "investpro_sth_release_lock", args: { p_token: string }) => Promise<{ data: boolean | null; error: unknown }>;
+};
+function lockRpc(client: ReturnType<typeof createAdminClient>, name: "investpro_sth_acquire_lock" | "investpro_sth_release_lock", token: string) {
+  return (client as unknown as LockRpcClient).rpc(name, { p_token: token });
+}
+
 // Le propriétaire peut gérer ses receveurs indépendamment des droits pilote.
 // Une suppression n'est jamais considérée comme réussie avant confirmation du partenaire.
 export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
@@ -55,7 +64,7 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
     }
 
     lock = randomUUID();
-    const acquired = await admin.rpc("investpro_sth_acquire_lock", { p_token: lock });
+    const acquired = await lockRpc(admin, "investpro_sth_acquire_lock", lock);
     if (acquired.error) return result("Verrou du moteur indisponible.", 503);
     if (!acquired.data) return result("Une opération de copie est en cours. Réessaie dans quelques instants.", 409);
 
@@ -79,7 +88,7 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
     return result("Le moteur n'a pas confirmé la déconnexion. Aucun compte supprimé.", 502);
   } finally {
     if (admin && lock) {
-      try { await admin.rpc("investpro_sth_release_lock", { p_token: lock }); } catch {}
+      try { await lockRpc(admin, "investpro_sth_release_lock", lock); } catch {}
     }
   }
 }
