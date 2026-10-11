@@ -522,7 +522,7 @@ export default function MobileGlobalV1() {
           }
 
           body {
-            padding-bottom: calc(82px + env(safe-area-inset-bottom));
+            padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
           }
 
           [data-investpro-mobile-nav="true"] {
@@ -538,7 +538,7 @@ export default function MobileGlobalV1() {
             display: grid;
             grid-template-columns: repeat(5, minmax(0, 1fr));
             gap: 2px;
-            padding: 7px 8px max(7px, env(safe-area-inset-bottom));
+            padding: 5px 8px max(5px, env(safe-area-inset-bottom, 0px));
             border-top: 1px solid rgba(216,175,71,.17);
             background: rgba(8,9,8,.94);
             backdrop-filter: blur(22px);
@@ -548,7 +548,7 @@ export default function MobileGlobalV1() {
 
           .ip-mobile-tab {
             min-width: 0;
-            height: 61px;
+            height: 58px;
             border-radius: 15px;
             display: flex;
             flex-direction: column;
