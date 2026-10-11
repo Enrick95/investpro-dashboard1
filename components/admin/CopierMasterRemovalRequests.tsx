@@ -18,7 +18,7 @@ export default function CopierMasterRemovalRequests() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const headers = useCallback(async () => {
+  const headers = useCallback(async (): Promise<Record<string, string>> => {
     const { data: { session } } = await supabase.auth.getSession();
     return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
   }, [supabase]);
