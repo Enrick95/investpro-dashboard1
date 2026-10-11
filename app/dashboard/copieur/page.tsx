@@ -104,6 +104,14 @@ type ActivationRequest = {
   activated_at: string | null;
 };
 
+type CopierConfigRequest = {
+  id: string;
+  receiver_id: string;
+  status: "pending" | "processing" | "applied" | "rejected";
+  admin_note?: string | null;
+  updated_at: string;
+};
+
 type BrokerServerPreset = {
   broker: string;
   servers: string[];
@@ -334,6 +342,17 @@ function accountNumber(row: LooseAccount) {
   return String(row.login ?? row.account_number ?? row.external_account_id ?? row.external_id ?? row.name ?? "");
 }
 
+function matchingAccount(accounts: LooseAccount[], target: { login: string; platform: string; server: string }) {
+  const candidates = accounts.filter((row) => {
+    const platform = String(row.platform || "").toUpperCase();
+    return accountNumber(row) === target.login && (!platform || platform === target.platform);
+  });
+  const serverFor = (row: LooseAccount) => String(row.server ?? row.server_name ?? row.broker_server ?? "").trim().toLowerCase();
+  const exactServer = candidates.filter((row) => serverFor(row) === target.server.trim().toLowerCase());
+  if (exactServer.length === 1) return exactServer[0];
+  return candidates.length === 1 && !serverFor(candidates[0]) ? candidates[0] : undefined;
+}
+
 function stat(row: LooseAccount | undefined, keys: string[]) {
   if (!row) return null;
   for (const key of keys) if (row[key] != null) return row[key];
@@ -367,6 +386,8 @@ export default function CopieurPage() {
   const [consent, setConsent] = useState(false);
 
   const [riskSettings, setRiskSettings] = useState<RiskSettings>(DEFAULT_RISK_SETTINGS);
+  const [configurationRequests, setConfigurationRequests] = useState<CopierConfigRequest[]>([]);
+  const [configurationRequestNote, setConfigurationRequestNote] = useState("");
   const [riskSavedAt, setRiskSavedAt] = useState<string>("");
   const [riskBusy, setRiskBusy] = useState(false);
   const [masterConsent, setMasterConsent] = useState(false);
@@ -524,6 +545,11 @@ export default function CopieurPage() {
     ]);
     if (!r1.error) setReceivers((r1.data || []) as Receiver[]);
     if (!r2.error) setAccounts((r2.data || []) as LooseAccount[]);
+    const configResponse = await fetch("/api/copier/config-request", { cache: "no-store" });
+    if (configResponse.ok) {
+      const configData = await configResponse.json();
+      setConfigurationRequests((configData.requests || []) as CopierConfigRequest[]);
+    }
   }
 
   function applyStatus(status: SthStatus) {
@@ -812,11 +838,19 @@ export default function CopieurPage() {
     setRiskSavedAt("");
   }, [selectedReceiverId, receivers]);
 
+  useEffect(() => {
+    const latest = configurationRequests.find((request) => request.receiver_id === selectedReceiverId);
+    setConfigurationRequestNote(latest?.status === "rejected" ? String(latest.admin_note || "") : "");
+    if (!latest) { setRiskSaveState("idle"); return; }
+    if (latest.status === "pending" || latest.status === "processing") setRiskSaveState("pending");
+    else if (latest.status === "applied") {
+      setRiskSaveState("saved");
+      setRiskSavedAt(new Date(latest.updated_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }));
+    } else setRiskSaveState("failed");
+  }, [configurationRequests, selectedReceiverId]);
+
   function statsFor(receiver: Receiver) {
-    const row = accounts.find((a) => {
-      const p = String(a.platform || "").toUpperCase();
-      return accountNumber(a) === receiver.login && (!p || p === receiver.platform);
-    });
+    const row = matchingAccount(accounts, receiver);
     const currency = String(row?.currency || "USD");
     return {
       balance: stat(row, ["current_balance", "balance"]),
@@ -827,7 +861,7 @@ export default function CopieurPage() {
     };
   }
 
-  const masterAccountRow = approvedMaster ? accounts.find((a) => accountNumber(a) === approvedMaster.login && (!a.platform || String(a.platform).toUpperCase() === approvedMaster.platform)) : undefined;
+  const masterAccountRow = approvedMaster ? matchingAccount(accounts, approvedMaster) : undefined;
   const masterBalance = stat(masterAccountRow, ["current_balance", "balance"]);
   const masterEquity = stat(masterAccountRow, ["equity", "current_equity"]);
   const masterPnl = stat(masterAccountRow, ["daily_pnl", "pnl_today", "today_pnl"]);
@@ -861,8 +895,10 @@ export default function CopieurPage() {
     setError(false);
     try {
       const masters = (Object.entries(selectedMasters) as Array<[string, { on: boolean; lots: string }]>).filter(([, v]) => v.on).map(([id, v]) => ({ id, lots: Number(v.lots || 0.01) }));
-      const data = await post({ action: "masters", receiverId: selectedReceiverId, consent: true, masters });
-      if (data.status) applyStatus(data.status);
+      if (riskSettings.mode === "fixed") {
+        const data = await post({ action: "masters", receiverId: selectedReceiverId, consent: true, masters });
+        if (data.status) applyStatus(data.status);
+      }
       if (selectedReceiverId !== "legacy") {
         const response = await fetch("/api/copier/settings", {
           method: "PATCH",
@@ -912,6 +948,10 @@ export default function CopieurPage() {
   return (
     <>
       <main className="mx-auto max-w-[1600px] space-y-5 pb-32">
+        {activationRequests.length > 0 ? <section className="rounded-[22px] border border-white/[0.07] bg-[color:var(--panel)] p-4 md:p-5">
+          <div className="flex items-center justify-between gap-3"><div><h2 className="text-sm font-semibold text-white">Suivi des demandes Master</h2><p className="mt-1 text-[10px] text-white/40">Statut de traitement par l’équipe InvestPro.</p></div><button type="button" onClick={() => void loadActivationRequests()} className="text-[9px] font-semibold text-[color:var(--gold)]">Actualiser</button></div>
+          <div className="mt-3 grid gap-2 md:grid-cols-2">{activationRequests.map((request) => <div key={request.id} className="rounded-xl border border-white/[0.06] bg-black/15 p-3"><div className="flex items-center justify-between gap-2"><div className="min-w-0"><div className="truncate text-[10px] font-semibold text-white">{request.alias} · {request.platform} {request.login}</div><div className="mt-1 truncate text-[8px] text-white/40">{request.server}</div></div><span className={cn("shrink-0 rounded-full border px-2 py-1 text-[8px] font-semibold", request.status === "activated" ? "border-emerald-500/20 bg-emerald-500/[0.05] text-emerald-300" : request.status === "rejected" ? "border-red-500/20 bg-red-500/[0.05] text-red-300" : "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]")}>{request.status === "activated" ? "Activé" : request.status === "rejected" ? "Refusé" : request.status === "processing" ? "Vérification" : "En attente"}</span></div>{request.status === "rejected" && request.admin_note ? <p className="mt-2 text-[9px] leading-4 text-red-200/75">Motif : {request.admin_note}</p> : null}</div>)}</div>
+        </section> : null}
         <section className="space-y-4 md:hidden">
           <section className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4">
             <div className="inline-flex rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1.5 text-[9px] font-semibold text-[color:var(--gold)]">Gestion des comptes MetaTrader</div>
@@ -1001,17 +1041,10 @@ export default function CopieurPage() {
           <section className="relative overflow-hidden rounded-[22px] border border-emerald-500/15 bg-[color:var(--panel)] p-4 md:p-5">
             <div className="pointer-events-none absolute -right-12 -top-14 h-36 w-36 rounded-full bg-cyan-300/[0.06] blur-2xl" />
             <div className="relative flex items-start justify-between gap-3"><div><div className="text-sm font-semibold text-white">Protection &amp; risque</div><div className="mt-1 text-[10px] text-white/40">Réglages du receveur sélectionné</div></div><span className={cn("rounded-full border px-2.5 py-1 text-[8px] font-semibold", riskSaveState === "saved" ? "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-300" : "border-white/[0.08] bg-white/[0.03] text-white/45")}>{riskSaveState === "saved" ? "Enregistré" : riskSaveState === "pending" ? "En attente" : "À vérifier"}</span></div>
-            {riskSettings.drawdown_enabled ? (
-              <div className="mt-4 flex items-center gap-3 rounded-xl border border-emerald-500/10 bg-emerald-500/[0.055] p-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-300"><ShieldCheck size={17} /></span>
-                <div><div className="text-[11px] font-semibold text-emerald-200">Protection drawdown active</div><div className="mt-0.5 text-[9px] text-white/40">Limite définie à {riskSettings.max_drawdown_percent}%</div></div>
-              </div>
-            ) : (
-              <div className="mt-4 flex items-center gap-3 rounded-xl border border-amber-500/10 bg-amber-500/[0.045] p-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/[0.08] text-amber-300"><AlertTriangle size={16} /></span>
-                <div><div className="text-[11px] font-semibold text-amber-200">Seuil de perte à définir</div><div className="mt-0.5 text-[9px] text-white/45">Configure une limite pour activer la protection drawdown.</div></div>
-              </div>
-            )}
+            <div className={cn("mt-4 flex items-center gap-3 rounded-xl border p-3", riskSaveState === "pending" ? "border-amber-500/15 bg-amber-500/[0.045]" : riskSaveState === "saved" ? "border-emerald-500/15 bg-emerald-500/[0.045]" : riskSaveState === "failed" ? "border-red-500/15 bg-red-500/[0.045]" : "border-white/[0.07] bg-black/15")}>
+              <span className={cn("flex h-9 w-9 items-center justify-center rounded-lg", riskSaveState === "pending" ? "bg-amber-500/[0.08] text-amber-300" : riskSaveState === "saved" ? "bg-emerald-500/10 text-emerald-300" : riskSaveState === "failed" ? "bg-red-500/10 text-red-300" : "bg-white/[0.04] text-white/45")}>{riskSaveState === "pending" ? <Clock3 size={16} /> : riskSaveState === "saved" ? <ShieldCheck size={16} /> : <Activity size={16} />}</span>
+              <div><div className="text-[11px] font-semibold text-white/85">État du réglage</div><div className="mt-0.5 text-[9px] text-white/45">{riskSaveState === "pending" ? "En attente de traitement par InvestPro" : riskSaveState === "saved" ? "Réglage confirmé" : riskSaveState === "failed" ? configurationRequestNote || "Demande refusée ou impossible à confirmer" : "Aucune confirmation enregistrée"}</div></div>
+            </div>
             <div className="mt-3 space-y-0.5"><div className="flex justify-between gap-3 border-t border-white/[0.06] py-2 text-[10px]"><span className="text-white/45">Mode de calcul</span><strong className="text-white/75">{riskModeLabel(riskSettings.mode)}</strong></div><div className="flex justify-between gap-3 border-t border-white/[0.06] py-2 text-[10px]"><span className="text-white/45">Volume maximum</span><strong className="text-white/75">{riskSettings.max_lots} lots</strong></div></div>
             <button type="button" disabled={!selectedReceiver || selectedReceiver.id === "legacy"} onClick={() => setRiskModalOpen(true)} className="mt-2 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 text-[10px] font-semibold text-[color:var(--gold)] transition hover:bg-[color:var(--gold-soft)]/80 disabled:cursor-not-allowed disabled:opacity-40"><Settings2 size={13} /> Régler le risque</button>
           </section>
@@ -1068,7 +1101,7 @@ export default function CopieurPage() {
                 <div className="flex items-center justify-between gap-3"><div className="text-[9px] font-semibold uppercase tracking-[0.12em] text-white/45">Compte receveur</div><ReceiverStatusBadge status={selectedReceiver.status} /></div>
                 <div className="mt-3 text-lg font-semibold text-white">{selectedReceiver.alias}</div>
                 <div className="mt-1 text-[10px] text-white/50">#{selectedReceiver.login} · {selectedReceiver.platform} · {selectedReceiver.server}</div>
-                <div className="mt-4 flex items-center gap-2 border-t border-white/[0.07] pt-3 text-[10px] text-white/50"><Activity size={14} className={selectedReceiver.status === "connected" ? "text-emerald-300" : "text-white/35"} />{selectedStatus ? selectedStatus.isTradingAccountConnected ? "Connexion confirmée par Social Trade Hub" : "Social Trade Hub ne confirme pas la connexion" : selectedReceiver.status === "connected" ? "Connecté dans InvestPro · vérification STH indisponible" : "En attente de connexion"}</div>
+                <div className="mt-4 flex items-center gap-2 border-t border-white/[0.07] pt-3 text-[10px] text-white/50"><Activity size={14} className={selectedReceiver.status === "connected" ? "text-emerald-300" : "text-white/35"} />{selectedStatus ? selectedStatus.isTradingAccountConnected ? "Connexion confirmée par le moteur de copie" : "Connexion non confirmée par le moteur de copie" : selectedReceiver.status === "connected" ? "Connecté dans InvestPro · vérification STH indisponible" : "En attente de connexion"}</div>
               </div>
             </div>
 
@@ -1076,9 +1109,9 @@ export default function CopieurPage() {
               <div className="flex items-center justify-between gap-3"><div><div className="text-sm font-semibold text-white">Liaisons Master disponibles</div><div className="mt-1 text-[10px] text-white/40">Choisis les sources que ce receveur doit suivre.</div></div>{!selectedStatus || error ? <button type="button" onClick={() => void refresh()} disabled={busy} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/[0.09] px-3 text-[10px] font-semibold text-white/65 disabled:opacity-50"><RefreshCw size={13} className={busy ? "animate-spin" : ""} /> Vérifier</button> : null}</div>
               <div className="mt-3 space-y-3">
                 {!selectedStatus || error ? (
-                  <div className="rounded-2xl border border-amber-500/15 bg-amber-500/[0.035] p-4 text-[10px] leading-5 text-amber-100/70">{error ? `Impossible de confirmer les liaisons : ${message}` : "Les liaisons seront affichées dès que le statut Social Trade Hub sera disponible."}</div>
+                  <div className="rounded-2xl border border-amber-500/15 bg-amber-500/[0.035] p-4 text-[10px] leading-5 text-amber-100/70">{error ? `Impossible de confirmer les liaisons : ${message}` : "Les liaisons seront affichées dès que le statut du moteur sera disponible."}</div>
                 ) : selectedStatus.masterAccountsList.length === 0 ? (
-                  <div className="rounded-2xl border border-white/[0.07] bg-black/20 p-4 text-[10px] leading-5 text-white/45">Social Trade Hub n’a renvoyé aucune liaison Master pour ce receveur.</div>
+                  <div className="rounded-2xl border border-white/[0.07] bg-black/20 p-4 text-[10px] leading-5 text-white/45">Aucune liaison Master n’est disponible pour ce receveur.</div>
                 ) : selectedStatus.masterAccountsList.map((master, index) => {
                   const current = selectedMasters[master.id] || { on: false, lots: masterQuickValue || "0.01" };
                   return <div key={master.id} className={cn("rounded-[18px] border p-4 transition", current.on ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]" : "border-white/[0.07] bg-black/20")}>
