@@ -923,7 +923,7 @@ export default function CopieurPage() {
               </div>
               <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
                 <button type="button" onClick={() => void refresh()} disabled={busy} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-white/[0.09] bg-white/[0.025] px-4 text-xs font-semibold text-white/75 transition hover:bg-white/[0.05] disabled:opacity-50"><RefreshCw size={14} className={busy ? "animate-spin" : ""} /> Actualiser</button>
-                <button type="button" onClick={() => setRequestOpen(true)} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 text-xs font-semibold text-[color:var(--gold)] transition hover:bg-[color:var(--gold-soft)]/80"><Send size={14} /> Demander un Master</button>
+                <button type="button" onClick={() => setRequestOpen(true)} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 text-xs font-semibold text-[color:var(--gold)] transition hover:bg-[color:var(--gold-soft)]/80"><Send size={14} /> Ajouter un compte Master</button>
               </div>
             </div>
 
