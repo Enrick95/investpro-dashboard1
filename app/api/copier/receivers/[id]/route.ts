@@ -40,7 +40,14 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
       .eq("id", id).eq("user_id", user.id).maybeSingle();
     if (readError) return result("Impossible de vérifier le compte receveur.", 500);
     if (!receiver) return result("Compte receveur introuvable ou déjà supprimé.", 404);
-    if (!receiver.provider_user_id) return result("Identifiant moteur manquant : contacte le support.", 409);
+    // Le schéma Supabase n'est pas typé ici : préciser la forme vérifiée de cette ligne.
+    const receiverRow = receiver as unknown as {
+      id: string;
+      user_id: string;
+      provider_user_id: string | null;
+      status: string | null;
+    };
+    if (!receiverRow.provider_user_id) return result("Identifiant moteur manquant : contacte le support.", 409);
 
     // Ne jamais tenter une déconnexion via le serveur Preview.
     if (process.env.STH_ENABLED !== "true" || process.env.VERCEL_ENV === "preview") {
@@ -53,7 +60,7 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
     if (!acquired.data) return result("Une opération de copie est en cours. Réessaie dans quelques instants.", 409);
 
     // Appel partenaire côté serveur : aucun identifiant ou licence exposé au navigateur.
-    const status = await partnerCall("disconnect", String(receiver.provider_user_id));
+    const status = await partnerCall("disconnect", String(receiverRow.provider_user_id));
     if (status.isTradingAccountConnected) {
       return result("Le moteur indique encore ce receveur connecté. Suppression annulée.", 409);
     }
