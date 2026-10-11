@@ -81,6 +81,7 @@ export default function AdminCopierRequestsPage() {
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [masterIds, setMasterIds] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
+  const [masterSuccess, setMasterSuccess] = useState("");
 
   async function headers(): Promise<Record<string, string>> {
     const {
@@ -176,7 +177,7 @@ export default function AdminCopierRequestsPage() {
   }
 
   async function assignMaster(row: RequestRow) {
-    setBusyId(row.id); setError("");
+    setBusyId(row.id); setError(""); setMasterSuccess("");
     try {
       const response = await fetch("/api/admin/copier-requests", {
         method: "POST",
@@ -186,6 +187,7 @@ export default function AdminCopierRequestsPage() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Association impossible.");
       await load(true);
+      setMasterSuccess(`Master associé avec succès au client (${row.alias} · ${row.login}).`);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Erreur."); }
     finally { setBusyId(null); }
   }
@@ -283,6 +285,8 @@ export default function AdminCopierRequestsPage() {
           </div>
         </div>
       </section>
+
+      {masterSuccess ? <div role="status" className="rounded-xl border border-emerald-500/25 bg-emerald-500/[0.08] px-4 py-3 text-sm font-semibold text-emerald-300"><CheckCircle2 className="mr-2 inline-block h-4 w-4" />{masterSuccess}</div> : null}
 
       {error ? (
         <div className="rounded-xl border border-red-500/20 bg-red-500/[0.05] px-4 py-3 text-sm text-red-300">
