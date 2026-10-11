@@ -4,13 +4,7 @@ import { canAdmin } from "@/lib/admin/permissions";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { decryptCopierPassword } from "@/lib/copier/requestCrypto";
-
-function getAdminIds() {
-  return String(process.env.INVESTPRO_ADMIN_USER_IDS || "")
-    .split(",")
-    .map((value) => value.trim())
-    .filter(Boolean);
-}
+import { createCopierNotice, sendCopierEmail } from "@/lib/copier/notifications";
 
 async function verifyAdmin(request: Request) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -169,7 +163,7 @@ export async function POST(request: Request) {
     const { data: reqRow, error: reqError } = await admin.from("copier_account_requests")
       .select("id,user_id,status").eq("id", requestId).maybeSingle();
     if (reqError || !reqRow) return NextResponse.json({ error: "Demande introuvable." }, { status: 404 });
-    if (reqRow.status !== "activated") return NextResponse.json({ error: "Active d’abord la demande, puis associe le Master." }, { status: 409 });
+    if (!["pending", "processing"].includes(String(reqRow.status))) return NextResponse.json({ error: "Cette demande ne peut plus être associée." }, { status: 409 });
     const { error } = await admin.from("copier_master_ownership").upsert(
       { provider_master_id: masterId, user_id: reqRow.user_id, request_id: reqRow.id },
       { onConflict: "request_id" }
@@ -235,6 +229,21 @@ export async function PATCH(request: Request) {
       { error: "Demande introuvable." },
       { status: 404 }
     );
+  }
+
+  if (status === "activated") {
+    const { data: ownership, error: ownershipError } = await admin
+      .from("copier_master_ownership")
+      .select("provider_master_id")
+      .eq("request_id", current.id)
+      .eq("user_id", current.user_id)
+      .maybeSingle();
+    if (ownershipError || !ownership?.provider_master_id) {
+      return NextResponse.json(
+        { error: "Associe d’abord le véritable compte Master à cette demande. Le compte ne sera annoncé comme actif qu’après cette étape." },
+        { status: 409 }
+      );
+    }
   }
 
   if (status === "activated") {
@@ -317,31 +326,37 @@ export async function PATCH(request: Request) {
     );
   }
 
-  if (status === "activated" && current.status !== "activated") {
-    const eventKey = `copier-activation-${current.id}`;
-    const title = "Compte InvestPro Copier activé";
-    const message = `Votre compte ${String(current.alias || "MetaTrader").slice(0, 80)} est activé. Vous pouvez continuer sa configuration depuis InvestPro Copier.`;
-    const { error: notifError } = await admin.from("investpro_notifications").upsert({
-      user_id: current.user_id, event_key: eventKey, title, message, href: "/dashboard/copieur",
-    }, { onConflict: "event_key", ignoreDuplicates: true });
-    if (notifError) console.error("[copier-activation] notification non enregistrée", notifError.message);
-    // E-mail optionnel : uniquement si RESEND_API_KEY et INVESTPRO_EMAIL_FROM sont configurés.
-    const key = process.env.RESEND_API_KEY;
-    const sender = process.env.INVESTPRO_EMAIL_FROM;
-    if (key && sender && !notifError) {
-      try {
-        const { data: recipient } = await admin.auth.admin.getUserById(current.user_id);
-        const email = recipient?.user?.email;
-        if (email) {
-          const mail = await fetch("https://api.resend.com/emails", {
-            method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ from: sender, to: [email], subject: title,
-              text: `${message}\n\nhttps://www.investprotrading.fr/dashboard/copieur\n\nL’équipe InvestPro Trading` }),
-            signal: AbortSignal.timeout(8000),
-          });
-          if (!mail.ok) console.error("[copier-activation] e-mail non envoyé", mail.status);
-        }
-      } catch (mailError) { console.error("[copier-activation] e-mail indisponible", mailError); }
+  if (current.status !== status && ["processing", "activated", "rejected"].includes(status)) {
+    const alias = String(current.alias || "votre compte").slice(0, 80);
+    const title = status === "activated"
+      ? "Votre compte Master est activé"
+      : status === "rejected"
+        ? "Votre demande de compte Master a été refusée"
+        : "Votre demande de compte Master est prise en charge";
+    const reason = String(adminNote || "").replace(/[<>]/g, "").replace(/\s+/g, " ").slice(0, 240);
+    const message = status === "activated"
+      ? `Bonne nouvelle ! Votre compte Master ${alias} a été activé. Vous pouvez le retrouver dans InvestPro Copier et configurer vos comptes receveurs.`
+      : status === "rejected"
+        ? `Votre demande pour le compte ${alias} n’a pas pu être acceptée.${reason ? ` Motif : ${reason}` : " Contactez notre équipe pour connaître les étapes à suivre."}`
+        : `Notre équipe traite actuellement votre demande pour le compte ${alias}. Vous recevrez une notification quand la vérification sera terminée.`;
+    const eventKey = `copier-master-${status}-${current.id}`;
+    let noticeInserted = false;
+    try {
+      const notice = await createCopierNotice(admin, {
+        eventKey,
+        userId: current.user_id,
+        title,
+        message,
+      });
+      noticeInserted = notice.inserted;
+    } catch (noticeError) {
+      console.error("[copier-master] notification non enregistrée", noticeError);
+    }
+    const emailResult = noticeInserted
+      ? await sendCopierEmail(admin, current.user_id, title, message)
+      : { sent: false, reason: "notification_not_recorded" };
+    if (!emailResult.sent && emailResult.reason !== "email_not_configured") {
+      console.error("[copier-master] e-mail non envoyé", emailResult.reason);
     }
   }
   return NextResponse.json({
