@@ -939,28 +939,28 @@ export default function CopieurPage() {
   }
 
   const selectedPrimaryMaster = activeMasters[0] || null;
-  const mobileStep = !selectedReceiver ? 1 : activeMasters.length === 0 ? 2 : 3;
+  const mobileStep = !approvedMaster ? 1 : !selectedReceiver ? 2 : 3;
 
   return (
     <>
       <main className="mx-auto max-w-[1600px] space-y-5 pb-32">
         {requestSuccess ? <div role="status" className="rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.07] px-4 py-3 text-sm text-emerald-300"><CheckCircle2 className="mr-2 inline-block h-4 w-4" />{requestSuccess}<button className="ml-3 underline" onClick={() => setRequestSuccess("")}>Fermer</button></div> : null}
-        <section className="rounded-[26px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6">
+        <section className="rounded-[26px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4 xl:p-6">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
             <div className="min-w-0">
-              <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 py-2 text-[10px] font-bold text-[color:var(--gold)]">Concept D — Espace de travail à onglets</div>
-              <h1 className="mt-4 text-3xl font-semibold text-white md:text-[40px]">InvestPro Copier</h1>
-              <p className="mt-2 max-w-4xl text-sm leading-6 text-white/50">Configurez et gérez la copie de trades entre vos comptes MetaTrader. Suivez les performances et ajustez vos paramètres en temps réel.</p>
+              <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 py-2 text-[10px] font-bold text-[color:var(--gold)]">Gestion des comptes MetaTrader</div>
+              <h1 className="mt-3 text-2xl font-semibold text-white xl:text-[40px]">InvestPro Copier</h1>
+              <p className="mt-2 max-w-4xl text-xs leading-5 text-white/50 xl:text-sm xl:leading-6">Configurez et gérez la copie de trades entre vos comptes MetaTrader. Suivez les performances et ajustez vos paramètres en temps réel.</p>
             </div>
-            <button onClick={() => setRequestOpen(true)} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-5 text-xs font-semibold text-[color:var(--gold)]"><Send size={14} /> Ajouter une liaison Master</button>
+            
           </div>
-          <div id="ip-copier-overview" className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4 scroll-mt-24">
-            <HeroStatCard icon={<WalletCards size={18} />} label="Soldes receveurs disponibles" value={money(portfolioTotal)} sub="Données MetaTrader disponibles uniquement" accent={connectedCount > 0 ? `+${connectedCount} connectés` : "Aucun connecté"} accentPositive />
+          <div id="ip-copier-overview" className="hidden xl:grid mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4 scroll-mt-24">
+            <HeroStatCard icon={<WalletCards size={18} />} label="Soldes receveurs disponibles" value={virtualReceivers.some((r) => r.id !== "legacy" && statsFor(r).balance != null) ? money(portfolioTotal) : "En attente de sync"} sub="Données MetaTrader disponibles uniquement" accent={connectedCount > 0 ? `+${connectedCount} connectés` : "Aucun connecté"} accentPositive />
             <HeroStatCard icon={<Layers3 size={18} />} label="Comptes receveurs" value={String(virtualReceivers.length)} sub={`${connectedCount} connectés • ${errorCount} en erreur`} />
             <HeroStatCard icon={<Link2 size={18} />} label="Liaisons Master" value={String(activeMasters.length)} sub="Actives" />
             <HeroStatCard icon={<Activity size={18} />} label="Positions ouvertes (tous receveurs)" value={String(totalOpenPositions)} sub="En temps réel" accent={selectedStats.pnl && Number(selectedStats.pnl) > 0 ? `+${money(selectedStats.pnl, selectedStats.currency)} aujourd’hui` : undefined} accentPositive={Boolean(selectedStats.pnl && Number(selectedStats.pnl) > 0)} />
           </div>
-          <div className="mt-4 flex snap-x gap-3 overflow-x-auto pb-2 xl:grid xl:grid-cols-5 xl:overflow-visible">
+          <div className="mt-4 hidden snap-x gap-3 overflow-x-auto pb-2 xl:grid xl:grid-cols-5 xl:overflow-visible">
             <TopTabButton active={activeView === "overview"} onClick={() => navigateCopier("overview")} icon={<Sparkles size={16} />} title="Vue d’ensemble" subtitle="Configuration & comptes" />
             <TopTabButton active={activeView === "receivers"} onClick={() => navigateCopier("receivers")} icon={<WalletCards size={16} />} title="Receveurs" subtitle="Gérer les comptes receveurs" />
             <TopTabButton active={activeView === "masters"} onClick={() => navigateCopier("masters")} icon={<Link2 size={16} />} title="Liaisons Master" subtitle="Comptes sources" />
@@ -973,12 +973,12 @@ export default function CopieurPage() {
         <section className="xl:hidden rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4">
           <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1 text-[10px] font-semibold text-[color:var(--gold)]">Parcours mobile simplifié</div>
           <h2 className="mt-4 text-2xl font-semibold text-white">Configuration guidée</h2>
-          <p className="mt-2 text-sm leading-6 text-white/45">Choisis ton receveur, ton Master, puis configure le risque dans une interface pensée pour mobile.</p>
+          <p className="mt-2 text-sm leading-6 text-white/45">Retrouve ton compte Master, sélectionne ton receveur, puis configure le risque.</p>
 
-          <div className="mt-5 grid grid-cols-3 gap-2">
+          <div className="mt-4 grid grid-cols-3 gap-2">
             {[
-              { step: 1, title: 'Receveur', ready: Boolean(selectedReceiver) },
-              { step: 2, title: 'Master', ready: activeMasters.length > 0 },
+              { step: 1, title: 'Master', ready: Boolean(approvedMaster) },
+              { step: 2, title: 'Receveur', ready: Boolean(selectedReceiver) },
               { step: 3, title: 'Risque', ready: riskSaveState === 'saved' || riskSaveState === 'pending' },
             ].map((item) => {
               const active = mobileStep === item.step;
@@ -992,17 +992,45 @@ export default function CopieurPage() {
             })}
           </div>
 
-          <div className="mt-5 grid grid-cols-3 gap-2">
-            <MobileMiniStat label="Receveurs" value={String(virtualReceivers.length)} sub={`${connectedCount} connecté${connectedCount > 1 ? 's' : ''}`} />
-            <MobileMiniStat label="Masters" value={String(activeMasters.length)} sub={approvedMaster ? 'Approuvé' : 'En attente'} />
-            <MobileMiniStat label="Solde copié" value={money(portfolioTotal)} sub="MetaTrader" />
-          </div>
+
 
           <div className="mt-5 space-y-4">
             <section className="rounded-[22px] border border-[color:var(--gold-border)] bg-black/20 p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[color:var(--gold)]">1. Compte receveur</div>
+                  <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[color:var(--gold)]">1. Compte Master</div>
+                  <div className="mt-1 text-sm text-white/45">Compte source à copier.</div>
+                </div>
+                <State active={Boolean(approvedMaster)} label={approvedMaster ? 'Approuvé' : 'À approuver'} />
+              </div>
+
+              {approvedMaster ? (
+                <div className="mt-4 rounded-[18px] border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4">
+                  <div className="text-lg font-semibold text-white">{approvedMaster.alias}</div>
+                  <div className="mt-1 text-[11px] text-white/40">#{approvedMaster.login} • {approvedMaster.platform} • {approvedMaster.server}</div>
+                  <div className="mt-4 grid grid-cols-3 gap-2">
+                    <MiniMetric label="Solde" value={masterBalance == null ? '—' : money(masterBalance, masterCurrency)} />
+                    <MiniMetric label="Equity" value={masterEquity == null ? '—' : money(masterEquity, masterCurrency)} />
+                    <MiniMetric label="P&L jour" value={masterPnl == null ? '—' : money(masterPnl, masterCurrency)} positive={Number(masterPnl) > 0} negative={Number(masterPnl) < 0} />
+                  </div>
+                </div>
+              ) : <div className="mt-4 rounded-[18px] border border-dashed border-white/10 bg-black/20 p-4 text-sm text-white/45">Aucun Master approuvé pour le moment. Fais une demande ci-dessous.</div>}
+
+              <div className="mt-4 space-y-3">
+                {selectedReceiver && (selectedStatus?.masterAccountsList || []).length === 0 ? <div className="rounded-[18px] border border-white/[0.07] bg-black/20 p-4 text-sm text-white/45">Aucune liaison Master disponible.</div> : selectedReceiver ? (selectedStatus?.masterAccountsList || []).map((master, index) => {
+                  const current = selectedMasters[master.id] || { on: false, lots: masterQuickValue || '0.01' };
+                  return <button type="button" key={master.id} onClick={() => toggleMaster(master.id)} aria-pressed={current.on} className={cn('flex w-full items-center gap-3 rounded-[18px] border p-4 text-left transition', current.on ? 'border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]' : 'border-white/[0.07] bg-black/20')}><span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-md border', current.on ? 'border-[color:var(--gold-border)] bg-[color:var(--gold)] text-black' : 'border-white/10 text-white/50')}>{current.on ? <Check size={14}/> : null}</span><span className="min-w-0 flex-1"><span className="block break-words text-sm font-semibold text-white">{master.name}</span><span className="mt-1 block text-[10px] text-white/45">MASTER {String(index + 1).padStart(2, '0')}</span></span><span className="text-[10px] text-white/55">{current.on ? 'Sélectionné' : 'Choisir'}</span></button>;
+                }) : null}
+              </div>
+
+              {!approvedMaster ? <button onClick={() => setRequestOpen(true)} className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 py-3 text-sm font-semibold text-[color:var(--gold)]"><Send size={14} /> Ajouter un compte Master</button> : null}
+            </section>
+
+
+            <section className="rounded-[22px] border border-[color:var(--gold-border)] bg-black/20 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[color:var(--gold)]">2. Compte receveur</div>
                   <div className="mt-1 text-sm text-white/45">Compte qui recevra les trades copiés.</div>
                 </div>
                 {selectedReceiver ? <State active={selectedReceiver.status === 'connected'} label={selectedReceiver.status === 'connected' ? 'Connecté' : selectedReceiver.status === 'paused' ? 'Pause' : 'Erreur'} /> : <State active={false} label="À choisir" />}
@@ -1046,37 +1074,6 @@ export default function CopieurPage() {
             <section className="rounded-[22px] border border-[color:var(--gold-border)] bg-black/20 p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[color:var(--gold)]">2. Compte Master</div>
-                  <div className="mt-1 text-sm text-white/45">Compte source à copier.</div>
-                </div>
-                <State active={Boolean(approvedMaster)} label={approvedMaster ? 'Approuvé' : 'À approuver'} />
-              </div>
-
-              {approvedMaster ? (
-                <div className="mt-4 rounded-[18px] border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4">
-                  <div className="text-lg font-semibold text-white">{approvedMaster.alias}</div>
-                  <div className="mt-1 text-[11px] text-white/40">#{approvedMaster.login} • {approvedMaster.platform} • {approvedMaster.server}</div>
-                  <div className="mt-4 grid grid-cols-3 gap-2">
-                    <MiniMetric label="Solde" value={masterBalance == null ? '—' : money(masterBalance, masterCurrency)} />
-                    <MiniMetric label="Equity" value={masterEquity == null ? '—' : money(masterEquity, masterCurrency)} />
-                    <MiniMetric label="P&L jour" value={masterPnl == null ? '—' : money(masterPnl, masterCurrency)} positive={Number(masterPnl) > 0} negative={Number(masterPnl) < 0} />
-                  </div>
-                </div>
-              ) : <div className="mt-4 rounded-[18px] border border-dashed border-white/10 bg-black/20 p-4 text-sm text-white/45">Aucun Master approuvé pour le moment. Fais une demande ci-dessous.</div>}
-
-              <div className="mt-4 space-y-3">
-                {(selectedStatus?.masterAccountsList || []).length === 0 ? <div className="rounded-[18px] border border-white/[0.07] bg-black/20 p-4 text-sm text-white/45">Aucune liaison Master disponible.</div> : (selectedStatus?.masterAccountsList || []).map((master, index) => {
-                  const current = selectedMasters[master.id] || { on: false, lots: masterQuickValue || '0.01' };
-                  return <button type="button" key={master.id} onClick={() => toggleMaster(master.id)} aria-pressed={current.on} className={cn('flex w-full items-center gap-3 rounded-[18px] border p-4 text-left transition', current.on ? 'border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]' : 'border-white/[0.07] bg-black/20')}><span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-md border', current.on ? 'border-[color:var(--gold-border)] bg-[color:var(--gold)] text-black' : 'border-white/10 text-white/50')}>{current.on ? <Check size={14}/> : null}</span><span className="min-w-0 flex-1"><span className="block break-words text-sm font-semibold text-white">{master.name}</span><span className="mt-1 block text-[10px] text-white/45">MASTER {String(index + 1).padStart(2, '0')}</span></span><span className="text-[10px] text-white/55">{current.on ? 'Sélectionné' : 'Choisir'}</span></button>;
-                })}
-              </div>
-
-              <button onClick={() => setRequestOpen(true)} className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 py-3 text-sm font-semibold text-[color:var(--gold)]"><Send size={14} /> Ajouter une liaison Master</button>
-            </section>
-
-            <section className="rounded-[22px] border border-[color:var(--gold-border)] bg-black/20 p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
                   <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[color:var(--gold)]">3. Configurer le risque</div>
                   <div className="mt-1 text-sm text-white/45">Définis comment les trades seront copiés.</div>
                 </div>
@@ -1097,8 +1094,8 @@ export default function CopieurPage() {
               </div>
 
               <div className="mt-4 grid grid-cols-1 gap-3">
-                <button type="button" disabled={!selectedReceiver || activeMasters.length === 0} onClick={() => setRiskModalOpen(true)} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 py-3 text-sm font-semibold text-[color:var(--gold)] disabled:opacity-40"><Settings2 size={15} /> Configurer en détail</button>
-                <button disabled={busy || riskBusy || !selectedReceiverId || activeMasters.length === 0 || !masterConsent} onClick={() => void saveAll()} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[color:var(--gold)] px-4 py-3 text-sm font-semibold text-black disabled:opacity-40">{saveBarState === 'saving' ? <Loader2 size={15} className='animate-spin' /> : <ShieldCheck size={15} />} Enregistrer et activer</button>
+                <button type="button" disabled={!selectedReceiver || activeMasters.length === 0} onClick={() => setRiskModalOpen(true)} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 py-3 text-sm font-semibold text-[color:var(--gold)] disabled:opacity-40"><Settings2 size={15} /> Continuer : configurer le risque</button>
+
               </div>
 
               <div className="mt-3 text-[11px] text-white/35">{saveBarMessage}</div>
@@ -1106,7 +1103,7 @@ export default function CopieurPage() {
           </div>
         </section>
 
-        <section id="ip-copier-receivers" className="grid grid-cols-1 gap-5 xl:grid-cols-[0.9fr_1.7fr] scroll-mt-24">
+        <section id="ip-copier-receivers" className="hidden xl:grid grid-cols-1 gap-5 xl:grid-cols-[0.9fr_1.7fr] scroll-mt-24">
           <section className="rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6">
             <div className="flex items-start justify-between gap-3"><div><div className="text-[12px] font-semibold text-white">Compte Master (source)</div><div className="mt-1 text-[10px] text-white/35">Compte sélectionné pour piloter la copie</div></div><State active={Boolean(approvedMaster)} label={approvedMaster ? "Approuvé" : "À approuver"} /></div>
             <div className="mt-5 rounded-[22px] border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4">
@@ -1128,9 +1125,9 @@ export default function CopieurPage() {
           </section>
         </section>
 
-        {selectedReceiver ? <section id="ip-copier-masters" className="scroll-mt-24 rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><div className="text-lg font-semibold text-white">Liaisons Master</div><div className="mt-1 text-[11px] text-white/35">Sélectionne un Master approuvé pour ton receveur, puis configure le risque.</div></div>{selectedReceiver && selectedReceiver.id !== "legacy" ? <button onClick={() => { setRemoveReceiverId(selectedReceiver.id); setDisconnectConsent(false); setRemoveError(""); }} className="inline-flex h-10 items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/[0.04] px-4 text-[11px] font-semibold text-red-300"><Unplug size={13} /> Retirer ce receveur</button> : null}</div><div className="mt-5 space-y-3">{(selectedStatus?.masterAccountsList || []).length === 0 ? <div className="rounded-2xl border border-white/[0.07] bg-black/20 p-6 text-[11px] text-white/40">Aucune liaison master disponible pour le moment.</div> : (selectedStatus?.masterAccountsList || []).map((master, index) => { const current = selectedMasters[master.id] || { on: false, lots: masterQuickValue || "0.01" }; return <button type="button" key={master.id} onClick={() => toggleMaster(master.id)} aria-pressed={current.on} className={cn("flex w-full items-center gap-3 rounded-[18px] border p-4 text-left transition", current.on ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]" : "border-white/[0.07] bg-black/20")}><span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-md border", current.on ? "border-[color:var(--gold-border)] bg-[color:var(--gold)] text-black" : "border-white/10 text-white/50")}>{current.on ? <Check size={14}/> : null}</span><span className="min-w-0 flex-1"><span className="block break-words text-sm font-semibold text-white">{master.name}</span><span className="mt-1 block text-[10px] text-white/45">MASTER {String(index + 1).padStart(2, "0")}</span></span><span className="text-[10px] text-white/55">{current.on ? "Sélectionné" : "Choisir"}</span></button>; })}</div><label className="mt-5 flex items-start gap-3 rounded-2xl border border-white/[0.06] bg-black/20 p-4 text-[11px] leading-5 text-white/55"><input type="checkbox" checked={masterConsent} onChange={(e) => { setMasterConsent(e.target.checked); setSaveBarState("idle"); setSaveBarMessage("Configuration non enregistrée"); }} className="mt-0.5 h-4 w-4 accent-[#d4a934]" /> Je confirme le compte Master sélectionné.</label><div className="mt-4 flex justify-end"><button type="button" disabled={!selectedReceiver || activeMasters.length === 0 || !masterConsent} onClick={() => setRiskModalOpen(true)} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 py-3 text-xs font-semibold text-black disabled:opacity-40"><Settings2 size={15} /> Continuer : configurer le risque</button></div></section> : <section className="rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 text-sm text-white/50">Ajoute un compte receveur pour commencer.</section>}
+        {selectedReceiver ? <section id="ip-copier-masters" className="hidden xl:block scroll-mt-24 rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><div className="text-lg font-semibold text-white">Liaisons Master</div><div className="mt-1 text-[11px] text-white/35">Sélectionne un Master approuvé pour ton receveur, puis configure le risque.</div></div>{selectedReceiver && selectedReceiver.id !== "legacy" ? <button onClick={() => { setRemoveReceiverId(selectedReceiver.id); setDisconnectConsent(false); setRemoveError(""); }} className="inline-flex h-10 items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/[0.04] px-4 text-[11px] font-semibold text-red-300"><Unplug size={13} /> Retirer ce receveur</button> : null}</div><div className="mt-5 space-y-3">{(selectedStatus?.masterAccountsList || []).length === 0 ? <div className="rounded-2xl border border-white/[0.07] bg-black/20 p-6 text-[11px] text-white/40">Aucune liaison master disponible pour le moment.</div> : (selectedStatus?.masterAccountsList || []).map((master, index) => { const current = selectedMasters[master.id] || { on: false, lots: masterQuickValue || "0.01" }; return <button type="button" key={master.id} onClick={() => toggleMaster(master.id)} aria-pressed={current.on} className={cn("flex w-full items-center gap-3 rounded-[18px] border p-4 text-left transition", current.on ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]" : "border-white/[0.07] bg-black/20")}><span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-md border", current.on ? "border-[color:var(--gold-border)] bg-[color:var(--gold)] text-black" : "border-white/10 text-white/50")}>{current.on ? <Check size={14}/> : null}</span><span className="min-w-0 flex-1"><span className="block break-words text-sm font-semibold text-white">{master.name}</span><span className="mt-1 block text-[10px] text-white/45">MASTER {String(index + 1).padStart(2, "0")}</span></span><span className="text-[10px] text-white/55">{current.on ? "Sélectionné" : "Choisir"}</span></button>; })}</div><label className="mt-5 flex items-start gap-3 rounded-2xl border border-white/[0.06] bg-black/20 p-4 text-[11px] leading-5 text-white/55"><input type="checkbox" checked={masterConsent} onChange={(e) => { setMasterConsent(e.target.checked); setSaveBarState("idle"); setSaveBarMessage("Configuration non enregistrée"); }} className="mt-0.5 h-4 w-4 accent-[#d4a934]" /> Je confirme le compte Master sélectionné.</label><div className="mt-4 flex justify-end"><button type="button" disabled={!selectedReceiver || activeMasters.length === 0 || !masterConsent} onClick={() => setRiskModalOpen(true)} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 py-3 text-xs font-semibold text-black disabled:opacity-40"><Settings2 size={15} /> Continuer : configurer le risque</button></div></section> : <section className="hidden xl:block rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 text-sm text-white/50">Ajoute un compte receveur pour commencer.</section>}
 
-        {selectedReceiver && riskModalOpen && portalReady ? createPortal(<div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 p-2 backdrop-blur-sm sm:p-4" role="dialog" aria-modal="true" aria-label="Configurer le risque de copie"><div className="flex max-h-[calc(100dvh-24px)] w-full max-w-[1120px] flex-col overflow-hidden rounded-2xl border border-[color:var(--gold-border)] bg-[#0b0e0b] shadow-2xl sm:max-h-[calc(100dvh-32px)]">
+        {selectedReceiver && riskModalOpen && portalReady ? createPortal(<div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 px-2 pb-[calc(env(safe-area-inset-bottom,0px)+12px)] pt-[calc(env(safe-area-inset-top,0px)+12px)] backdrop-blur-sm sm:p-4" role="dialog" aria-modal="true" aria-label="Configurer le risque de copie"><div className="flex max-h-full w-full max-w-[1120px] flex-col overflow-hidden rounded-2xl border border-[color:var(--gold-border)] bg-[#0b0e0b] shadow-2xl sm:max-h-[calc(100dvh-32px)]">
           <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[color:var(--gold-border)] bg-[#101310] p-3 sm:p-4"><div><div className="font-semibold text-white">Configurer le risque de copie</div><div className="mt-1 text-xs text-white/50">{approvedMaster?.alias || "Master"} → {selectedReceiver.alias} : un seul enregistrement final</div></div><button onClick={() => setRiskModalOpen(false)} className="rounded-xl border border-white/10 p-2 text-white" aria-label="Fermer"><X size={18}/></button></div>
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain"><section className="rounded-[18px] border border-[color:var(--border)] bg-[color:var(--panel)] p-3 sm:p-5"><div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><div className="text-xl font-semibold text-white">Paramètres de copie — {selectedReceiver.alias}</div><p className="mt-1 text-[11px] text-white/40">Configurez la stratégie de copie et les paramètres de gestion du risque pour ce compte receveur.</p></div><div className="flex flex-wrap gap-2"><span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-1.5 text-[10px] font-semibold text-emerald-400"><CheckCircle2 size={12} /> Compte sélectionné</span><button onClick={() => setShowStats((v) => !v)} className="inline-flex h-9 items-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 text-[10px] font-semibold text-[color:var(--gold)]"><Activity size={13} /> {showStats ? "Masquer les statistiques" : "Voir les statistiques"}</button></div></div><div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2"><section className="hidden rounded-[22px] border border-white/[0.07] bg-black/20 p-4"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--gold)] text-sm font-bold text-black">1</span><div><div className="text-base font-semibold text-white">Choisir le receveur</div><div className="mt-1 text-[10px] text-white/35">Compte qui recevra les trades</div></div></div><div className="mt-4 rounded-[18px] border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4"><div className="flex items-center justify-between gap-3"><div><div className="text-sm font-semibold text-white">{selectedReceiver.alias}</div><div className="mt-1 text-[10px] text-white/35">#{selectedReceiver.login} · {selectedReceiver.platform} · {selectedReceiver.server}</div></div><State active={selectedReceiver.status === "connected"} label={selectedReceiver.status === "connected" ? "Connecté" : selectedReceiver.status === "paused" ? "Pause" : "Erreur"} /></div><select value={selectedReceiverId || ""} onChange={(e) => void selectReceiver(e.target.value)} className="ip-field mt-4">{virtualReceivers.map((receiver) => <option key={receiver.id} value={receiver.id}>{receiver.alias} — {receiver.login}</option>)}</select><div className="mt-3 text-[10px] text-white/35">Tu peux changer de receveur ici pour configurer un autre compte sans quitter la page.</div></div></section><section className="rounded-[22px] border border-white/[0.07] bg-black/20 p-4"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--gold)] text-sm font-bold text-black">2</span><div><div className="text-base font-semibold text-white">Régler le risque</div><div className="mt-1 text-[10px] text-white/35">Choisissez la méthode de calcul des lots.</div></div></div><div className="mt-4 space-y-3"><InlineRiskOption active={riskSettings.mode === "fixed"} label="Lots fixes" desc="Volume identique défini par stratégie" onClick={() => setRiskSettings((v) => ({ ...v, mode: "fixed" }))}><input type="number" min="0.001" step="0.001" value={masterQuickValue} onChange={(e) => applyQuickModeToSelectedMasters(e.target.value)} className="ip-field h-10 w-full text-center" /></InlineRiskOption><InlineRiskOption active={riskSettings.mode === "mirror"} label="Copier les lots du Master" desc="Même lot que le master avec multiplicateur" onClick={() => setRiskSettings((v) => ({ ...v, mode: "mirror" }))}><input type="number" min="0.1" step="0.1" value={riskSettings.mirror_multiplier} onChange={(e) => setRiskSettings((v) => ({ ...v, mode: "mirror", mirror_multiplier: Number(e.target.value || 1) }))} className="ip-field h-10 w-full text-center" /></InlineRiskOption><InlineRiskOption active={riskSettings.mode === "balance"} label="Risque par solde" desc="Sizing basé sur le ratio de balance" onClick={() => setRiskSettings((v) => ({ ...v, mode: "balance" }))}><input type="number" min="0.1" step="0.1" value={riskSettings.balance_multiplier} onChange={(e) => setRiskSettings((v) => ({ ...v, mode: "balance", balance_multiplier: Number(e.target.value || 1) }))} className="ip-field h-10 w-full text-center" /></InlineRiskOption><InlineRiskOption active={riskSettings.mode === "equity"} label="Risque par equity" desc="Sizing basé sur le ratio d’equity" onClick={() => setRiskSettings((v) => ({ ...v, mode: "equity" }))}><input type="number" min="0.1" step="0.1" value={riskSettings.equity_multiplier} onChange={(e) => setRiskSettings((v) => ({ ...v, mode: "equity", equity_multiplier: Number(e.target.value || 1) }))} className="ip-field h-10 w-full text-center" /></InlineRiskOption><InlineRiskOption active={riskSettings.mode === "percent"} label="Risque en %" desc="Pourcentage de capital risqué par trade" onClick={() => setRiskSettings((v) => ({ ...v, mode: "percent" }))}><input type="number" min="0.1" step="0.1" value={riskSettings.risk_percent} onChange={(e) => setRiskSettings((v) => ({ ...v, mode: "percent", risk_percent: Number(e.target.value || 1) }))} className="ip-field h-10 w-full text-center" /></InlineRiskOption></div></section><section className="rounded-[22px] border border-white/[0.07] bg-black/20 p-4"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--gold)] text-sm font-bold text-black">3</span><div><div className="text-base font-semibold text-white">Paramètres avancés</div><div className="mt-1 text-[10px] text-white/35">Protection, exécution et filtres.</div></div></div><div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2"><RiskNumber label="Slippage max" value={riskSettings.slippage_pips} min={0} max={1000} step={1} suffix="pips" onChange={(value) => setRiskSettings((v) => ({ ...v, slippage_pips: value }))} /><RiskNumber label="Lots maximum" value={riskSettings.max_lots} min={0.01} max={1000} step={0.01} suffix="lots" onChange={(value) => setRiskSettings((v) => ({ ...v, max_lots: value }))} /><RiskNumber label="Multiplicateur des lots" value={riskSettings.mirror_multiplier} min={0.1} max={20} step={0.1} suffix="x" onChange={(value) => setRiskSettings((v) => ({ ...v, mirror_multiplier: value }))} /><RiskNumber label="Risque en %" value={riskSettings.risk_percent} min={0.1} max={20} step={0.1} suffix="%" onChange={(value) => setRiskSettings((v) => ({ ...v, risk_percent: value }))} /></div><div className="mt-4 space-y-3"><ToggleSetting label="Copier uniquement certains symboles" description="Préparez un filtrage personnalisé par symboles." checked={Boolean(riskSettings.symbol_mapping)} onChange={(checked) => setRiskSettings((v) => ({ ...v, symbol_mapping: checked ? v.symbol_mapping || "XAUUSD=GOLD" : "" }))} /><ToggleSetting label="Heures de trading autorisées" description="Option avancée de filtrage horaire." checked={riskSettings.drawdown_enabled} onChange={(checked) => setRiskSettings((v) => ({ ...v, drawdown_enabled: checked }))} /></div><Field label="Configuration / notes avancées"><textarea value={riskSettings.symbol_mapping} onChange={(e) => setRiskSettings((v) => ({ ...v, symbol_mapping: e.target.value }))} className="min-h-24 w-full rounded-xl border border-white/[0.08] bg-black/25 p-3 text-[11px] leading-5 text-white outline-none focus:border-[color:var(--gold-border)]" placeholder={`Ex. XAUUSD=GOLD\nUS30=DJ30`} /></Field></section></div></section></div><div className="flex shrink-0 flex-col gap-2 border-t border-[color:var(--gold-border)] bg-[#101310] p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4"><label className="flex items-center gap-2 text-xs text-white/70"><input type="checkbox" checked={masterConsent} onChange={(e) => setMasterConsent(e.target.checked)} /> Je confirme la configuration de la copie</label><button disabled={busy || riskBusy || !masterConsent} onClick={() => void saveAll()} className="rounded-xl bg-[color:var(--gold)] px-5 py-3 text-sm font-bold text-black disabled:opacity-40">{saveBarState === "saving" ? "Enregistrement…" : "Enregistrer et terminer"}</button></div></div></div>, document.body) : null}
 
