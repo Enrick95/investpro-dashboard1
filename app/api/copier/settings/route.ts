@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { assertOwnedMasters } from "@/lib/copier/masterOwnership";
+import { copierAdminUserIds, createCopierNotice, sendCopierEmail } from "@/lib/copier/notifications";
 
 type RiskMode = "fixed" | "mirror" | "balance" | "equity" | "percent";
 
@@ -94,28 +95,8 @@ export async function PATCH(request: Request) {
       if (!masters.length) return NextResponse.json({ error: "Active au moins un Master pour demander ce mode." }, { status: 400 });
     }
 
-    const { error: updateError } = await supabase
-      .from("copier_receivers")
-      .update({
-        config: {
-          ...currentConfig,
-          risk_engine: riskEngine,
-        },
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", receiverId)
-      .eq("user_id", user.id);
-
-    if (updateError) {
-      return NextResponse.json(
-        { error: "Impossible d’enregistrer la configuration." },
-        { status: 500 }
-      );
-    }
-
-    // Les modes avancés ne sont pas pris en charge par les endpoints partenaire connus.
-    // On crée donc une demande de traitement, y compris pour le compte du propriétaire.
     let requestStatus = "not_required";
+    let requestId = "";
     if (riskEngine.mode !== "fixed") {
       const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
       const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -141,17 +122,58 @@ export async function PATCH(request: Request) {
         .select("id").eq("user_id", user.id).eq("receiver_id", receiverId)
         .in("status", ["pending", "processing"]).order("created_at", { ascending: false }).limit(1).maybeSingle();
       const action = existing?.id
-        ? admin.from("copier_configuration_requests").update({ requested_config: requestedConfig, status: "pending", admin_note: null, updated_at: new Date().toISOString() }).eq("id", existing.id)
-        : admin.from("copier_configuration_requests").insert({ user_id: user.id, receiver_id: receiverId, requested_config: requestedConfig, status: "pending" });
-      const { error: requestError } = await action;
-      if (requestError) return NextResponse.json({ error: "Réglage sauvegardé, mais demande admin non transmise. Réessayez." }, { status: 503 });
+        ? admin.from("copier_configuration_requests").update({ requested_config: requestedConfig, status: "pending", admin_note: null, updated_at: new Date().toISOString() }).eq("id", existing.id).select("id").single()
+        : admin.from("copier_configuration_requests").insert({ user_id: user.id, receiver_id: receiverId, requested_config: requestedConfig, status: "pending" }).select("id").single();
+      const { data: requestRow, error: requestError } = await action;
+      if (requestError) return NextResponse.json({ error: "La demande de réglage n’a pas pu être transmise. Réessayez." }, { status: 503 });
+
+      requestId = String(requestRow.id);
+      const { error: receiverUpdateError } = await admin.from("copier_receivers").update({
+        config: {
+          ...currentConfig,
+          requested_configuration: requestedConfig,
+          configuration_status: "pending",
+          configuration_request_id: requestId,
+        },
+        updated_at: new Date().toISOString(),
+      }).eq("id", receiverId).eq("user_id", user.id);
+      if (receiverUpdateError) return NextResponse.json({ error: "La demande a été créée, mais son état n’a pas pu être actualisé. Contactez l’équipe InvestPro." }, { status: 503 });
+
+      const title = "Réglage de copie reçu";
+      const message = "Votre demande de réglage a bien été transmise à l’équipe InvestPro. Le réglage actuellement actif reste en place pendant son traitement. Vous recevrez une notification dès que le résultat sera confirmé.";
+      const eventKey = `copier-config-request-${requestId}`;
+      let noticeInserted = false;
+      try { noticeInserted = (await createCopierNotice(admin, { eventKey, userId: user.id, title, message })).inserted; }
+      catch (noticeError) { console.error("[copier-settings] notification client non enregistrée", noticeError); }
+      for (const adminId of await copierAdminUserIds(admin)) {
+        try { await createCopierNotice(admin, { eventKey: `copier-config-request-admin-${requestId}-${adminId}`, userId: adminId, title: "Nouveau réglage Copier à traiter", message: `Une demande de réglage attend un traitement · compte receveur ${receiverId}.`, href: "/dashboard/admin/copieur" }); }
+        catch (noticeError) { console.error("[copier-settings] notification admin non enregistrée", noticeError); }
+      }
+      const emailResult = noticeInserted
+        ? await sendCopierEmail(admin, user.id, title, message)
+        : { sent: false, reason: "notification_not_recorded" };
+      if (!emailResult.sent && emailResult.reason !== "email_not_configured") console.error("[copier-settings] e-mail non envoyé", emailResult.reason);
       requestStatus = "pending";
+    } else {
+      const { error: updateError } = await supabase
+        .from("copier_receivers")
+        .update({
+          config: { ...currentConfig, risk_engine: riskEngine },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", receiverId)
+        .eq("user_id", user.id);
+
+      if (updateError) {
+        return NextResponse.json({ error: "Impossible d’enregistrer la configuration." }, { status: 500 });
+      }
     }
     return NextResponse.json({
       ok: true,
       settings: riskEngine,
       providerSync: riskEngine.provider_sync,
       requestStatus,
+      requestId,
     });
   } catch (error) {
     console.error("[copier/settings][PATCH]", error);
