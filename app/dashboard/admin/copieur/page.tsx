@@ -262,7 +262,7 @@ export default function AdminCopierRequestsPage() {
               InvestPro Copier · activations & réglages
             </h1>
             <p className="mt-1 text-sm text-[color:var(--muted)]">
-              Active les comptes puis applique manuellement les réglages demandés dans Social Trade Hub.
+              Active les comptes puis applique manuellement les réglages demandés dans plateforme partenaire.
             </p>
           </div>
 
@@ -358,7 +358,7 @@ export default function AdminCopierRequestsPage() {
                 <div className="w-full xl:w-[430px]">
                   <div className="rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4">
                     <div className="text-[8px] font-bold uppercase tracking-[0.1em] text-[color:var(--gold)]">
-                      Identifiant Social Trade Hub
+                      Identifiant du compte partenaire
                     </div>
                     <div className="mt-2 flex items-center gap-2">
                       <code className="min-w-0 flex-1 break-all text-[10px] text-white/65">
@@ -375,7 +375,7 @@ export default function AdminCopierRequestsPage() {
                     </div>
                     <p className="mt-2 text-[8px] leading-4 text-white/30">
                       Utilise exactement cet identifiant quand tu crées/associes
-                      le receveur dans Social Trade Hub.
+                      le receveur dans plateforme partenaire.
                     </p>
                   </div>
 
@@ -461,8 +461,8 @@ export default function AdminCopierRequestsPage() {
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="text-[9px] font-bold uppercase tracking-[0.14em] text-[color:var(--gold)]">CONFIGURATIONS CLIENTS</div>
-            <h2 className="mt-2 text-xl font-semibold text-white">Réglages à appliquer dans Social Trade Hub</h2>
-            <p className="mt-1 text-xs text-white/35">Recopie exactement ces paramètres dans STH, puis confirme uniquement quand c’est réellement appliqué.</p>
+            <h2 className="mt-2 text-xl font-semibold text-white">Réglages à appliquer dans plateforme partenaire</h2>
+            <p className="mt-1 text-xs text-white/35">Recopie exactement ces paramètres dans la plateforme partenaire, puis confirme uniquement quand c’est réellement appliqué.</p>
           </div>
           <div className="rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1.5 text-[9px] font-bold text-[color:var(--gold)]">{pendingConfigs} à traiter</div>
         </div>
@@ -523,7 +523,7 @@ export default function AdminCopierRequestsPage() {
                     <div className="rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4">
                       <div className="text-[9px] font-semibold text-white">Checklist avant confirmation</div>
                       <div className="mt-3 space-y-2 text-[9px] leading-5 text-white/45">
-                        <div>1. Ouvrir le receveur dans Social Trade Hub.</div>
+                        <div>1. Ouvrir le receveur dans plateforme partenaire.</div>
                         <div>2. Sélectionner exactement les masters ci-contre.</div>
                         <div>3. Reproduire le mode de risque et sa valeur.</div>
                         <div>4. Reproduire SL / TP / pending / protections.</div>
@@ -540,7 +540,7 @@ export default function AdminCopierRequestsPage() {
 
                     <div className="mt-3 grid grid-cols-1 gap-2">
                       <button disabled={busyId === row.id} onClick={() => void updateConfig(row, "processing")} className="h-10 rounded-xl border border-amber-500/20 bg-amber-500/[0.05] px-4 text-xs font-semibold text-amber-300">Je commence l’application</button>
-                      <button disabled={busyId === row.id} onClick={() => void updateConfig(row, "applied")} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-4 text-xs font-semibold text-emerald-400"><CheckCircle2 size={14} /> Configuration appliquée dans STH</button>
+                      <button disabled={busyId === row.id} onClick={() => void updateConfig(row, "applied")} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-4 text-xs font-semibold text-emerald-400"><CheckCircle2 size={14} /> Configuration appliquée dans la plateforme partenaire</button>
                       <button disabled={busyId === row.id} onClick={() => void updateConfig(row, "rejected")} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-red-500/20 bg-red-500/[0.05] px-4 text-xs font-semibold text-red-300"><XCircle size={14} /> Demander une correction</button>
                     </div>
                   </div>
