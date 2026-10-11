@@ -7,8 +7,8 @@ import {
   AlertTriangle,
   Check,
   CheckCircle2,
-  Clock3,
   ChevronDown,
+  Clock3,
   Copy,
   Gauge,
   Layers3,
@@ -521,10 +521,10 @@ export default function CopieurPage() {
       });
       setRequestServerChoice("");
       setRequestOpen(false);
-      setRequestSuccess("Votre demande de Master a bien été reçue. Vous pouvez suivre son statut dans votre espace InvestPro. Une notification ou un e-mail vous sera envoyé si ce canal est activé.");
+      setRequestSuccess(data.message || "Votre demande d’activation de compte Master a bien été envoyée ! Notre équipe va procéder à sa vérification. Vous recevrez une notification dès que votre compte sera activé.");
       setMessage(
         data.message ||
-          "Demande envoyée. Elle apparaîtra ici dès que l’équipe l’aura activée."
+          "Votre demande a été envoyée. Son statut sera actualisé dans votre espace InvestPro."
       );
       await loadActivationRequests();
     } catch (cause) {
@@ -728,7 +728,7 @@ export default function CopieurPage() {
         );
       } else {
         setMessage(
-          "Demande de Risk Engine envoyée à l’équipe InvestPro. Le réglage actuel reste en place jusqu’à confirmation."
+          "Votre demande de réglage est en attente de traitement par l’équipe InvestPro. Le réglage actuellement actif reste en place jusqu’à confirmation."
         );
       }
     } catch (cause) {
@@ -842,12 +842,16 @@ export default function CopieurPage() {
   useEffect(() => {
     const latest = configurationRequests.find((request) => request.receiver_id === selectedReceiverId);
     setConfigurationRequestNote(latest?.status === "rejected" ? String(latest.admin_note || "") : "");
-    if (!latest) { setRiskSaveState("idle"); return; }
+    if (!latest) {
+      setRiskSaveState("idle");
+      return;
+    }
     if (latest.status === "pending" || latest.status === "processing") setRiskSaveState("pending");
     else if (latest.status === "applied") {
       setRiskSaveState("saved");
       setRiskSavedAt(new Date(latest.updated_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }));
-    } else setRiskSaveState("failed");
+    }
+    else setRiskSaveState("failed");
   }, [configurationRequests, selectedReceiverId]);
 
   function statsFor(receiver: Receiver) {
@@ -918,8 +922,8 @@ export default function CopieurPage() {
       setSaveBarState("saved");
       setRiskModalOpen(false);
       const pending = riskSettings.mode !== "fixed";
-      setSaveBarMessage(pending ? "Liaison enregistrée · risque avancé en attente de validation" : "Configuration confirmée pour le mode lots fixes");
-      setMessage(pending ? "La liaison a été enregistrée. Le mode de risque avancé attend la validation de l'équipe ; il n'est pas encore appliqué au moteur." : "Configuration des lots fixes envoyée au moteur.");
+      setSaveBarMessage(pending ? "Demande enregistrée · traitement InvestPro en attente" : "Configuration confirmée pour le mode lots fixes");
+      setMessage(pending ? "Votre demande de réglage est en attente de traitement par l’équipe InvestPro. Le réglage actuellement actif reste en place jusqu’à confirmation." : "Configuration des lots fixes envoyée au moteur de copie.");
       await loadRows();
     } catch (cause) {
       setSaveBarState("failed");
@@ -949,10 +953,6 @@ export default function CopieurPage() {
   return (
     <>
       <main className="mx-auto max-w-[1600px] space-y-5 pb-32">
-        {activationRequests.length > 0 ? <section className="rounded-[22px] border border-white/[0.07] bg-[color:var(--panel)] p-4 md:p-5">
-          <div className="flex items-center justify-between gap-3"><div><h2 className="text-sm font-semibold text-white">Suivi des demandes Master</h2><p className="mt-1 text-[10px] text-white/40">Statut de traitement par l’équipe InvestPro.</p></div><button type="button" onClick={() => void loadActivationRequests()} className="text-[9px] font-semibold text-[color:var(--gold)]">Actualiser</button></div>
-          <div className="mt-3 grid gap-2 md:grid-cols-2">{activationRequests.map((request) => <div key={request.id} className="rounded-xl border border-white/[0.06] bg-black/15 p-3"><div className="flex items-center justify-between gap-2"><div className="min-w-0"><div className="truncate text-[10px] font-semibold text-white">{request.alias} · {request.platform} {request.login}</div><div className="mt-1 truncate text-[8px] text-white/40">{request.server}</div></div><span className={cn("shrink-0 rounded-full border px-2 py-1 text-[8px] font-semibold", request.status === "activated" ? "border-emerald-500/20 bg-emerald-500/[0.05] text-emerald-300" : request.status === "rejected" ? "border-red-500/20 bg-red-500/[0.05] text-red-300" : "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]")}>{request.status === "activated" ? "Activé" : request.status === "rejected" ? "Refusé" : request.status === "processing" ? "Vérification" : "En attente"}</span></div>{request.status === "rejected" && request.admin_note ? <p className="mt-2 text-[9px] leading-4 text-red-200/75">Motif : {request.admin_note}</p> : null}</div>)}</div>
-        </section> : null}
         <section className="space-y-4 md:hidden">
           <section className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4">
             <div className="inline-flex rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1.5 text-[9px] font-semibold text-[color:var(--gold)]">Gestion des comptes MetaTrader</div>
@@ -989,6 +989,10 @@ export default function CopieurPage() {
 
           <section className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4"><div className="text-[10px] font-semibold text-white/75">État du parcours</div><div className="mt-2 grid grid-cols-2 gap-2"><div className="rounded-xl border border-white/[0.06] bg-black/15 p-3"><div className="text-[8px] uppercase text-white/35">Connexion receveur</div><div className="mt-1 text-[9px] font-semibold text-white/70">{selectedReceiver ? selectedReceiver.status === "connected" ? "Connecté" : selectedReceiver.status === "paused" ? "En pause" : "À vérifier" : "À configurer"}</div></div><div className="rounded-xl border border-white/[0.06] bg-black/15 p-3"><div className="text-[8px] uppercase text-white/35">Dernière vérification</div><div className="mt-1 truncate text-[9px] font-semibold text-white/70">{checked || "En attente"}</div></div></div></section>
         </section>
+        {activationRequests.length > 0 ? <section className="rounded-[22px] border border-white/[0.07] bg-[color:var(--panel)] p-4 md:hidden">
+          <div className="flex items-center justify-between"><h2 className="text-xs font-semibold text-white">Suivi des demandes Master</h2><button type="button" onClick={() => void loadActivationRequests()} className="text-[9px] font-semibold text-[color:var(--gold)]">Actualiser</button></div>
+          <div className="mt-3 space-y-2">{activationRequests.map((request) => <div key={request.id} className="rounded-xl border border-white/[0.06] bg-black/15 p-3"><div className="flex items-center justify-between gap-2"><div className="min-w-0"><div className="truncate text-[10px] font-semibold text-white">{request.alias} · {request.platform} {request.login}</div><div className="mt-1 truncate text-[8px] text-white/40">{request.server}</div></div><span className={cn("shrink-0 rounded-full border px-2 py-1 text-[8px] font-semibold", request.status === "activated" ? "border-emerald-500/20 bg-emerald-500/[0.05] text-emerald-300" : request.status === "rejected" ? "border-red-500/20 bg-red-500/[0.05] text-red-300" : "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]")}>{request.status === "activated" ? "Activé" : request.status === "rejected" ? "Refusé" : request.status === "processing" ? "Vérification" : "En attente"}</span></div>{request.status === "rejected" && request.admin_note ? <p className="mt-2 text-[9px] leading-4 text-red-200/75">Motif : {request.admin_note}</p> : null}</div>)}</div>
+        </section> : null}
         <div className="hidden space-y-5 md:block">
         <section id="copier-overview" className="scroll-mt-24 overflow-hidden rounded-[26px] border border-[color:var(--border)] bg-[color:var(--panel)]">
           <div className="relative p-4 md:p-6">
@@ -1031,6 +1035,31 @@ export default function CopieurPage() {
           </div>
         </section>
 
+        {activationRequests.length > 0 ? (
+          <section className="rounded-[22px] border border-white/[0.07] bg-[color:var(--panel)] p-4 md:p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-white">Suivi des demandes Master</h2>
+                <p className="mt-1 text-[10px] text-white/40">Retrouve ici leur état et les informations utiles.</p>
+              </div>
+              <button type="button" onClick={() => void loadActivationRequests()} className="text-[10px] font-semibold text-[color:var(--gold)]">Actualiser</button>
+            </div>
+            <div className="mt-3 space-y-2">
+              {activationRequests.map((request) => {
+                const label = request.status === "activated" ? "Activé" : request.status === "rejected" ? "Refusé" : request.status === "processing" ? "En cours de vérification" : "En attente";
+                const style = request.status === "activated" ? "border-emerald-500/20 bg-emerald-500/[0.05] text-emerald-300" : request.status === "rejected" ? "border-red-500/20 bg-red-500/[0.05] text-red-300" : "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]";
+                return <div key={request.id} className="rounded-xl border border-white/[0.06] bg-black/15 p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="min-w-0"><div className="truncate text-xs font-semibold text-white">{request.alias} · {request.platform} {request.login}</div><div className="mt-1 text-[9px] text-white/40">{request.server} · demande du {new Date(request.created_at).toLocaleDateString("fr-FR")}</div></div>
+                    <span className={`rounded-full border px-2.5 py-1 text-[9px] font-semibold ${style}`}>{label}</span>
+                  </div>
+                  {request.status === "rejected" && request.admin_note ? <p className="mt-2 text-[10px] leading-5 text-red-200/75">Motif : {request.admin_note}</p> : null}
+                </div>;
+              })}
+            </div>
+          </section>
+        ) : null}
+
         <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1.65fr_.9fr]">
           <section className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4 md:p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -1041,10 +1070,10 @@ export default function CopieurPage() {
           </section>
           <section className="relative overflow-hidden rounded-[22px] border border-emerald-500/15 bg-[color:var(--panel)] p-4 md:p-5">
             <div className="pointer-events-none absolute -right-12 -top-14 h-36 w-36 rounded-full bg-cyan-300/[0.06] blur-2xl" />
-            <div className="relative flex items-start justify-between gap-3"><div><div className="text-sm font-semibold text-white">Protection &amp; risque</div><div className="mt-1 text-[10px] text-white/40">Réglages du receveur sélectionné</div></div><span className={cn("rounded-full border px-2.5 py-1 text-[8px] font-semibold", riskSaveState === "saved" ? "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-300" : "border-white/[0.08] bg-white/[0.03] text-white/45")}>{riskSaveState === "saved" ? "Enregistré" : riskSaveState === "pending" ? "En attente" : "À vérifier"}</span></div>
-            <div className={cn("mt-4 flex items-center gap-3 rounded-xl border p-3", riskSaveState === "pending" ? "border-amber-500/15 bg-amber-500/[0.045]" : riskSaveState === "saved" ? "border-emerald-500/15 bg-emerald-500/[0.045]" : riskSaveState === "failed" ? "border-red-500/15 bg-red-500/[0.045]" : "border-white/[0.07] bg-black/15")}>
-              <span className={cn("flex h-9 w-9 items-center justify-center rounded-lg", riskSaveState === "pending" ? "bg-amber-500/[0.08] text-amber-300" : riskSaveState === "saved" ? "bg-emerald-500/10 text-emerald-300" : riskSaveState === "failed" ? "bg-red-500/10 text-red-300" : "bg-white/[0.04] text-white/45")}>{riskSaveState === "pending" ? <Clock3 size={16} /> : riskSaveState === "saved" ? <ShieldCheck size={16} /> : <Activity size={16} />}</span>
-              <div><div className="text-[11px] font-semibold text-white/85">État du réglage</div><div className="mt-0.5 text-[9px] text-white/45">{riskSaveState === "pending" ? "En attente de traitement par InvestPro" : riskSaveState === "saved" ? "Réglage confirmé" : riskSaveState === "failed" ? configurationRequestNote || "Demande refusée ou impossible à confirmer" : "Aucune confirmation enregistrée"}</div></div>
+            <div className="relative flex items-start justify-between gap-3"><div><div className="text-sm font-semibold text-white">Protection &amp; risque</div><div className="mt-1 text-[10px] text-white/40">Réglages du receveur sélectionné</div></div><span className={cn("rounded-full border px-2.5 py-1 text-[8px] font-semibold", riskSaveState === "saved" ? "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-300" : riskSaveState === "failed" ? "border-red-500/20 bg-red-500/[0.05] text-red-300" : "border-white/[0.08] bg-white/[0.03] text-white/45")}>{riskSaveState === "saved" ? "Confirmé" : riskSaveState === "pending" ? "En attente" : riskSaveState === "failed" ? "Refusé / échec" : "À vérifier"}</span></div>
+            <div className={cn("mt-4 flex items-center gap-3 rounded-xl border p-3", riskSaveState === "pending" ? "border-amber-500/15 bg-amber-500/[0.045]" : riskSaveState === "saved" ? "border-emerald-500/15 bg-emerald-500/[0.045]" : "border-white/[0.07] bg-black/15")}>
+              <span className={cn("flex h-9 w-9 items-center justify-center rounded-lg", riskSaveState === "pending" ? "bg-amber-500/[0.08] text-amber-300" : riskSaveState === "saved" ? "bg-emerald-500/10 text-emerald-300" : riskSaveState === "failed" ? "bg-red-500/10 text-red-300" : "bg-white/[0.04] text-white/45")}>{riskSaveState === "pending" ? <Clock3 size={16} /> : riskSaveState === "saved" ? <ShieldCheck size={16} /> : riskSaveState === "failed" ? <AlertTriangle size={16} /> : <Activity size={16} />}</span>
+              <div><div className={cn("text-[11px] font-semibold", riskSaveState === "pending" ? "text-amber-200" : riskSaveState === "saved" ? "text-emerald-200" : riskSaveState === "failed" ? "text-red-200" : "text-white/70")}>{riskSaveState === "pending" ? "Demande en cours de traitement" : riskSaveState === "saved" ? "Réglage actif confirmé" : riskSaveState === "failed" ? "Demande refusée ou échec" : "État du réglage"}</div><div className="mt-0.5 text-[9px] text-white/45">{riskSaveState === "pending" ? "Le réglage confirmé précédemment reste actif." : riskSaveState === "saved" ? `Dernière confirmation${riskSavedAt ? ` · ${riskSavedAt}` : ""}.` : riskSaveState === "failed" ? configurationRequestNote || "Consulte la notification InvestPro ou contacte l’équipe pour connaître la suite." : "Les réglages seront indiqués ici après leur enregistrement."}</div></div>
             </div>
             <div className="mt-3 space-y-0.5"><div className="flex justify-between gap-3 border-t border-white/[0.06] py-2 text-[10px]"><span className="text-white/45">Mode de calcul</span><strong className="text-white/75">{riskModeLabel(riskSettings.mode)}</strong></div><div className="flex justify-between gap-3 border-t border-white/[0.06] py-2 text-[10px]"><span className="text-white/45">Volume maximum</span><strong className="text-white/75">{riskSettings.max_lots} lots</strong></div></div>
             <button type="button" disabled={!selectedReceiver || selectedReceiver.id === "legacy"} onClick={() => setRiskModalOpen(true)} className="mt-2 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 text-[10px] font-semibold text-[color:var(--gold)] transition hover:bg-[color:var(--gold-soft)]/80 disabled:cursor-not-allowed disabled:opacity-40"><Settings2 size={13} /> Régler le risque</button>
@@ -1102,7 +1131,7 @@ export default function CopieurPage() {
                 <div className="flex items-center justify-between gap-3"><div className="text-[9px] font-semibold uppercase tracking-[0.12em] text-white/45">Compte receveur</div><ReceiverStatusBadge status={selectedReceiver.status} /></div>
                 <div className="mt-3 text-lg font-semibold text-white">{selectedReceiver.alias}</div>
                 <div className="mt-1 text-[10px] text-white/50">#{selectedReceiver.login} · {selectedReceiver.platform} · {selectedReceiver.server}</div>
-                <div className="mt-4 flex items-center gap-2 border-t border-white/[0.07] pt-3 text-[10px] text-white/50"><Activity size={14} className={selectedReceiver.status === "connected" ? "text-emerald-300" : "text-white/35"} />{selectedStatus ? selectedStatus.isTradingAccountConnected ? "Connexion confirmée par le moteur de copie" : "Connexion non confirmée par le moteur de copie" : selectedReceiver.status === "connected" ? "Connecté dans InvestPro · vérification STH indisponible" : "En attente de connexion"}</div>
+        <div className="mt-4 flex items-center gap-2 border-t border-white/[0.07] pt-3 text-[10px] text-white/50"><Activity size={14} className={selectedReceiver.status === "connected" ? "text-emerald-300" : "text-white/35"} />{selectedStatus ? selectedStatus.isTradingAccountConnected ? "Connexion confirmée par le moteur de copie" : "Connexion non confirmée par le moteur de copie" : selectedReceiver.status === "connected" ? "Connecté dans InvestPro · vérification indisponible" : "En attente de connexion"}</div>
               </div>
             </div>
 

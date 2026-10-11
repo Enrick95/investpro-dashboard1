@@ -19,6 +19,7 @@ import { loadActiveTradingScope, scopeTradesToActiveAccounts } from "@/lib/tradi
 import NotificationEngine from "@/components/NotificationEngine";
 import MobileGlobalV1 from "@/components/MobileGlobalV1";
 import InstallAppExperience from "@/components/InstallAppExperience";
+import PwaPushPrompt from "@/components/PwaPushPrompt";
 import NewMemberJourney from "@/components/NewMemberJourney";
 import PremiumEmptyStateGuide from "@/components/PremiumEmptyStateGuide";
 import SmartDashboardInsights from "@/components/intelligence/SmartDashboardInsights";
@@ -115,7 +116,6 @@ export default function DashboardTemplate({
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, [isHome, supabase]);
-
 
 
 
@@ -560,6 +560,7 @@ export default function DashboardTemplate({
       <NotificationEngine />
       <MobileGlobalV1 />
       <InstallAppExperience />
+      <PwaPushPrompt />
       <PremiumEmptyStateGuide />
       {children}
     </>

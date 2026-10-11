@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { assertOwnedMasters } from "@/lib/copier/masterOwnership";
-import { copierAdminUserIds, createCopierNotice, sendCopierEmail } from "@/lib/copier/notifications";
+import { copierAdminUserIds, createCopierNotice, sendCopierEmail, sendCopierPush } from "@/lib/copier/notifications";
 
 type RiskMode = "fixed" | "mirror" | "balance" | "equity" | "percent";
 
@@ -150,9 +150,13 @@ export async function PATCH(request: Request) {
         catch (noticeError) { console.error("[copier-settings] notification admin non enregistrée", noticeError); }
       }
       const emailResult = noticeInserted
-        ? await sendCopierEmail(admin, user.id, title, message)
+        ? await sendCopierEmail(admin, eventKey, user.id, title, message)
         : { sent: false, reason: "notification_not_recorded" };
       if (!emailResult.sent && emailResult.reason !== "email_not_configured") console.error("[copier-settings] e-mail non envoyé", emailResult.reason);
+      if (noticeInserted) {
+        const pushResult = await sendCopierPush(admin, eventKey, user.id, title, message);
+        if (!pushResult.sent && !["push_not_configured", "no_active_subscription"].includes(pushResult.reason || "")) console.error("[copier-settings] push non envoyé", pushResult.reason);
+      }
       requestStatus = "pending";
     } else {
       const { error: updateError } = await supabase

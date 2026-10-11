@@ -2,7 +2,7 @@ import { authenticateAdmin } from "@/lib/admin/permissions";
 import { canAdmin } from "@/lib/admin/permissions";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { createCopierNotice, sendCopierEmail } from "@/lib/copier/notifications";
+import { createCopierNotice, sendCopierEmail, sendCopierPush } from "@/lib/copier/notifications";
 
 async function verifyAdmin(request: Request) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -197,10 +197,14 @@ export async function PATCH(request: Request) {
       console.error("[copier-config] notification non enregistrée", noticeError);
     }
     const emailResult = noticeInserted
-      ? await sendCopierEmail(admin, current.user_id, title, message)
+      ? await sendCopierEmail(admin, eventKey, current.user_id, title, message)
       : { sent: false, reason: "notification_not_recorded" };
     if (!emailResult.sent && emailResult.reason !== "email_not_configured") {
       console.error("[copier-config] e-mail non envoyé", emailResult.reason);
+    }
+    if (noticeInserted) {
+      const pushResult = await sendCopierPush(admin, eventKey, current.user_id, title, message);
+      if (!pushResult.sent && !["push_not_configured", "no_active_subscription"].includes(pushResult.reason || "")) console.error("[copier-config] push non envoyé", pushResult.reason);
     }
   }
 

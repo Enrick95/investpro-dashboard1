@@ -14,6 +14,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import CopierDeliveryFailures from "@/components/admin/CopierDeliveryFailures";
 
 type RequestRow = {
   id: string;
@@ -252,6 +253,7 @@ export default function AdminCopierRequestsPage() {
 
   return (
     <main className="space-y-5">
+      <CopierDeliveryFailures />
       <section className="rounded-[24px] border border-[color:var(--gold-border)] bg-[color:var(--panel)] p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
@@ -262,7 +264,7 @@ export default function AdminCopierRequestsPage() {
               InvestPro Copier · activations & réglages
             </h1>
             <p className="mt-1 text-sm text-[color:var(--muted)]">
-              Active les comptes puis applique manuellement les réglages demandés dans plateforme partenaire.
+              Active les comptes puis traite manuellement les réglages qui le nécessitent.
             </p>
           </div>
 
@@ -358,7 +360,7 @@ export default function AdminCopierRequestsPage() {
                 <div className="w-full xl:w-[430px]">
                   <div className="rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4">
                     <div className="text-[8px] font-bold uppercase tracking-[0.1em] text-[color:var(--gold)]">
-                      Identifiant du compte partenaire
+                      Identifiant du compte dans le moteur de copie
                     </div>
                     <div className="mt-2 flex items-center gap-2">
                       <code className="min-w-0 flex-1 break-all text-[10px] text-white/65">
@@ -375,18 +377,19 @@ export default function AdminCopierRequestsPage() {
                     </div>
                     <p className="mt-2 text-[8px] leading-4 text-white/30">
                       Utilise exactement cet identifiant quand tu crées/associes
-                      le receveur dans plateforme partenaire.
+                      le receveur dans le moteur de copie.
                     </p>
                   </div>
 
-                  {row.status === "activated" && (
+                  {["pending", "processing"].includes(row.status) && (
                     <div className="mt-3 rounded-2xl border border-[color:var(--gold-border)] p-4">
-                      <label className="block text-xs font-semibold text-white">Master du client — ID réel de l’envoyeur</label>
-                      <p className="mt-1 text-[10px] text-white/50">Copie l’identifiant exact de l’envoyeur depuis la plateforme interne. Pas le numéro MT4, ni l’identifiant du receveur.</p>
+                      <label className="block text-xs font-semibold text-white">Association du compte Master</label>
+                      <p className="mt-1 text-[10px] text-white/50">Après avoir créé le compte Master et associé le compte client dans le moteur, saisis ici l’identifiant réel du Master. L’activation client reste bloquée jusqu’à cette association.</p>
                       <input value={masterIds[row.id] || ""} onChange={(e) => setMasterIds((cur) => ({ ...cur, [row.id]: e.target.value }))}
                         placeholder="ID du Master" className="mt-3 w-full rounded-lg border border-white/10 bg-black/30 p-3 text-xs text-white" />
                       <button disabled={busyId === row.id || !masterIds[row.id]?.trim()} onClick={() => void assignMaster(row)}
                         className="mt-2 rounded-lg bg-[color:var(--gold)] px-4 py-2 text-xs font-semibold text-black disabled:opacity-50">Associer ce Master au client</button>
+                      {row.provider_master_id ? <div className="mt-2 text-[10px] font-semibold text-emerald-300">Master associé · {row.provider_master_id}</div> : null}
                     </div>
                   )}
                   <div className="mt-3 rounded-2xl border border-white/[0.06] bg-black/20 p-4">
@@ -421,7 +424,7 @@ export default function AdminCopierRequestsPage() {
                       [row.id]: event.target.value,
                     }))
                   }
-                  placeholder="Note interne admin…"
+                  placeholder="Motif compréhensible à transmettre au client en cas de refus…"
                   className="min-h-20 rounded-xl border border-white/[0.07] bg-black/20 p-3 text-xs text-white outline-none"
                 />
 
@@ -434,12 +437,13 @@ export default function AdminCopierRequestsPage() {
                     En cours
                   </button>
                   <button
-                    disabled={busyId === row.id}
+                    disabled={busyId === row.id || !row.provider_master_id}
                     onClick={() => void update(row, "activated")}
-                    className="inline-flex h-10 items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-4 text-xs font-semibold text-emerald-400"
+                    title={!row.provider_master_id ? "Associe le Master avant de confirmer l’activation" : undefined}
+                    className="inline-flex h-10 items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-4 text-xs font-semibold text-emerald-400 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <CheckCircle2 size={14} />
-                    Marquer activé
+                    Confirmer l’activation
                   </button>
                   <button
                     disabled={busyId === row.id}
@@ -461,8 +465,8 @@ export default function AdminCopierRequestsPage() {
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="text-[9px] font-bold uppercase tracking-[0.14em] text-[color:var(--gold)]">CONFIGURATIONS CLIENTS</div>
-            <h2 className="mt-2 text-xl font-semibold text-white">Réglages à appliquer dans plateforme partenaire</h2>
-            <p className="mt-1 text-xs text-white/35">Recopie exactement ces paramètres dans la plateforme partenaire, puis confirme uniquement quand c’est réellement appliqué.</p>
+            <h2 className="mt-2 text-xl font-semibold text-white">Demandes de réglage à traiter</h2>
+            <p className="mt-1 text-xs text-white/35">Confirme l’application uniquement après avoir vérifié le résultat réel dans le moteur.</p>
           </div>
           <div className="rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1.5 text-[9px] font-bold text-[color:var(--gold)]">{pendingConfigs} à traiter</div>
         </div>
@@ -523,7 +527,7 @@ export default function AdminCopierRequestsPage() {
                     <div className="rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4">
                       <div className="text-[9px] font-semibold text-white">Checklist avant confirmation</div>
                       <div className="mt-3 space-y-2 text-[9px] leading-5 text-white/45">
-                        <div>1. Ouvrir le receveur dans plateforme partenaire.</div>
+                        <div>1. Ouvrir le compte receveur dans le moteur de copie.</div>
                         <div>2. Sélectionner exactement les masters ci-contre.</div>
                         <div>3. Reproduire le mode de risque et sa valeur.</div>
                         <div>4. Reproduire SL / TP / pending / protections.</div>
@@ -540,7 +544,7 @@ export default function AdminCopierRequestsPage() {
 
                     <div className="mt-3 grid grid-cols-1 gap-2">
                       <button disabled={busyId === row.id} onClick={() => void updateConfig(row, "processing")} className="h-10 rounded-xl border border-amber-500/20 bg-amber-500/[0.05] px-4 text-xs font-semibold text-amber-300">Je commence l’application</button>
-                      <button disabled={busyId === row.id} onClick={() => void updateConfig(row, "applied")} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-4 text-xs font-semibold text-emerald-400"><CheckCircle2 size={14} /> Configuration appliquée dans la plateforme partenaire</button>
+                      <button disabled={busyId === row.id} onClick={() => void updateConfig(row, "applied")} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-4 text-xs font-semibold text-emerald-400"><CheckCircle2 size={14} /> Confirmer l’application réelle</button>
                       <button disabled={busyId === row.id} onClick={() => void updateConfig(row, "rejected")} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-red-500/20 bg-red-500/[0.05] px-4 text-xs font-semibold text-red-300"><XCircle size={14} /> Demander une correction</button>
                     </div>
                   </div>

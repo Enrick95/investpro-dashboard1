@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "crypto";
 import { encryptCopierPassword } from "@/lib/copier/requestCrypto";
-import { copierAdminUserIds, createCopierNotice, sendCopierEmail } from "@/lib/copier/notifications";
+import { copierAdminUserIds, createCopierNotice, sendCopierEmail, sendCopierPush } from "@/lib/copier/notifications";
 
 function clients() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -198,11 +198,16 @@ export async function POST(request: Request) {
       }
     }
 
+    const eventKey = `copier-master-request-${data.id}`;
     const emailResult = clientNoticeInserted
-      ? await sendCopierEmail(admin, user.id, title, confirmation)
+      ? await sendCopierEmail(admin, eventKey, user.id, title, confirmation)
       : { sent: false, reason: "notification_not_recorded" };
     if (!emailResult.sent && emailResult.reason !== "email_not_configured") {
       console.error("[copier-request] e-mail de confirmation non envoyé", emailResult.reason);
+    }
+    if (clientNoticeInserted) {
+      const pushResult = await sendCopierPush(admin, eventKey, user.id, title, confirmation);
+      if (!pushResult.sent && !["push_not_configured", "no_active_subscription"].includes(pushResult.reason || "")) console.error("[copier-request] push non envoyé", pushResult.reason);
     }
 
     return NextResponse.json({

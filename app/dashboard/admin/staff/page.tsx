@@ -5,6 +5,7 @@ const definitions=[
 ["overview","Tableau de bord"],["users","Consulter les membres"],["users_write","Modifier les membres"],
 ["moderation","Modération"],["inbox","Consulter les messages"],["inbox_write","Traiter les messages"],
 ["copier","Voir les demandes InvestPro Copier (données sensibles)"],["copier_write","Gérer InvestPro Copier"],
+["announcements_write","Envoyer des annonces aux membres"],
 ["finance","Finances"],["analytics","Statistiques"],["feedback","Consulter les avis"],["feedback_write","Gérer les avis"],
 ["system","Système / maintenance"],["navigation","Modifier la navigation"]
 ] as const;
