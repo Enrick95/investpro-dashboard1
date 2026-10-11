@@ -616,8 +616,10 @@ export default function MobileGlobalV1() {
             position: absolute;
             left: 10px;
             right: 10px;
+            top: max(12px, env(safe-area-inset-top));
             bottom: calc(76px + env(safe-area-inset-bottom));
-            max-height: min(76vh, 680px);
+            display: flex;
+            flex-direction: column;
             overflow: hidden;
             border: 1px solid rgba(216,175,71,.22);
             border-radius: 26px;
@@ -659,7 +661,8 @@ export default function MobileGlobalV1() {
           }
 
           .ip-more-scroll {
-            max-height: calc(min(76vh, 680px) - 72px);
+            min-height: 0;
+            flex: 1;
             overflow-y: auto;
             padding: 14px 14px 20px;
             scrollbar-width: none;
