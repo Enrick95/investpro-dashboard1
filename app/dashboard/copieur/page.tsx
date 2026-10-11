@@ -371,13 +371,23 @@ export default function CopieurPage() {
   const [riskSavedAt, setRiskSavedAt] = useState<string>("");
   const [riskBusy, setRiskBusy] = useState(false);
   const [masterConsent, setMasterConsent] = useState(false);
+  const [masterSaveState, setMasterSaveState] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const [riskSaveState, setRiskSaveState] = useState<"idle" | "saving" | "saved" | "pending" | "failed">("idle");
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [disconnectOpen, setDisconnectOpen] = useState(false);
   const [disconnectConsent, setDisconnectConsent] = useState(false);
+  const [removeReceiverId, setRemoveReceiverId] = useState<string | null>(null);
+  const [removeBusy, setRemoveBusy] = useState(false);
+  const [removeError, setRemoveError] = useState("");
   const [requestOpen, setRequestOpen] = useState(false);
   const [activationRequests, setActivationRequests] = useState<ActivationRequest[]>([]);
   const [requestBusy, setRequestBusy] = useState(false);
   const [requestServerChoice, setRequestServerChoice] = useState("");
+  const [activeView, setActiveView] = useState<"overview" | "receivers" | "masters" | "risk" | "history">("overview");
+  const [saveBarState, setSaveBarState] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const [saveBarMessage, setSaveBarMessage] = useState("Configuration non enregistrée");
+  const [showStats, setShowStats] = useState(false);
+  const [masterQuickValue, setMasterQuickValue] = useState("0.01");
   const [requestForm, setRequestForm] = useState({
     alias: "",
     broker: "",
@@ -630,11 +640,13 @@ export default function CopieurPage() {
   function toggleMaster(id: string) {
     setSelectedMasters((cur) => ({ ...cur, [id]: { ...(cur[id] || { lots: "0.01" }), on: !cur[id]?.on } }));
     setMasterConsent(false);
+    setMasterSaveState("idle");
   }
 
   function changeLots(id: string, lots: string) {
     setSelectedMasters((cur) => ({ ...cur, [id]: { ...(cur[id] || { on: false }), lots } }));
     setMasterConsent(false);
+    setMasterSaveState("idle");
   }
 
   async function saveRiskSettings() {
@@ -647,6 +659,7 @@ export default function CopieurPage() {
     }
 
     setRiskBusy(true);
+    setRiskSaveState("saving");
     setError(false);
 
     try {
@@ -674,6 +687,7 @@ export default function CopieurPage() {
       }));
 
       await loadRows();
+      setRiskSaveState(data.requestStatus === "pending" ? "pending" : "saved");
 
       if (riskSettings.mode === "fixed") {
         setMessage(
@@ -685,6 +699,7 @@ export default function CopieurPage() {
         );
       }
     } catch (cause) {
+      setRiskSaveState("failed");
       setError(true);
       setMessage(
         cause instanceof Error
@@ -699,17 +714,51 @@ export default function CopieurPage() {
   async function saveMasters() {
     if (!selectedReceiverId) return;
     setBusy(true);
+    setMasterSaveState("saving");
     setError(false);
     try {
       const masters = (Object.entries(selectedMasters) as Array<[string, { on: boolean; lots: string }]>).filter(([, v]) => v.on).map(([id, v]) => ({ id, lots: Number(v.lots) }));
       const data = await post({ action: "masters", receiverId: selectedReceiverId, consent: masterConsent, masters });
       if (data.status) applyStatus(data.status);
-      setMessage("Configuration enregistrée.");
+      setMasterSaveState("saved");
+      setMessage("Configuration confirmée par le moteur de copie.");
     } catch (cause) {
+      setMasterSaveState("failed");
       setError(true);
       setMessage(cause instanceof Error ? cause.message : "Enregistrement impossible.");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function removeReceiver() {
+    const id = removeReceiverId;
+    if (!id || id === "legacy" || !disconnectConsent || removeBusy) return;
+    setRemoveBusy(true);
+    setRemoveError("");
+    try {
+      // La route serveur déconnecte le moteur et supprime le compte dans une seule opération contrôlée.
+      const response = await fetch(`/api/copier/receivers/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        headers: await authHeaders(),
+        cache: "no-store",
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "Impossible de supprimer le receveur.");
+      setReceivers((list) => list.filter((r) => r.id !== id));
+      if (selectedReceiverId === id) {
+        setSelectedReceiverId(null);
+        setSelectedStatus(null);
+        setSelectedMasters({});
+      }
+      setRemoveReceiverId(null);
+      setDisconnectConsent(false);
+      await loadRows();
+      setMessage("Receveur déconnecté et retiré de ton espace InvestPro.");
+    } catch (e) {
+      setRemoveError(e instanceof Error ? e.message : "Suppression impossible.");
+    } finally {
+      setRemoveBusy(false);
     }
   }
 
@@ -772,530 +821,157 @@ export default function CopieurPage() {
     };
   }
 
+  const selectedStats = selectedReceiver && selectedReceiver.id !== "legacy"
+    ? statsFor(selectedReceiver)
+    : { balance: null, equity: null, pnl: null, open: null, currency: "USD" };
+
+  const portfolioTotal = virtualReceivers.reduce((sum, receiver) => {
+    if (receiver.id === "legacy") return sum;
+    const s = statsFor(receiver);
+    return sum + (Number(s.balance) || 0);
+  }, 0);
+
+  const connectedCount = virtualReceivers.filter((receiver) => receiver.status === "connected").length;
+  const errorCount = virtualReceivers.filter((receiver) => receiver.status === "error").length;
+  const totalOpenPositions = virtualReceivers.reduce((sum, receiver) => {
+    if (receiver.id === "legacy") return sum;
+    const s = statsFor(receiver);
+    return sum + (Number(s.open) || 0);
+  }, 0);
+
+  async function saveAll() {
+    if (!selectedReceiverId) return;
+    if (!masterConsent) {
+      setError(true);
+      setMessage("Coche la confirmation avant d’enregistrer la configuration.");
+      setSaveBarState("failed");
+      setSaveBarMessage("Confirmation requise avant enregistrement");
+      return;
+    }
+    setSaveBarState("saving");
+    setSaveBarMessage("Enregistrement en cours…");
+    setBusy(true);
+    setRiskBusy(true);
+    setError(false);
+    try {
+      const masters = (Object.entries(selectedMasters) as Array<[string, { on: boolean; lots: string }]>).filter(([, v]) => v.on).map(([id, v]) => ({ id, lots: Number(v.lots || 0.01) }));
+      const data = await post({ action: "masters", receiverId: selectedReceiverId, consent: true, masters });
+      if (data.status) applyStatus(data.status);
+      if (selectedReceiverId !== "legacy") {
+        const response = await fetch("/api/copier/settings", {
+          method: "PATCH",
+          headers: { ...(await authHeaders()), "Content-Type": "application/json" },
+          body: JSON.stringify({
+            receiverId: selectedReceiverId,
+            settings: riskSettings,
+            masters: (selectedStatus?.masterAccountsList || []).filter((m) => selectedMasters[m.id]?.on).map((m) => ({ id: m.id, name: m.name, lots: Number(selectedMasters[m.id]?.lots || 0.01) })),
+          }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Impossible d’enregistrer les réglages de copie.");
+        setRiskSavedAt(new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }));
+        setRiskSaveState(result.requestStatus === "pending" ? "pending" : "saved");
+      }
+      setSaveBarState("saved");
+      setSaveBarMessage("Configuration enregistrée avec succès");
+      setMessage("Configuration de copie enregistrée.");
+      await loadRows();
+    } catch (cause) {
+      setSaveBarState("failed");
+      setSaveBarMessage("Échec de l’enregistrement");
+      setError(true);
+      setMessage(cause instanceof Error ? cause.message : "Enregistrement impossible.");
+    } finally {
+      setBusy(false);
+      setRiskBusy(false);
+    }
+  }
+
+  function applyQuickModeToSelectedMasters(value: string) {
+    setMasterQuickValue(value);
+    setSelectedMasters((current) => {
+      const next = { ...current };
+      for (const master of selectedStatus?.masterAccountsList || []) {
+        next[master.id] = {
+          ...(next[master.id] || { on: false }),
+          lots: value,
+        };
+      }
+      return next;
+    });
+  }
+
   return (
-    <main className="mx-auto max-w-[1500px] space-y-5 pb-10">
-      <section className="relative overflow-hidden rounded-[28px] border border-[color:var(--gold-border)] bg-[color:var(--panel)]">
-        <div className="pointer-events-none absolute -right-24 -top-32 h-[420px] w-[420px] rounded-full bg-[color:var(--gold)] opacity-[0.08] blur-[110px]" />
-        <div className="relative grid grid-cols-1 gap-6 p-6 lg:grid-cols-[1.25fr_.75fr] lg:p-8">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.15em] text-[color:var(--gold)]">
-              <Copy size={12} /> InvestPro Copier · Multi-receveurs
+    <>
+      <main className="mx-auto max-w-[1600px] space-y-5 pb-32">
+        <section className="rounded-[26px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div className="min-w-0">
+              <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 py-2 text-[10px] font-bold text-[color:var(--gold)]">Concept D — Espace de travail à onglets</div>
+              <h1 className="mt-4 text-3xl font-semibold text-white md:text-[40px]">InvestPro Copier</h1>
+              <p className="mt-2 max-w-4xl text-sm leading-6 text-white/50">Configurez et gérez la copie de trades entre vos comptes MetaTrader. Suivez les performances et ajustez vos paramètres en temps réel.</p>
             </div>
-            <h1 className="mt-5 max-w-3xl text-3xl font-semibold leading-tight text-white md:text-[40px]">
-              Un trade. <span className="text-[color:var(--gold)]">Plusieurs comptes.</span><br />Une seule interface de contrôle.
-            </h1>
-            <p className="mt-4 max-w-2xl text-sm leading-6 text-white/45">
-              Connecte plusieurs comptes receveurs, surveille leurs performances et règle la copie seulement après la connexion. Pendant la bêta, les comptes sont illimités.
-            </p>
-            <div className="mt-6 flex flex-wrap gap-2">
-              <Badge icon={<ShieldCheck size={12} />} label="Connexion sécurisée" />
-              <Badge icon={<Layers3 size={12} />} label="Multi-comptes" />
-              <Badge icon={<SlidersHorizontal size={12} />} label="Risque par receveur" />
-              <Badge icon={<Sparkles size={12} />} label="Illimité pendant la bêta" />
-            </div>
+            <button onClick={() => setRequestOpen(true)} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-5 text-xs font-semibold text-[color:var(--gold)]"><Send size={14} /> Ajouter une liaison Master</button>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Metric label="Moteur" value={selectedStatus?.isTradingAccountConnected ? "En ligne" : "À connecter"} green={Boolean(selectedStatus?.isTradingAccountConnected)} />
-            <Metric label="Receveurs" value={String(virtualReceivers.length)} />
-            <Metric label="Masters actifs" value={String(activeMasters.length)} />
-            <Metric label="Accès bêta" value="Illimité" />
+          <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <HeroStatCard icon={<WalletCards size={18} />} label="Valeur totale copiée" value={money(portfolioTotal)} sub="vs. le mois dernier" accent={connectedCount > 0 ? `+${connectedCount} connectés` : "Aucun connecté"} accentPositive />
+            <HeroStatCard icon={<Layers3 size={18} />} label="Comptes receveurs" value={String(virtualReceivers.length)} sub={`${connectedCount} connectés • ${errorCount} en erreur`} />
+            <HeroStatCard icon={<Link2 size={18} />} label="Liaisons Master" value={String(activeMasters.length)} sub="Actives" />
+            <HeroStatCard icon={<Activity size={18} />} label="Positions ouvertes (tous receveurs)" value={String(totalOpenPositions)} sub="En temps réel" accent={selectedStats.pnl && Number(selectedStats.pnl) > 0 ? `+${money(selectedStats.pnl, selectedStats.currency)} aujourd’hui` : undefined} accentPositive={Boolean(selectedStats.pnl && Number(selectedStats.pnl) > 0)} />
           </div>
-        </div>
-      </section>
-
-      <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-        <Panel className="xl:col-span-8">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-start gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]">
-                <Activity size={18} />
-              </div>
-              <div>
-                <h2 className="text-base font-semibold text-white">État d’InvestPro Copier</h2>
-                <p className="mt-1 text-[10px] leading-5 text-white/40">Chaque nouveau receveur possède son propre identifiant côté moteur de copie.</p>
-                <div className="mt-1 text-[8px] text-white/25">Dernière vérification : {checked || "—"}</div>
-              </div>
-            </div>
-            <button disabled={busy} onClick={() => void refresh()} className="inline-flex h-10 items-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 text-xs font-semibold text-[color:var(--gold)] disabled:opacity-40">
-              {busy ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Actualiser
-            </button>
-          </div>
-          <div className={cn("mt-4 flex items-start gap-2 rounded-xl border px-4 py-3 text-[10px] leading-5", error ? "border-red-500/20 bg-red-500/[0.05] text-red-300" : "border-white/[0.06] bg-black/20 text-white/40")}>
-            {error ? <AlertTriangle size={14} /> : <ShieldCheck size={14} className="text-[color:var(--gold)]" />} {message}
-          </div>
-        </Panel>
-        <Panel className="xl:col-span-4">
-          <div className="text-xs font-semibold text-white">Offre actuelle</div>
-          <div className="mt-4 space-y-2">
-            <InfoRow label="Receveurs" value="Illimités · Bêta" />
-            <InfoRow label="Mode opérationnel" value="Lots fixes" />
-            <InfoRow label="Monétisation" value="Prête pour plus tard" />
-          </div>
-        </Panel>
-      </section>
-
-      <Panel>
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <Heading eyebrow="RECEVEURS" title="Mes comptes de copie" text="Ajoute autant de comptes que nécessaire pendant la bêta. Les réglages viennent ensuite." icon={<WalletCards size={17} />} />
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <button onClick={() => setRequestOpen(true)} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-5 text-xs font-semibold text-[color:var(--gold)]">
-              <Send size={14} /> Ajouter mon compte à InvestPro Copier
-            </button>
-            <button onClick={() => setAddOpen(true)} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-xs font-semibold text-black">
-              <Plus size={15} /> Ajouter un compte receveur
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-5 overflow-hidden rounded-[20px] border border-white/[0.07]">
-          <div className="hidden grid-cols-[1.25fr_.65fr_1fr_.8fr_.8fr_.7fr_.65fr_.8fr] gap-3 border-b border-white/[0.06] bg-black/25 px-4 py-3 text-[8px] font-bold uppercase tracking-[0.08em] text-white/25 lg:grid">
-            <div>Compte</div><div>Plateforme</div><div>Serveur</div><div>Solde</div><div>Equity</div><div>P&L jour</div><div>Ouverts</div><div>État</div>
-          </div>
-          {virtualReceivers.length === 0 ? (
-            <div className="p-8 text-center">
-              <WalletCards size={26} className="mx-auto text-white/15" />
-              <div className="mt-3 text-sm font-semibold text-white">Aucun receveur</div>
-              <p className="mt-2 text-[10px] text-white/35">Ajoute ton premier compte pour commencer.</p>
-            </div>
-          ) : virtualReceivers.map((receiver) => {
-            const s = receiver.id === "legacy" ? { balance: null, equity: null, pnl: null, open: null, currency: "USD" } : statsFor(receiver);
-            return (
-              <button key={receiver.id} onClick={() => void selectReceiver(receiver.id)} className={cn("grid w-full grid-cols-1 gap-3 border-b border-white/[0.05] px-4 py-4 text-left last:border-0 lg:grid-cols-[1.25fr_.65fr_1fr_.8fr_.8fr_.7fr_.65fr_.8fr] lg:items-center", selectedReceiverId === receiver.id ? "bg-[color:var(--gold-soft)]" : "bg-black/10 hover:bg-white/[0.02]")}>
-                <div><div className="text-sm font-semibold text-white">{receiver.alias}</div><div className="mt-1 text-[9px] text-white/30">{receiver.login}</div></div>
-                <div className="text-[10px] font-semibold text-[color:var(--gold)]">{receiver.platform}</div>
-                <div className="truncate text-[10px] text-white/45">{receiver.server}</div>
-                <Cell label="Solde" value={money(s.balance, s.currency)} />
-                <Cell label="Equity" value={money(s.equity, s.currency)} />
-                <Cell label="P&L jour" value={s.pnl == null ? "—" : money(s.pnl, s.currency)} positive={Number(s.pnl) > 0} negative={Number(s.pnl) < 0} />
-                <Cell label="Ouverts" value={s.open == null ? "—" : String(s.open)} />
-                <div className="flex items-center justify-between gap-2"><State active={receiver.status === "connected"} label={receiver.status === "connected" ? "Connecté" : receiver.status} /><Settings2 size={14} className="text-white/25" /></div>
-              </button>
-            );
-          })}
-        </div>
-        <div className="mt-3 text-[8px] leading-4 text-white/25">Solde, equity et P&L sont repris des comptes MetaTrader déjà synchronisés dans InvestPro. Si aucune donnée correspondante n’existe, “—” s’affiche.</div>
-
-        {activationRequests.length > 0 ? (
-          <div className="mt-5 rounded-[18px] border border-white/[0.06] bg-black/20 p-4">
-            <div className="flex items-center gap-2">
-              <Send size={14} className="text-[color:var(--gold)]" />
-              <div className="text-[10px] font-semibold text-white">
-                Mes demandes d’activation
-              </div>
-            </div>
-            <div className="mt-3 space-y-2">
-              {activationRequests.slice(0, 5).map((request) => (
-                <div
-                  key={request.id}
-                  className="flex flex-col gap-2 rounded-xl border border-white/[0.06] bg-black/20 px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div>
-                    <div className="text-[10px] font-semibold text-white">
-                      {request.alias}
-                    </div>
-                    <div className="mt-1 text-[8px] text-white/30">
-                      {request.platform} · {request.login} · {request.server}
-                    </div>
-                  </div>
-                  <RequestStatus status={request.status} />
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
-      </Panel>
-
-      {selectedReceiver ? (
-        <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-          <Panel className="xl:col-span-8">
-            <Heading eyebrow="CONFIGURATION" title={selectedReceiver.alias} text={`${selectedReceiver.platform} · ${selectedReceiver.login} · ${selectedReceiver.server}`} icon={<SlidersHorizontal size={17} />} />
-            <div className="mt-5 space-y-3">
-              {(selectedStatus?.masterAccountsList || []).map((master, index) => {
-                const current = selectedMasters[master.id] || { on: false, lots: "0.01" };
-                return (
-                  <div key={master.id} className={cn("rounded-[18px] border p-4", current.on ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]" : "border-white/[0.07] bg-black/20")}>
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-                      <button onClick={() => toggleMaster(master.id)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] bg-black/20 text-[color:var(--gold)]">{current.on ? <Check size={17} /> : <Copy size={17} />}</div>
-                        <div><div className="text-sm font-semibold text-white">{master.name}</div><div className="mt-1 text-[8px] text-white/30">MASTER {String(index + 1).padStart(2, "0")} · {current.on ? "Actif" : "Pause"}</div></div>
-                      </button>
-                      <div className="flex flex-wrap items-end gap-3">
-                        <Field label="Mode">
-                          <div className="flex h-10 min-w-[150px] items-center rounded-xl border border-white/[0.07] bg-black/25 px-3 text-[10px] font-semibold text-[color:var(--gold)]">
-                            {riskModeLabel(riskSettings.mode)}
-                          </div>
-                        </Field>
-                        {riskSettings.mode === "fixed" ? (
-                          <Field label="Lots">
-                            <input
-                              type="number"
-                              min="0.001"
-                              max={maxLots}
-                              step="any"
-                              value={current.lots}
-                              disabled={!current.on}
-                              onChange={(e) => changeLots(master.id, e.target.value)}
-                              className="ip-field w-[110px] disabled:opacity-35"
-                            />
-                          </Field>
-                        ) : (
-                          <Field label="Sizing">
-                            <div className="flex h-10 min-w-[150px] items-center rounded-xl border border-white/[0.07] bg-black/25 px-3 text-[9px] text-white/45">
-                              Géré par Risk Engine
-                            </div>
-                          </Field>
-                        )}
-                        <button onClick={() => toggleMaster(master.id)} className={cn("mb-[1px] inline-flex h-10 min-w-[90px] items-center justify-center gap-2 rounded-xl border px-3 text-[10px] font-semibold", current.on ? "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-400" : "border-white/[0.08] text-white/45")}>
-                          {current.on ? <CheckCircle2 size={13} /> : <Pause size={13} />} {current.on ? "Actif" : "Pause"}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <label className="mt-5 flex items-start gap-3 rounded-2xl border border-white/[0.06] bg-black/20 p-4 text-[10px] leading-5 text-white/50"><input type="checkbox" checked={masterConsent} onChange={(e) => setMasterConsent(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[#d4a934]" /> Je confirme les stratégies et volumes sélectionnés.</label>
-            <div className="mt-4 flex items-center justify-between gap-3"><div className="text-[9px] text-white/30">{activeMasters.length} master(s) actif(s) · {totalLots.toFixed(2)} lots</div><button disabled={busy || !masterConsent} onClick={() => void saveMasters()} className="inline-flex h-11 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-xs font-semibold text-black disabled:opacity-40"><ShieldCheck size={14} /> Enregistrer</button></div>
-          </Panel>
-
-          <div className="space-y-4 xl:col-span-4">
-            <Panel>
-              <Heading
-                eyebrow="RISK ENGINE"
-                title="Gestion du risque"
-                text="Choisis le mode de sizing pour ce compte receveur."
-                icon={<Gauge size={17} />}
-              />
-
-              <div className="mt-4 space-y-2">
-                <Risk
-                  active={riskSettings.mode === "fixed"}
-                  label="Lots fixes"
-                  desc="Volume identique défini par stratégie"
-                  onClick={() =>
-                    setRiskSettings((v) => ({ ...v, mode: "fixed" }))
-                  }
-                />
-                <Risk
-                  active={riskSettings.mode === "mirror"}
-                  label="Copier les lots de l’envoyeur"
-                  desc="Même lot que le master avec multiplicateur"
-                  onClick={() =>
-                    setRiskSettings((v) => ({ ...v, mode: "mirror" }))
-                  }
-                />
-                <Risk
-                  active={riskSettings.mode === "balance"}
-                  label="Risque par solde"
-                  desc="Sizing basé sur le ratio de balance"
-                  onClick={() =>
-                    setRiskSettings((v) => ({ ...v, mode: "balance" }))
-                  }
-                />
-                <Risk
-                  active={riskSettings.mode === "equity"}
-                  label="Risque par equity"
-                  desc="Sizing basé sur le ratio d’equity"
-                  onClick={() =>
-                    setRiskSettings((v) => ({ ...v, mode: "equity" }))
-                  }
-                />
-                <Risk
-                  active={riskSettings.mode === "percent"}
-                  label="Risque en %"
-                  desc="Pourcentage de capital risqué par trade"
-                  onClick={() =>
-                    setRiskSettings((v) => ({ ...v, mode: "percent" }))
-                  }
-                />
-              </div>
-
-              <div className="mt-4 rounded-2xl border border-white/[0.06] bg-black/20 p-4">
-                {riskSettings.mode === "fixed" ? (
-                  <div className="text-[9px] leading-5 text-white/45">
-                    Les lots fixes se règlent directement sur chaque master à gauche.
-                  </div>
-                ) : null}
-
-                {riskSettings.mode === "mirror" ? (
-                  <RiskNumber
-                    label="Multiplicateur des lots"
-                    value={riskSettings.mirror_multiplier}
-                    min={0.1}
-                    max={20}
-                    step={0.1}
-                    suffix="×"
-                    onChange={(value) =>
-                      setRiskSettings((v) => ({
-                        ...v,
-                        mirror_multiplier: value,
-                      }))
-                    }
-                  />
-                ) : null}
-
-                {riskSettings.mode === "balance" ? (
-                  <RiskNumber
-                    label="Multiplicateur du ratio balance"
-                    value={riskSettings.balance_multiplier}
-                    min={0.1}
-                    max={20}
-                    step={0.1}
-                    suffix="×"
-                    onChange={(value) =>
-                      setRiskSettings((v) => ({
-                        ...v,
-                        balance_multiplier: value,
-                      }))
-                    }
-                  />
-                ) : null}
-
-                {riskSettings.mode === "equity" ? (
-                  <RiskNumber
-                    label="Multiplicateur du ratio equity"
-                    value={riskSettings.equity_multiplier}
-                    min={0.1}
-                    max={20}
-                    step={0.1}
-                    suffix="×"
-                    onChange={(value) =>
-                      setRiskSettings((v) => ({
-                        ...v,
-                        equity_multiplier: value,
-                      }))
-                    }
-                  />
-                ) : null}
-
-                {riskSettings.mode === "percent" ? (
-                  <RiskNumber
-                    label="Risque par trade"
-                    value={riskSettings.risk_percent}
-                    min={0.1}
-                    max={20}
-                    step={0.1}
-                    suffix="%"
-                    onChange={(value) =>
-                      setRiskSettings((v) => ({
-                        ...v,
-                        risk_percent: value,
-                      }))
-                    }
-                  />
-                ) : null}
-              </div>
-
-              {riskSettings.mode !== "fixed" ? (
-                <div className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/[0.05] p-3">
-                  <div className="flex items-start gap-2">
-                    <AlertTriangle
-                      size={14}
-                      className="mt-0.5 shrink-0 text-amber-300"
-                    />
-                    <p className="text-[8px] leading-4 text-amber-100/60">
-                      Ce mode est maintenant configurable et enregistré dans
-                      InvestPro. Certains modes nécessitent encore une validation
-                      par l’équipe InvestPro avant d’être appliqués au
-                      moteur de copie.
-                    </p>
-                  </div>
-                </div>
-              ) : null}
-
-              <button
-                disabled={riskBusy || selectedReceiverId === "legacy"}
-                onClick={() => void saveRiskSettings()}
-                className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 text-[10px] font-semibold text-[color:var(--gold)] disabled:opacity-40"
-              >
-                {riskBusy ? (
-                  <Loader2 size={13} className="animate-spin" />
-                ) : (
-                  <ShieldCheck size={13} />
-                )}
-                Enregistrer le Risk Engine
-              </button>
-
-              {riskSavedAt ? (
-                <div className="mt-2 text-center text-[8px] text-emerald-400/70">
-                  Enregistré à {riskSavedAt}
-                </div>
-              ) : null}
-            </Panel>
-
-            <Panel>
-              <button
-                onClick={() => setAdvancedOpen((v) => !v)}
-                className="flex w-full items-center justify-between text-left"
-              >
-                <div className="flex items-center gap-2">
-                  <Settings2
-                    size={16}
-                    className="text-[color:var(--gold)]"
-                  />
-                  <div>
-                    <div className="text-xs font-semibold text-white">
-                      Réglages avancés
-                    </div>
-                    <div className="mt-1 text-[9px] text-white/35">
-                      Protection & exécution
-                    </div>
-                  </div>
-                </div>
-                <ChevronDown
-                  size={16}
-                  className={cn(
-                    "text-white/35 transition",
-                    advancedOpen && "rotate-180"
-                  )}
-                />
-              </button>
-
-              {advancedOpen ? (
-                <div className="mt-4 space-y-3 border-t border-white/[0.06] pt-4">
-                  <ToggleSetting
-                    label="Copier Stop Loss"
-                    description="Répliquer le SL du master."
-                    checked={riskSettings.copy_sl}
-                    onChange={(checked) =>
-                      setRiskSettings((v) => ({ ...v, copy_sl: checked }))
-                    }
-                  />
-                  <ToggleSetting
-                    label="Copier Take Profit"
-                    description="Répliquer le TP du master."
-                    checked={riskSettings.copy_tp}
-                    onChange={(checked) =>
-                      setRiskSettings((v) => ({ ...v, copy_tp: checked }))
-                    }
-                  />
-                  <ToggleSetting
-                    label="Ordres en attente"
-                    description="Autoriser la copie des pending orders."
-                    checked={riskSettings.copy_pending}
-                    onChange={(checked) =>
-                      setRiskSettings((v) => ({
-                        ...v,
-                        copy_pending: checked,
-                      }))
-                    }
-                  />
-                  <ToggleSetting
-                    label="Copier les modifications SL/TP"
-                    description="Suivre les modifications après ouverture."
-                    checked={riskSettings.copy_modifications}
-                    onChange={(checked) =>
-                      setRiskSettings((v) => ({
-                        ...v,
-                        copy_modifications: checked,
-                      }))
-                    }
-                  />
-
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <RiskNumber
-                      label="Slippage maximum"
-                      value={riskSettings.slippage_pips}
-                      min={0}
-                      max={1000}
-                      step={1}
-                      suffix="pips"
-                      onChange={(value) =>
-                        setRiskSettings((v) => ({
-                          ...v,
-                          slippage_pips: value,
-                        }))
-                      }
-                    />
-                    <RiskNumber
-                      label="Lots maximum"
-                      value={riskSettings.max_lots}
-                      min={0.01}
-                      max={1000}
-                      step={0.01}
-                      suffix="lots"
-                      onChange={(value) =>
-                        setRiskSettings((v) => ({
-                          ...v,
-                          max_lots: value,
-                        }))
-                      }
-                    />
-                  </div>
-
-                  <ToggleSetting
-                    label="Protection drawdown"
-                    description="Préparer une limite de perte globale sur le receveur."
-                    checked={riskSettings.drawdown_enabled}
-                    onChange={(checked) =>
-                      setRiskSettings((v) => ({
-                        ...v,
-                        drawdown_enabled: checked,
-                      }))
-                    }
-                  />
-
-                  {riskSettings.drawdown_enabled ? (
-                    <RiskNumber
-                      label="Drawdown maximum"
-                      value={riskSettings.max_drawdown_percent}
-                      min={0.1}
-                      max={100}
-                      step={0.1}
-                      suffix="%"
-                      onChange={(value) =>
-                        setRiskSettings((v) => ({
-                          ...v,
-                          max_drawdown_percent: value,
-                        }))
-                      }
-                    />
-                  ) : null}
-
-                  <Field label="Mapping des symboles">
-                    <textarea
-                      value={riskSettings.symbol_mapping}
-                      onChange={(event) =>
-                        setRiskSettings((v) => ({
-                          ...v,
-                          symbol_mapping: event.target.value,
-                        }))
-                      }
-                      placeholder={"Ex. XAUUSD=GOLD\nUS30=DJ30\nEURUSD=EURUSD.pro"}
-                      className="min-h-24 w-full rounded-xl border border-white/[0.08] bg-black/25 p-3 text-[10px] leading-5 text-white outline-none focus:border-[color:var(--gold-border)]"
-                    />
-                  </Field>
-
-                  <button
-                    disabled={riskBusy || selectedReceiverId === "legacy"}
-                    onClick={() => void saveRiskSettings()}
-                    className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-[color:var(--gold)] px-4 text-[10px] font-semibold text-black disabled:opacity-40"
-                  >
-                    {riskBusy ? (
-                      <Loader2 size={13} className="animate-spin" />
-                    ) : (
-                      <Settings2 size={13} />
-                    )}
-                    Enregistrer les réglages avancés
-                  </button>
-                </div>
-              ) : null}
-            </Panel>
+          <div className="mt-4 grid grid-cols-2 gap-3 xl:grid-cols-5">
+            <TopTabButton active={activeView === "overview"} onClick={() => setActiveView("overview")} icon={<Sparkles size={16} />} title="Vue d’ensemble" subtitle="Configuration & comptes" />
+            <TopTabButton active={activeView === "receivers"} onClick={() => setActiveView("receivers")} icon={<WalletCards size={16} />} title="Receveurs" subtitle="Gérer les comptes receveurs" />
+            <TopTabButton active={activeView === "masters"} onClick={() => setActiveView("masters")} icon={<Link2 size={16} />} title="Liaisons Master" subtitle="Comptes sources" />
+            <TopTabButton active={activeView === "risk"} onClick={() => setActiveView("risk")} icon={<ShieldCheck size={16} />} title="Risque & Exécution" subtitle="Paramètres avancés" />
+            <TopTabButton active={activeView === "history"} onClick={() => setActiveView("history")} icon={<Activity size={16} />} title="Historique" subtitle="Journaux et activités" />
           </div>
         </section>
-      ) : null}
 
-      <Panel>
-        <Heading eyebrow="VUE D’ENSEMBLE" title="InvestPro Copier" text="Architecture prête pour limiter les comptes selon l’abonnement plus tard." icon={<Sparkles size={17} />} />
-        <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4"><Summary label="Receveurs" value={String(virtualReceivers.length)} /><Summary label="Masters actifs" value={String(activeMasters.length)} /><Summary label="Mode actif" value={riskModeLabel(riskSettings.mode)} /><Summary label="Limite actuelle" value="Illimité · Bêta" green /></div>
-      </Panel>
+        <section className="grid grid-cols-1 gap-5 xl:grid-cols-[0.9fr_1.7fr]">
+          <section className="rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6">
+            <div className="flex items-start justify-between gap-3"><div><div className="text-[12px] font-semibold text-white">Compte Master (source)</div><div className="mt-1 text-[10px] text-white/35">Compte sélectionné pour piloter la copie</div></div><State active={Boolean(selectedStatus?.isTradingAccountConnected)} label={selectedStatus?.isTradingAccountConnected ? "Connecté" : "À connecter"} /></div>
+            <div className="mt-5 rounded-[22px] border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4">
+              <div className="flex items-center justify-between gap-3"><div className="min-w-0"><div className="text-2xl font-semibold text-white">{selectedReceiver?.alias || "Aucun compte sélectionné"}</div><div className="mt-1 text-[11px] text-white/40">{selectedReceiver ? `#${selectedReceiver.login} • ${selectedReceiver.server}` : "Sélectionne un compte receveur pour afficher le panneau de configuration."}</div></div><button className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-black/20 text-white/70"><Settings2 size={16} /></button></div>
+              <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3"><MiniMetric label="Equity" value={selectedStats.equity == null ? "—" : money(selectedStats.equity, selectedStats.currency)} /><MiniMetric label="Solde" value={selectedStats.balance == null ? "—" : money(selectedStats.balance, selectedStats.currency)} /><MiniMetric label="P&L jour" value={selectedStats.pnl == null ? "—" : money(selectedStats.pnl, selectedStats.currency)} positive={Number(selectedStats.pnl) > 0} negative={Number(selectedStats.pnl) < 0} /></div>
+            </div>
+          </section>
 
-      {selectedReceiver && selectedStatus?.isTradingAccountConnected ? (
-        <Panel>
-          <button onClick={() => setDisconnectOpen((v) => !v)} className="flex w-full items-center justify-between text-left"><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl border border-red-500/15 bg-red-500/[0.04] text-red-300"><Unplug size={17} /></div><div><div className="text-sm font-semibold text-white">Déconnecter ce receveur</div><div className="mt-1 text-[9px] text-white/35">Vérifie les positions ouvertes sur MetaTrader avant l’action.</div></div></div><ChevronDown size={16} className={cn("text-white/35 transition", disconnectOpen && "rotate-180")} /></button>
-          {disconnectOpen ? <div className="mt-5 border-t border-white/[0.06] pt-5"><label className="flex items-start gap-3 text-[10px] text-white/50"><input type="checkbox" checked={disconnectConsent} onChange={(e) => setDisconnectConsent(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[#d4a934]" />Je confirme la déconnexion de ce receveur.</label><button disabled={busy || !disconnectConsent} onClick={() => void disconnect()} className="mt-4 inline-flex h-10 items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/[0.05] px-4 text-xs font-semibold text-red-300 disabled:opacity-40"><Unplug size={14} /> Déconnecter</button></div> : null}
-        </Panel>
-      ) : null}
+          <section className="rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"><div><div className="text-lg font-semibold text-white">Comptes receveurs ({virtualReceivers.length})</div><div className="mt-1 text-[11px] text-white/40">Sélectionnez un compte pour configurer ses paramètres de copie.</div></div><button onClick={() => setAddOpen(true)} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-xs font-semibold text-black"><Plus size={15} /> Ajouter un compte receveur</button></div>
+            <div className="mt-5 overflow-hidden rounded-[20px] border border-white/[0.07]">
+              <div className="hidden grid-cols-[56px_1.7fr_.7fr_.8fr_.9fr_.9fr_.8fr_.75fr_.9fr] gap-3 border-b border-white/[0.06] bg-black/25 px-4 py-3 text-[9px] font-bold uppercase tracking-[0.08em] text-white/30 xl:grid"><div></div><div>Nom du compte</div><div>Plateforme</div><div>Statut</div><div>Solde</div><div>Equity</div><div>P&L jour</div><div>Ouverts</div><div>Actions</div></div>
+              {virtualReceivers.length === 0 ? <div className="p-10 text-center text-white/40">Aucun receveur pour le moment.</div> : virtualReceivers.map((receiver) => {
+                const s = receiver.id === "legacy" ? { balance: null, equity: null, pnl: null, open: null, currency: "USD" } : statsFor(receiver);
+                const selected = selectedReceiverId === receiver.id;
+                return <div key={receiver.id} className={cn("grid grid-cols-1 gap-3 border-b border-white/[0.05] px-4 py-4 last:border-0 xl:grid-cols-[56px_1.7fr_.7fr_.8fr_.9fr_.9fr_.8fr_.75fr_.9fr] xl:items-center", selected ? "bg-[color:var(--gold-soft)]" : "bg-black/10 hover:bg-white/[0.02]") }><div className="flex items-center"><button onClick={() => void selectReceiver(receiver.id)} className={cn("flex h-6 w-6 items-center justify-center rounded-md border text-[10px]", selected ? "border-[color:var(--gold-border)] bg-[color:var(--gold)] text-black" : "border-white/10 text-white/50")}>{selected ? <Check size={13} /> : null}</button></div><button onClick={() => void selectReceiver(receiver.id)} className="text-left"><div className="text-sm font-semibold text-white">{receiver.alias}</div><div className="mt-1 text-[10px] text-white/35">#{receiver.login}</div></button><div className="text-[11px] font-semibold text-[color:var(--gold)]">{receiver.platform}</div><div><ReceiverStatusBadge status={receiver.status} /></div><div className="text-[11px] text-white/70">{money(s.balance, s.currency)}</div><div className="text-[11px] text-white/70">{money(s.equity, s.currency)}</div><div className={cn("text-[11px] font-medium", Number(s.pnl) > 0 ? "text-emerald-400" : Number(s.pnl) < 0 ? "text-red-400" : "text-white/60")}>{s.pnl == null ? "—" : money(s.pnl, s.currency)}</div><div className="text-[11px] text-white/70">{s.open == null ? "—" : String(s.open)}</div><div className="flex items-center gap-2"><button onClick={() => { setShowStats(true); void selectReceiver(receiver.id); }} className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-white/60 hover:text-white"><Activity size={14} /></button><button onClick={() => void selectReceiver(receiver.id)} className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-white/60 hover:text-white"><Settings2 size={14} /></button>{receiver.id !== "legacy" ? <button onClick={() => { setRemoveReceiverId(receiver.id); setDisconnectConsent(false); setRemoveError(""); }} className="flex h-8 w-8 items-center justify-center rounded-lg border border-red-500/20 text-red-400 hover:bg-red-500/10"><Unplug size={14} /></button> : null}</div></div>;
+              })}
+            </div>
+          </section>
+        </section>
+
+        {selectedReceiver ? <section className="rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6"><div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><div className="text-xl font-semibold text-white">Paramètres de copie — {selectedReceiver.alias}</div><p className="mt-1 text-[11px] text-white/40">Configurez la stratégie de copie et les paramètres de gestion du risque pour ce compte receveur.</p></div><div className="flex flex-wrap gap-2"><span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-1.5 text-[10px] font-semibold text-emerald-400"><CheckCircle2 size={12} /> Compte sélectionné</span><button onClick={() => setShowStats((v) => !v)} className="inline-flex h-9 items-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 text-[10px] font-semibold text-[color:var(--gold)]"><Activity size={13} /> {showStats ? "Masquer les statistiques" : "Voir les statistiques"}</button></div></div><div className="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-[1fr_1fr_1fr]"><section className="rounded-[22px] border border-white/[0.07] bg-black/20 p-4"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--gold)] text-sm font-bold text-black">1</span><div><div className="text-base font-semibold text-white">Choisir le receveur</div><div className="mt-1 text-[10px] text-white/35">Compte qui recevra les trades</div></div></div><div className="mt-4 rounded-[18px] border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4"><div className="flex items-center justify-between gap-3"><div><div className="text-sm font-semibold text-white">{selectedReceiver.alias}</div><div className="mt-1 text-[10px] text-white/35">#{selectedReceiver.login} · {selectedReceiver.platform} · {selectedReceiver.server}</div></div><State active={selectedReceiver.status === "connected"} label={selectedReceiver.status === "connected" ? "Connecté" : selectedReceiver.status === "paused" ? "Pause" : "Erreur"} /></div><select value={selectedReceiverId || ""} onChange={(e) => void selectReceiver(e.target.value)} className="ip-field mt-4">{virtualReceivers.map((receiver) => <option key={receiver.id} value={receiver.id}>{receiver.alias} — {receiver.login}</option>)}</select><div className="mt-3 text-[10px] text-white/35">Tu peux changer de receveur ici pour configurer un autre compte sans quitter la page.</div></div></section><section className="rounded-[22px] border border-white/[0.07] bg-black/20 p-4"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--gold)] text-sm font-bold text-black">2</span><div><div className="text-base font-semibold text-white">Régler le risque</div><div className="mt-1 text-[10px] text-white/35">Choisissez la méthode de calcul des lots.</div></div></div><div className="mt-4 space-y-3"><InlineRiskOption active={riskSettings.mode === "fixed"} label="Lots fixes" desc="Volume identique défini par stratégie" onClick={() => setRiskSettings((v) => ({ ...v, mode: "fixed" }))}><input type="number" min="0.001" step="0.001" value={masterQuickValue} onChange={(e) => applyQuickModeToSelectedMasters(e.target.value)} className="ip-field h-10 w-full text-center" /></InlineRiskOption><InlineRiskOption active={riskSettings.mode === "mirror"} label="Copier les lots du Master" desc="Même lot que le master avec multiplicateur" onClick={() => setRiskSettings((v) => ({ ...v, mode: "mirror" }))}><input type="number" min="0.1" step="0.1" value={riskSettings.mirror_multiplier} onChange={(e) => setRiskSettings((v) => ({ ...v, mode: "mirror", mirror_multiplier: Number(e.target.value || 1) }))} className="ip-field h-10 w-full text-center" /></InlineRiskOption><InlineRiskOption active={riskSettings.mode === "balance"} label="Risque par solde" desc="Sizing basé sur le ratio de balance" onClick={() => setRiskSettings((v) => ({ ...v, mode: "balance" }))}><input type="number" min="0.1" step="0.1" value={riskSettings.balance_multiplier} onChange={(e) => setRiskSettings((v) => ({ ...v, mode: "balance", balance_multiplier: Number(e.target.value || 1) }))} className="ip-field h-10 w-full text-center" /></InlineRiskOption><InlineRiskOption active={riskSettings.mode === "equity"} label="Risque par equity" desc="Sizing basé sur le ratio d’equity" onClick={() => setRiskSettings((v) => ({ ...v, mode: "equity" }))}><input type="number" min="0.1" step="0.1" value={riskSettings.equity_multiplier} onChange={(e) => setRiskSettings((v) => ({ ...v, mode: "equity", equity_multiplier: Number(e.target.value || 1) }))} className="ip-field h-10 w-full text-center" /></InlineRiskOption><InlineRiskOption active={riskSettings.mode === "percent"} label="Risque en %" desc="Pourcentage de capital risqué par trade" onClick={() => setRiskSettings((v) => ({ ...v, mode: "percent" }))}><input type="number" min="0.1" step="0.1" value={riskSettings.risk_percent} onChange={(e) => setRiskSettings((v) => ({ ...v, mode: "percent", risk_percent: Number(e.target.value || 1) }))} className="ip-field h-10 w-full text-center" /></InlineRiskOption></div></section><section className="rounded-[22px] border border-white/[0.07] bg-black/20 p-4"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--gold)] text-sm font-bold text-black">3</span><div><div className="text-base font-semibold text-white">Paramètres avancés</div><div className="mt-1 text-[10px] text-white/35">Protection, exécution et filtres.</div></div></div><div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2"><RiskNumber label="Slippage max" value={riskSettings.slippage_pips} min={0} max={1000} step={1} suffix="pips" onChange={(value) => setRiskSettings((v) => ({ ...v, slippage_pips: value }))} /><RiskNumber label="Lots maximum" value={riskSettings.max_lots} min={0.01} max={1000} step={0.01} suffix="lots" onChange={(value) => setRiskSettings((v) => ({ ...v, max_lots: value }))} /><RiskNumber label="Multiplicateur des lots" value={riskSettings.mirror_multiplier} min={0.1} max={20} step={0.1} suffix="x" onChange={(value) => setRiskSettings((v) => ({ ...v, mirror_multiplier: value }))} /><RiskNumber label="Risque en %" value={riskSettings.risk_percent} min={0.1} max={20} step={0.1} suffix="%" onChange={(value) => setRiskSettings((v) => ({ ...v, risk_percent: value }))} /></div><div className="mt-4 space-y-3"><ToggleSetting label="Copier uniquement certains symboles" description="Préparez un filtrage personnalisé par symboles." checked={Boolean(riskSettings.symbol_mapping)} onChange={(checked) => setRiskSettings((v) => ({ ...v, symbol_mapping: checked ? v.symbol_mapping || "XAUUSD=GOLD" : "" }))} /><ToggleSetting label="Heures de trading autorisées" description="Option avancée de filtrage horaire." checked={riskSettings.drawdown_enabled} onChange={(checked) => setRiskSettings((v) => ({ ...v, drawdown_enabled: checked }))} /></div><Field label="Configuration / notes avancées"><textarea value={riskSettings.symbol_mapping} onChange={(e) => setRiskSettings((v) => ({ ...v, symbol_mapping: e.target.value }))} className="min-h-24 w-full rounded-xl border border-white/[0.08] bg-black/25 p-3 text-[11px] leading-5 text-white outline-none focus:border-[color:var(--gold-border)]" placeholder={`Ex. XAUUSD=GOLD\nUS30=DJ30`} /></Field></section></div></section> : null}
+
+        <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1.4fr_.9fr]"><section className="rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><div className="text-lg font-semibold text-white">Liaisons Master</div><div className="mt-1 text-[11px] text-white/35">Active les masters que ce receveur doit copier.</div></div>{selectedReceiver && selectedReceiver.id !== "legacy" ? <button onClick={() => { setRemoveReceiverId(selectedReceiver.id); setDisconnectConsent(false); setRemoveError(""); }} className="inline-flex h-10 items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/[0.04] px-4 text-[11px] font-semibold text-red-300"><Unplug size={13} /> Retirer ce receveur</button> : null}</div><div className="mt-5 space-y-3">{(selectedStatus?.masterAccountsList || []).length === 0 ? <div className="rounded-2xl border border-white/[0.07] bg-black/20 p-6 text-[11px] text-white/40">Aucune liaison master disponible pour le moment.</div> : (selectedStatus?.masterAccountsList || []).map((master, index) => { const current = selectedMasters[master.id] || { on: false, lots: masterQuickValue || "0.01" }; return <div key={master.id} className={cn("rounded-[18px] border p-4 transition", current.on ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]" : "border-white/[0.07] bg-black/20")}><div className="grid grid-cols-1 gap-3 md:grid-cols-[auto_1fr_auto_auto] md:items-center"><button onClick={() => toggleMaster(master.id)} className={cn("flex h-7 w-7 items-center justify-center rounded-md border", current.on ? "border-[color:var(--gold-border)] bg-[color:var(--gold)] text-black" : "border-white/10 text-white/50")}>{current.on ? <Check size={14} /> : null}</button><div><div className="text-sm font-semibold text-white">{master.name}</div><div className="mt-1 text-[10px] text-white/35">MASTER {String(index + 1).padStart(2, "0")} · {current.on ? "Actif" : "Pause"}</div></div><div className="text-[10px] text-white/50">Mode</div><div className="text-[11px] font-semibold text-[color:var(--gold)]">{riskModeLabel(riskSettings.mode)}</div></div><div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-[1fr_160px_110px] md:items-end"><div className="rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2 text-[10px] text-white/40">Cette liaison utilisera les paramètres du bloc “Régler le risque”.</div>{riskSettings.mode === "fixed" ? <Field label="Lots"><input type="number" min="0.001" max={maxLots} step="any" value={current.lots} disabled={!current.on} onChange={(e) => changeLots(master.id, e.target.value)} className="ip-field disabled:opacity-35" /></Field> : <div className="rounded-xl border border-white/[0.06] bg-black/20 px-3 py-3 text-[10px] text-white/45">Géré automatiquement</div>}<State active={current.on} label={current.on ? "Actif" : "Pause"} /></div></div>; })}</div><label className="mt-5 flex items-start gap-3 rounded-2xl border border-white/[0.06] bg-black/20 p-4 text-[11px] leading-5 text-white/55"><input type="checkbox" checked={masterConsent} onChange={(e) => { setMasterConsent(e.target.checked); setSaveBarState("idle"); setSaveBarMessage("Configuration non enregistrée"); }} className="mt-0.5 h-4 w-4 accent-[#d4a934]" /> Je confirme les stratégies et volumes sélectionnés.</label></section><section className="space-y-5"><section className="rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6"><div className="text-lg font-semibold text-white">Historique</div><div className="mt-1 text-[11px] text-white/35">Suivi rapide de l’activité et des validations.</div><div className="mt-4 overflow-hidden rounded-[18px] border border-white/[0.06]"><div className="grid grid-cols-3 gap-3 border-b border-white/[0.06] bg-black/20 px-4 py-3 text-[9px] font-bold uppercase tracking-[0.08em] text-white/30"><div>Évènement</div><div>Statut</div><div>Date</div></div><div className="grid grid-cols-3 gap-3 px-4 py-3 text-[11px] text-white/65"><div>Compte receveur chargé</div><div>{selectedReceiver ? "Sélectionné" : "En attente"}</div><div>{checked || "—"}</div></div><div className="grid grid-cols-3 gap-3 border-t border-white/[0.06] px-4 py-3 text-[11px] text-white/65"><div>Risk Engine</div><div>{riskSaveState === "saved" ? "Enregistré" : riskSaveState === "pending" ? "En attente" : "Non enregistré"}</div><div>{riskSavedAt || "—"}</div></div><div className="grid grid-cols-3 gap-3 border-t border-white/[0.06] px-4 py-3 text-[11px] text-white/65"><div>Masters actifs</div><div>{String(activeMasters.length)}</div><div>{new Date().toLocaleDateString("fr-FR")}</div></div></div></section>{showStats ? <section className="rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6"><div className="text-lg font-semibold text-white">Statistiques du compte sélectionné</div><div className="mt-4 grid grid-cols-2 gap-3"><Summary label="Solde" value={selectedStats.balance == null ? "—" : money(selectedStats.balance, selectedStats.currency)} /><Summary label="Equity" value={selectedStats.equity == null ? "—" : money(selectedStats.equity, selectedStats.currency)} /><Summary label="P&L jour" value={selectedStats.pnl == null ? "—" : money(selectedStats.pnl, selectedStats.currency)} green={Number(selectedStats.pnl) > 0} /><Summary label="Positions ouvertes" value={selectedStats.open == null ? "—" : String(selectedStats.open)} /></div></section> : null}</section></section>
+
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-[color:var(--gold-border)] bg-[#0b0d0bf2] backdrop-blur-xl"><div className="mx-auto flex max-w-[1600px] flex-col gap-3 px-4 py-4 md:flex-row md:items-center md:justify-between"><div><div className={cn("text-sm font-semibold", saveBarState === "saved" ? "text-emerald-400" : saveBarState === "failed" ? "text-red-400" : saveBarState === "saving" ? "text-[color:var(--gold)]" : "text-[color:var(--gold)]")}>{saveBarMessage}</div><div className="mt-1 text-[11px] text-white/40">Les modifications seront appliquées au compte sélectionné.</div></div><div className="flex flex-col gap-2 sm:flex-row"><button onClick={() => { if (selectedReceiverId) void selectReceiver(selectedReceiverId); }} className="inline-flex h-11 items-center justify-center rounded-xl border border-white/10 px-5 text-sm font-semibold text-white/70">Annuler</button><button disabled={busy || riskBusy || !selectedReceiverId} onClick={() => void saveAll()} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-sm font-semibold text-black disabled:opacity-40">{saveBarState === "saving" ? <Loader2 size={15} className="animate-spin" /> : <ShieldCheck size={15} />} Enregistrer la configuration</button></div></div></div>
+      </main>
+
+      {removeReceiverId && (() => {
+        const target = receivers.find((r) => r.id === removeReceiverId);
+        return (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Supprimer un receveur">
+            <div className="w-full max-w-lg rounded-[24px] border border-red-500/30 bg-[#0b0d0b] p-6 shadow-2xl">
+              <div className="flex items-center justify-between gap-3"><h2 className="text-xl font-semibold text-white">Supprimer ce receveur ?</h2><button disabled={removeBusy} onClick={() => { setRemoveReceiverId(null); setDisconnectConsent(false); }} aria-label="Fermer" className="rounded-lg p-2 text-white/60"><X size={18}/></button></div>
+              <div className="mt-4 rounded-xl border border-white/10 bg-black/30 p-4 text-sm text-white/80"><strong>{target?.alias || "Compte receveur"}</strong><div className="mt-1 text-xs text-white/45">{target?.platform} · {target?.login} · {target?.server}</div></div>
+              <p className="mt-4 text-sm leading-6 text-white/60">La copie sera d’abord déconnectée du moteur. Ce receveur sera ensuite retiré de la liste InvestPro. Tu pourras le rajouter plus tard via « Ajouter un compte receveur ».</p>
+              <label className="mt-4 flex cursor-pointer items-start gap-3 text-sm text-white/80"><input type="checkbox" className="mt-1 accent-red-500" checked={disconnectConsent} disabled={removeBusy} onChange={(e) => setDisconnectConsent(e.target.checked)} />Je confirme la déconnexion et la suppression de ce compte receveur.</label>
+              {removeError ? <p className="mt-3 rounded-xl border border-red-500/25 bg-red-500/10 p-3 text-sm text-red-300" role="alert">{removeError}<span className="mt-1 block text-xs">Aucun compte n’est retiré de la liste tant que l’opération n’est pas entièrement confirmée.</span></p> : null}
+              <div className="mt-6 flex justify-end gap-3"><button disabled={removeBusy} onClick={() => { setRemoveReceiverId(null); setDisconnectConsent(false); }} className="rounded-xl border border-white/10 px-4 py-3 text-sm text-white/70">Annuler</button><button disabled={!disconnectConsent || removeBusy} onClick={() => void removeReceiver()} className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">{removeBusy ? <Loader2 size={15} className="animate-spin"/> : <Unplug size={15}/>}Déconnecter et supprimer</button></div>
+            </div>
+          </div>
+        );
+      })()}
 
       {requestOpen ? (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
@@ -1565,7 +1241,7 @@ export default function CopieurPage() {
       ) : null}
 
       <style jsx global>{`.ip-field{height:42px;width:100%;min-width:0;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:rgba(0,0,0,.28);padding:0 12px;color:white;font-size:12px;outline:none}.ip-field:focus{border-color:var(--gold-border)}.ip-field::placeholder{color:rgba(255,255,255,.22)}.ip-field option{background:#0b0d0b;color:white}`}</style>
-    </main>
+    </>
   );
 }
 
@@ -1727,3 +1403,8 @@ function RequestStatus({ status }: { status: ActivationRequest["status"] }) {
 }
 
 function Summary({ label, value, green }: { label: string; value: string; green?: boolean }) { return <div className="rounded-2xl border border-white/[0.06] bg-black/20 p-4"><div className="text-[8px] uppercase tracking-[0.1em] text-white/25">{label}</div><div className={cn("mt-2 text-sm font-semibold", green ? "text-emerald-400" : "text-white")}>{value}</div></div>; }
+function HeroStatCard({ icon, label, value, sub, accent, accentPositive }: { icon: React.ReactNode; label: string; value: string; sub: string; accent?: string; accentPositive?: boolean }) { return <div className="rounded-[20px] border border-white/[0.07] bg-black/25 p-4"><div className="flex items-start justify-between gap-3"><div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]">{icon}</div><div className="min-w-0 flex-1"><div className="text-[10px] text-white/35">{label}</div><div className="mt-1 text-3xl font-semibold text-white">{value}</div><div className="mt-1 flex flex-wrap items-center gap-2"><span className="text-[10px] text-white/35">{sub}</span>{accent ? <span className={cn("text-[10px] font-semibold", accentPositive ? "text-emerald-400" : "text-[color:var(--gold)]")}>{accent}</span> : null}</div></div></div></div>; }
+function TopTabButton({ active, onClick, icon, title, subtitle }: { active: boolean; onClick: () => void; icon: React.ReactNode; title: string; subtitle: string }) { return <button onClick={onClick} className={cn("rounded-[18px] border p-4 text-left transition", active ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]" : "border-white/[0.07] bg-black/20 hover:bg-white/[0.02]")}><div className="flex items-start gap-3"><div className={cn("flex h-10 w-10 items-center justify-center rounded-xl border", active ? "border-[color:var(--gold-border)] text-[color:var(--gold)]" : "border-white/[0.07] text-white/35")}>{icon}</div><div className="min-w-0"><div className="text-sm font-semibold text-white">{title}</div><div className="mt-1 text-[10px] text-white/35">{subtitle}</div></div></div></button>; }
+function MiniMetric({ label, value, positive, negative }: { label: string; value: string; positive?: boolean; negative?: boolean }) { return <div className="rounded-xl border border-white/[0.06] bg-black/20 p-3"><div className="text-[9px] uppercase tracking-[0.08em] text-white/30">{label}</div><div className={cn("mt-2 text-lg font-semibold", positive ? "text-emerald-400" : negative ? "text-red-400" : "text-white")}>{value}</div></div>; }
+function ReceiverStatusBadge({ status }: { status: Receiver['status'] }) { const styles = status === 'connected' ? 'border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-400' : status === 'paused' ? 'border-white/[0.08] bg-white/[0.03] text-white/55' : 'border-red-500/20 bg-red-500/[0.05] text-red-300'; const label = status === 'connected' ? 'Connecté' : status === 'paused' ? 'Pause' : 'Erreur'; return <span className={cn('inline-flex rounded-full border px-2.5 py-1 text-[8px] font-bold uppercase', styles)}>{label}</span>; }
+function InlineRiskOption({ active, label, desc, onClick, children }: { active: boolean; label: string; desc: string; onClick: () => void; children: React.ReactNode }) { return <button type="button" onClick={onClick} className={cn("grid w-full grid-cols-[auto_1fr_132px] items-center gap-3 rounded-xl border p-3 text-left transition", active ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]" : "border-white/[0.06] bg-black/20 hover:bg-white/[0.02]")}><span className={cn("flex h-5 w-5 items-center justify-center rounded-full border", active ? "border-[color:var(--gold-border)] bg-[color:var(--gold)] text-black" : "border-white/15 text-transparent")}>{active ? <Check size={12} /> : '•'}</span><span className="min-w-0"><span className="block text-[11px] font-semibold text-white">{label}</span><span className="mt-0.5 block text-[9px] text-white/35">{desc}</span></span><span onClick={(e) => e.stopPropagation()}>{children}</span></button>; }
