@@ -434,8 +434,8 @@ export default function CopieurPage() {
       return true;
     });
   }, [activationRequests]);
-  const approvedMasterLogins = useMemo(() => new Set(activationRequests.filter((r) => r.status === "activated" && r.removal_status !== "completed").map((r) => `${r.platform}:${r.login}`)), [activationRequests]);
-  const approvedMaster = latestMasterRequests.find((r) => r.status === "activated" && r.removal_status !== "completed") || null;
+  const approvedMasterLogins = useMemo(() => new Set(activationRequests.filter((r) => r.status === "activated" && Boolean(r.provider_master_id) && !["pending", "processing", "completed"].includes(r.removal_status)).map((r) => `${r.platform}:${r.login}`)), [activationRequests]);
+  const approvedMaster = latestMasterRequests.find((r) => r.status === "activated" && Boolean(r.provider_master_id) && !["pending", "processing", "completed"].includes(r.removal_status)) || null;
   const approvedMasterReceiver = approvedMaster
     ? receivers.find((receiver) => receiver.login === approvedMaster.login && receiver.platform === approvedMaster.platform && receiver.server === approvedMaster.server) || null
     : null;

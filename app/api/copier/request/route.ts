@@ -83,27 +83,38 @@ export async function GET(request: Request) {
       : { data: [], error: null };
     if (ownershipError) console.error("[copier-request][GET] master ownership indisponible", ownershipError.message);
     const masterByRequest = new Map((ownershipRows || []).map((row: any) => [String(row.request_id), String(row.provider_master_id)]));
-    const providerIds = [...new Set([...masterByRequest.values()])];
-    let removalByProvider = new Map<string, string>();
-    if (providerIds.length) {
-      const { data: removals, error: removalError } = await admin.from("copier_master_removal_requests")
-        .select("provider_master_id,status").eq("user_id", user.id).in("provider_master_id", providerIds).order("created_at", { ascending: false });
-      if (removalError) console.warn("[copier-request][GET] migration de retrait Master non appliquée");
-      else {
-        removalByProvider = new Map();
-        for (const row of removals || []) {
-          const providerId = String(row.provider_master_id);
-          if (!removalByProvider.has(providerId)) removalByProvider.set(providerId, String(row.status));
+    const { data: removals, error: removalError } = await admin.from("copier_master_removal_requests")
+      .select("request_id,provider_master_id,status,created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(100);
+    const removalByProvider = new Map<string, string>();
+    const removalByAccount = new Map<string, { status: string; providerId: string }>();
+    if (removalError) console.warn("[copier-request][GET] migration de retrait Master non appliquée");
+    else {
+      const requestsById = new Map((data || []).map((row: any) => [String(row.id), row]));
+      for (const row of removals || []) {
+        const providerId = String(row.provider_master_id);
+        if (!removalByProvider.has(providerId)) removalByProvider.set(providerId, String(row.status));
+        const original = requestsById.get(String(row.request_id));
+        if (original) {
+          const accountKey = `${original.platform}:${original.login}:${String(original.server).trim().toLowerCase()}`;
+          if (!removalByAccount.has(accountKey)) removalByAccount.set(accountKey, { status: String(row.status), providerId });
         }
       }
     }
 
     return NextResponse.json({
-      requests: (data || []).map((row: any) => ({
-        ...publicRow(row),
-        provider_master_id: masterByRequest.get(String(row.id)) || "",
-        removal_status: removalByProvider.get(masterByRequest.get(String(row.id)) || "") || "",
-      })),
+      requests: (data || []).map((row: any) => {
+        const ownedProviderId = masterByRequest.get(String(row.id)) || "";
+        const accountKey = `${row.platform}:${row.login}:${String(row.server).trim().toLowerCase()}`;
+        const historicalRemoval = removalByAccount.get(accountKey);
+        const removalStatus = ownedProviderId
+          ? removalByProvider.get(ownedProviderId) || ""
+          : historicalRemoval?.status || "";
+        return {
+          ...publicRow(row),
+          provider_master_id: ownedProviderId || (removalStatus === "completed" ? historicalRemoval?.providerId || "" : ""),
+          removal_status: removalStatus,
+        };
+      }),
     });
   } catch (error) {
     console.error("[copier-request][GET]", error);
