@@ -1,5 +1,6 @@
 "use client";
 import MetaSyncPanel from "@/components/metasync/MetaSyncPanel";
+import Link from "next/link";
 
 import {
   useEffect,
@@ -10,7 +11,6 @@ import {
 
 import {
   Clock3,
-  Database,
   Edit3,
   Link2,
   Plus,
@@ -1047,48 +1047,27 @@ export default function ComptesPage() {
                   size={12}
                 />
 
-                Prochaine étape
+                Tes plateformes
               </div>
 
               <h2 className="mt-4 text-xl font-semibold text-white lg:text-2xl">
-                Connexion
-                automatique{" "}
-                <span className="text-[color:var(--gold)]">
-                  MetaTrader
-                </span>
+                Gère tes{" "}
+                <span className="text-[color:var(--gold)]">connexions</span>
               </h2>
 
               <p className="mt-3 max-w-2xl text-sm leading-6 text-[color:var(--muted)]">
-                Pour le moment,
-                tes comptes
-                sont gérés
-                manuellement.
-                Plus tard,
-                InvestPro pourra
-                synchroniser
-                automatiquement
-                la balance et
-                les trades MT4 /
-                MT5.
+                {stats.automaticAccounts > 0
+                  ? `Tu as ${stats.automaticAccounts} compte${stats.automaticAccounts > 1 ? "s" : ""} synchronisé${stats.automaticAccounts > 1 ? "s" : ""}. Consulte tes connecteurs et leur état dans l’espace Connexions. Les comptes manuels restent gérés ici.`
+                  : "Ajoute et gère tes comptes manuellement ici, ou ouvre Connexions pour relier une plateforme compatible et suivre sa synchronisation."}
               </p>
 
-              <div className="mt-5 flex flex-wrap gap-2">
-                <FeaturePill
-                  text="MetaTrader 4"
-                />
-
-                <FeaturePill
-                  text="MetaTrader 5"
-                />
-
-                <FeaturePill
-                  text="Balance automatique"
-                />
-
-                <FeaturePill
-                  text="Journal automatique"
-                />
-              </div>
+              <Link
+                href="/dashboard/connexions"
+                className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 py-2 text-sm font-semibold text-[color:var(--gold)] no-underline transition hover:bg-[color:var(--gold)]/15"
+              >
+                <Link2 size={16} />
+                Gérer mes connexions
+              </Link>
             </div>
 
             <div className="lg:col-span-4">
@@ -1121,8 +1100,7 @@ export default function ComptesPage() {
 
                 <div className="mt-4 text-center">
                   <div className="text-sm font-semibold text-white">
-                    Bridge
-                    MetaTrader
+                    Bridge MetaTrader
                   </div>
 
                   <div className="mt-1 text-[11px] text-[color:var(--muted)]">
@@ -1135,74 +1113,6 @@ export default function ComptesPage() {
           </div>
         </section>
 
-        {/* =====================================================
-            FUTURE FEATURES
-        ===================================================== */}
-
-        <section
-          className="
-            overflow-hidden
-            rounded-[22px]
-            border border-[color:var(--border)]
-            bg-[color:var(--panel)]
-          "
-        >
-          <div className="border-b border-[color:var(--border)] px-4 py-4 lg:px-5">
-            <h2 className="text-sm font-semibold text-white">
-              Synchronisation
-              MetaTrader
-            </h2>
-
-            <p className="mt-1 text-[10px] text-[color:var(--muted)]">
-              Fonctionnalités
-              prévues lors de
-              l’activation de
-              la connexion.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 gap-px bg-white/[0.04] lg:grid-cols-2 xl:grid-cols-4">
-            <FutureFeature
-              icon={
-                <Database
-                  size={18}
-                />
-              }
-              title="Historique automatique"
-              text="Tes trades clôturés seront automatiquement ajoutés à ton journal."
-            />
-
-            <FutureFeature
-              icon={
-                <RefreshCw
-                  size={18}
-                />
-              }
-              title="Capital synchronisé"
-              text="La balance et l’equity pourront être récupérées automatiquement."
-            />
-
-            <FutureFeature
-              icon={
-                <WalletCards
-                  size={18}
-                />
-              }
-              title="Plusieurs comptes"
-              text="Regroupe tes brokers, comptes personnels et prop firms."
-            />
-
-            <FutureFeature
-              icon={
-                <ShieldCheck
-                  size={18}
-                />
-              }
-              title="Journal connecté"
-              text="Tes trades pourront alimenter automatiquement tes statistiques."
-            />
-          </div>
-        </section>
       </div>
 
       {/* =====================================================
@@ -1959,69 +1869,6 @@ function StatCard({
   );
 }
 
-function FeaturePill({
-  text,
-}: {
-  text: string;
-}) {
-  return (
-    <span
-      className="
-        rounded-full
-        border border-white/[0.07]
-        bg-black/20
-        px-3 py-1.5
-        text-[10px]
-        text-white/55
-      "
-    >
-      {text}
-    </span>
-  );
-}
-
-function FutureFeature({
-  icon,
-  title,
-  text,
-}: {
-  icon:
-    React.ReactNode;
-
-  title:
-    string;
-
-  text:
-    string;
-}) {
-  return (
-    <div className="bg-[color:var(--panel)] p-5">
-      <div
-        className="
-          flex
-          h-10
-          w-10
-          items-center
-          justify-center
-          rounded-xl
-          border border-[color:var(--gold-border)]
-          bg-[color:var(--gold-soft)]
-          text-[color:var(--gold)]
-        "
-      >
-        {icon}
-      </div>
-
-      <div className="mt-4 text-xs font-semibold text-white">
-        {title}
-      </div>
-
-      <p className="mt-2 text-[10px] leading-5 text-[color:var(--muted)]">
-        {text}
-      </p>
-    </div>
-  );
-}
 
 /* =========================================================
    INPUT
