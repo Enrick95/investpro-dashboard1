@@ -1,96 +1,117 @@
 "use client";
 
-import { useMemo } from "react";
-import { History, Shield, Activity, LogIn } from "lucide-react";
-import { getCurrentAccount } from "@/lib/authStore";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { Activity, ArrowRight, History, LockKeyhole, Loader2, ShieldCheck } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
-function Card(props: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--panel)] backdrop-blur p-5">
-      <div className="flex items-center gap-3">
-        <span className="w-10 h-10 rounded-2xl border border-white/10 bg-black/10 dark:bg-black/20 flex items-center justify-center">
-          {props.icon}
-        </span>
-        <div className="text-base font-semibold text-[color:var(--text,white)]">{props.title}</div>
-      </div>
-      <div className="mt-4">{props.children}</div>
-    </div>
-  );
+function formatDate(value: string | null) {
+  if (!value) return "Aucune date disponible";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Aucune date disponible";
+  return date.toLocaleString("fr-FR", {
+    dateStyle: "long",
+    timeStyle: "short",
+  });
 }
 
 export default function HistoriquePage() {
-  const acc: any = useMemo(() => getCurrentAccount(), []);
+  const supabase = useMemo(() => createClient(), []);
+  const [loading, setLoading] = useState(true);
+  const [lastSignInAt, setLastSignInAt] = useState<string | null>(null);
 
-  // 🔧 Exemple: plus tard tu remplaceras par DB (logs)
-  const loginHistory = [
-    { at: "—", ip: "—", device: "Chrome / Windows", status: "OK" },
-    { at: "—", ip: "—", device: "Opera / Windows", status: "OK" },
-  ];
+  useEffect(() => {
+    let cancelled = false;
 
-  const activity = [
-    { at: "—", label: "Ouverture du dashboard", kind: "activity" },
-    { at: "—", label: "Consultation du terminal", kind: "activity" },
-  ];
+    async function load() {
+      try {
+        const { data, error } = await supabase.auth.getUser();
+        if (error) throw error;
+        if (!data.user) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!cancelled) setLastSignInAt(data.user.last_sign_in_at || null);
+      } catch {
+        if (!cancelled) setLastSignInAt(null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void load();
+    return () => { cancelled = true; };
+  }, [supabase]);
 
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-[color:var(--text,white)]">Historique</h1>
-        <p className="text-sm mt-1 text-[color:var(--muted)]">
-          Connexions, sessions et activité de compte ({acc?.username || "Utilisateur"}).
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card title="Connexions" icon={<LogIn size={18} className="text-white/80" />}>
-          <div className="overflow-hidden rounded-2xl border border-[color:var(--border)]">
-            <div className="grid grid-cols-12 text-[11px] uppercase tracking-wide text-[color:var(--muted)] bg-black/5 dark:bg-black/20 px-4 py-3">
-              <div className="col-span-4">Date</div>
-              <div className="col-span-3">IP</div>
-              <div className="col-span-4">Appareil</div>
-              <div className="col-span-1">OK</div>
-            </div>
-
-            {loginHistory.map((x, i) => (
-              <div key={i} className="grid grid-cols-12 px-4 py-3 border-t border-[color:var(--border)]">
-                <div className="col-span-4 text-sm text-[color:var(--text,white)]/80">{x.at}</div>
-                <div className="col-span-3 text-sm text-[color:var(--text,white)]/80">{x.ip}</div>
-                <div className="col-span-4 text-sm text-[color:var(--text,white)]/80">{x.device}</div>
-                <div className="col-span-1 text-sm font-semibold text-emerald-300">{x.status}</div>
-              </div>
-            ))}
+    <div className="mx-auto max-w-5xl space-y-5 pb-10">
+      <section className="rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6">
+        <div className="flex items-start gap-3">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]">
+            <History size={19} />
+          </span>
+          <div>
+            <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gold)]">Compte InvestPro</p>
+            <h1 className="mt-1 text-2xl font-semibold text-white">Historique & sécurité</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[color:var(--muted)]">
+              Consulte la dernière date de connexion connue et accède aux actions de sécurité de ton compte.
+            </p>
           </div>
-
-          <div className="mt-3 text-xs text-[color:var(--muted)]">
-            Conseil: plus tard on peut logguer les sessions et permettre “Déconnecter toutes les sessions”.
-          </div>
-        </Card>
-
-        <Card title="Sécurité" icon={<Shield size={18} className="text-white/80" />}>
-          <div className="rounded-2xl border border-[color:var(--border)] p-4">
-            <div className="text-sm font-semibold text-[color:var(--text,white)]">État</div>
-            <ul className="mt-2 text-sm text-[color:var(--muted)] space-y-1">
-              <li>• 2FA : à ajouter</li>
-              <li>• Alertes connexion : à ajouter</li>
-              <li>• Sessions actives : à ajouter</li>
-            </ul>
-          </div>
-        </Card>
-      </div>
-
-      <Card title="Activité récente" icon={<Activity size={18} className="text-white/80" />}>
-        <div className="space-y-2">
-          {activity.map((a, i) => (
-            <div
-              key={i}
-              className="px-4 py-3 rounded-2xl border border-[color:var(--border)] bg-black/5 dark:bg-black/20"
-            >
-              <div className="text-sm font-semibold text-[color:var(--text,white)]/85">{a.label}</div>
-              <div className="text-xs text-[color:var(--muted)] mt-1">{a.at}</div>
-            </div>
-          ))}
         </div>
-      </Card>
+      </section>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <section className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6">
+          <div className="flex items-center gap-2 text-white">
+            <Activity size={17} className="text-[color:var(--gold)]" />
+            <h2 className="text-sm font-semibold">Dernière connexion</h2>
+          </div>
+          <div className="mt-4 rounded-2xl border border-white/[0.06] bg-black/15 p-4">
+            <div className="text-[10px] uppercase tracking-wide text-white/35">Connexion au compte</div>
+            <div className="mt-2 text-sm font-semibold text-white">
+              {loading ? <Loader2 size={16} className="animate-spin text-[color:var(--gold)]" /> : formatDate(lastSignInAt)}
+            </div>
+          </div>
+          <p className="mt-3 text-xs leading-5 text-white/40">
+            Cette page affiche la dernière connexion connue. Le détail de toutes les anciennes sessions et appareils n’est pas disponible ici.
+          </p>
+        </section>
+
+        <section className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6">
+          <div className="flex items-center gap-2 text-white">
+            <ShieldCheck size={17} className="text-[color:var(--gold)]" />
+            <h2 className="text-sm font-semibold">Sécurité du compte</h2>
+          </div>
+          <p className="mt-3 text-xs leading-5 text-white/45">
+            Modifie ton mot de passe, vérifie ton e-mail ou demande la suppression de ton compte depuis les réglages de sécurité.
+          </p>
+          <Link
+            href="/dashboard/compte"
+            className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 text-xs font-semibold text-[color:var(--gold)] no-underline transition hover:bg-[color:var(--gold)]/15 sm:w-auto"
+          >
+            <LockKeyhole size={14} />
+            Ouvrir les réglages de sécurité
+            <ArrowRight size={14} />
+          </Link>
+        </section>
+      </div>
+
+      <section className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6">
+        <div className="flex items-center gap-2 text-white">
+          <Activity size={17} className="text-[color:var(--gold)]" />
+          <h2 className="text-sm font-semibold">Activité InvestPro</h2>
+        </div>
+        <div className="mt-4 rounded-2xl border border-dashed border-white/[0.10] bg-black/15 px-4 py-7 text-center">
+          <p className="text-sm font-semibold text-white">L’historique détaillé n’est pas encore disponible</p>
+          <p className="mx-auto mt-1 max-w-xl text-xs leading-5 text-white/40">
+            Aucun événement d’activité n’est disponible ici pour le moment. Tes trades restent consultables dans ton journal.
+          </p>
+          <Link href="/dashboard/journal" className="mt-4 inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-white/[0.08] px-4 text-xs font-semibold text-white/70 no-underline hover:text-white">
+            Ouvrir le journal
+            <ArrowRight size={13} />
+          </Link>
+        </div>
+      </section>
     </div>
   );
 }

@@ -107,8 +107,9 @@ function subscriptionStatusLabel(status?: string | null) {
   if (value === "trialing") return "Période d’essai";
   if (value === "past_due") return "Paiement à régulariser";
   if (value === "cancelled") return "Annulé";
+  if (value === "canceled") return "Annulé";
   if (value === "expired") return "Expiré";
-  return "Actif";
+  return "État inconnu";
 }
 
 export default function SubscriptionAccessPage() {
@@ -168,7 +169,12 @@ export default function SubscriptionAccessPage() {
   }, []);
 
   const currentPlan = normalizePlan(subscription?.plan || profile?.plan || "PRO");
-  const currentStatus = subscriptionStatusLabel(subscription?.status || "active");
+  const currentStatus = subscription
+    ? subscriptionStatusLabel(subscription.status)
+    : "Bêta gratuite";
+  const statusClass = ["Actif", "Période d’essai", "Bêta gratuite"].includes(currentStatus)
+    ? "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-400"
+    : "border-amber-500/20 bg-amber-500/[0.06] text-amber-300";
   const features = PLAN_FEATURES[currentPlan];
 
   if (loading) {
@@ -200,8 +206,8 @@ export default function SubscriptionAccessPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-2.5 text-[10px] font-semibold text-emerald-400">
-            <span className="h-2 w-2 rounded-full bg-emerald-400" />
+          <div className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-[10px] font-semibold ${statusClass}`}>
+            <span className={`h-2 w-2 rounded-full ${statusClass.includes("emerald") ? "bg-emerald-400" : "bg-amber-300"}`} />
             {currentStatus}
           </div>
         </div>
@@ -219,7 +225,7 @@ export default function SubscriptionAccessPage() {
           icon={<BadgeCheck size={17} />}
           label="Statut"
           value={currentStatus}
-          sub={subscription?.provider ? `Via ${subscription.provider}` : "Gestion InvestPro"}
+          sub={subscription?.provider ? `Via ${subscription.provider}` : "Aucun paiement pendant la bêta"}
         />
         <Stat
           icon={<Clock3 size={17} />}
@@ -228,20 +234,22 @@ export default function SubscriptionAccessPage() {
           sub={
             subscription?.cancel_at_period_end
               ? "Résiliation prévue"
-              : "Renouvellement non configuré"
+              : subscription
+                ? "Renouvellement non configuré"
+                : "Pas de renouvellement pendant la bêta"
           }
         />
         <Stat
           icon={<WalletCards size={17} />}
-          label="Facturation"
-          value={subscription?.provider ? "Connectée" : "À connecter"}
-          sub="Stripe / autre provider plus tard"
+          label="Paiements"
+          value={subscription?.provider ? "Activés" : "Non activés"}
+          sub="Aucun paiement n’est demandé pendant la bêta"
         />
       </section>
 
       {!billingTableAvailable ? (
         <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.05] px-4 py-3 text-xs text-amber-300">
-          Le module d’abonnement n’est pas encore initialisé dans Supabase. Exécute le SQL fourni avec cette mise à jour.
+          Les informations détaillées de facturation ne sont pas disponibles pour le moment. Ton accès à la bêta reste inchangé.
         </div>
       ) : null}
 
@@ -267,7 +275,7 @@ export default function SubscriptionAccessPage() {
                 </div>
               </div>
 
-              <span className="rounded-full border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-1 text-[9px] font-bold uppercase text-emerald-400">
+              <span className={`rounded-full border px-3 py-1 text-[9px] font-bold uppercase ${statusClass}`}>
                 {currentStatus}
               </span>
             </div>
@@ -377,13 +385,12 @@ export default function SubscriptionAccessPage() {
 
           <SideCard
             icon={<ShieldCheck size={17} />}
-            title="Accès sécurisé"
-            subtitle="Mode bêta ouvert : aucune fonctionnalité n’est bloquée actuellement."
+            title="Accès pendant la bêta"
+            subtitle="Tous les membres inscrits profitent actuellement des fonctionnalités InvestPro sans paiement."
           >
             <div className="space-y-3">
-              <SecurityRow text="Les règles d’accès sont centralisées dans lib/access.ts." />
-              <SecurityRow text="Aucune page existante n’est verrouillée automatiquement dans cette V1." />
-              <SecurityRow text="On pourra activer les blocages plan par plan une fois les paiements branchés." />
+              <SecurityRow text="Aucune carte bancaire n’est nécessaire pendant la bêta." />
+              <SecurityRow text="Les fonctions et les conditions des offres seront indiquées ici lorsque la facturation sera activée." />
             </div>
           </SideCard>
 

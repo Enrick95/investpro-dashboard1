@@ -6,25 +6,30 @@ import { defaultVisibility, type NavigationKey } from "@/lib/navigation/config";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   BarChart3,
+  Bug,
   BookOpen,
   CalendarDays,
   Cable,
   Crown,
+  CreditCard,
   ChartNoAxesCombined,
   CircleUserRound,
   ClipboardCheck,
   GraduationCap,
   Grid2X2,
+  History,
   Landmark,
   Library,
+  LifeBuoy,
   LineChart,
   Menu,
   Newspaper,
-  ShieldCheck,
   Smartphone,
+  Settings,
   Target,
   TrendingUp,
   Trophy,
+  Users,
   WalletCards,
   X,
   Zap,
@@ -113,6 +118,16 @@ export default function MobileGlobalV1() {
   const isReports =
     activeFor(pathname, "/dashboard/rapports") ||
     activeFor(pathname, "/dashboard/rapport-mensuel");
+
+  const bottomTabs = useMemo(
+    () => [
+      { key: "dashboard" as NavigationKey, href: "/dashboard", label: "Accueil", icon: <Grid2X2 size={21} />, active: pathname === "/dashboard" },
+      { key: "journal" as NavigationKey, href: "/dashboard/journal", label: "Journal", icon: <BookOpen size={21} />, active: activeFor(pathname, "/dashboard/journal") },
+      { key: "accounts" as NavigationKey, href: "/dashboard/comptes", label: "Comptes", icon: <WalletCards size={21} />, active: activeFor(pathname, "/dashboard/comptes") },
+      { key: "reports" as NavigationKey, href: "/dashboard/rapports", label: "Rapports", icon: <BarChart3 size={21} />, active: isReports },
+    ].filter((item) => item.key === "dashboard" || visibility[item.key] !== false),
+    [isReports, pathname, visibility]
+  );
 
   useEffect(() => {
     setMoreOpen(false);
@@ -386,6 +401,7 @@ export default function MobileGlobalV1() {
       { key: "vip" as NavigationKey, href: "/dashboard/performances-vip", label: "Performances VIP", icon: <TrendingUp size={20} /> },
       { key: "ranking" as NavigationKey, href: "/dashboard/classement", label: "Classement", icon: <Trophy size={20} /> },
       { key: "challenges" as NavigationKey, href: "/dashboard/challenges", label: "Challenges", icon: <Zap size={20} /> },
+      { key: "members" as NavigationKey, href: "/dashboard/membres", label: "Membres", icon: <Users size={20} /> },
     ].filter((item) => visibility[item.key] !== false),
     [visibility]
   );
@@ -397,43 +413,38 @@ export default function MobileGlobalV1() {
     [visibility]
   );
 
-  const accountTiles = useMemo(
+  const academyTiles = useMemo(
     () => [
       { key: "academy" as NavigationKey, href: "/dashboard/academy", label: "Formations", icon: <GraduationCap size={20} /> },
       { key: "library" as NavigationKey, href: "/dashboard/academy/bibliotheque", label: "Bibliothèque", icon: <Library size={20} /> },
       { key: "progression" as NavigationKey, href: "/dashboard/academy/progression", label: "Progression", icon: <TrendingUp size={20} /> },
+    ].filter((item) => visibility[item.key] !== false),
+    [visibility]
+  );
+
+  const accountTiles = useMemo(
+    () => [
       { key: "profile" as NavigationKey, href: "/dashboard/profil", label: "Mon profil", icon: <CircleUserRound size={20} /> },
+      { key: "subscription" as NavigationKey, href: "/dashboard/abonnement", label: "Abonnement", icon: <Crown size={20} /> },
+      { key: "billing" as NavigationKey, href: "/dashboard/facturation", label: "Facturation", icon: <CreditCard size={20} /> },
+      { key: "history" as NavigationKey, href: "/dashboard/historique", label: "Historique", icon: <History size={20} /> },
+      { key: "settings" as NavigationKey, href: "/dashboard/parametres", label: "Paramètres", icon: <Settings size={20} /> },
+      { key: "bug" as NavigationKey, href: "/dashboard/bug", label: "Signaler un bug", icon: <Bug size={20} /> },
+      { key: "support" as NavigationKey, href: "/dashboard/contact", label: "Support", icon: <LifeBuoy size={20} /> },
     ].filter((item) => visibility[item.key] !== false),
     [visibility]
   );
 
   return (
     <>
-      <nav className="ip-mobile-global-nav" aria-label="Navigation mobile">
-        <BottomTab
-          href="/dashboard"
-          label="Accueil"
-          active={pathname === "/dashboard"}
-          icon={<Grid2X2 size={21} />}
-        />
-        <BottomTab
-          href="/dashboard/journal"
-          label="Journal"
-          active={activeFor(pathname, "/dashboard/journal")}
-          icon={<BookOpen size={21} />}
-        />
-        <BottomTab
-          href="/dashboard/comptes"
-          label="Comptes"
-          active={activeFor(pathname, "/dashboard/comptes")}
-          icon={<WalletCards size={21} />}
-        />
-        <BottomTab
-          href="/dashboard/rapports"
-          label="Rapports"
-          active={isReports}
-          icon={<BarChart3 size={21} />}
-        />
+      <nav
+        className="ip-mobile-global-nav"
+        aria-label="Navigation mobile"
+        style={{ gridTemplateColumns: `repeat(${bottomTabs.length + 1}, minmax(0, 1fr))` }}
+      >
+        {bottomTabs.map((item) => (
+          <BottomTab key={item.key} {...item} />
+        ))}
 
         <button
           type="button"
@@ -472,22 +483,22 @@ export default function MobileGlobalV1() {
             </div>
 
             <div className="ip-more-scroll">
-              <MenuGroup title="Trading">
+              {tradingTiles.length ? <MenuGroup title="Trading">
                 {tradingTiles.map((item) => (
-                  <MenuTile {...item} onClick={() => setMoreOpen(false)} />
+                  <MenuTile key={item.href} {...item} onClick={() => setMoreOpen(false)} />
                 ))}
-              </MenuGroup>
+              </MenuGroup> : null}
 
-              <MenuGroup title="Marchés & analyse">
+              {marketTiles.length ? <MenuGroup title="Marchés & analyse">
                 {marketTiles.map((item) => (
-                  <MenuTile {...item} onClick={() => setMoreOpen(false)} />
+                  <MenuTile key={item.href} {...item} onClick={() => setMoreOpen(false)} />
                 ))}
-              </MenuGroup>
+              </MenuGroup> : null}
 
               {communityTiles.length ? (
                 <MenuGroup title="Communauté">
                   {communityTiles.map((item) => (
-                    <MenuTile {...item} onClick={() => setMoreOpen(false)} />
+                    <MenuTile key={item.href} {...item} onClick={() => setMoreOpen(false)} />
                   ))}
                 </MenuGroup>
               ) : null}
@@ -495,16 +506,22 @@ export default function MobileGlobalV1() {
               {ecosystemTiles.length ? (
                 <MenuGroup title="Écosystème">
                   {ecosystemTiles.map((item) => (
-                    <MenuTile {...item} onClick={() => setMoreOpen(false)} />
+                    <MenuTile key={item.href} {...item} onClick={() => setMoreOpen(false)} />
                   ))}
                 </MenuGroup>
               ) : null}
 
-              <MenuGroup title="Compte">
-                {accountTiles.map((item) => (
-                  <MenuTile {...item} onClick={() => setMoreOpen(false)} />
+              {academyTiles.length ? <MenuGroup title="Academy">
+                {academyTiles.map((item) => (
+                  <MenuTile key={item.href} {...item} onClick={() => setMoreOpen(false)} />
                 ))}
-              </MenuGroup>
+              </MenuGroup> : null}
+
+              {accountTiles.length ? <MenuGroup title="Compte">
+                {accountTiles.map((item) => (
+                  <MenuTile key={item.href} {...item} onClick={() => setMoreOpen(false)} />
+                ))}
+              </MenuGroup> : null}
 
               <MenuGroup title="Application">
                 <InstallMenuTile onClick={openInstallGuide} />

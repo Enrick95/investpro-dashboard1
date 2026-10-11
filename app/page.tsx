@@ -11,7 +11,6 @@ import {
   Copy,
   Layers3,
   MonitorSmartphone,
-  Play,
   RefreshCw,
   ShieldCheck,
   Smartphone,
@@ -34,7 +33,7 @@ const features = [
     num: "02",
     icon: Layers3,
     title: "Mes comptes",
-    text: "Suivez plusieurs comptes en temps réel. Une vision globale de vos performances.",
+    text: "Suivez plusieurs comptes, saisis manuellement ou synchronisés, dans une vue d’ensemble.",
     href: "/dashboard/comptes",
     kind: "accounts",
   },
@@ -58,7 +57,7 @@ const features = [
     num: "05",
     icon: RefreshCw,
     title: "Synchronisation",
-    text: "Accédez à vos données sur tous vos appareils, automatiquement.",
+    text: "Reliez une plateforme compatible pour importer les données prises en charge et suivre son état.",
     href: "/dashboard/connexions",
     kind: "sync",
   },
@@ -136,12 +135,11 @@ export default function Home() {
 
           <div className={styles.heroActions}>
             <Link href="/dashboard" className={styles.primaryButtonLarge}>
-              Découvrir mon espace <ArrowRight size={18} />
+              Accéder à mon espace <ArrowRight size={18} />
             </Link>
 
             <Link href="/login" className={styles.demoButton}>
-              <Play size={16} fill="currentColor" />
-              Voir la démo <span>2 min</span>
+              Se connecter <ArrowRight size={16} />
             </Link>
           </div>
 
@@ -466,8 +464,8 @@ export default function Home() {
                     <div className={styles.syncedBadge}>
                       <span><Check size={18} /></span>
                       <div>
-                        <b>Synchronisé</b>
-                        <small>il y a 2 minutes</small>
+                            <b>Aperçu d’un connecteur</b>
+                            <small>Données d’exemple</small>
                       </div>
                     </div>
                   </div>
@@ -500,13 +498,12 @@ export default function Home() {
           </p>
 
           <div className={styles.betaActions}>
-            <Link href="/dashboard" className={styles.primaryButtonLarge}>
-              Demander mon accès <ArrowRight size={17} />
+            <Link href="/signup" className={styles.primaryButtonLarge}>
+              Créer mon compte gratuitement <ArrowRight size={17} />
             </Link>
 
             <Link href="/login" className={styles.demoButton}>
-              <Play size={15} fill="currentColor" />
-              Voir la démo
+              Se connecter <ArrowRight size={15} />
             </Link>
           </div>
 
@@ -600,8 +597,8 @@ export default function Home() {
           par une meilleure préparation.
         </h2>
 
-        <Link href="/dashboard" className={styles.primaryButtonLarge}>
-          Ouvrir mon espace <ArrowRight size={17} />
+        <Link href="/signup" className={styles.primaryButtonLarge}>
+          Créer mon compte <ArrowRight size={17} />
         </Link>
       </section>
 
