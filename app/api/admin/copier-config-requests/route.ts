@@ -2,13 +2,7 @@ import { authenticateAdmin } from "@/lib/admin/permissions";
 import { canAdmin } from "@/lib/admin/permissions";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-
-function getAdminIds() {
-  return String(process.env.INVESTPRO_ADMIN_USER_IDS || "")
-    .split(",")
-    .map((value) => value.trim())
-    .filter(Boolean);
-}
+import { createCopierNotice, sendCopierEmail } from "@/lib/copier/notifications";
 
 async function verifyAdmin(request: Request) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -161,19 +155,60 @@ export async function PATCH(request: Request) {
     if (status === "applied") {
       nextConfig.applied_configuration = current.requested_config;
       nextConfig.applied_configuration_at = now;
+      nextConfig.risk_engine = {
+        ...(current.requested_config?.risk || {}),
+        updated_at: now,
+        provider_sync: "manually_confirmed_applied",
+      };
     }
 
-    await admin
+    const { error: receiverUpdateError } = await admin
       .from("copier_receivers")
       .update({ config: nextConfig, updated_at: now })
       .eq("id", current.receiver_id);
+    if (receiverUpdateError) {
+      return NextResponse.json({ error: "Demande mise à jour, mais le compte receveur n’a pas pu être actualisé." }, { status: 500 });
+    }
+  }
+
+  if (current.status !== status && ["processing", "applied", "rejected"].includes(status)) {
+    const title = status === "applied"
+      ? "Votre réglage de copie est actif"
+      : status === "rejected"
+        ? "Votre demande de réglage nécessite une correction"
+        : "Votre demande de réglage est prise en charge";
+    const note = String(adminNote || "").replace(/[<>]/g, "").replace(/\s+/g, " ").slice(0, 240);
+    const message = status === "applied"
+      ? "Le réglage demandé a été appliqué et confirmé par l’équipe InvestPro. Vous pouvez le consulter dans InvestPro Copier."
+      : status === "rejected"
+        ? `Le réglage demandé n’a pas pu être appliqué.${note ? ` Motif : ${note}` : " Contactez l’équipe InvestPro pour connaître les étapes à suivre."}`
+        : "L’équipe InvestPro traite actuellement votre demande. Le réglage actif reste en place jusqu’à la confirmation du résultat.";
+    const eventKey = `copier-config-${status}-${current.id}`;
+    let noticeInserted = false;
+    try {
+      const notice = await createCopierNotice(admin, {
+        eventKey,
+        userId: current.user_id,
+        title,
+        message,
+      });
+      noticeInserted = notice.inserted;
+    } catch (noticeError) {
+      console.error("[copier-config] notification non enregistrée", noticeError);
+    }
+    const emailResult = noticeInserted
+      ? await sendCopierEmail(admin, current.user_id, title, message)
+      : { sent: false, reason: "notification_not_recorded" };
+    if (!emailResult.sent && emailResult.reason !== "email_not_configured") {
+      console.error("[copier-config] e-mail non envoyé", emailResult.reason);
+    }
   }
 
   return NextResponse.json({
     ok: true,
     message:
       status === "applied"
-        ? "Configuration confirmée comme appliquée dans Social Trade Hub."
+        ? "Configuration confirmée comme appliquée et active."
         : "Demande mise à jour.",
   });
 }
