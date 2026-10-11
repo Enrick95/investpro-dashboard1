@@ -483,7 +483,7 @@ export default function ConnectionsPage() {
             status={
               activeMeta.some((x) => x.platform === "MT5") ? "connected" : "ready"
             }
-            href="/dashboard/comptes?connect=mt5"
+            href="/dashboard/connexions/metatrader?platform=mt5"
             cta={
               activeMeta.some((x) => x.platform === "MT5")
                 ? "Gérer MT5"
@@ -500,7 +500,7 @@ export default function ConnectionsPage() {
             status={
               activeMeta.some((x) => x.platform === "MT4") ? "connected" : "ready"
             }
-            href="/dashboard/comptes?connect=mt4"
+            href="/dashboard/connexions/metatrader?platform=mt4"
             cta={
               activeMeta.some((x) => x.platform === "MT4")
                 ? "Gérer MT4"
