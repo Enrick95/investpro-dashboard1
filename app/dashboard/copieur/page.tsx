@@ -737,8 +737,7 @@ export default function CopieurPage() {
     setRemoveBusy(true);
     setRemoveError("");
     try {
-      // Stopper la copie côté moteur AVANT de retirer le compte local.
-      await post({ action: "disconnect", receiverId: id, consent: true });
+      // La route serveur déconnecte le moteur et supprime le compte dans une seule opération contrôlée.
       const response = await fetch(`/api/copier/receivers/${encodeURIComponent(id)}`, {
         method: "DELETE",
         headers: await authHeaders(),
