@@ -11,10 +11,10 @@ const messages: Record<string, string> = {
   NOT_CONFIGURED: "Connexion partenaire non configurée.",
   UNKNOWN_RESULT: "Résultat non confirmé. Vérifiez le statut avant toute nouvelle action ; la demande a pu être exécutée.",
   BUSY: "Une opération est déjà en cours. Patientez puis vérifiez le statut.",
-  LICENCE: "Licence partenaire à faire vérifier auprès de Social Trade Hub.",
+  LICENCE: "La licence de connexion doit être vérifiée auprès de l’équipe InvestPro.",
   CAPACITY: "Capacité de la licence atteinte.",
   SERVER: "Serveur MetaTrader introuvable. Vérifiez son nom exact.",
-  PROVIDER_REJECTED: "Demande refusée par Social Trade Hub. Vérifiez le compte et les paramètres.",
+  PROVIDER_REJECTED: "La demande de connexion a été refusée. Vérifiez le compte et les paramètres.",
   LOTS: "Volume invalide ou supérieur à la limite du pilote.",
   INPUT: "Paramètres invalides.",
   DB: "La connexion base de données du copieur est indisponible.",
@@ -212,7 +212,7 @@ export async function POST(req: Request) {
     return json({
       status: { ...status, masterAccountsList: status.masterAccountsList.filter((m) => owned.has(m.id)) },
       receiverId: receiverId || "legacy",
-      message: "État confirmé par Social Trade Hub.",
+      message: "État confirmé par le moteur de copie.",
     });
   } catch (e) {
     if (createdReceiverId && db) {
