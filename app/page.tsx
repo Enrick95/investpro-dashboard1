@@ -482,6 +482,25 @@ export default function Home() {
             </article>
           ))}
         </div>
+
+        <div className={styles.copierSpotlight}>
+          <div className={styles.copierSpotlightCopy}>
+            <span className={styles.copierSpotlightEyebrow}>INVESTPRO COPIER</span>
+            <h3>Vos comptes, vos réglages, une vue claire.</h3>
+            <p>
+              Retrouvez les comptes receveurs, les liaisons Master et les
+              paramètres de risque dans un espace conçu pour suivre chaque étape.
+            </p>
+            <Link href="/dashboard/copieur" className={styles.copierSpotlightLink}>
+              Découvrir InvestPro Copier <ArrowRight size={16} />
+            </Link>
+          </div>
+          <div className={styles.copierSteps} aria-label="Étapes de configuration">
+            <div><span>01</span><b>Choisir les comptes</b><small>Master et receveurs</small></div>
+            <div><span>02</span><b>Régler le risque</b><small>Volumes et exécution</small></div>
+            <div><span>03</span><b>Suivre l’activité</b><small>État et historique</small></div>
+          </div>
+        </div>
       </section>
 
       <section className={styles.betaSection} id="beta">
