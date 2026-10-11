@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "crypto";
 import { encryptCopierPassword } from "@/lib/copier/requestCrypto";
+import { copierAdminUserIds, createCopierNotice, sendCopierEmail } from "@/lib/copier/notifications";
 
 function clients() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -49,7 +50,9 @@ function publicRow(row: any) {
     server: row.server,
     status: row.status,
     note: row.note || "",
-    admin_note: row.admin_note || "",
+    admin_note: row.status === "rejected"
+      ? String(row.admin_note || "").replace(/[<>]/g, "").replace(/\s+/g, " ").slice(0, 240)
+      : "",
     provider_user_id: row.provider_user_id,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -166,11 +169,46 @@ export async function POST(request: Request) {
 
     if (error) throw error;
 
+    const confirmation = "Votre demande d’activation de compte Master a bien été envoyée ! Notre équipe va procéder à sa vérification. Vous recevrez une notification dès que votre compte sera activé.";
+    const title = "Demande de compte Master reçue";
+    let clientNoticeInserted = false;
+    try {
+      const notice = await createCopierNotice(admin, {
+        eventKey: `copier-master-request-${data.id}`,
+        userId: user.id,
+        title,
+        message: confirmation,
+      });
+      clientNoticeInserted = notice.inserted;
+    } catch (noticeError) {
+      console.error("[copier-request] notification client non enregistrée", noticeError);
+    }
+
+    for (const adminId of await copierAdminUserIds(admin)) {
+      try {
+        await createCopierNotice(admin, {
+          eventKey: `copier-master-request-admin-${data.id}-${adminId}`,
+          userId: adminId,
+          title: "Nouvelle demande de compte Master",
+          message: `${alias} · ${platform} ${login} · ${server}`,
+          href: "/dashboard/admin/copieur",
+        });
+      } catch (noticeError) {
+        console.error("[copier-request] notification admin non enregistrée", noticeError);
+      }
+    }
+
+    const emailResult = clientNoticeInserted
+      ? await sendCopierEmail(admin, user.id, title, confirmation)
+      : { sent: false, reason: "notification_not_recorded" };
+    if (!emailResult.sent && emailResult.reason !== "email_not_configured") {
+      console.error("[copier-request] e-mail de confirmation non envoyé", emailResult.reason);
+    }
+
     return NextResponse.json({
       ok: true,
       request: publicRow(data),
-      message:
-        "Demande transmise. L’équipe InvestPro va activer le compte à distance.",
+      message: confirmation,
     });
   } catch (error) {
     console.error("[copier-request][POST]", error);
