@@ -856,7 +856,7 @@ export default function ComptesPage() {
 
               <p className="mt-1 text-[10px] text-[color:var(--muted)]">
                 Ces comptes
-                pourront être
+                peuvent être
                 sélectionnés
                 dans ton
                 journal.
@@ -996,7 +996,7 @@ export default function ComptesPage() {
         </section>
 
         {/* =====================================================
-            METATRADER FUTURE
+            PLATFORM CONNECTIONS
         ===================================================== */}
 
         <section
@@ -1047,7 +1047,7 @@ export default function ComptesPage() {
                   size={12}
                 />
 
-                Tes plateformes
+                {stats.automaticAccounts > 0 ? "CONNEXIONS ACTIVES" : "TES PLATEFORMES"}
               </div>
 
               <h2 className="mt-4 text-xl font-semibold text-white lg:text-2xl">
@@ -1058,7 +1058,7 @@ export default function ComptesPage() {
               <p className="mt-3 max-w-2xl text-sm leading-6 text-[color:var(--muted)]">
                 {stats.automaticAccounts > 0
                   ? `Tu as ${stats.automaticAccounts} compte${stats.automaticAccounts > 1 ? "s" : ""} synchronisé${stats.automaticAccounts > 1 ? "s" : ""}. Consulte tes connecteurs et leur état dans l’espace Connexions. Les comptes manuels restent gérés ici.`
-                  : "Ajoute et gère tes comptes manuellement ici, ou ouvre Connexions pour relier une plateforme compatible et suivre sa synchronisation."}
+                    : "Ajoute et gère tes comptes manuellement ici, ou ouvre Connexions pour relier une plateforme compatible et suivre sa synchronisation."}
               </p>
 
               <Link
@@ -1100,12 +1100,15 @@ export default function ComptesPage() {
 
                 <div className="mt-4 text-center">
                   <div className="text-sm font-semibold text-white">
-                    Bridge MetaTrader
+                    {stats.automaticAccounts > 0
+                      ? "Synchronisation active"
+                      : "Plateformes compatibles"}
                   </div>
 
                   <div className="mt-1 text-[11px] text-[color:var(--muted)]">
-                    En cours de
-                    développement
+                    {stats.automaticAccounts > 0
+                      ? `${stats.automaticAccounts} compte${stats.automaticAccounts > 1 ? "s" : ""} synchronisé${stats.automaticAccounts > 1 ? "s" : ""}`
+                      : "Consulte les connecteurs disponibles"}
                   </div>
                 </div>
               </div>
