@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import CopierDeliveryFailures from "@/components/admin/CopierDeliveryFailures";
+import CopierMasterRemovalRequests from "@/components/admin/CopierMasterRemovalRequests";
 
 type RequestRow = {
   id: string;
@@ -254,6 +255,7 @@ export default function AdminCopierRequestsPage() {
   return (
     <main className="space-y-5">
       <CopierDeliveryFailures />
+      <CopierMasterRemovalRequests />
       <section className="rounded-[24px] border border-[color:var(--gold-border)] bg-[color:var(--panel)] p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>

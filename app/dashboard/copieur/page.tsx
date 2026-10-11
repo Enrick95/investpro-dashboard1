@@ -103,6 +103,8 @@ type ActivationRequest = {
   provider_user_id: string;
   created_at: string;
   activated_at: string | null;
+  provider_master_id: string;
+  removal_status: "" | "pending" | "processing" | "completed" | "rejected";
 };
 
 type CopierConfigRequest = {
@@ -403,6 +405,9 @@ export default function CopieurPage() {
   const [requestOpen, setRequestOpen] = useState(false);
   const [requestSuccess, setRequestSuccess] = useState("");
   const [activationRequests, setActivationRequests] = useState<ActivationRequest[]>([]);
+  const [selectedRemovalId, setSelectedRemovalId] = useState("");
+  const [removalBusy, setRemovalBusy] = useState(false);
+  const [removalMessage, setRemovalMessage] = useState("");
   const [requestBusy, setRequestBusy] = useState(false);
   const [requestServerChoice, setRequestServerChoice] = useState("");
   const [saveBarState, setSaveBarState] = useState<"idle" | "saving" | "saved" | "failed">("idle");
@@ -420,8 +425,17 @@ export default function CopieurPage() {
     note: "",
   });
 
-  const approvedMasterLogins = useMemo(() => new Set(activationRequests.filter((r) => r.status === "activated").map((r) => `${r.platform}:${r.login}`)), [activationRequests]);
-  const approvedMaster = activationRequests.find((r) => r.status === "activated") || null;
+  const latestMasterRequests = useMemo(() => {
+    const seen = new Set<string>();
+    return activationRequests.filter((request) => {
+      const key = `${request.platform}:${request.login}:${request.server.trim().toLowerCase()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [activationRequests]);
+  const approvedMasterLogins = useMemo(() => new Set(activationRequests.filter((r) => r.status === "activated" && r.removal_status !== "completed").map((r) => `${r.platform}:${r.login}`)), [activationRequests]);
+  const approvedMaster = latestMasterRequests.find((r) => r.status === "activated" && r.removal_status !== "completed") || null;
   const approvedMasterReceiver = approvedMaster
     ? receivers.find((receiver) => receiver.login === approvedMaster.login && receiver.platform === approvedMaster.platform && receiver.server === approvedMaster.server) || null
     : null;
@@ -464,6 +478,27 @@ export default function CopieurPage() {
 
     const data = await response.json();
     setActivationRequests((data.requests || []) as ActivationRequest[]);
+  }
+
+  async function requestMasterRemoval() {
+    if (!selectedRemovalId || removalBusy) return;
+    if (!window.confirm("Demander le retrait de ce compte Master ? Il restera actif jusqu’à la vérification de l’équipe InvestPro.")) return;
+    setRemovalBusy(true);
+    setRemovalMessage("");
+    try {
+      const response = await fetch("/api/copier/request", {
+        method: "POST",
+        headers: { ...(await authHeaders()), "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "request_removal", requestId: selectedRemovalId }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Impossible d’envoyer la demande de retrait.");
+      setRemovalMessage(data.message || "Demande de retrait envoyée.");
+      setSelectedRemovalId("");
+      await loadActivationRequests();
+    } catch (cause) {
+      setRemovalMessage(cause instanceof Error ? cause.message : "Impossible d’envoyer la demande de retrait.");
+    } finally { setRemovalBusy(false); }
   }
 
   async function submitActivationRequest() {
@@ -991,7 +1026,8 @@ export default function CopieurPage() {
         </section>
         {activationRequests.length > 0 ? <section className="rounded-[22px] border border-white/[0.07] bg-[color:var(--panel)] p-4 md:hidden">
           <div className="flex items-center justify-between"><h2 className="text-xs font-semibold text-white">Suivi des demandes Master</h2><button type="button" onClick={() => void loadActivationRequests()} className="text-[9px] font-semibold text-[color:var(--gold)]">Actualiser</button></div>
-          <div className="mt-3 space-y-2">{activationRequests.map((request) => <div key={request.id} className="rounded-xl border border-white/[0.06] bg-black/15 p-3"><div className="flex items-center justify-between gap-2"><div className="min-w-0"><div className="truncate text-[10px] font-semibold text-white">{request.alias} · {request.platform} {request.login}</div><div className="mt-1 truncate text-[8px] text-white/40">{request.server}</div></div><span className={cn("shrink-0 rounded-full border px-2 py-1 text-[8px] font-semibold", request.status === "activated" ? "border-emerald-500/20 bg-emerald-500/[0.05] text-emerald-300" : request.status === "rejected" ? "border-red-500/20 bg-red-500/[0.05] text-red-300" : "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]")}>{request.status === "activated" ? "Activé" : request.status === "rejected" ? "Refusé" : request.status === "processing" ? "Vérification" : "En attente"}</span></div>{request.status === "rejected" && request.admin_note ? <p className="mt-2 text-[9px] leading-4 text-red-200/75">Motif : {request.admin_note}</p> : null}</div>)}</div>
+          <div className="mt-3 space-y-2">{latestMasterRequests.map((request) => { const removalPending = ["pending", "processing"].includes(request.removal_status); const removed = request.removal_status === "completed"; const canRemove = request.status === "activated" && Boolean(request.provider_master_id) && !removalPending && !removed; const label = removed ? "Retiré" : removalPending ? "Retrait en cours" : request.status === "activated" ? "Activé" : request.status === "rejected" ? "Refusé" : request.status === "processing" ? "Vérification" : "En attente"; return <div key={request.id} className="rounded-xl border border-white/[0.06] bg-black/15 p-3"><div className="flex items-center justify-between gap-2"><div className="min-w-0"><div className="truncate text-[10px] font-semibold text-white">{request.alias} · {request.platform} {request.login}</div><div className="mt-1 truncate text-[8px] text-white/40">{request.server}</div></div><div className="flex shrink-0 items-center gap-2">{canRemove ? <input type="checkbox" aria-label={`Sélectionner ${request.alias} pour demander son retrait`} checked={selectedRemovalId === request.id} onChange={(event) => setSelectedRemovalId(event.target.checked ? request.id : "")} className="h-4 w-4 accent-[#d4a934]" /> : null}<span className={cn("rounded-full border px-2 py-1 text-[8px] font-semibold", removed || removalPending ? "border-amber-500/20 bg-amber-500/[0.05] text-amber-200" : request.status === "activated" ? "border-emerald-500/20 bg-emerald-500/[0.05] text-emerald-300" : request.status === "rejected" ? "border-red-500/20 bg-red-500/[0.05] text-red-300" : "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]")}>{label}</span></div></div></div>; })}</div>
+          {selectedRemovalId ? <button type="button" disabled={removalBusy} onClick={() => void requestMasterRemoval()} className="mt-3 min-h-10 w-full rounded-xl border border-red-500/20 bg-red-500/[0.05] px-3 text-[9px] font-semibold text-red-200 disabled:opacity-50">{removalBusy ? "Envoi…" : "Demander le retrait du compte sélectionné"}</button> : null}{removalMessage ? <p role="status" className="mt-2 text-[9px] leading-4 text-white/60">{removalMessage}</p> : null}
         </section> : null}
         <div className="hidden space-y-5 md:block">
         <section id="copier-overview" className="scroll-mt-24 overflow-hidden rounded-[26px] border border-[color:var(--border)] bg-[color:var(--panel)]">
@@ -1045,18 +1081,23 @@ export default function CopieurPage() {
               <button type="button" onClick={() => void loadActivationRequests()} className="text-[10px] font-semibold text-[color:var(--gold)]">Actualiser</button>
             </div>
             <div className="mt-3 space-y-2">
-              {activationRequests.map((request) => {
-                const label = request.status === "activated" ? "Activé" : request.status === "rejected" ? "Refusé" : request.status === "processing" ? "En cours de vérification" : "En attente";
-                const style = request.status === "activated" ? "border-emerald-500/20 bg-emerald-500/[0.05] text-emerald-300" : request.status === "rejected" ? "border-red-500/20 bg-red-500/[0.05] text-red-300" : "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]";
+              {latestMasterRequests.map((request) => {
+                const removalPending = ["pending", "processing"].includes(request.removal_status);
+                const removed = request.removal_status === "completed";
+                const label = removed ? "Retiré" : removalPending ? "Retrait en cours" : request.status === "activated" ? "Activé" : request.status === "rejected" ? "Refusé" : request.status === "processing" ? "En cours de vérification" : "En attente";
+                const style = removed || removalPending ? "border-amber-500/20 bg-amber-500/[0.05] text-amber-200" : request.status === "activated" ? "border-emerald-500/20 bg-emerald-500/[0.05] text-emerald-300" : request.status === "rejected" ? "border-red-500/20 bg-red-500/[0.05] text-red-300" : "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]";
+                const canRequestRemoval = request.status === "activated" && Boolean(request.provider_master_id) && !removalPending && !removed;
                 return <div key={request.id} className="rounded-xl border border-white/[0.06] bg-black/15 p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="min-w-0"><div className="truncate text-xs font-semibold text-white">{request.alias} · {request.platform} {request.login}</div><div className="mt-1 text-[9px] text-white/40">{request.server} · demande du {new Date(request.created_at).toLocaleDateString("fr-FR")}</div></div>
+                    <div className="flex min-w-0 flex-1 items-center gap-3"><div className="min-w-0"><div className="truncate text-xs font-semibold text-white">{request.alias} · {request.platform} {request.login}</div><div className="mt-1 text-[9px] text-white/40">{request.server} · demande du {new Date(request.created_at).toLocaleDateString("fr-FR")}</div></div>{canRequestRemoval ? <input type="checkbox" aria-label={`Sélectionner ${request.alias} pour demander son retrait`} checked={selectedRemovalId === request.id} onChange={(event) => setSelectedRemovalId(event.target.checked ? request.id : "")} className="h-4 w-4 shrink-0 accent-[#d4a934]" /> : null}</div>
                     <span className={`rounded-full border px-2.5 py-1 text-[9px] font-semibold ${style}`}>{label}</span>
                   </div>
                   {request.status === "rejected" && request.admin_note ? <p className="mt-2 text-[10px] leading-5 text-red-200/75">Motif : {request.admin_note}</p> : null}
                 </div>;
               })}
             </div>
+            {selectedRemovalId ? <button type="button" disabled={removalBusy} onClick={() => void requestMasterRemoval()} className="mt-3 min-h-10 w-full rounded-xl border border-red-500/20 bg-red-500/[0.05] px-3 text-[10px] font-semibold text-red-200 disabled:opacity-50">{removalBusy ? "Envoi…" : "Demander le retrait du compte sélectionné"}</button> : null}
+            {removalMessage ? <p role="status" className="mt-2 text-[10px] leading-5 text-white/60">{removalMessage}</p> : null}
           </section>
         ) : null}
 

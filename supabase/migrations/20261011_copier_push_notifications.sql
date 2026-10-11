@@ -49,6 +49,25 @@ create table if not exists public.investpro_announcements (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.copier_master_removal_requests (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  request_id text not null,
+  provider_master_id text not null,
+  status text not null default 'pending' check (status in ('pending', 'processing', 'completed', 'rejected')),
+  admin_note text,
+  processed_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create unique index if not exists copier_master_removal_pending_unique
+  on public.copier_master_removal_requests(user_id, provider_master_id)
+  where status in ('pending', 'processing');
+
+create index if not exists copier_master_removal_recent_idx
+  on public.copier_master_removal_requests(status, created_at desc);
+
 create index if not exists investpro_announcements_recent_idx
   on public.investpro_announcements(created_at desc);
 
@@ -59,5 +78,38 @@ grant select, insert, update on public.copier_notification_deliveries to service
 alter table public.investpro_announcements enable row level security;
 revoke all on public.investpro_announcements from anon, authenticated;
 grant select, insert, update on public.investpro_announcements to service_role;
+
+alter table public.copier_master_removal_requests enable row level security;
+revoke all on public.copier_master_removal_requests from anon, authenticated;
+grant select, insert, update on public.copier_master_removal_requests to service_role;
+
+create or replace function public.investpro_complete_master_removal(p_request_id uuid, p_admin_user_id uuid)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  removal public.copier_master_removal_requests%rowtype;
+begin
+  select * into removal
+  from public.copier_master_removal_requests
+  where id = p_request_id and status in ('pending', 'processing')
+  for update;
+  if not found then return false; end if;
+
+  update public.copier_master_removal_requests
+  set status = 'completed', processed_by = p_admin_user_id, updated_at = now()
+  where id = p_request_id;
+
+  delete from public.copier_master_ownership
+  where user_id = removal.user_id and provider_master_id = removal.provider_master_id;
+
+  return true;
+end;
+$$;
+
+revoke all on function public.investpro_complete_master_removal(uuid, uuid) from public, anon, authenticated;
+grant execute on function public.investpro_complete_master_removal(uuid, uuid) to service_role;
 
 commit;

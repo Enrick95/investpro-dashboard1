@@ -77,8 +77,33 @@ export async function GET(request: Request) {
 
     if (error) throw error;
 
+    const requestIds = (data || []).map((row: any) => String(row.id));
+    const { data: ownershipRows, error: ownershipError } = requestIds.length
+      ? await admin.from("copier_master_ownership").select("request_id,provider_master_id").eq("user_id", user.id).in("request_id", requestIds)
+      : { data: [], error: null };
+    if (ownershipError) console.error("[copier-request][GET] master ownership indisponible", ownershipError.message);
+    const masterByRequest = new Map((ownershipRows || []).map((row: any) => [String(row.request_id), String(row.provider_master_id)]));
+    const providerIds = [...new Set([...masterByRequest.values()])];
+    let removalByProvider = new Map<string, string>();
+    if (providerIds.length) {
+      const { data: removals, error: removalError } = await admin.from("copier_master_removal_requests")
+        .select("provider_master_id,status").eq("user_id", user.id).in("provider_master_id", providerIds).order("created_at", { ascending: false });
+      if (removalError) console.warn("[copier-request][GET] migration de retrait Master non appliquée");
+      else {
+        removalByProvider = new Map();
+        for (const row of removals || []) {
+          const providerId = String(row.provider_master_id);
+          if (!removalByProvider.has(providerId)) removalByProvider.set(providerId, String(row.status));
+        }
+      }
+    }
+
     return NextResponse.json({
-      requests: (data || []).map(publicRow),
+      requests: (data || []).map((row: any) => ({
+        ...publicRow(row),
+        provider_master_id: masterByRequest.get(String(row.id)) || "",
+        removal_status: removalByProvider.get(masterByRequest.get(String(row.id)) || "") || "",
+      })),
     });
   } catch (error) {
     console.error("[copier-request][GET]", error);
@@ -97,6 +122,52 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
+
+    if (body?.action === "request_removal") {
+      const requestId = String(body?.requestId || "");
+      if (!requestId || requestId.length > 100) return NextResponse.json({ error: "Compte Master invalide." }, { status: 400 });
+      const { admin } = clients();
+      const { data: selected, error: selectedError } = await admin.from("copier_account_requests")
+        .select("id,alias,platform,login,server,status").eq("id", requestId).eq("user_id", user.id).maybeSingle();
+      if (selectedError || !selected || selected.status !== "activated") return NextResponse.json({ error: "Ce compte Master n’est pas disponible pour un retrait." }, { status: 404 });
+
+      const { data: matchingRequests, error: matchingError } = await admin.from("copier_account_requests")
+        .select("id").eq("user_id", user.id).eq("platform", selected.platform).eq("login", selected.login).eq("server", selected.server).eq("status", "activated");
+      if (matchingError) throw matchingError;
+      const matchingIds = (matchingRequests || []).map((row: any) => String(row.id));
+      const { data: ownership, error: ownershipError } = await admin.from("copier_master_ownership")
+        .select("request_id,provider_master_id").eq("user_id", user.id).in("request_id", matchingIds);
+      if (ownershipError || !ownership?.length) return NextResponse.json({ error: "Le compte Master n’est plus associé à cet espace." }, { status: 409 });
+      const requestByProvider = new Map<string, string>();
+      for (const row of ownership) requestByProvider.set(String(row.provider_master_id), String(row.request_id));
+      const providerIds = [...requestByProvider.keys()];
+      const { data: existing, error: existingError } = await admin.from("copier_master_removal_requests")
+        .select("provider_master_id").eq("user_id", user.id).in("provider_master_id", providerIds).in("status", ["pending", "processing"]);
+      if (existingError) return NextResponse.json({ error: "Le retrait Master n’est pas encore configuré. Contacte l’équipe InvestPro." }, { status: 503 });
+      const alreadyPending = new Set((existing || []).map((row: any) => String(row.provider_master_id)));
+      const toInsert = providerIds.filter((id) => !alreadyPending.has(id)).map((id) => ({ user_id: user.id, request_id: requestByProvider.get(id), provider_master_id: id }));
+      if (!toInsert.length) return NextResponse.json({ error: "Une demande de retrait est déjà en cours pour ce compte." }, { status: 409 });
+      const { data: removalRows, error: insertError } = await admin.from("copier_master_removal_requests").insert(toInsert).select("id,provider_master_id");
+      if (insertError || !removalRows?.length) throw insertError || new Error("Removal request not recorded");
+
+      const eventKey = `copier-master-removal-${removalRows[0].id}`;
+      const title = "Demande de retrait Master reçue";
+      const message = `La demande de retrait de ${selected.alias} a été transmise à l’équipe InvestPro. Le compte restera associé jusqu’à la confirmation du retrait.`;
+      let noticeInserted = false;
+      try { noticeInserted = (await createCopierNotice(admin, { eventKey, userId: user.id, title, message })).inserted; }
+      catch (noticeError) { console.error("[copier-request] notification de retrait non enregistrée", noticeError); }
+      for (const adminId of await copierAdminUserIds(admin)) {
+        for (const removal of removalRows) {
+          try { await createCopierNotice(admin, { eventKey: `copier-master-removal-admin-${removal.id}-${adminId}`, userId: adminId, title: "Demande de retrait d’un compte Master", message: `${selected.alias} · ${selected.platform} ${selected.login} · ${selected.server}`, href: "/dashboard/admin/copieur" }); }
+          catch (noticeError) { console.error("[copier-request] alerte admin de retrait non enregistrée", noticeError); }
+        }
+      }
+      if (noticeInserted) {
+        await sendCopierEmail(admin, eventKey, user.id, title, message);
+        await sendCopierPush(admin, eventKey, user.id, title, message);
+      }
+      return NextResponse.json({ ok: true, message: "Ta demande de retrait est envoyée. Le Master restera actif jusqu’à sa vérification par l’équipe InvestPro." });
+    }
 
     const alias = String(body?.alias || "").trim();
     const broker = String(body?.broker || "").trim();
