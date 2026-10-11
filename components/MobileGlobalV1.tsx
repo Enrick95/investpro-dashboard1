@@ -61,6 +61,7 @@ function BottomTab({
   return (
     <Link
       href={href}
+      aria-current={active ? "page" : undefined}
       className={[
         "ip-mobile-tab",
         active ? "ip-mobile-tab-active" : "",
@@ -449,6 +450,8 @@ export default function MobileGlobalV1() {
         <button
           type="button"
           onClick={() => setMoreOpen(true)}
+          aria-expanded={moreOpen}
+          aria-controls="investpro-more-menu"
           className={["ip-mobile-tab", moreOpen ? "ip-mobile-tab-active" : ""].join(" ")}
         >
           <Menu size={21} />
@@ -465,7 +468,7 @@ export default function MobileGlobalV1() {
             onClick={() => setMoreOpen(false)}
           />
 
-          <div className="ip-more-sheet">
+          <div id="investpro-more-menu" className="ip-more-sheet" role="region" aria-label="Menu des fonctionnalités">
             <div className="ip-more-head">
               <div>
                 <div className="ip-more-title">Plus</div>
@@ -584,6 +587,15 @@ export default function MobileGlobalV1() {
           .ip-mobile-tab-active {
             color: var(--gold, #e0b64f);
             background: rgba(216,175,71,.10);
+          }
+
+          .ip-mobile-tab-active::before {
+            content: "";
+            width: 15px;
+            height: 2px;
+            border-radius: 99px;
+            background: currentColor;
+            box-shadow: 0 0 12px rgba(216,175,71,.65);
           }
 
           .ip-more-overlay {

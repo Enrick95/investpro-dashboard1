@@ -186,7 +186,7 @@ export default function Home() {
                   <strong>Bonjour, Trader 👋</strong>
                   <small>Voici un aperçu de vos performances.</small>
                 </div>
-                <span>Cette semaine</span>
+                  <span>Exemple fictif</span>
               </div>
 
               <div className={styles.mockMetrics}>
