@@ -938,6 +938,9 @@ export default function CopieurPage() {
     });
   }
 
+  const selectedPrimaryMaster = activeMasters[0] || null;
+  const mobileStep = !selectedReceiver ? 1 : activeMasters.length === 0 ? 2 : 3;
+
   return (
     <>
       <main className="mx-auto max-w-[1600px] space-y-5 pb-32">
@@ -963,6 +966,143 @@ export default function CopieurPage() {
             <TopTabButton active={activeView === "masters"} onClick={() => navigateCopier("masters")} icon={<Link2 size={16} />} title="Liaisons Master" subtitle="Comptes sources" />
             <TopTabButton active={activeView === "risk"} onClick={() => navigateCopier("risk")} icon={<ShieldCheck size={16} />} title="Risque & Exécution" subtitle="Paramètres avancés" />
             <TopTabButton active={activeView === "history"} onClick={() => navigateCopier("history")} icon={<Activity size={16} />} title="Historique" subtitle="Journaux et activités" />
+          </div>
+        </section>
+
+
+        <section className="xl:hidden rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4">
+          <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1 text-[10px] font-semibold text-[color:var(--gold)]">Parcours mobile simplifié</div>
+          <h2 className="mt-4 text-2xl font-semibold text-white">Configuration guidée</h2>
+          <p className="mt-2 text-sm leading-6 text-white/45">Choisis ton receveur, ton Master, puis configure le risque dans une interface pensée pour mobile.</p>
+
+          <div className="mt-5 grid grid-cols-3 gap-2">
+            {[
+              { step: 1, title: 'Receveur', ready: Boolean(selectedReceiver) },
+              { step: 2, title: 'Master', ready: activeMasters.length > 0 },
+              { step: 3, title: 'Risque', ready: riskSaveState === 'saved' || riskSaveState === 'pending' },
+            ].map((item) => {
+              const active = mobileStep === item.step;
+              return (
+                <div key={item.step} className={cn('rounded-2xl border p-3', active ? 'border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]' : item.ready ? 'border-emerald-500/20 bg-emerald-500/[0.05]' : 'border-white/[0.07] bg-black/20')}>
+                  <div className={cn('flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold', active ? 'bg-[color:var(--gold)] text-black' : item.ready ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/[0.06] text-white/55')}>{item.step}</div>
+                  <div className="mt-3 text-sm font-semibold text-white">{item.title}</div>
+                  <div className="mt-1 text-[11px] text-white/40">{item.ready ? 'Prêt' : active ? 'En cours' : 'À faire'}</div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-5 grid grid-cols-3 gap-2">
+            <MobileMiniStat label="Receveurs" value={String(virtualReceivers.length)} sub={`${connectedCount} connecté${connectedCount > 1 ? 's' : ''}`} />
+            <MobileMiniStat label="Masters" value={String(activeMasters.length)} sub={approvedMaster ? 'Approuvé' : 'En attente'} />
+            <MobileMiniStat label="Solde copié" value={money(portfolioTotal)} sub="MetaTrader" />
+          </div>
+
+          <div className="mt-5 space-y-4">
+            <section className="rounded-[22px] border border-[color:var(--gold-border)] bg-black/20 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[color:var(--gold)]">1. Compte receveur</div>
+                  <div className="mt-1 text-sm text-white/45">Compte qui recevra les trades copiés.</div>
+                </div>
+                {selectedReceiver ? <State active={selectedReceiver.status === 'connected'} label={selectedReceiver.status === 'connected' ? 'Connecté' : selectedReceiver.status === 'paused' ? 'Pause' : 'Erreur'} /> : <State active={false} label="À choisir" />}
+              </div>
+              {selectedReceiver ? (
+                <div className="mt-4 rounded-[18px] border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4">
+                  <div className="text-lg font-semibold text-white">{selectedReceiver.alias}</div>
+                  <div className="mt-1 text-[11px] text-white/40">#{selectedReceiver.login} • {selectedReceiver.platform} • {selectedReceiver.server}</div>
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <MiniMetric label="Solde" value={selectedStats.balance == null ? '—' : money(selectedStats.balance, selectedStats.currency)} />
+                    <MiniMetric label="Equity" value={selectedStats.equity == null ? '—' : money(selectedStats.equity, selectedStats.currency)} />
+                  </div>
+                </div>
+              ) : <div className="mt-4 rounded-[18px] border border-dashed border-white/10 bg-black/20 p-4 text-sm text-white/45">Aucun receveur sélectionné.</div>}
+
+              <div className="mt-4 space-y-3">
+                {virtualReceivers.length === 0 ? <div className="rounded-[18px] border border-white/[0.07] bg-black/20 p-4 text-sm text-white/45">Aucun compte receveur pour le moment.</div> : virtualReceivers.map((receiver) => {
+                  const s = receiver.id === 'legacy' ? { balance: null, currency: 'USD' } : statsFor(receiver);
+                  const selected = selectedReceiverId === receiver.id;
+                  return (
+                    <button key={receiver.id} type="button" onClick={() => void selectReceiver(receiver.id)} className={cn('w-full rounded-[18px] border p-4 text-left transition', selected ? 'border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]' : 'border-white/[0.07] bg-black/20')}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold text-white">{receiver.alias}</div>
+                          <div className="mt-1 text-[11px] text-white/35">#{receiver.login} • {receiver.platform}</div>
+                        </div>
+                        <ReceiverStatusBadge status={receiver.status} />
+                      </div>
+                      <div className="mt-3 flex items-center justify-between text-[11px] text-white/45">
+                        <span>{receiver.server}</span>
+                        <span>{s.balance == null ? '—' : money(s.balance, s.currency)}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button onClick={() => setAddOpen(true)} className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[color:var(--gold)] px-4 py-3 text-sm font-semibold text-black"><Plus size={15} /> Ajouter un compte receveur</button>
+            </section>
+
+            <section className="rounded-[22px] border border-[color:var(--gold-border)] bg-black/20 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[color:var(--gold)]">2. Compte Master</div>
+                  <div className="mt-1 text-sm text-white/45">Compte source à copier.</div>
+                </div>
+                <State active={Boolean(approvedMaster)} label={approvedMaster ? 'Approuvé' : 'À approuver'} />
+              </div>
+
+              {approvedMaster ? (
+                <div className="mt-4 rounded-[18px] border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4">
+                  <div className="text-lg font-semibold text-white">{approvedMaster.alias}</div>
+                  <div className="mt-1 text-[11px] text-white/40">#{approvedMaster.login} • {approvedMaster.platform} • {approvedMaster.server}</div>
+                  <div className="mt-4 grid grid-cols-3 gap-2">
+                    <MiniMetric label="Solde" value={masterBalance == null ? '—' : money(masterBalance, masterCurrency)} />
+                    <MiniMetric label="Equity" value={masterEquity == null ? '—' : money(masterEquity, masterCurrency)} />
+                    <MiniMetric label="P&L jour" value={masterPnl == null ? '—' : money(masterPnl, masterCurrency)} positive={Number(masterPnl) > 0} negative={Number(masterPnl) < 0} />
+                  </div>
+                </div>
+              ) : <div className="mt-4 rounded-[18px] border border-dashed border-white/10 bg-black/20 p-4 text-sm text-white/45">Aucun Master approuvé pour le moment. Fais une demande ci-dessous.</div>}
+
+              <div className="mt-4 space-y-3">
+                {(selectedStatus?.masterAccountsList || []).length === 0 ? <div className="rounded-[18px] border border-white/[0.07] bg-black/20 p-4 text-sm text-white/45">Aucune liaison Master disponible.</div> : (selectedStatus?.masterAccountsList || []).map((master, index) => {
+                  const current = selectedMasters[master.id] || { on: false, lots: masterQuickValue || '0.01' };
+                  return <button type="button" key={master.id} onClick={() => toggleMaster(master.id)} aria-pressed={current.on} className={cn('flex w-full items-center gap-3 rounded-[18px] border p-4 text-left transition', current.on ? 'border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]' : 'border-white/[0.07] bg-black/20')}><span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-md border', current.on ? 'border-[color:var(--gold-border)] bg-[color:var(--gold)] text-black' : 'border-white/10 text-white/50')}>{current.on ? <Check size={14}/> : null}</span><span className="min-w-0 flex-1"><span className="block break-words text-sm font-semibold text-white">{master.name}</span><span className="mt-1 block text-[10px] text-white/45">MASTER {String(index + 1).padStart(2, '0')}</span></span><span className="text-[10px] text-white/55">{current.on ? 'Sélectionné' : 'Choisir'}</span></button>;
+                })}
+              </div>
+
+              <button onClick={() => setRequestOpen(true)} className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 py-3 text-sm font-semibold text-[color:var(--gold)]"><Send size={14} /> Ajouter une liaison Master</button>
+            </section>
+
+            <section className="rounded-[22px] border border-[color:var(--gold-border)] bg-black/20 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[color:var(--gold)]">3. Configurer le risque</div>
+                  <div className="mt-1 text-sm text-white/45">Définis comment les trades seront copiés.</div>
+                </div>
+                <State active={activeMasters.length > 0} label={selectedPrimaryMaster ? 'Prêt' : 'En attente'} />
+              </div>
+
+              <div className="mt-4 space-y-3">
+                <div className={cn('rounded-[18px] border p-4', riskSettings.mode === 'fixed' ? 'border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]' : 'border-white/[0.07] bg-black/20')}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold text-white">{riskModeLabel(riskSettings.mode)}</div>
+                      <div className="mt-1 text-[11px] text-white/40">{riskSettings.mode === 'fixed' ? 'Volume identique défini par stratégie' : 'Mode de risque avancé'}</div>
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-sm font-semibold text-white">{riskSettings.mode === 'fixed' ? masterQuickValue : riskSettings.mode === 'mirror' ? riskSettings.mirror_multiplier : riskSettings.mode === 'balance' ? riskSettings.balance_multiplier : riskSettings.risk_percent}{riskSettings.mode === 'fixed' ? ' lots' : riskSettings.mode === 'mirror' || riskSettings.mode === 'balance' ? ' x' : ' %'}</div>
+                  </div>
+                </div>
+                <label className="flex items-start gap-3 rounded-[18px] border border-white/[0.06] bg-black/20 p-4 text-[11px] leading-5 text-white/55"><input type="checkbox" checked={masterConsent} onChange={(e) => { setMasterConsent(e.target.checked); setSaveBarState('idle'); setSaveBarMessage('Configuration non enregistrée'); }} className="mt-0.5 h-4 w-4 accent-[#d4a934]" /> Je confirme le compte Master sélectionné ainsi que la configuration choisie.</label>
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 gap-3">
+                <button type="button" disabled={!selectedReceiver || activeMasters.length === 0} onClick={() => setRiskModalOpen(true)} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 py-3 text-sm font-semibold text-[color:var(--gold)] disabled:opacity-40"><Settings2 size={15} /> Configurer en détail</button>
+                <button disabled={busy || riskBusy || !selectedReceiverId || activeMasters.length === 0 || !masterConsent} onClick={() => void saveAll()} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[color:var(--gold)] px-4 py-3 text-sm font-semibold text-black disabled:opacity-40">{saveBarState === 'saving' ? <Loader2 size={15} className='animate-spin' /> : <ShieldCheck size={15} />} Enregistrer et activer</button>
+              </div>
+
+              <div className="mt-3 text-[11px] text-white/35">{saveBarMessage}</div>
+            </section>
           </div>
         </section>
 
@@ -1444,6 +1584,7 @@ function RequestStatus({ status }: { status: ActivationRequest["status"] }) {
   );
 }
 
+function MobileMiniStat({ label, value, sub }: { label: string; value: string; sub: string }) { return <div className="rounded-[18px] border border-white/[0.07] bg-black/20 p-3"><div className="text-[10px] text-white/35">{label}</div><div className="mt-1 text-lg font-semibold text-white">{value}</div><div className="mt-1 text-[10px] text-white/30">{sub}</div></div>; }
 function Summary({ label, value, green }: { label: string; value: string; green?: boolean }) { return <div className="rounded-2xl border border-white/[0.06] bg-black/20 p-4"><div className="text-[8px] uppercase tracking-[0.1em] text-white/25">{label}</div><div className={cn("mt-2 text-sm font-semibold", green ? "text-emerald-400" : "text-white")}>{value}</div></div>; }
 function HeroStatCard({ icon, label, value, sub, accent, accentPositive }: { icon: React.ReactNode; label: string; value: string; sub: string; accent?: string; accentPositive?: boolean }) { return <div className="rounded-[20px] border border-white/[0.07] bg-black/25 p-4"><div className="flex items-start justify-between gap-3"><div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]">{icon}</div><div className="min-w-0 flex-1"><div className="text-[10px] text-white/35">{label}</div><div className="mt-1 text-3xl font-semibold text-white">{value}</div><div className="mt-1 flex flex-wrap items-center gap-2"><span className="text-[10px] text-white/35">{sub}</span>{accent ? <span className={cn("text-[10px] font-semibold", accentPositive ? "text-emerald-400" : "text-[color:var(--gold)]")}>{accent}</span> : null}</div></div></div></div>; }
 function TopTabButton({ active, onClick, icon, title, subtitle }: { active: boolean; onClick: () => void; icon: React.ReactNode; title: string; subtitle: string }) { return <button onClick={onClick} className={cn("rounded-[18px] border p-4 text-left transition", active ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]" : "border-white/[0.07] bg-black/20 hover:bg-white/[0.02]")}><div className="flex items-start gap-3"><div className={cn("flex h-10 w-10 items-center justify-center rounded-xl border", active ? "border-[color:var(--gold-border)] text-[color:var(--gold)]" : "border-white/[0.07] text-white/35")}>{icon}</div><div className="min-w-0"><div className="text-sm font-semibold text-white">{title}</div><div className="mt-1 text-[10px] text-white/35">{subtitle}</div></div></div></button>; }

@@ -33,8 +33,13 @@ export default function InvestProHelpCenter(){
  {feedback?<p role="status" className="mt-2 text-xs text-amber-200">{feedback}</p>:null}
  {!active?<div className="mt-3 max-h-36 overflow-y-auto border-t border-white/10 pt-2"><div className="mb-1 text-xs font-semibold">Mes conversations</div><div className="mb-2 flex gap-2"><button className={!archive?"text-amber-300":"text-white/50"} onClick={()=>setArchive(false)}>Actives</button><button className={archive?"text-amber-300":"text-white/50"} onClick={()=>setArchive(true)}>Clôturées</button></div>{tickets.filter(t=>archive?t.status==="closed":t.status!=="closed").map(t=><button key={t.id} onClick={()=>{setActive(t.id);setFeedback("");void loadChat(t.id)}} className="mb-1 block w-full rounded-lg bg-white/5 p-2 text-left text-xs"><strong>{t.subject}</strong> · {t.status}<div className="text-white/50">{new Date(t.created_at).toLocaleDateString("fr-FR")}</div></button>)}</div>:null}</>:<div className="max-h-56 overflow-y-auto">{notices.map(n=><div key={n.id} className="mb-2 rounded-lg bg-white/5 p-2 text-xs"><strong>{n.title}</strong><p>{n.message}</p></div>)}{!notices.length?<p className="text-xs text-white/60">Aucune notification.</p>:null}</div>}
  </section>:null}
- <button onClick={()=>{setOpen(!open);if(!open)void load()}} className="relative flex items-center gap-2 rounded-full border border-amber-500/50 bg-[#171811] px-4 py-3 text-sm font-semibold text-amber-300 shadow-2xl"><Headset size={19}/>Support{unread>0?<span className="rounded-full bg-amber-400 px-2 text-xs text-black">{unread}</span>:null}</button>
+ <button onClick={()=>{setOpen(!open);if(!open)void load()}} className="ip-support-trigger relative flex items-center justify-center gap-2 rounded-full border border-amber-500/50 bg-[#171811] px-4 py-3 text-sm font-semibold text-amber-300 shadow-2xl"><Headset size={19}/><span className="ip-support-label">Support</span>{unread>0?<span className="ip-support-badge rounded-full bg-amber-400 px-2 text-xs text-black">{unread}</span>:null}</button>
  <style jsx global>{`@media (max-width: 900px) and (display-mode: standalone) {
    .ip-support-floating { bottom: calc(104px + env(safe-area-inset-bottom, 0px)) !important; }
+ }
+ @media (max-width: 900px) {
+   .ip-support-trigger { width: 56px; height: 56px; padding: 0; }
+   .ip-support-label { display: none; }
+   .ip-support-badge { position: absolute; top: -6px; right: -4px; min-width: 22px; padding-left: 6px; padding-right: 6px; text-align: center; }
  }`}</style></div>
 }
