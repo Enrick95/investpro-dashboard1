@@ -75,15 +75,14 @@ export async function PATCH(request: Request) {
     const message = status === "completed"
       ? `Le compte Master ${alias} a été retiré de votre espace InvestPro Copier.`
       : `La demande de retrait de ${alias} a été refusée.${adminNote ? ` Motif : ${adminNote}` : ""}`;
-    try {
-      const notice = await createCopierNotice(auth.admin, { eventKey, userId: current.user_id, title, message, href: "/dashboard/copieur" });
-      if (notice.inserted) {
-        await Promise.all([
-          sendCopierEmail(auth.admin, eventKey, current.user_id, title, message),
-          sendCopierPush(auth.admin, eventKey, current.user_id, title, message),
-        ]);
-      }
-    } catch (error) { console.error("[copier-master-removals] notification client non envoyée", error); }
+    try { await createCopierNotice(auth.admin, { eventKey, userId: current.user_id, title, message, href: "/dashboard/copieur" }); }
+    catch (error) { console.error("[copier-master-removals] notification interne non enregistrée", error); }
+    const [emailResult, pushResult] = await Promise.all([
+      sendCopierEmail(auth.admin, eventKey, current.user_id, title, message),
+      sendCopierPush(auth.admin, eventKey, current.user_id, title, message),
+    ]);
+    if (!emailResult.sent && emailResult.reason !== "email_not_configured") console.error("[copier-master-removals] e-mail non envoyé", emailResult.reason);
+    if (!pushResult.sent && !["push_not_configured", "no_active_subscription"].includes(pushResult.reason || "")) console.error("[copier-master-removals] push non envoyée", pushResult.reason);
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("[copier-master-removals][PATCH]", error);
