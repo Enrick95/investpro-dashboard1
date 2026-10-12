@@ -3,8 +3,51 @@ import { canAdmin } from "@/lib/admin/permissions";
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { randomBytes } from "node:crypto";
 import { decryptCopierPassword } from "@/lib/copier/requestCrypto";
 import { createCopierNotice, sendCopierEmail, sendCopierPush } from "@/lib/copier/notifications";
+import { serverCatalog } from "@/lib/metasync/server-catalog";
+import { seal } from "@/lib/metasync/hosted";
+import { database, digest } from "@/lib/metasync/server";
+
+async function startApprovedMasterSync(admin: any, row: any): Promise<"started" | "existing" | "failed" | "not_requested"> {
+  if (row.metasync_sync_consent !== true) return "not_requested";
+  if (process.env.VERCEL_ENV === "preview" || !/^[a-f0-9]{64}$/.test(process.env.METASYNC_HOSTED_ENCRYPTION_KEY ?? "") || !/^[a-f0-9]{64}$/.test(process.env.METASYNC_HOSTED_WORKER_TOKEN ?? "")) return "failed";
+
+  try {
+    const catalog = await serverCatalog();
+    const platform = String(row.platform || "").toUpperCase();
+    const server = String(row.server || "").trim();
+    const broker = catalog.find((candidate) => candidate.platform === platform && candidate.server.trim().toLowerCase() === server.toLowerCase());
+    if (!broker || !/^[A-Z]{3}$/.test(String(row.metasync_currency || "")) || !["real", "demo", "prop"].includes(String(row.metasync_account_type || ""))) return "failed";
+
+    const { data: existing, error: lookupError } = await admin.from("investpro_mt_connections")
+      .select("id").eq("user_id", row.user_id).eq("platform", platform).eq("login", String(row.login)).eq("server", server).limit(1).maybeSingle();
+    if (lookupError) return "failed";
+    if (existing) return "existing";
+
+    let password = decryptCopierPassword(String(row.password_cipher || ""));
+    try {
+      const { error } = await database().rpc("investpro_hosted_pair_auto", {
+        p_user: row.user_id,
+        p_platform: broker.platform,
+        p_login: String(row.login).trim(),
+        p_server: broker.server,
+        p_currency: row.metasync_currency,
+        p_type: row.metasync_account_type,
+        p_broker: broker.id,
+        p_secret: seal(password, String(row.user_id)),
+        p_hash: digest(randomBytes(32).toString("hex")),
+      });
+      return error ? "failed" : "started";
+    } finally {
+      password = "";
+    }
+  } catch {
+    // Activation must remain successful if the optional balance sync cannot start.
+    return "failed";
+  }
+}
 
 async function verifyAdmin(request: Request) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -269,6 +312,10 @@ export async function PATCH(request: Request) {
     );
   }
 
+  const syncOutcome = status === "activated" && current.status !== "activated"
+    ? await startApprovedMasterSync(admin, current)
+    : "not_requested";
+
   if (current.status !== status && ["processing", "activated", "rejected"].includes(status)) {
     const alias = String(current.alias || "votre compte").slice(0, 80);
     const title = status === "activated"
@@ -278,7 +325,7 @@ export async function PATCH(request: Request) {
         : "Votre demande de compte Master est prise en charge";
     const reason = String(adminNote || "").replace(/[<>]/g, "").replace(/\s+/g, " ").slice(0, 240);
     const message = status === "activated"
-      ? `Bonne nouvelle ! Votre compte Master ${alias} a été activé. Vous pouvez le retrouver dans InvestPro Copier et configurer vos comptes receveurs.`
+      ? `Bonne nouvelle ! Votre compte Master ${alias} a été activé. Vous pouvez le retrouver dans InvestPro Copier et configurer vos comptes receveurs.${syncOutcome === "started" ? " La synchronisation du solde MetaSync démarre maintenant ; les montants apparaîtront après la première synchronisation." : syncOutcome === "existing" ? " Une connexion MetaSync existe déjà pour ce compte ; elle sera réutilisée pour afficher le solde." : syncOutcome === "failed" ? " La synchronisation automatique du solde n’a pas pu démarrer. Ouvre InvestPro Copier et lance MetaSync depuis les réglages du Master." : ""}`
       : status === "rejected"
         ? `Votre demande pour le compte ${alias} n’a pas pu être acceptée.${reason ? ` Motif : ${reason}` : " Contactez notre équipe pour connaître les étapes à suivre."}`
         : `Notre équipe traite actuellement votre demande pour le compte ${alias}. Vous recevrez une notification quand la vérification sera terminée.`;
@@ -302,9 +349,14 @@ export async function PATCH(request: Request) {
   }
   return NextResponse.json({
     ok: true,
+    metasync: syncOutcome,
     message:
       status === "activated"
-        ? "Compte marqué actif : il est maintenant visible dans InvestPro Copier du membre."
+        ? syncOutcome === "started"
+          ? "Compte activé et synchronisation MetaSync démarrée. Le solde apparaîtra après la première synchronisation."
+          : syncOutcome === "failed"
+            ? "Compte activé. La synchronisation MetaSync automatique n’a pas pu démarrer ; le membre pourra la lancer depuis InvestPro Copier."
+            : "Compte marqué actif : il est maintenant visible dans InvestPro Copier du membre."
         : "Demande mise à jour.",
   });
 }
