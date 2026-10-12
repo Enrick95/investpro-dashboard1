@@ -37,6 +37,8 @@ async function beginDelivery(db: SupabaseClient, delivery: CopierDelivery, retry
     status: "pending",
     attempts: Number(existing?.attempts || 0) + 1,
     last_error: null,
+    acknowledged_at: null,
+    acknowledged_by: null,
     updated_at: new Date().toISOString(),
   }, { onConflict: "event_key,user_id,channel" });
   if (error) throw error;
@@ -44,10 +46,12 @@ async function beginDelivery(db: SupabaseClient, delivery: CopierDelivery, retry
 }
 
 async function finishDelivery(db: SupabaseClient, delivery: CopierDelivery, status: "sent" | "failed" | "skipped", errorCode: string | null = null) {
+  const updatedAt = new Date().toISOString();
   const { error } = await db.from("copier_notification_deliveries").update({
     status,
     last_error: errorCode,
-    updated_at: new Date().toISOString(),
+    ...(status === "skipped" ? { acknowledged_at: updatedAt, acknowledged_by: null } : {}),
+    updated_at: updatedAt,
   }).eq("event_key", delivery.eventKey).eq("user_id", delivery.userId).eq("channel", delivery.channel);
   if (error) console.error(`[copier-notifications] delivery ${delivery.channel} non journalisée`, error.message);
 }

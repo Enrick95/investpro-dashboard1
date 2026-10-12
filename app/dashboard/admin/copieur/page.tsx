@@ -64,6 +64,8 @@ type ConfigRow = {
   };
 };
 
+type RequestTab = "pending" | "active" | "history";
+
 
 const statusLabel: Record<string, string> = {
   pending: "En attente",
@@ -84,6 +86,7 @@ export default function AdminCopierRequestsPage() {
   const [masterIds, setMasterIds] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const [masterSuccess, setMasterSuccess] = useState("");
+  const [requestTab, setRequestTab] = useState<RequestTab>("pending");
 
   async function headers(): Promise<Record<string, string>> {
     const {
@@ -216,6 +219,8 @@ export default function AdminCopierRequestsPage() {
       if (!response.ok) throw new Error(data.error || "Mise Ã  jour impossible.");
 
       await load(true);
+      if (status === "activated") setRequestTab("active");
+      if (status === "rejected") setRequestTab("history");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Erreur.");
     } finally {
@@ -250,6 +255,14 @@ export default function AdminCopierRequestsPage() {
   }
 
   const pending = rows.filter((row) => ["pending", "processing"].includes(row.status)).length;
+  const activeRequests = rows.filter((row) => row.status === "activated");
+  const pendingRequests = rows.filter((row) => ["pending", "processing"].includes(row.status));
+  const historyRequests = rows.filter((row) => row.status === "rejected");
+  const visibleRequests = requestTab === "pending"
+    ? pendingRequests
+    : requestTab === "active"
+      ? activeRequests
+      : historyRequests;
   const pendingConfigs = configRows.filter((row) => ["pending", "processing"].includes(row.status)).length;
 
   return (
@@ -298,23 +311,47 @@ export default function AdminCopierRequestsPage() {
         </div>
       ) : null}
 
+      <section className="rounded-2xl border border-white/[0.07] bg-[color:var(--panel)] p-2">
+        <div role="tablist" aria-label="CatÃ©gories des demandes Master" className="flex flex-wrap gap-2">
+          {([
+            ["pending", "Ã€ traiter", pendingRequests.length],
+            ["active", "Comptes activÃ©s", activeRequests.length],
+            ["history", "RefusÃ©es", historyRequests.length],
+          ] as const).map(([tab, label, count]) => (
+            <button
+              key={tab}
+              type="button"
+              role="tab"
+              aria-selected={requestTab === tab}
+              onClick={() => setRequestTab(tab)}
+              className={`inline-flex min-h-10 items-center gap-2 rounded-xl px-4 text-xs font-semibold transition ${requestTab === tab ? "bg-[color:var(--gold-soft)] text-[color:var(--gold)]" : "text-white/45 hover:bg-white/[0.04] hover:text-white/75"}`}
+            >
+              {label}
+              <span className="rounded-full bg-black/25 px-2 py-0.5 text-[10px]">{count}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
       {loading ? (
         <div className="flex min-h-52 items-center justify-center">
           <Loader2 className="animate-spin text-[color:var(--gold)]" />
         </div>
-      ) : rows.length === 0 ? (
+      ) : visibleRequests.length === 0 ? (
         <section className="rounded-[24px] border border-white/[0.07] bg-[color:var(--panel)] p-10 text-center">
           <ShieldCheck className="mx-auto text-white/20" />
           <div className="mt-3 text-sm font-semibold text-white">
-            Aucune demande
+            {requestTab === "pending" ? "Aucune demande Ã  traiter" : requestTab === "active" ? "Aucun compte Master activÃ©" : "Aucune demande refusÃ©e"}
           </div>
           <div className="mt-1 text-xs text-white/35">
-            Les demandes envoyÃ©es depuis InvestPro Copier apparaÃ®tront ici.
+            {requestTab === "pending" ? "Les nouvelles demandes apparaÃ®tront ici." : requestTab === "active" ? "Les Masters apparaÃ®tront ici aprÃ¨s confirmation de leur activation." : "Les demandes refusÃ©es apparaÃ®tront ici."}
           </div>
         </section>
       ) : (
         <div className="space-y-4">
-          {rows.map((row) => (
+          {visibleRequests.map((row) => {
+            const reviewable = ["pending", "processing"].includes(row.status);
+            return (
             <section
               key={row.id}
               className="rounded-[24px] border border-white/[0.07] bg-[color:var(--panel)] p-5 md:p-6"
@@ -394,7 +431,7 @@ export default function AdminCopierRequestsPage() {
                       {row.provider_master_id ? <div className="mt-2 text-[10px] font-semibold text-emerald-300">Master associÃ© Â· {row.provider_master_id}</div> : null}
                     </div>
                   )}
-                  <div className="mt-3 rounded-2xl border border-white/[0.06] bg-black/20 p-4">
+                  {reviewable ? <div className="mt-3 rounded-2xl border border-white/[0.06] bg-black/20 p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <div className="text-[8px] uppercase text-white/25">
@@ -413,11 +450,11 @@ export default function AdminCopierRequestsPage() {
                         Afficher
                       </button>
                     </div>
-                  </div>
+                  </div> : null}
                 </div>
               </div>
 
-              <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-[1fr_auto]">
+              {reviewable ? <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-[1fr_auto]">
                 <textarea
                   value={notes[row.id] || ""}
                   onChange={(event) =>
@@ -456,9 +493,14 @@ export default function AdminCopierRequestsPage() {
                     Refuser
                   </button>
                 </div>
-              </div>
+              </div> : row.status === "rejected" ? (
+                <button disabled={busyId === row.id} onClick={() => void update(row, "pending")} className="mt-5 h-10 rounded-xl border border-[color:var(--gold-border)] px-4 text-xs font-semibold text-[color:var(--gold)] disabled:opacity-50">Remettre en attente</button>
+              ) : row.admin_note ? (
+                <div className="mt-5 rounded-xl border border-white/[0.06] bg-black/20 p-3 text-xs text-white/50">Note admin : {row.admin_note}</div>
+              ) : null}
             </section>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -526,100 +568,50 @@ export default function AdminCopierRequestsPage() {
                   </div>
 
                   <div className="w-full xl:w-[360px]">
-                    <div className="rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4">
-                      <div className="text-[9px] font-semibold text-white">Checklist avant confirmation</div>
-                      <div className="mt-3 space-y-2 text-[9px] leading-5 text-white/45">
-                        <div>1. Ouvrir le compte receveur dans le moteur de copie.</div>
-                        <div>2. SÃ©lectionner exactement les masters ci-contre.</div>
-                        <div>3. Reproduire le mode de risque et sa valeur.</div>
-                        <div>4. Reproduire SL / TP / pending / protections.</div>
-                        <div>5. VÃ©rifier une derniÃ¨re fois puis confirmer ici.</div>
-                      </div>
-                    </div>
+                    <div className="rounded-2xl bordxë~u¶‰ËkºwµçN
+NØ˜XÚÙÜ›İ[™œ™Ø˜JŒ
+NÜY[™ÎŒLœØÛÛÜÚ]NÙ›Û\Ú^™NŒLœÛİ][™N››Û™_Kš\YšY[™›Øİ\ŞØ›Ü™\‹XÛÛÜ˜\ŠKYÛÛX›Ü™\Š_Kš\YšY[œXÙZÛ\ØÛÛÜœ™Ø˜JMKMKMKŒŒŠ_Kš\YšY[Ü[ÛØ˜XÚÙÜ›İ[™ˆÌŒØÛÛÜÚ]_XOÜİ[O‚ˆÏ‚ˆ
+NÂŸB‚™[˜İ[Ûˆ[™[
+ÈÚ[™[‹Û\ÜÓ˜[YHHˆˆNˆÈÚ[™[ˆ™XXİ”™XXİ›ÙNÈÛ\ÜÓ˜[YOÎˆİš[™ÈJHÈ™]\›ˆÙXİ[ÛˆÛ\ÜÓ˜[YO^ØÛŠœ›İ[™YVÌH›Ü™\ˆ›Ü™\‹VØÛÛÜ˜\ŠKX›Ü™\ŠWH™ËVØÛÛÜ˜\ŠK\[™[
+WHMHYœMˆ‹Û\ÜÓ˜[YJ_OØÚ[™[ŸOÜÙXİ[ÛÈB™[˜İ[Ûˆ˜YÙJÈXÛÛ‹X™[NˆÈXÛÛˆ™XXİ”™XXİ›ÙNÈX™[ˆİš[™ÈJHÈ™]\›ˆÜ[ˆÛ\ÜÓ˜[YOHš[›[™KY›^][\ËXÙ[\ˆØ\Lˆ›İ[™YY[›Ü™\ˆ›Ü™\‹]Ú]KÖÌŒ×H™ËX›XÚËÌHLÈKLKH^VÎ\H^]Ú]KÍHÜ[ˆÛ\ÜÓ˜[YOH^VØÛÛÜ˜\ŠKYÛÛ
+WHÚXÛÛŸOÜÜ[ÛX™[OÜÜ[ÈB™[˜İ[ÛˆY]šXÊÈX™[˜[YKÜ™Y[ˆNˆÈX™[ˆİš[™ÎÈ˜[YNˆİš[™ÎÈÜ™Y[Îˆ›ÛÛX[ˆJHÈ™]\›ˆ]ˆÛ\ÜÓ˜[YOHœ›İ[™YVÌŒH›Ü™\ˆ›Ü™\‹]Ú]KÖÌŒ×H™ËX›XÚËÌHM]ˆÛ\ÜÓ˜[YOH^VÎH\\˜Ø\ÙH˜XÚÚ[™ËVÌŒY[WH^]Ú]KÌHÛX™[OÙ]]ˆÛ\ÜÓ˜[YO^ØÛŠ›]Lˆ^[È›Û\Ù[ZX›Û‹Ü™Y[ˆÈ^Y[Y\˜[Mˆˆ^]Ú]HŠ_Oİ˜[Y_OÙ]Ù]ÈB™[˜İ[Ûˆ[™›Ô›İÊÈX™[˜[YHNˆÈX™[ˆİš[™ÎÈ˜[YNˆİš[™ÈJHÈ™]\›ˆ]ˆÛ\ÜÓ˜[YOH™›^][\ËXÙ[\ˆ\İYKX™]ÙY[ˆ›İ[™Y^›Ü™\ˆ›Ü™\‹]Ú]KÖÌŒ—H™ËX›XÚËÌŒLÈKLÈÜ[ˆÛ\ÜÓ˜[YOH^VÎ\H^]Ú]KÌÍHÛX™[OÜÜ[Ü[ˆÛ\ÜÓ˜[YOH^VÎ\H›Û\Ù[ZX›Û^]Ú]KÍHİ˜[Y_OÜÜ[Ù]ÈB™[˜İ[ÛˆXY[™ÊÈ^YXœ›İË]K^XÛÛˆNˆÈ^YXœ›İÎˆİš[™ÎÈ]Nˆİš[™ÎÈ^ˆİš[™ÎÈXÛÛˆ™XXİ”™XXİ›ÙHJHÈ™]\›ˆ]ˆÛ\ÜÓ˜[YOH™›^][\Ë\İ\Ø\LÈ]ˆÛ\ÜÓ˜[YOH™›^LLËLLÚš[šËL][\ËXÙ[\ˆ\İYKXÙ[\ˆ›İ[™Y^›Ü™\ˆ›Ü™\‹VØÛÛÜ˜\ŠKYÛÛX›Ü™\ŠWH™ËVØÛÛÜ˜\ŠKYÛÛ\ÛÙ
+WH^VØÛÛÜ˜\ŠKYÛÛ
+WHÚXÛÛŸOÙ]]]ˆÛ\ÜÓ˜[YOH^VÎH›ÛX›Û\\˜Ø\ÙH˜XÚÚ[™ËVÌŒM[WH^VØÛÛÜ˜\ŠKYÛÛ
+WHÙ^YXœ›İßOÙ]ˆÛ\ÜÓ˜[YOH›]LH^X˜\ÙH›Û\Ù[ZX›Û^]Ú]Hİ]_OÚÛ\ÜÓ˜[YOH›]LH^VÌLHXY[™ËMH^]Ú]KÌÍHİ^OÜÙ]Ù]ÈB™[˜İ[ÛˆšY[
+ÈX™[Ú[™[ˆNˆÈX™[ˆİš[™ÎÈÚ[™[ˆ™XXİ”™XXİ›ÙHJHÈ™]\›ˆX™[Û\ÜÓ˜[YOH˜›ØÚÈZ[‹]ËLÜ[ˆÛ\ÜÓ˜[YOH›X‹LKH›ØÚÈ^VÎ\H›Û[YY][H^]Ú]KÍÛX™[OÜÜ[ØÚ[™[ŸOÛX™[ÈB™[˜İ[ÛˆÙ[
+ÈX™[˜[YKÜÚ]]™K™YØ]]™HNˆÈX™[ˆİš[™ÎÈ˜[YNˆİš[™ÎÈÜÚ]]™OÎˆ›ÛÛX[È™YØ]]™OÎˆ›ÛÛX[ˆJHÈ™]\›ˆ]]ˆÛ\ÜÓ˜[YOH^VÍÜH\\˜Ø\ÙH^]Ú]KÌŒÎšY[ˆÛX™[OÙ]]ˆÛ\ÜÓ˜[YO^ØÛŠ›]LH^VÌLH›Û[YY][HÎ›]L‹ÜÚ]]™HÈ^Y[Y\˜[Mˆˆ™YØ]]™HÈ^\™YMˆˆ^]Ú]KÍŒŠ_Oİ˜[Y_OÙ]Ù]ÈB™[˜İ[Ûˆİ]JÈXİ]™KX™[NˆÈXİ]™Nˆ›ÛÛX[ÈX™[ˆİš[™ÈJHÈ™]\›ˆÜ[ˆÛ\ÜÓ˜[YO^ØÛŠœ›İ[™YY[›Ü™\ˆLˆKLH^VÍÜH›ÛX›Û\\˜Ø\ÙH‹Xİ]™HÈ˜›Ü™\‹Y[Y\˜[MLÌŒ™ËY[Y\˜[MLÖÌŒ—H^Y[Y\˜[Mˆˆ˜›Ü™\‹]Ú]KÖÌŒH^]Ú]KÌÍHŠ_OÛX™[OÜÜ[ÈB™[˜İ[Ûˆš\ÚÊÂˆXİ]™HH˜[ÙKˆX™[ˆ\ØËˆÛÛXÚËŸNˆÂˆXİ]™OÎˆ›ÛÛX[ÂˆX™[ˆİš[™ÎÂˆ\ØÎˆİš[™ÎÂˆÛÛXÚÎˆ
 
-                    <textarea
-                      value={configNotes[row.id] || ""}
-                      onChange={(event) => setConfigNotes((current) => ({ ...current, [row.id]: event.target.value }))}
-                      placeholder="Note interne adminâ€¦"
-                      className="mt-3 min-h-20 w-full rounded-xl border border-white/[0.07] bg-black/20 p-3 text-xs text-white outline-none"
-                    />
+HOˆ›ÚYÂŸJHÂˆ™]\›ˆ
+ˆ]Û‚ˆÛÛXÚÏ^ÛÛÛXÚßBˆÛ\ÜÓ˜[YO^ØÛŠˆ™›^ËY[][\ËXÙ[\ˆØ\LÈ›İ[™Y^›Ü™\ˆLÈ^[Y˜[œÚ][Ûˆ‹ˆXİ]™BˆÈ˜›Ü™\‹VØÛÛÜ˜\ŠKYÛÛX›Ü™\ŠWH™ËVØÛÛÜ˜\ŠKYÛÛ\ÛÙ
+WH‚ˆˆ˜›Ü™\‹]Ú]KÖÌŒ—H™ËX›XÚËÌŒİ™\˜™Ë]Ú]KÖÌŒ—H‚ˆ
+_Bˆ‚ˆ]‚ˆÛ\ÜÓ˜[YO^ØÛŠˆ™›^NËN][\ËXÙ[\ˆ\İYKXÙ[\ˆ›İ[™Y[È›Ü™\ˆ‹ˆXİ]™BˆÈ˜›Ü™\‹VØÛÛÜ˜\ŠKYÛÛX›Ü™\ŠWH^VØÛÛÜ˜\ŠKYÛÛ
+WH‚ˆˆ˜›Ü™\‹]Ú]KÖÌŒ×H^]Ú]KÌÌ‚ˆ
+_Bˆ‚ˆ\™Ù]Ú^™O^ÌLßHÏ‚ˆÙ]‚ˆ]ˆÛ\ÜÓ˜[YOH™›^LH‚ˆ]ˆÛ\ÜÓ˜[YOH^VÌLH›Û\Ù[ZX›Û^]Ú]HÛX™[OÙ]‚ˆ]ˆÛ\ÜÓ˜[YOH›]LH^VÎH^]Ú]KÌÌÙ\ØßOÙ]‚ˆÙ]‚ˆØXİ]™HÈ
+ˆÚXÚĞÚ\˜ÛLˆÚ^™O^ÌMHÛ\ÜÓ˜[YOH^Y[Y\˜[MˆÏ‚ˆ
+Hˆ[BˆØ]Û‚ˆ
+NÂŸB‚™[˜İ[Ûˆš\ÚÓ[X™\ŠÂˆX™[ˆ˜[YKˆZ[‹ˆX^ˆİ\ˆİY™š^ˆÛÚ[™ÙKŸNˆÂˆX™[ˆİš[™ÎÂˆ˜[YNˆ[X™\ÂˆZ[ˆ[X™\ÂˆX^ˆ[X™\Âˆİ\ˆ[X™\ÂˆİY™š^ˆİš[™ÎÂˆÛÚ[™ÙNˆ
+˜[YNˆ[X™\ŠHOˆ›ÚYÂŸJHÂˆ™]\›ˆ
+ˆšY[X™[^ÛX™[O‚ˆ]ˆÛ\ÜÓ˜[YOHœ™[]]™H‚ˆ[œ]ˆ\OH›[X™\ˆ‚ˆZ[^ÛZ[ŸBˆX^^ÛX^Bˆİ\^Üİ\Bˆ˜[YO^Ó[X™\‹š\Ñš[š]J˜[YJHÈ˜[YHˆBˆÛÚ[™ÙO^Ê]™[
+HOˆÂˆÛÛœİˆH[X™\Š]™[\™Ù]˜[YJNÂˆÛÚ[™ÙJ[X™\‹š\Ñš[š]JŠHÈˆˆZ[ŠNÂˆ_BˆÛ\ÜÓ˜[YOHš\YšY[‹LM‚ˆÏ‚ˆÜ[ˆÛ\ÜÓ˜[YOHœÚ[\‹Y]™[Ë[›Û™HXœÛÛ]HšYÚLÈÜLKÌˆ]˜[œÛ]K^KLKÌˆ^VÎ\H^]Ú]KÌÌ‚ˆÜİY™š^BˆÜÜ[‚ˆÙ]‚ˆÑšY[‚ˆ
+NÂŸB‚™[˜İ[ÛˆÙÙÛTÙ][™ÊÂˆX™[ˆ\ØÜš\[Û‹ˆÚXÚÙYˆÛÚ[™ÙKŸNˆÂˆX™[ˆİš[™ÎÂˆ\ØÜš\[Ûˆİš[™ÎÂˆÚXÚÙYˆ›ÛÛX[ÂˆÛÚ[™ÙNˆ
+ÚXÚÙYˆ›ÛÛX[ŠHOˆ›ÚYÂŸJHÂˆ™]\›ˆ
+ˆ]Û‚ˆ\OH˜]Ûˆ‚ˆÛÛXÚÏ^Ê
+HOˆÛÚ[™ÙJXÚXÚÙY
+_BˆÛ\ÜÓ˜[YOH™›^ËY[][\ËXÙ[\ˆ\İYKX™]ÙY[ˆØ\M›İ[™Y^›Ü™\ˆ›Ü™\‹]Ú]KÖÌŒ—H™ËX›XÚËÌŒLÈ^[Y‚ˆ‚ˆ]‚ˆ]ˆÛ\ÜÓ˜[YOH^VÎ\H›Û\Ù[ZX›Û^]Ú]KÍÌÛX™[OÙ]‚ˆ]ˆÛ\ÜÓ˜[YOH›]LH^VÎHXY[™ËM^]Ú]KÌÌ‚ˆÙ\ØÜš\[ÛŸBˆÙ]‚ˆÙ]‚ˆÜ[‚ˆÛ\ÜÓ˜[YO^ØÛŠˆœ™[]]™HMˆËLLHÚš[šËL›İ[™YY[›Ü™\ˆ˜[œÚ][Ûˆ‹ˆÚXÚÙYˆÈ˜›Ü™\‹Y[Y\˜[MLÌÌ™ËY[Y\˜[MLÌŒ‚ˆˆ˜›Ü™\‹]Ú]KÖÌŒH™Ë]Ú]KÖÌŒ×H‚ˆ
+_Bˆ‚ˆÜ[‚ˆÛ\ÜÓ˜[YO^ØÛŠˆ˜XœÛÛ]HÜLKÌˆMËM]˜[œÛ]K^KLKÌˆ›İ[™YY[˜[œÚ][Ûˆ‹ˆÚXÚÙYˆÈ›YVÌŒœH™ËY[Y\˜[M‚ˆˆ›YVÍH™Ë]Ú]KÌÍH‚ˆ
+_BˆÏ‚ˆÜÜ[‚ˆØ]Û‚ˆ
+NÂŸB™[˜İ[Ûˆ™\]Y\İİ]\ÊÈİ]\ÈNˆÈİ]\ÎˆXİ]˜][Û”™\]Y\İÈœİ]\È—HJHÂˆÛÛœİX™[ÈHÂˆ[™[™Îˆ‘[ˆ][H‹ˆ›ØÙ\ÜÚ[™ÎˆXİ]˜][Ûˆ[ˆÛİ\œÈ‹ˆXİ]˜]YˆXİ]°êH‹ˆ™Z™XİYˆ”™Y\ğêH‹ˆH\ÈÛÛœİÂ‚ˆ™]\›ˆ
+ˆÜ[‚ˆÛ\ÜÓ˜[YO^ØÛŠˆœ›İ[™YY[›Ü™\ˆL‹HKLH^VÎH›ÛX›Û\\˜Ø\ÙH‹ˆİ]\ÈOOH˜Xİ]˜]Y‚ˆÈ˜›Ü™\‹Y[Y\˜[MLÌŒ™ËY[Y\˜[MLÖÌŒ—H^Y[Y\˜[M‚ˆˆİ]\ÈOOHœ™Z™XİY‚ˆÈ˜›Ü™\‹\™YMLÌŒ™Ë\™YMLÖÌŒWH^\™YLÌ‚ˆˆ˜›Ü™\‹VØÛÛÜ˜\ŠKYÛÛX›Ü™\ŠWH™ËVØÛÛÜ˜\ŠKYÛÛ\ÛÙ
+WH^VØÛÛÜ˜\ŠKYÛÛ
+WH‚ˆ
+_Bˆ‚ˆÛX™[ÖÜİ]\×_BˆÜÜ[‚ˆ
+NÂŸB‚™[˜İ[Ûˆİ[[X\JÈX™[˜[YKÜ™Y[ˆNˆÈX™[ˆİš[™ÎÈ˜[YNˆİš[™ÎÈÜ™Y[Îˆ›ÛÛX[ˆJHÈ™]\›ˆ]ˆÛ\ÜÓ˜[YOHœ›İ[™YL›Ü™\ˆ›Ü™\‹]Ú]KÖÌŒ—H™ËX›XÚËÌŒM]ˆÛ\ÜÓ˜[YOH^VÎH\\˜Ø\ÙH˜XÚÚ[™ËVÌŒY[WH^]Ú]KÌHÛX™[OÙ]]ˆÛ\ÜÓ˜[YO^ØÛŠ›]Lˆ^\ÛH›Û\Ù[ZX›Û‹Ü™Y[ˆÈ^Y[Y\˜[Mˆˆ^]Ú]HŠ_Oİ˜[Y_OÙ]Ù]ÈB™[˜İ[Ûˆ\›Ôİ]Ø\™
+ÈXÛÛ‹X™[˜[YKİX‹XØÙ[XØÙ[ÜÚ]]™HNˆÈXÛÛˆ™XXİ”™XXİ›ÙNÈX™[ˆİš[™ÎÈ˜[YNˆİš[™ÎÈİXˆİš[™ÎÈXØÙ[Îˆİš[™ÎÈXØÙ[ÜÚ]]™OÎˆ›ÛÛX[ˆJHÈ™]\›ˆ]ˆÛ\ÜÓ˜[YOHœ›İ[™YVÌMœH›Ü™\ˆ›Ü™\‹]Ú]KÖÌŒ×H™ËX›XÚËÌHLÈÛNœ›İ[™YVÌŒHÛNœM]ˆÛ\ÜÓ˜[YOH™›^][\Ë\İ\Ø\LˆÛN™Ø\LÈ]ˆÛ\ÜÓ˜[YOH™›^NËNÚš[šËL][\ËXÙ[\ˆ\İYKXÙ[\ˆ›İ[™Y^›Ü™\ˆ›Ü™\‹VØÛÛÜ˜\ŠKYÛÛX›Ü™\ŠWH™ËVØÛÛÜ˜\ŠKYÛÛ\ÛÙ
+WH^VØÛÛÜ˜\ŠKYÛÛ
+WHÛNšLLˆÛNËLLˆÛNœ›İ[™YLÚXÛÛŸOÙ]]ˆÛ\ÜÓ˜[YOH›Z[‹]ËL›^LH]ˆÛ\ÜÓ˜[YOH^VÎ\HXY[™Ë]YÚ^]Ú]KÍÛN^VÌLHÛX™[OÙ]]ˆÛ\ÜÓ˜[YOH›]LH^^›Û\Ù[ZX›ÛXY[™Ë]YÚ^]Ú]HÛN^LŞİ˜[Y_OÙ]]ˆÛ\ÜÓ˜[YOH›]LH›^›^]Ü˜\][\ËXÙ[\ˆØ\LHÛN™Ø\LˆÜ[ˆÛ\ÜÓ˜[YOH^VÎ\HXY[™Ë]YÚ^]Ú]KÌÍHÛN^VÌLHÜİXŸOÜÜ[ØXØÙ[ÈÜ[ˆÛ\ÜÓ˜[YO^ØÛŠ^VÎ\H›Û\Ù[ZX›ÛÛN^VÌLH‹XØÙ[ÜÚ]]™HÈ^Y[Y\˜[Mˆˆ^VØÛÛÜ˜\ŠKYÛÛ
+WHŠ_OØXØÙ[OÜÜ[ˆˆ[OÙ]Ù]Ù]Ù]ÈB™[˜İ[ÛˆZ[šSY]šXÊÈX™[˜[YKÜÚ]]™K™YØ]]™HNˆÈX™[ˆİš[™ÎÈ˜[YNˆİš[™ÎÈÜÚ]]™OÎˆ›ÛÛX[È™YØ]]™OÎˆ›ÛÛX[ˆJHÈ™]\›ˆ]ˆÛ\ÜÓ˜[YOHœ›İ[™Y^›Ü™\ˆ›Ü™\‹]Ú]KÖÌŒ—H™ËX›XÚËÌŒLÈ]ˆÛ\ÜÓ˜[YOH^VÎ\H\\˜Ø\ÙH˜XÚÚ[™ËVÌŒ[WH^]Ú]KÌÌÛX™[OÙ]]ˆÛ\ÜÓ˜[YO^ØÛŠ›]Lˆ^[È›Û\Ù[ZX›Û‹ÜÚ]]™HÈ^Y[Y\˜[Mˆˆ™YØ]]™HÈ^\™YMˆˆ^]Ú]HŠ_Oİ˜[Y_OÙ]Ù]ÈB™[˜İ[Ûˆ™XÙZ]™\”İ]\Ğ˜YÙJÈİ]\ÈNˆÈİ]\Îˆ™XÙZ]™\–ÉÜİ]\É×HJHÈÛÛœİİ[\ÈHİ]\ÈOOH	ØÛÛ›™XİY	ÈÈ	Ø›Ü™\‹Y[Y\˜[MLÌŒ™ËY[Y\˜[MLÖÌŒ—H^Y[Y\˜[M	Èˆİ]\ÈOOH	Ü]\ÙY	ÈÈ	Ø›Ü™\‹]Ú]KÖÌŒH™Ë]Ú]KÖÌŒ×H^]Ú]KÍMIÈˆ	Ø›Ü™\‹\™YMLÌŒ™Ë\™YMLÖÌŒWH^\™YLÌ	ÎÈÛÛœİX™[Hİ]\ÈOOH	ØÛÛ›™XİY	ÈÈ	ĞÛÛ›™Xİ0êIÈˆİ]\ÈOOH	Ü]\ÙY	ÈÈ	Ô]\ÙIÈˆ	Ñ\œ™]\‰ÎÈ™]\›ˆÜ[ˆÛ\ÜÓ˜[YO^ØÛŠ	Ú[›[™KY›^›İ[™YY[›Ü™\ˆL‹HKLH^VÎH›ÛX›Û\\˜Ø\ÙIËİ[\Ê_OÛX™[OÜÜ[ÈB™[˜İ[Ûˆ[›[™Tš\ÚÓÜ[ÛŠÈXİ]™KX™[\ØËÛÛXÚËÚ[™[ˆNˆÈXİ]™Nˆ›ÛÛX[ÈX™[ˆİš[™ÎÈ\ØÎˆİš[™ÎÈÛÛXÚÎˆ
 
-                    <div className="mt-3 grid grid-cols-1 gap-2">
-                      <button disabled={busyId === row.id} onClick={() => void updateConfig(row, "processing")} className="h-10 rounded-xl border border-amber-500/20 bg-amber-500/[0.05] px-4 text-xs font-semibold text-amber-300">Je commence lâ€™application</button>
-                      <button disabled={busyId === row.id} onClick={() => void updateConfig(row, "applied")} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-4 text-xs font-semibold text-emerald-400"><CheckCircle2 size={14} /> Confirmer lâ€™application rÃ©elle</button>
-                      <button disabled={busyId === row.id} onClick={() => void updateConfig(row, "rejected")} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-red-500/20 bg-red-500/[0.05] px-4 text-xs font-semibold text-red-300"><XCircle size={14} /> Demander une correction</button>
-                    </div>
-                  </div>
-                </div>
-              </section>
-            );
-          })}
-        </div>
-      )}
-    </main>
-  );
-}
-
-function riskModeAdmin(mode: string) {
-  if (mode === "mirror") return "Copier les lots envoyeur";
-  if (mode === "balance") return "Risque par solde";
-  if (mode === "equity") return "Risque par equity";
-  if (mode === "percent") return "Risque en %";
-  return "Lots fixes";
-}
-
-function riskValueAdmin(risk: Record<string, any>) {
-  if (risk.mode === "mirror") return `${Number(risk.mirror_multiplier || 1)} Ã—`;
-  if (risk.mode === "balance") return `${Number(risk.balance_multiplier || 1)} Ã— balance`;
-  if (risk.mode === "equity") return `${Number(risk.equity_multiplier || 1)} Ã— equity`;
-  if (risk.mode === "percent") return `${Number(risk.risk_percent || 1)} % / trade`;
-  return "Lots dÃ©finis par stratÃ©gie";
-}
-
-function ConfigStatus({ status }: { status: ConfigRow["status"] }) {
-  const labels = { pending: "Ã€ appliquer", processing: "En cours", applied: "AppliquÃ©e", rejected: "Ã€ corriger" } as const;
-  return <span className={["rounded-full border px-2 py-1 text-[8px] font-bold uppercase", status === "applied" ? "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-400" : status === "rejected" ? "border-red-500/20 bg-red-500/[0.05] text-red-300" : "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]"].join(" ")}>{labels[status]}</span>;
-}
-
-function ConfigInfo({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-xl border border-white/[0.06] bg-black/20 p-3"><div className="text-[8px] uppercase text-white/25">{label}</div><div className="mt-2 text-[10px] font-semibold text-white/65">{value}</div></div>;
-}
-
-function Status({ status }: { status: string }) {
-  const active = status === "activated";
-  const rejected = status === "rejected";
-  return (
-    <span
-      className={[
-        "rounded-full border px-2 py-1 text-[8px] font-bold uppercase",
-        active
-          ? "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-400"
-          : rejected
-          ? "border-red-500/20 bg-red-500/[0.05] text-red-300"
-          : "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]",
-      ].join(" ")}
-    >
-      {statusLabel[status] || status}
-    </span>
-  );
-}
-
-function Info({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="rounded-xl border border-white/[0.06] bg-black/20 p-3">
-      <div className="flex items-center gap-2 text-[8px] uppercase text-white/25">
-        {icon}
-        {label}
-      </div>
-      <div className="mt-2 break-all text-[10px] text-white/60">{value}</div>
-    </div>
-  );
-}
+HOˆ›ÚYÈÚ[™[ˆ™XXİ”™XXİ›ÙHJHÈ™]\›ˆ]Ûˆ\OH˜]ÛˆˆÛÛXÚÏ^ÛÛÛXÚßHÛ\ÜÓ˜[YO^ØÛŠ™ÜšYËY[ÜšYXÛÛËVØ]]×ÌYœ—ÌLÌœH][\ËXÙ[\ˆØ\LÈ›İ[™Y^›Ü™\ˆLÈ^[Y˜[œÚ][Ûˆ‹Xİ]™HÈ˜›Ü™\‹VØÛÛÜ˜\ŠKYÛÛX›Ü™\ŠWH™ËVØÛÛÜ˜\ŠKYÛÛ\ÛÙ
+WHˆˆ˜›Ü™\‹]Ú]KÖÌŒ—H™ËX›XÚËÌŒİ™\˜™Ë]Ú]KÖÌŒ—HŠ_OÜ[ˆÛ\ÜÓ˜[YO^ØÛŠ™›^MHËMH][\ËXÙ[\ˆ\İYKXÙ[\ˆ›İ[™YY[›Ü™\ˆ‹Xİ]™HÈ˜›Ü™\‹VØÛÛÜ˜\ŠKYÛÛX›Ü™\ŠWH™ËVØÛÛÜ˜\ŠKYÛÛ
+WH^X›XÚÈˆˆ˜›Ü™\‹]Ú]KÌMH^]˜[œÜ\™[Š_OØXİ]™HÈÚXÚÈÚ^™O^ÌLŸHÏˆˆ	ø (‰ßOÜÜ[Ü[ˆÛ\ÜÓ˜[YOH›Z[‹]ËLÜ[ˆÛ\ÜÓ˜[YOH˜›ØÚÈ^VÌL\H›Û\Ù[ZX›Û^]Ú]HÛX™[OÜÜ[Ü[ˆÛ\ÜÓ˜[YOH›]LH›ØÚÈ^VÎ\H^]Ú]KÌÍHÙ\ØßOÜÜ[ÜÜ[Ü[ˆÛÛXÚÏ^ÊJHOˆKœİÜ›ÜYØ][ÛŠ
+_OØÚ[™[ŸOÜÜ[Ø]ÛÈB
