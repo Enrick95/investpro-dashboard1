@@ -161,7 +161,7 @@ const BROKER_SERVER_PRESETS: Record<"MT4" | "MT5", BrokerServerPreset[]> = {
     },
     {
       broker: "Fusion Markets",
-      servers: ["FusionMarkets-Demo", "FusionMarkets-Live", "FusionMarkets-Live 3", "FusionMarkets-Live3"],
+      servers: ["FusionMarkets-Demo", "FusionMarkets-Demo 2", "FusionMarkets-Live", "FusionMarkets-Live 3", "FusionMarkets-Live3"],
     },
     {
       broker: "PU Prime",
