@@ -428,6 +428,7 @@ export default function CopieurPage() {
   const latestMasterRequests = useMemo(() => {
     const seen = new Set<string>();
     return activationRequests.filter((request) => {
+      if (request.removal_status === "completed") return false;
       const key = `${request.platform}:${request.login}:${request.server.trim().toLowerCase()}`;
       if (seen.has(key)) return false;
       seen.add(key);
@@ -440,7 +441,7 @@ export default function CopieurPage() {
     ? receivers.find((receiver) => receiver.login === approvedMaster.login && receiver.platform === approvedMaster.platform && receiver.server === approvedMaster.server) || null
     : null;
   const virtualReceivers = useMemo(() => {
-    const rows: Array<Receiver & { legacy?: boolean }> = receivers.filter((r) => !approvedMasterLogins.has(`${r.platform}:${r.login}`)).map((r) => ({ ...r }));
+    const rows: Array<Receiver & { legacy?: boolean }> = receivers.filter((r) => r.config?.activation_source !== "admin_social_trade_hub" && !approvedMasterLogins.has(`${r.platform}:${r.login}`)).map((r) => ({ ...r }));
     if (legacyConnected) {
       rows.unshift({
         id: "legacy",
