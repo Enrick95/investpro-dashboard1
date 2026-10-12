@@ -1217,10 +1217,16 @@
 .productMetrics>div{min-width:0;padding:9px;border:1px solid rgba(255,255,255,.055);border-radius:8px;background:#0d100d}
 .productMetrics small,.productMetrics span{display:block;overflow:hidden;color:#81877f;font-size:7px;text-overflow:ellipsis;white-space:nowrap}
 .productMetrics b{display:block;margin:5px 0;color:#f1eee6;font-size:15px}
+.productMetrics .demoPositive{color:#29d79b}
 .productChart{margin-top:9px;padding:10px;border:1px solid rgba(255,255,255,.055);border-radius:9px;background:#0b0d0b}
 .productChart>div:first-child{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .productChart>div:first-child b{font-size:10px}.productChart>div:first-child small{color:#7b817b;font-size:6px;letter-spacing:.5px}
 .productEmptyChart{height:112px;display:grid;place-items:center;margin-top:8px;border-radius:6px;background:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px);background-size:100% 28px;color:#70776f;font-size:8px;text-align:center}
+.productDemoChart{height:112px;display:flex;align-items:flex-end;gap:5px;position:relative;overflow:hidden;margin-top:8px;padding:22px 10px 22px;border-radius:6px;background:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px);background-size:100% 28px}
+.productDemoChart>span,.productDemoChart>b,.productDemoChart>small{position:absolute;z-index:1;left:10px;font-size:7px;color:#8b9087}
+.productDemoChart>span{top:7px}.productDemoChart>b{top:6px;left:auto;right:10px;color:#29d79b;font-size:9px}.productDemoChart>small{bottom:5px;font-size:6px;color:#777d74}
+.productDemoChart>i{display:block;flex:1;min-width:4px;border-radius:3px 3px 0 0;background:linear-gradient(180deg,#e9b843 0%,rgba(174,126,28,.48) 100%);box-shadow:0 0 12px rgba(233,184,67,.1)}
+.productDemoChart>i:nth-of-type(1){height:24%}.productDemoChart>i:nth-of-type(2){height:34%}.productDemoChart>i:nth-of-type(3){height:29%}.productDemoChart>i:nth-of-type(4){height:43%}.productDemoChart>i:nth-of-type(5){height:39%}.productDemoChart>i:nth-of-type(6){height:56%}.productDemoChart>i:nth-of-type(7){height:52%}.productDemoChart>i:nth-of-type(8){height:69%}.productDemoChart>i:nth-of-type(9){height:77%}.productDemoChart>i:nth-of-type(10){height:92%}
 .productPhone{position:absolute;z-index:8;right:-1%;bottom:0;width:188px;height:390px;padding:7px;border:2px solid #494b44;border-radius:31px;background:#050605;box-shadow:0 25px 55px rgba(0,0,0,.72),0 0 35px rgba(228,167,49,.13);transform:rotate(2deg)}
 .productPhone:before{content:"";position:absolute;z-index:3;top:9px;left:50%;width:54px;height:13px;transform:translateX(-50%);border-radius:99px;background:#050605}
 .phoneScreen{position:relative;height:100%;overflow:hidden;padding:12px 10px 0;border-radius:23px;background:linear-gradient(180deg,#11140f,#090b09 48%);color:#f5f3ee}
@@ -1255,7 +1261,7 @@
   .productHeading{margin:8px 0}.productHeading small,.productBanner small{font-size:5px}.productHeading h2{font-size:12px}.productHeading p{max-width:170px;font-size:6px}.productButton{padding:6px;font-size:0}.productButton:first-letter{font-size:10px}
   .productBanner{padding:7px;gap:4px}.productBanner>div:first-child>b{margin:4px 0 2px;font-size:8px}.productBanner>div:first-child>span{max-width:160px;font-size:6px}.productRules{min-width:75px;gap:3px}.productRules b{font-size:7px}.productRules i{font-size:5px}
   .productMetrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;margin-top:5px}.productMetrics>div{padding:5px}.productMetrics small,.productMetrics span{font-size:5px}.productMetrics b{margin:3px 0;font-size:10px}
-  .productChart{margin-top:5px;padding:6px}.productChart>div:first-child b{font-size:7px}.productChart>div:first-child small{font-size:4px}.productEmptyChart{height:48px;margin-top:5px;font-size:6px}
+  .productChart{margin-top:5px;padding:6px}.productChart>div:first-child b{font-size:7px}.productChart>div:first-child small{font-size:4px}.productEmptyChart{height:48px;margin-top:5px;font-size:6px}.productDemoChart{height:48px;gap:3px;margin-top:5px;padding:15px 6px 14px}.productDemoChart>span,.productDemoChart>b{top:4px;left:6px;font-size:5px}.productDemoChart>b{left:auto;right:6px;font-size:6px}.productDemoChart>small{left:6px;bottom:3px;font-size:4px}
   .productPhone{right:2%;bottom:-3px;width:145px;height:305px;padding:6px;border-radius:25px;transform:rotate(2deg)}
   .phoneScreen{padding:9px 8px 0;border-radius:18px}.productPhone:before{top:7px;width:42px;height:10px}
   .phoneStatus{padding-bottom:4px;font-size:6px}.phoneBrand{gap:4px;padding:4px 0}.phoneBrand>b{font-size:8px}.phoneBrand>span:last-child{width:16px;height:16px;font-size:6px}

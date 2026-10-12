@@ -61,6 +61,19 @@ export async function PATCH(request: Request) {
       });
       if (error) return NextResponse.json({ error: "Impossible de confirmer le retrait. Vérifie que la migration SQL est appliquée." }, { status: 500 });
       if (!completed) return NextResponse.json({ error: "Cette demande a déjà été traitée." }, { status: 409 });
+
+      // Clean up only the legacy receiver mirror that the old activation flow
+      // created. An explicitly added receiver with the same MT account is kept.
+      const { error: mirrorCleanupError } = await auth.admin.from("copier_receivers")
+        .delete()
+        .eq("user_id", current.user_id)
+        .filter("config->>activation_source", "eq", "admin_social_trade_hub")
+        .filter("config->>request_id", "eq", current.request_id);
+      if (mirrorCleanupError) {
+        // The Copier UI also hides tagged mirrors, so a cleanup hiccup cannot
+        // make a removed Master reappear as a receiver.
+        console.error("[copier-master-removals] nettoyage miroir Master impossible");
+      }
     } else {
       const { data: updated, error } = await auth.admin.from("copier_master_removal_requests").update({
         status: "rejected", admin_note: adminNote || null, processed_by: auth.user.id, updated_at: new Date().toISOString(),

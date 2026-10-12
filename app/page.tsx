@@ -171,8 +171,8 @@ export default function Home() {
                 <div className={styles.productTopline}><span>Espace trader&nbsp; › &nbsp;<b>Dashboard</b></span><span className={styles.productAvatar}>IP</span></div>
                 <div className={styles.productHeading}><div><small>VOTRE TRADING, EN PERSPECTIVE</small><h2>Bonjour, Trader.</h2><p>Gardez une vue claire sur vos résultats et vos prochaines décisions.</p></div><span className={styles.productButton}>＋ Ajouter un trade</span></div>
                 <div className={styles.productBanner}><div><small>INVESTPRO TRADING HUB</small><b>Votre discipline fait la différence.</b><span>Apprenez, analysez et suivez votre trading au même endroit.</span></div><div className={styles.productRules}><small>LES REPÈRES DU PLAN</small><b>— <i>Risque maximum / trade</i></b><b>— <i>Trades maximum / jour</i></b></div></div>
-                <div className={styles.productMetrics}><div><small>Solde des comptes</small><b>—</b><span>Comptes sélectionnés</span></div><div><small>Résultat net</small><b>—</b><span>Trades clôturés</span></div><div><small>Taux de réussite</small><b>—</b><span>Hors BE</span></div><div><small>Trades de la période</small><b>—</b><span>Historique</span></div></div>
-                <div className={styles.productChart}><div><b>La régularité se construit.</b><small>ÉVOLUTION DU COMPTE · RÉSULTAT NET RÉALISÉ</small></div><div className={styles.productEmptyChart}><span>Ajoutez un compte ou un trade pour afficher vos données.</span></div></div>
+                <div className={styles.productMetrics}><div><small>Solde des comptes</small><b>18 640 €</b><span>Exemple fictif · 2 comptes</span></div><div><small>Résultat net</small><b className={styles.demoPositive}>+1 284 €</b><span>Exemple fictif · période</span></div><div><small>Taux de réussite</small><b>76 %</b><span>Exemple fictif · hors BE</span></div><div><small>Trades de la période</small><b>24</b><span>Exemple fictif</span></div></div>
+                <div className={styles.productChart}><div><b>La régularité se construit.</b><small>APERÇU ILLUSTRATIF · DONNÉES FICTIVES</small></div><div className={styles.productDemoChart}><span>Résultat net cumulé</span><b>+1 284 €</b><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><small>Les chiffres présentés sont des exemples fictifs.</small></div></div>
               </div>
             </div>
             <div className={styles.productPhone} aria-label="Aperçu de l’interface mobile InvestPro">
@@ -180,9 +180,9 @@ export default function Home() {
                 <div className={styles.phoneStatus}><span>9:41</span><span>● ● ▰</span></div>
                 <div className={styles.phoneBrand}><span className={styles.miniBars}><i /><i /><i /></span><b>investpro</b><span>IP</span></div>
                 <div className={styles.phoneGreeting}><small>VOTRE TRADING, EN PERSPECTIVE</small><b>Bonjour, Trader.</b><span>Votre espace en un coup d’œil.</span></div>
-                <div className={styles.phoneBalance}><small>SOLDE DES COMPTES</small><b>—</b><span>Synchronisation de vos données</span><div className={styles.phoneMiniChart}><i /><i /><i /><i /><i /><i /><i /><i /><i /></div></div>
+                <div className={styles.phoneBalance}><small>SOLDE DES COMPTES · EXEMPLE FICTIF</small><b>18 640 €</b><span>Exemple illustratif</span><div className={styles.phoneMiniChart}><i /><i /><i /><i /><i /><i /><i /><i /><i /></div></div>
                 <div className={styles.phoneSectionTitle}>Vos indicateurs</div>
-                <div className={styles.phoneTiles}><div><small>Résultat net</small><b>—</b></div><div><small>Taux réussite</small><b>—</b></div></div>
+                <div className={styles.phoneTiles}><div><small>Résultat net · fictif</small><b>+1 284 €</b></div><div><small>Taux réussite · fictif</small><b>76 %</b></div></div>
                 <div className={styles.phoneSectionTitle}>Derniers trades <span>Tout voir&nbsp; →</span></div>
                 <div className={styles.phoneEmpty}>Vos trades apparaîtront ici après leur ajout.</div>
                 <div className={styles.phoneTabbar}><span>⌂<small>Accueil</small></span><span>▤<small>Journal</small></span><span>◉<small>Comptes</small></span><span>☻<small>Profil</small></span></div>

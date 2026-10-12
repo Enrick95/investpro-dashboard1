@@ -148,7 +148,7 @@ function LiveCommunity({ compact = false }: { compact?: boolean }) {
         <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_13px_rgba(52,211,153,.75)]" />
       </span>
       <span className="text-[10px] font-semibold text-emerald-200">
-        Espace membres InvestPro · communauté active
+        Plus de 427 membres actifs
       </span>
     </div>
   );
