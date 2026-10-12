@@ -102,6 +102,7 @@ type HostedAccountSync = {
     last_sync?: string | null;
   } | null;
 };
+type HostedBroker = { id: string; platform: string; server: string; label: string };
 
 type ActivationRequest = {
   id: string;
@@ -426,6 +427,7 @@ export default function CopieurPage() {
   const [receivers, setReceivers] = useState<Receiver[]>([]);
   const [accounts, setAccounts] = useState<LooseAccount[]>([]);
   const [hostedAccountSyncs, setHostedAccountSyncs] = useState<HostedAccountSync[]>([]);
+  const [hostedBrokers, setHostedBrokers] = useState<HostedBroker[]>([]);
   const [legacyConnected, setLegacyConnected] = useState(false);
   const [selectedReceiverId, setSelectedReceiverId] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<SthStatus | null>(null);
@@ -440,6 +442,9 @@ export default function CopieurPage() {
   const [customServer, setCustomServer] = useState("");
   const [password, setPassword] = useState("");
   const [consent, setConsent] = useState(false);
+  const [syncConsent, setSyncConsent] = useState(false);
+  const [accountCurrency, setAccountCurrency] = useState("USD");
+  const [accountType, setAccountType] = useState<"real" | "demo" | "prop">("real");
 
   const [riskSettings, setRiskSettings] = useState<RiskSettings>(DEFAULT_RISK_SETTINGS);
   const [configurationRequests, setConfigurationRequests] = useState<CopierConfigRequest[]>([]);
@@ -639,6 +644,7 @@ export default function CopieurPage() {
     if (!r1.error) setReceivers((r1.data || []) as Receiver[]);
     if (!r2.error) setAccounts((r2.data || []) as LooseAccount[]);
     setHostedAccountSyncs(Array.isArray(hostedResponse?.connections) ? hostedResponse.connections as HostedAccountSync[] : []);
+    setHostedBrokers(Array.isArray(hostedResponse?.brokers) ? hostedResponse.brokers as HostedBroker[] : []);
     const configResponse = await fetch("/api/copier/config-request", { cache: "no-store" });
     if (configResponse.ok) {
       const configData = await configResponse.json();
@@ -716,6 +722,7 @@ export default function CopieurPage() {
         ]);
         if (!accountsResponse.error) setAccounts((accountsResponse.data || []) as LooseAccount[]);
         setHostedAccountSyncs(Array.isArray(hostedResponse?.connections) ? hostedResponse.connections as HostedAccountSync[] : []);
+    setHostedBrokers(Array.isArray(hostedResponse?.brokers) ? hostedResponse.brokers as HostedBroker[] : []);
       })().catch(() => {});
     }, 15000);
     return () => window.clearInterval(timer);
@@ -747,6 +754,20 @@ export default function CopieurPage() {
     return data;
   }
 
+  function openAddReceiver() {
+    setPassword("");
+    setConsent(false);
+    setSyncConsent(false);
+    setAddOpen(true);
+  }
+
+  function closeAddReceiver() {
+    setPassword("");
+    setConsent(false);
+    setSyncConsent(false);
+    setAddOpen(false);
+  }
+
   async function addReceiver() {
     const effectiveServer =
       serverChoice === "__OTHER__" ? customServer.trim() : serverChoice.trim();
@@ -756,12 +777,64 @@ export default function CopieurPage() {
       setMessage("Complète les informations du compte et confirme l’autorisation.");
       return;
     }
+    if (syncConsent && !/^[A-Z]{3}$/.test(accountCurrency.trim().toUpperCase())) {
+      setError(true);
+      setMessage("Indique le code devise réel du compte (par exemple USD ou EUR) pour configurer MetaSync.");
+      return;
+    }
     setBusy(true);
     setError(false);
     try {
       const data = await post({ action: "connect", alias: alias.trim(), platform, login, server: effectiveServer, password, consent: true });
+      let syncNotice = "";
+      if (syncConsent) {
+        const normalizedServer = effectiveServer.trim().toLowerCase();
+        const existingHosted = hostedAccountSyncs.find((row) => {
+          const connection = row.investpro_mt_connections;
+          return connection && connection.login?.trim() === login.trim() &&
+            connection.platform?.toUpperCase() === platform &&
+            connection.server?.trim().toLowerCase() === normalizedServer;
+        });
+        const existingAccount = accounts.some((row) => {
+          const rowPlatform = String(row.platform || "").toUpperCase();
+          const rowServer = String(row.server ?? row.server_name ?? row.broker_server ?? "").trim().toLowerCase();
+          return accountNumber(row).trim() === login.trim() && rowPlatform === platform && rowServer === normalizedServer;
+        });
+        if (existingHosted || existingAccount) {
+          syncNotice = existingHosted?.active === false
+            ? "La connexion MetaSync existe déjà mais est arrêtée ; réactive-la dans Mes comptes pour actualiser le solde."
+            : "La connexion MetaSync déjà présente sera réutilisée pour le solde.";
+        } else {
+          const hostedBroker = hostedBrokers.find((item) => item.platform.toUpperCase() === platform && item.server.trim().toLowerCase() === normalizedServer);
+          if (!hostedBroker) {
+            syncNotice = "Ce serveur n’est pas encore pris en charge par MetaSync ; le receveur est connecté, mais son solde ne pourra pas être synchronisé automatiquement.";
+          } else {
+            try {
+              const syncResponse = await fetch("/api/metasync/hosted", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  broker: hostedBroker.id,
+                  login,
+                  password,
+                  currency: accountCurrency.trim().toUpperCase(),
+                  type: accountType,
+                  syncConsent: true,
+                }),
+              });
+              const syncData = await syncResponse.json().catch(() => ({}));
+              syncNotice = syncResponse.ok
+                ? "MetaSync est lancé ; le solde et l’equity apparaîtront après la première synchronisation."
+                : `Le receveur est connecté, mais MetaSync n’a pas pu démarrer : ${syncData.error || "réessaie depuis Mes comptes"}`;
+            } catch {
+              syncNotice = "Le receveur est connecté, mais la demande MetaSync n’a pas été confirmée. Vérifie Mes comptes avant de réessayer.";
+            }
+          }
+        }
+      }
       setPassword("");
       setConsent(false);
+      setSyncConsent(false);
       setAddOpen(false);
       setAlias("");
       setLogin("");
@@ -773,7 +846,7 @@ export default function CopieurPage() {
         setSelectedReceiverId(data.receiverId);
         if (data.status) applyStatus(data.status);
       }
-      setMessage("Nouveau compte receveur connecté.");
+      setMessage(syncNotice ? `Nouveau compte receveur connecté. ${syncNotice}` : "Nouveau compte receveur connecté.");
     } catch (cause) {
       setError(true);
       setMessage(cause instanceof Error ? cause.message : "Connexion impossible.");
@@ -1089,7 +1162,7 @@ export default function CopieurPage() {
             <div className="flex items-start justify-between gap-3"><div><div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[color:var(--gold)]">2. Compte receveur</div><p className="mt-1 text-[10px] leading-5 text-white/40">Le compte qui recevra les trades copiés.</p></div><span className="shrink-0 rounded-full border border-white/[0.08] px-2.5 py-1 text-[8px] font-semibold text-white/45">{selectedReceiver ? "Sélectionné" : "À choisir"}</span></div>
             {selectedReceiver ? <div className="mt-3 rounded-[17px] border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-3"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><div className="break-words text-base font-semibold text-white">{selectedReceiver.alias}</div><div className="mt-1 text-[9px] text-white/45">#{selectedReceiver.login} · {selectedReceiver.platform}</div></div><ReceiverStatusBadge status={selectedReceiver.status} /></div><div className="mt-2 flex items-center justify-between gap-2 text-[9px] text-white/45"><span className="truncate">{selectedReceiver.server}</span><span>{selectedStats.balance == null ? "Solde —" : money(selectedStats.balance, selectedStats.currency)}</span></div></div> : <div className="mt-3 rounded-xl border border-dashed border-white/[0.12] bg-black/15 p-3 text-[10px] text-white/45">Aucun receveur sélectionné.</div>}
             {virtualReceivers.length > 1 ? <div className="mt-2 space-y-2">{virtualReceivers.filter((receiver) => receiver.id !== selectedReceiverId).map((receiver) => <button type="button" key={receiver.id} onClick={() => void selectReceiver(receiver.id)} className="flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-black/15 px-3 text-left"><span className="min-w-0"><span className="block truncate text-[10px] font-semibold text-white/80">{receiver.alias}</span><span className="mt-0.5 block text-[8px] text-white/40">#{receiver.login} · {receiver.platform}</span></span><ReceiverStatusBadge status={receiver.status} /></button>)}</div> : null}
-            <div className="mt-3 flex gap-2"><button type="button" onClick={() => setAddOpen(true)} className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[color:var(--gold)] px-3 text-[10px] font-semibold text-black"><Plus size={14} /> Ajouter un compte receveur</button>{selectedReceiver && selectedReceiver.id !== "legacy" ? <button type="button" aria-label="Retirer ce receveur" onClick={() => { setRemoveReceiverId(selectedReceiver.id); setDisconnectConsent(false); setRemoveError(""); }} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-red-500/20 text-red-300"><Unplug size={15} /></button> : null}</div>
+            <div className="mt-3 flex gap-2"><button type="button" onClick={openAddReceiver} className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[color:var(--gold)] px-3 text-[10px] font-semibold text-black"><Plus size={14} /> Ajouter un compte receveur</button>{selectedReceiver && selectedReceiver.id !== "legacy" ? <button type="button" aria-label="Retirer ce receveur" onClick={() => { setRemoveReceiverId(selectedReceiver.id); setDisconnectConsent(false); setRemoveError(""); }} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-red-500/20 text-red-300"><Unplug size={15} /></button> : null}</div>
           </section>
 
           {selectedReceiver ? <section className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4">
@@ -1211,7 +1284,7 @@ export default function CopieurPage() {
           </section>
 
           <section className="rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"><div><div id="copier-receivers" className="scroll-mt-24 text-lg font-semibold text-white">Comptes receveurs ({virtualReceivers.length})</div><div className="mt-1 text-[11px] text-white/40">Sélectionnez un compte pour configurer ses paramètres de copie.</div></div><button onClick={() => setAddOpen(true)} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-xs font-semibold text-black"><Plus size={15} /> Ajouter un compte receveur</button></div>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"><div><div id="copier-receivers" className="scroll-mt-24 text-lg font-semibold text-white">Comptes receveurs ({virtualReceivers.length})</div><div className="mt-1 text-[11px] text-white/40">Sélectionnez un compte pour configurer ses paramètres de copie.</div></div><button onClick={openAddReceiver} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-xs font-semibold text-black"><Plus size={15} /> Ajouter un compte receveur</button></div>
             <div className="mt-5 overflow-hidden rounded-[20px] border border-white/[0.07]">
               <div className="hidden grid-cols-[56px_1.7fr_.7fr_.8fr_.9fr_.9fr_.8fr_.75fr_.9fr] gap-3 border-b border-white/[0.06] bg-black/25 px-4 py-3 text-[9px] font-bold uppercase tracking-[0.08em] text-white/30 xl:grid"><div></div><div>Nom du compte</div><div>Plateforme</div><div>Statut</div><div>Solde</div><div>Equity</div><div>P&L jour</div><div>Ouverts</div><div>Actions</div></div>
               {virtualReceivers.length === 0 ? <div className="p-10 text-center text-white/40">Aucun receveur pour le moment.</div> : virtualReceivers.map((receiver) => {
@@ -1507,7 +1580,7 @@ export default function CopieurPage() {
       {addOpen && typeof document !== "undefined" ? createPortal(
         <div className="fixed inset-0 z-[9999] flex items-start justify-center overflow-y-auto bg-black/75 px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-[max(12px,env(safe-area-inset-top))] backdrop-blur-sm md:items-center md:overflow-hidden md:p-4">
           <div role="dialog" aria-modal="true" aria-labelledby="add-receiver-title" className="my-auto flex max-h-[calc(100dvh_-_env(safe-area-inset-top)_-_env(safe-area-inset-bottom)_-_24px)] w-full max-w-3xl flex-col overflow-hidden rounded-[22px] border border-[color:var(--gold-border)] bg-[#0b0d0b] shadow-2xl md:max-h-[90vh] md:rounded-[26px]">
-            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-white/[0.06] bg-[#0b0d0b] p-4 md:p-6"><div className="min-w-0"><div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1 text-[8px] font-bold uppercase text-[color:var(--gold)]"><Plus size={11} /> Nouveau receveur</div><h2 id="add-receiver-title" className="mt-3 text-xl font-semibold text-white">Ajouter un compte</h2><p className="mt-1 text-[10px] leading-5 text-white/35">Connexion uniquement. Aucun lot ni risque à régler ici.</p></div><button onClick={() => setAddOpen(false)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/[0.08] text-white/45" aria-label="Fermer"><X size={17} /></button></div>
+            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-white/[0.06] bg-[#0b0d0b] p-4 md:p-6"><div className="min-w-0"><div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1 text-[8px] font-bold uppercase text-[color:var(--gold)]"><Plus size={11} /> Nouveau receveur</div><h2 id="add-receiver-title" className="mt-3 text-xl font-semibold text-white">Ajouter un compte</h2><p className="mt-1 text-[10px] leading-5 text-white/35">Connexion uniquement. Aucun lot ni risque à régler ici.</p></div><button onClick={closeAddReceiver} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/[0.08] text-white/45" aria-label="Fermer"><X size={17} /></button></div>
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 pb-[calc(20px+env(safe-area-inset-bottom))] md:p-6">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <Field label="Nom / alias"><input className="ip-field" value={alias} onChange={(e) => setAlias(e.target.value)} placeholder="Ex. Prop 100K" /></Field>
@@ -1566,8 +1639,14 @@ export default function CopieurPage() {
                 <div className="md:col-span-2"><Field label="Mot de passe MetaTrader"><input className="ip-field" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} /></Field></div>
               </div>
               <div className="mt-4 rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4"><div className="flex gap-3"><LockKeyhole size={16} className="mt-0.5 text-[color:var(--gold)]" /><div><div className="text-[10px] font-semibold text-white">Le risque se règle après</div><p className="mt-1 text-[9px] leading-5 text-white/35">Lots, risque %, SL/TP, protections et mapping sont séparés de la connexion.</p></div></div></div>
-              <label className="mt-4 flex items-start gap-3 rounded-2xl border border-white/[0.06] bg-black/20 p-4 text-[10px] leading-5 text-white/50"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[#d4a934]" />J’autorise InvestPro à utiliser ces identifiants pour établir et maintenir la connexion de copie via son infrastructure technique.</label>
-              <div className="mt-5 flex items-center justify-between gap-3"><div className="text-[8px] text-white/25">Le mot de passe n’est jamais stocké dans copier_receivers.</div><button disabled={busy || !consent} onClick={() => void addReceiver()} className="inline-flex h-11 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-xs font-semibold text-black disabled:opacity-40">{busy ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />} Connecter ce compte</button></div>
+              <label className="mt-4 flex items-start gap-3 rounded-2xl border border-white/[0.06] bg-black/20 p-4 text-[10px] leading-5 text-white/50"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[#d4a934]" />J’autorise InvestPro à transmettre ces identifiants au moteur de copie pour établir et maintenir la connexion.</label>
+              <label className="mt-3 flex items-start gap-3 rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.035] p-4 text-[10px] leading-5 text-white/55"><input type="checkbox" checked={syncConsent} onChange={(e) => setSyncConsent(e.target.checked)} className="mt-0.5 h-4 w-4 accent-emerald-500" /><span>Pour afficher automatiquement le solde et l’equity, j’autorise aussi InvestPro à créer la connexion MetaSync et à conserver mes identifiants chiffrés, si le serveur est pris en charge. Cette autorisation est facultative.</span></label>
+              {syncConsent ? <div className="mt-3 grid grid-cols-1 gap-3 rounded-2xl border border-white/[0.06] bg-black/20 p-4 sm:grid-cols-2">
+                <Field label="Devise du compte"><input className="ip-field" required maxLength={3} pattern="[A-Z]{3}" value={accountCurrency} onChange={(e) => setAccountCurrency(e.target.value.toUpperCase())} placeholder="USD" /></Field>
+                <Field label="Type de compte"><select className="ip-field" required value={accountType} onChange={(e) => setAccountType(e.target.value as "real" | "demo" | "prop")}><option value="real">Réel</option><option value="demo">Démo</option><option value="prop">Prop firm</option></select></Field>
+                {(() => { const selectedServer = (serverChoice === "__OTHER__" ? customServer : serverChoice).trim().toLowerCase(); const supported = hostedBrokers.some((item) => item.platform.toUpperCase() === platform && item.server.trim().toLowerCase() === selectedServer); return <p className={cn("sm:col-span-2 text-[9px] leading-5", supported ? "text-emerald-300/70" : "text-amber-200/70")}>{supported ? "Serveur compatible : la synchronisation démarrera après l’ajout." : "Ce serveur n’apparaît pas encore dans le catalogue MetaSync. Le compte pourra être ajouté au Copier, mais son solde ne sera pas synchronisé automatiquement."}</p>; })()}
+              </div> : null}
+              <div className="mt-5 flex items-center justify-between gap-3"><div className="max-w-md text-[8px] leading-4 text-white/30">Le mot de passe n’est pas écrit dans copier_receivers. MetaSync ne le reçoit que si tu coches l’autorisation ci-dessus et que le serveur est compatible.</div><button disabled={busy || !consent} onClick={() => void addReceiver()} className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-xs font-semibold text-black disabled:opacity-40">{busy ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />} Connecter ce compte</button></div>
             </div>
           </div>
         </div>,
