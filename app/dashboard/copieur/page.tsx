@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   Activity,
@@ -787,7 +787,7 @@ export default function CopieurPage() {
     return () => window.clearInterval(timer);
   }, [supabase]);
 
-  async function selectReceiver(id: string) {
+  const selectReceiver = useCallback(async (id: string) => {
     if (selectedReceiverId === id) {
       setSelectedReceiverId(null);
       setSelectedStatus(null);
@@ -808,7 +808,7 @@ export default function CopieurPage() {
     } finally {
       setBusy(false);
     }
-  }
+  }, [selectedReceiverId]);
 
   async function post(payload: Record<string, unknown>) {
     const response = await fetch("/api/sth", {
@@ -1306,7 +1306,7 @@ export default function CopieurPage() {
           <section className="scroll-mt-4 rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4">
             <div className="flex items-start justify-between gap-3"><div><div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[color:var(--gold)]">2. Compte receveur</div><p className="mt-1 text-[10px] leading-5 text-white/40">Le compte qui recevra les trades copiés.</p></div><span className="shrink-0 rounded-full border border-white/[0.08] px-2.5 py-1 text-[8px] font-semibold text-white/45">{selectedReceiver ? "Sélectionné" : "À choisir"}</span></div>
             {selectedReceiver ? <div className="mt-3 rounded-[17px] border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-3"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><div className="break-words text-base font-semibold text-white">{selectedReceiver.alias}</div><div className="mt-1 text-[9px] text-white/45">#{selectedReceiver.login} · {selectedReceiver.platform}</div></div><ReceiverStatusBadge status={selectedReceiver.status} /></div><div className="mt-2 flex items-center justify-between gap-2 text-[9px] text-white/45"><span className="truncate">{selectedReceiver.server}</span><span>{selectedStats.balance == null ? "Solde —" : money(selectedStats.balance, selectedStats.currency)}</span></div></div> : <div className="mt-3 rounded-xl border border-dashed border-white/[0.12] bg-black/15 p-3 text-[10px] text-white/45">Aucun receveur sélectionné.</div>}
-            {virtualReceivers.length > 1 ? <div className="mt-2 space-y-2">{virtualReceivers.filter((receiver) => receiver.id !== selectedReceiverId).map((receiver) => <button type="button" key={receiver.id} onClick={() => void selectReceiver(receiver.id)} className="flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-black/15 px-3 text-left"><span className="min-w-0"><span className="block truncate text-[10px] font-semibold text-white/80">{receiver.alias}</span><span className="mt-0.5 block text-[8px] text-white/40">#{receiver.login} · {receiver.platform}</span></span><ReceiverStatusBadge status={receiver.status} /></button>)}</div> : null}
+            {virtualReceivers.length > 0 ? <div className="mt-3 space-y-2"><div className="text-[9px] font-semibold text-white/50">{virtualReceivers.length === 1 ? "Compte receveur relié" : "Choisir un compte receveur"}</div>{virtualReceivers.map((receiver) => { const active = receiver.id === selectedReceiverId; return <button type="button" key={receiver.id} aria-pressed={active} onClick={() => { if (!active) void selectReceiver(receiver.id); }} className={cn("flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border px-3 text-left transition", active ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]" : "border-white/[0.07] bg-black/15")}><span className="min-w-0"><span className="block truncate text-[10px] font-semibold text-white/85">{receiver.alias}{active ? " · sélectionné" : ""}</span><span className="mt-0.5 block truncate text-[8px] text-white/45">#{receiver.login} · {receiver.platform} · {receiver.server}</span></span><ReceiverStatusBadge status={receiver.status} /></button>; })}</div> : null}
             <div className="mt-3 flex gap-2"><button type="button" onClick={openAddReceiver} className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[color:var(--gold)] px-3 text-[10px] font-semibold text-black"><Plus size={14} /> Ajouter un compte receveur</button>{selectedReceiver && selectedReceiver.id !== "legacy" ? <button type="button" aria-label="Retirer ce receveur" onClick={() => { setRemoveReceiverId(selectedReceiver.id); setDisconnectConsent(false); setRemoveError(""); }} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-red-500/20 text-red-300"><Unplug size={15} /></button> : null}</div>
           </section>
 

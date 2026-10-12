@@ -544,7 +544,7 @@ export default function MobileGlobalV1() {
           }
 
           body {
-            padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+            padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px));
           }
 
           [data-investpro-mobile-nav="true"] {
@@ -556,11 +556,11 @@ export default function MobileGlobalV1() {
             z-index: 1350;
             left: 0;
             right: 0;
-            bottom: 0;
+            bottom: calc(-1 * env(safe-area-inset-bottom, 0px));
             display: grid;
             grid-template-columns: repeat(5, minmax(0, 1fr));
             gap: 2px;
-            padding: 5px 8px max(5px, env(safe-area-inset-bottom, 0px));
+            padding: 4px 8px 5px;
             border-top: 1px solid rgba(216,175,71,.17);
             background: rgba(8,9,8,.94);
             backdrop-filter: blur(22px);
@@ -619,7 +619,7 @@ export default function MobileGlobalV1() {
             left: 10px;
             right: 10px;
             top: max(12px, env(safe-area-inset-top));
-            bottom: calc(76px + env(safe-area-inset-bottom));
+            bottom: calc(68px + env(safe-area-inset-bottom));
             display: flex;
             flex-direction: column;
             overflow: hidden;
