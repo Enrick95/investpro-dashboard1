@@ -208,6 +208,16 @@ export async function POST(request: Request) {
       );
     }
 
+    const syncConsent = body?.syncConsent === true;
+    const syncCurrency = String(body?.syncCurrency || "").trim().toUpperCase();
+    const syncType = String(body?.syncType || "");
+    if (syncConsent && !/^[A-Z]{3}$/.test(syncCurrency)) {
+      return NextResponse.json({ error: "Indique la devise exacte du compte pour activer MetaSync." }, { status: 400 });
+    }
+    if (syncConsent && !["real", "demo", "prop"].includes(syncType)) {
+      return NextResponse.json({ error: "Sélectionne le type exact du compte pour activer MetaSync." }, { status: 400 });
+    }
+
     const { admin } = clients();
 
     const { data: existing } = await admin
@@ -243,6 +253,9 @@ export async function POST(request: Request) {
         server,
         password_cipher: passwordCipher,
         note: note || null,
+        metasync_sync_consent: syncConsent,
+        metasync_currency: syncConsent ? syncCurrency : null,
+        metasync_account_type: syncConsent ? syncType : null,
         status: "pending",
       })
       .select("*")
