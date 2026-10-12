@@ -452,8 +452,8 @@ export default function CopieurPage() {
   const [password, setPassword] = useState("");
   const [consent, setConsent] = useState(false);
   const [syncConsent, setSyncConsent] = useState(false);
-  const [accountCurrency, setAccountCurrency] = useState("USD");
-  const [accountType, setAccountType] = useState<"real" | "demo" | "prop">("real");
+  const [accountCurrency, setAccountCurrency] = useState("");
+  const [accountType, setAccountType] = useState<"real" | "demo" | "prop" | "">("");
 
   const [riskSettings, setRiskSettings] = useState<RiskSettings>(DEFAULT_RISK_SETTINGS);
   const [configurationRequests, setConfigurationRequests] = useState<CopierConfigRequest[]>([]);
@@ -825,6 +825,8 @@ export default function CopieurPage() {
     setPassword("");
     setConsent(false);
     setSyncConsent(false);
+    setAccountCurrency("");
+    setAccountType("");
     setAddOpen(true);
   }
 
@@ -832,6 +834,8 @@ export default function CopieurPage() {
     setPassword("");
     setConsent(false);
     setSyncConsent(false);
+    setAccountCurrency("");
+    setAccountType("");
     setAddOpen(false);
   }
 
@@ -844,9 +848,14 @@ export default function CopieurPage() {
       setMessage("Complète les informations du compte et confirme l’autorisation.");
       return;
     }
-    if (syncConsent && !/^[A-Z]{3}$/.test(accountCurrency.trim().toUpperCase())) {
+    if (syncConsent && !["EUR", "USD"].includes(accountCurrency.trim().toUpperCase())) {
       setError(true);
-      setMessage("Indique le code devise réel du compte (par exemple USD ou EUR) pour configurer MetaSync.");
+      setMessage("Choisis la devise réelle du compte : euro (EUR) ou dollar américain (USD).");
+      return;
+    }
+    if (syncConsent && !["real", "demo", "prop"].includes(accountType)) {
+      setError(true);
+      setMessage("Choisis le type du compte : réel, démo ou prop firm.");
       return;
     }
     setBusy(true);
@@ -1789,13 +1798,13 @@ export default function CopieurPage() {
               </div>
               <div className="mt-4 rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4"><div className="flex gap-3"><LockKeyhole size={16} className="mt-0.5 text-[color:var(--gold)]" /><div><div className="text-[10px] font-semibold text-white">Le risque se règle après</div><p className="mt-1 text-[9px] leading-5 text-white/35">Lots, risque %, SL/TP, protections et mapping sont séparés de la connexion.</p></div></div></div>
               <label className="mt-4 flex items-start gap-3 rounded-2xl border border-white/[0.06] bg-black/20 p-4 text-[10px] leading-5 text-white/50"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[#d4a934]" />J’autorise InvestPro à transmettre ces identifiants au moteur de copie pour établir et maintenir la connexion.</label>
-              <label className="mt-3 flex items-start gap-3 rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.035] p-4 text-[10px] leading-5 text-white/55"><input type="checkbox" checked={syncConsent} onChange={(e) => setSyncConsent(e.target.checked)} className="mt-0.5 h-4 w-4 accent-emerald-500" /><span><strong className="text-emerald-200">Pour afficher ce compte dans Mes comptes et synchroniser le solde/equity :</strong> j’autorise InvestPro à créer la connexion MetaSync et à conserver mes identifiants chiffrés, si le serveur est pris en charge. Sans cette autorisation, le compte sera relié uniquement au Copier.</span></label>
+              <label className="mt-3 flex items-start gap-3 rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.035] p-4 text-[10px] leading-5 text-white/55"><input type="checkbox" checked={syncConsent} onChange={(e) => { setSyncConsent(e.target.checked); setAccountCurrency(""); setAccountType(""); }} className="mt-0.5 h-4 w-4 accent-emerald-500" /><span><strong className="text-emerald-200">Pour afficher ce compte dans Mes comptes et synchroniser le solde/equity :</strong> j’autorise InvestPro à créer la connexion MetaSync et à conserver mes identifiants chiffrés, si le serveur est pris en charge. Sans cette autorisation, le compte sera relié uniquement au Copier.</span></label>
               {syncConsent ? <div className="mt-3 grid grid-cols-1 gap-3 rounded-2xl border border-white/[0.06] bg-black/20 p-4 sm:grid-cols-2">
-                <Field label="Devise du compte"><input className="ip-field" required maxLength={3} pattern="[A-Z]{3}" value={accountCurrency} onChange={(e) => setAccountCurrency(e.target.value.toUpperCase())} placeholder="USD" /></Field>
-                <Field label="Type de compte"><select className="ip-field" required value={accountType} onChange={(e) => setAccountType(e.target.value as "real" | "demo" | "prop")}><option value="real">Réel</option><option value="demo">Démo</option><option value="prop">Prop firm</option></select></Field>
+                <Field label="Devise du compte"><select className="ip-field" required value={accountCurrency} onChange={(e) => setAccountCurrency(e.target.value)}><option value="" disabled>Choisir la devise</option><option value="EUR">EUR — Euro</option><option value="USD">USD — Dollar américain</option></select></Field>
+                <Field label="Type de compte"><select className="ip-field" required value={accountType} onChange={(e) => setAccountType(e.target.value as "real" | "demo" | "prop" | "")}><option value="" disabled>Choisir le type de compte</option><option value="real">Compte réel</option><option value="demo">Compte démo</option><option value="prop">Compte prop firm</option></select></Field>
                 {(() => { const selectedServer = (serverChoice === "__OTHER__" ? customServer : serverChoice).trim().toLowerCase(); const supported = hostedBrokers.some((item) => item.platform.toUpperCase() === platform && item.server.trim().toLowerCase() === selectedServer); return <p className={cn("sm:col-span-2 text-[9px] leading-5", supported ? "text-emerald-300/70" : "text-amber-200/70")}>{supported ? "Serveur compatible : la synchronisation démarrera après l’ajout." : "Ce serveur n’apparaît pas encore dans le catalogue MetaSync. Le compte pourra être ajouté au Copier, mais son solde ne sera pas synchronisé automatiquement."}</p>; })()}
               </div> : null}
-              <div className="mt-5 flex items-center justify-between gap-3"><div className="max-w-md text-[8px] leading-4 text-white/30">Le mot de passe n’est pas écrit dans copier_receivers. MetaSync ne le reçoit que si tu coches l’autorisation ci-dessus et que le serveur est compatible.</div><button disabled={busy || !consent} onClick={() => void addReceiver()} className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-xs font-semibold text-black disabled:opacity-40">{busy ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />} Connecter ce compte</button></div>
+              <div className="mt-5 flex items-center justify-between gap-3"><div className="max-w-md text-[8px] leading-4 text-white/30">Le mot de passe n’est pas écrit dans copier_receivers. MetaSync ne le reçoit que si tu coches l’autorisation ci-dessus et que le serveur est compatible.</div><button disabled={busy || !consent || (syncConsent && (!accountCurrency || !accountType))} onClick={() => void addReceiver()} className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-xs font-semibold text-black disabled:opacity-40">{busy ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />} Connecter ce compte</button></div>
             </div>
           </div>
         </div>,
