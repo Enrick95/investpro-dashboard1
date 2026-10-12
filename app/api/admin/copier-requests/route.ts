@@ -247,59 +247,16 @@ export async function PATCH(request: Request) {
   }
 
   if (status === "activated") {
-    const { data: existingReceiver } = await admin
+    // Master accounts are source accounts; never mirror them into the customer's receiver list.
+    // Clean only legacy rows that this flow explicitly tagged as automatic Master mirrors.
+    const { error: receiverCleanupError } = await admin
       .from("copier_receivers")
-      .select("id")
+      .delete()
       .eq("user_id", current.user_id)
-      .eq("platform", current.platform)
-      .eq("login", current.login)
-      .eq("server", current.server)
-      .maybeSingle();
-
-    if (existingReceiver?.id) {
-      await admin
-        .from("copier_receivers")
-        .update({
-          provider_user_id: current.provider_user_id,
-          alias: current.alias,
-          status: "connected",
-          last_connected_at: new Date().toISOString(),
-          config: {
-            activation_source: "admin_social_trade_hub",
-            request_id: current.id,
-          },
-        })
-        .eq("id", existingReceiver.id);
-    } else {
-      const { count } = await admin
-        .from("copier_receivers")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", current.user_id);
-
-      const { error: insertError } = await admin
-        .from("copier_receivers")
-        .insert({
-          user_id: current.user_id,
-          provider_user_id: current.provider_user_id,
-          alias: current.alias,
-          platform: current.platform,
-          login: current.login,
-          server: current.server,
-          status: "connected",
-          is_primary: Number(count || 0) === 0,
-          last_connected_at: new Date().toISOString(),
-          config: {
-            activation_source: "admin_social_trade_hub",
-            request_id: current.id,
-          },
-        });
-
-      if (insertError) {
-        return NextResponse.json(
-          { error: `Activation impossible : ${insertError.message}` },
-          { status: 500 }
-        );
-      }
+      .filter("config->>activation_source", "eq", "admin_social_trade_hub")
+      .filter("config->>request_id", "eq", String(current.id));
+    if (receiverCleanupError) {
+      console.error("[copier-requests] impossible de nettoyer le miroir Master", receiverCleanupError);
     }
   }
 
