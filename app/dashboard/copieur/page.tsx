@@ -467,6 +467,11 @@ export default function CopieurPage() {
   const [removalBusy, setRemovalBusy] = useState(false);
   const [removalMessage, setRemovalMessage] = useState("");
   const [requestBusy, setRequestBusy] = useState(false);
+  const [masterSyncConsent, setMasterSyncConsent] = useState(false);
+  const [masterSyncCurrency, setMasterSyncCurrency] = useState("");
+  const [masterSyncType, setMasterSyncType] = useState<"" | "real" | "demo" | "prop">("");
+  const [masterSyncBusy, setMasterSyncBusy] = useState(false);
+  const [masterSyncMessage, setMasterSyncMessage] = useState("");
   const [requestServerChoice, setRequestServerChoice] = useState("");
   const [saveBarState, setSaveBarState] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [saveBarMessage, setSaveBarMessage] = useState("Configuration non enregistrée");
@@ -481,6 +486,9 @@ export default function CopieurPage() {
     server: "",
     password: "",
     note: "",
+    syncConsent: false,
+    syncCurrency: "USD",
+    syncType: "demo" as "real" | "demo" | "prop",
   });
 
   const latestMasterRequests = useMemo(() => {
@@ -562,6 +570,39 @@ export default function CopieurPage() {
     } finally { setRemovalBusy(false); }
   }
 
+  async function startMasterSync() {
+    if (!approvedMaster || masterSyncBusy) return;
+    if (!masterSyncConsent || !/^[A-Z]{3}$/.test(masterSyncCurrency.trim().toUpperCase()) || !masterSyncType) {
+      setMasterSyncMessage("Confirme l’autorisation, la devise et le type exact du compte.");
+      return;
+    }
+    setMasterSyncBusy(true);
+    setMasterSyncMessage("");
+    try {
+      const response = await fetch("/api/copier/master-sync", {
+        method: "POST",
+        headers: { ...(await authHeaders()), "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requestId: approvedMaster.id,
+          currency: masterSyncCurrency.trim().toUpperCase(),
+          type: masterSyncType,
+          syncConsent: true,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Impossible de lancer MetaSync.");
+      setMasterSyncMessage(data.alreadyConnected
+        ? "Une connexion MetaSync existe déjà pour ce compte. Actualise Mes comptes pour vérifier son état."
+        : "MetaSync est lancé. Le solde et l’equity apparaîtront après la première synchronisation.");
+      setMasterSyncConsent(false);
+      await loadRows();
+    } catch (cause) {
+      setMasterSyncMessage(cause instanceof Error ? cause.message : "Impossible de lancer MetaSync.");
+    } finally {
+      setMasterSyncBusy(false);
+    }
+  }
+
   async function submitActivationRequest() {
     const form = requestForm;
     const effectiveServer =
@@ -583,6 +624,11 @@ export default function CopieurPage() {
       setMessage("Complète les informations du compte à activer.");
       return;
     }
+    if (form.syncConsent && !/^[A-Z]{3}$/.test(form.syncCurrency.trim().toUpperCase())) {
+      setError(true);
+      setMessage("Indique la devise réelle du compte (par exemple USD ou EUR) pour configurer MetaSync.");
+      return;
+    }
 
     setRequestBusy(true);
     setError(false);
@@ -598,6 +644,7 @@ export default function CopieurPage() {
           ...form,
           broker: effectiveBroker,
           server: effectiveServer,
+          syncCurrency: form.syncConsent ? form.syncCurrency.trim().toUpperCase() : null,
         }),
       });
 
@@ -614,6 +661,9 @@ export default function CopieurPage() {
         server: "",
         password: "",
         note: "",
+        syncConsent: false,
+        syncCurrency: "USD",
+        syncType: "demo",
       });
       setRequestServerChoice("");
       setRequestOpen(false);
@@ -1287,7 +1337,17 @@ export default function CopieurPage() {
             <div className="mt-4 rounded-[18px] border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-3 md:mt-5 md:rounded-[22px] md:p-4">
               <div className="flex items-center justify-between gap-3"><div className="min-w-0"><div className="break-words text-lg font-semibold leading-tight text-white md:text-2xl">{approvedMaster?.alias || "Aucun Master approuvé"}</div><div className="mt-1 text-[10px] text-white/40 md:text-[11px]">{approvedMaster ? `#${approvedMaster.login} • ${approvedMaster.server}` : "La demande de Master doit être approuvée par un administrateur."}</div></div><button className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/20 text-white/70 md:h-10 md:w-10"><Settings2 size={15} /></button></div>
               <div className="mt-3 grid grid-cols-3 gap-2 md:mt-5 md:gap-3">{[["Equity", masterEquity == null ? "—" : money(masterEquity, masterCurrency)], ["Solde", masterBalance == null ? "En attente de sync" : money(masterBalance, masterCurrency)], ["P&L jour", masterPnl == null ? "—" : money(masterPnl, masterCurrency)]].map(([label, value], index) => <div key={label} className="min-w-0 rounded-lg border border-white/[0.06] bg-black/20 p-2 md:rounded-xl md:p-3"><div className="text-[7px] uppercase tracking-[0.06em] text-white/30 md:text-[9px] md:tracking-[0.08em]">{label}</div><div className={cn("mt-1 break-words text-[10px] font-semibold leading-snug md:mt-2 md:text-lg", index === 2 && Number(masterPnl) > 0 ? "text-emerald-400" : index === 2 && Number(masterPnl) < 0 ? "text-red-400" : "text-white")}>{value}</div></div>)}</div>
-              {approvedMaster && masterBalance == null ? <div className="mt-3 rounded-xl border border-amber-500/15 bg-amber-500/[0.04] p-3 text-[10px] leading-5 text-white/55"><div className="font-semibold text-amber-200">Solde non synchronisé</div><p className="mt-1">Pour afficher le solde et l’equity de ce Master, connecte ce même compte MT4/MT5 dans Mes comptes avec la synchronisation MetaSync. Le Copier reprendra ensuite ses données automatiquement.</p><a href="/dashboard/comptes" className="mt-2 inline-flex min-h-9 items-center rounded-lg border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 font-semibold text-[color:var(--gold)]">Ouvrir Mes comptes</a></div> : null}
+              {approvedMaster && masterBalance == null ? <div className="mt-3 rounded-xl border border-amber-500/15 bg-amber-500/[0.04] p-3 text-[10px] leading-5 text-white/55">
+                <div className="font-semibold text-amber-200">Solde non synchronisé</div>
+                <p className="mt-1">Autorise MetaSync pour relier ce Master approuvé à la synchronisation des soldes. Tes identifiants déjà chiffrés seront transmis côté serveur ; ils ne seront jamais affichés ni journalisés.</p>
+                <label className="mt-3 flex cursor-pointer items-start gap-2"><input type="checkbox" checked={masterSyncConsent} onChange={(event) => setMasterSyncConsent(event.target.checked)} className="mt-0.5 h-4 w-4 accent-emerald-500" /><span>J’autorise InvestPro à créer une connexion MetaSync pour ce compte et à conserver ses identifiants chiffrés afin de synchroniser le solde et l’equity.</span></label>
+                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <label className="block"><span className="mb-1 block text-[9px] text-white/45">Devise exacte</span><input className="ip-field" maxLength={3} value={masterSyncCurrency} onChange={(event) => setMasterSyncCurrency(event.target.value.toUpperCase())} placeholder="USD, EUR…" /></label>
+                  <label className="block"><span className="mb-1 block text-[9px] text-white/45">Type de compte</span><select className="ip-field" value={masterSyncType} onChange={(event) => setMasterSyncType(event.target.value as typeof masterSyncType)}><option value="">Choisir</option><option value="real">Réel</option><option value="demo">Démo</option><option value="prop">Prop firm</option></select></label>
+                </div>
+                {masterSyncMessage ? <p role="status" className="mt-2 text-[9px] leading-4 text-white/70">{masterSyncMessage}</p> : null}
+                <div className="mt-3 flex flex-wrap items-center gap-2"><button type="button" disabled={masterSyncBusy || !masterSyncConsent || !/^[A-Z]{3}$/.test(masterSyncCurrency.trim()) || !masterSyncType} onClick={() => void startMasterSync()} className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.08] px-3 font-semibold text-emerald-200 disabled:opacity-40">{masterSyncBusy ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />} Synchroniser ce Master</button><a href="/dashboard/comptes" className="inline-flex min-h-9 items-center rounded-lg border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 font-semibold text-[color:var(--gold)]">Ouvrir Mes comptes</a></div>
+              </div> : null}
             </div>
 
           </section>
@@ -1566,6 +1626,16 @@ export default function CopieurPage() {
                   </div>
                 </div>
               </div>
+
+              <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.035] p-4 text-[10px] leading-5 text-white/60">
+                <input type="checkbox" checked={requestForm.syncConsent} onChange={(e) => setRequestForm((v) => ({ ...v, syncConsent: e.target.checked }))} className="mt-0.5 h-4 w-4 accent-emerald-500" />
+                <span>Pour afficher automatiquement le solde après approbation, j’autorise aussi InvestPro à créer la connexion MetaSync et à conserver mes identifiants chiffrés si le serveur est pris en charge. Cette autorisation est facultative.</span>
+              </label>
+              {requestForm.syncConsent ? <div className="mt-3 grid grid-cols-1 gap-3 rounded-2xl border border-white/[0.06] bg-black/20 p-4 sm:grid-cols-2">
+                <Field label="Devise du compte"><input className="ip-field" required maxLength={3} value={requestForm.syncCurrency} onChange={(e) => setRequestForm((v) => ({ ...v, syncCurrency: e.target.value.toUpperCase() }))} placeholder="USD" /></Field>
+                <Field label="Type de compte"><select className="ip-field" required value={requestForm.syncType} onChange={(e) => setRequestForm((v) => ({ ...v, syncType: e.target.value as "real" | "demo" | "prop" }))}><option value="real">Réel</option><option value="demo">Démo</option><option value="prop">Prop firm</option></select></Field>
+                {(() => { const selectedServer = (requestServerChoice === "__OTHER__" ? requestForm.server : requestServerChoice).trim().toLowerCase(); const supported = hostedBrokers.some((item) => item.platform.toUpperCase() === requestForm.platform && item.server.trim().toLowerCase() === selectedServer); return <p className={cn("sm:col-span-2 text-[9px] leading-5", supported ? "text-emerald-300/70" : "text-amber-200/70")}>{supported ? "Serveur compatible : MetaSync démarrera lorsque l’équipe aura approuvé le Master." : "Ce serveur n’est pas dans le catalogue MetaSync. La demande Master pourra être envoyée, mais son solde ne sera pas synchronisé automatiquement."}</p>; })()}
+              </div> : null}
 
               <div className="mt-5 flex justify-end">
                 <button
