@@ -99,15 +99,15 @@ export default function HistoriquePage() {
       <section className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6">
         <div className="flex items-center gap-2 text-white">
           <Activity size={17} className="text-[color:var(--gold)]" />
-          <h2 className="text-sm font-semibold">Activité InvestPro</h2>
+          <h2 className="text-sm font-semibold">Journal des activités</h2>
         </div>
         <div className="mt-4 rounded-2xl border border-dashed border-white/[0.10] bg-black/15 px-4 py-7 text-center">
-          <p className="text-sm font-semibold text-white">L’historique détaillé n’est pas encore disponible</p>
+          <p className="text-sm font-semibold text-white">Consulte les événements récents de ton espace</p>
           <p className="mx-auto mt-1 max-w-xl text-xs leading-5 text-white/40">
-            Aucun événement d’activité n’est disponible ici pour le moment. Tes trades restent consultables dans ton journal.
+            Retrouve les trades, connexions, comptes et échanges de support dans le centre d’activité.
           </p>
-          <Link href="/dashboard/journal" className="mt-4 inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-white/[0.08] px-4 text-xs font-semibold text-white/70 no-underline hover:text-white">
-            Ouvrir le journal
+          <Link href="/dashboard/activite" className="mt-4 inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 text-xs font-semibold text-[color:var(--gold)] no-underline hover:bg-[color:var(--gold-soft)]/80">
+            Ouvrir le centre d’activité
             <ArrowRight size={13} />
           </Link>
         </div>
