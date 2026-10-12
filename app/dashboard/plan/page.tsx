@@ -51,6 +51,7 @@ type ChecklistState = {
 
 type Trade = {
   id: number;
+  account_id: number | null;
   trade_date: string;
   symbol: string;
   direction: "buy" | "sell";
@@ -152,6 +153,23 @@ function frMoney(value: number) {
   });
 }
 
+function formatCurrencyTotals(values: Record<string, number>) {
+  return Object.entries(values)
+    .filter(([currency]) => currency !== "UNKNOWN")
+    .map(([currency, amount]) => {
+      try {
+        return { amount, label: new Intl.NumberFormat("fr-FR", {
+          style: "currency",
+          currency,
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }).format(amount) };
+      } catch {
+        return { amount, label: `${frMoney(amount)} ${currency}` };
+      }
+    });
+}
+
 function pct(value: number) {
   return `${Math.round(value)}%`;
 }
@@ -177,6 +195,7 @@ export default function TradingPlanPage() {
     useState<ChecklistState>(DEFAULT_CHECKLIST);
 
   const [trades, setTrades] = useState<Trade[]>([]);
+  const [accountCurrencies, setAccountCurrencies] = useState<Record<number, string>>({});
   const [checklistHistory, setChecklistHistory] = useState<ChecklistHistory[]>([]);
 
   const [assetInput, setAssetInput] = useState("");
@@ -206,7 +225,7 @@ export default function TradingPlanPage() {
 
       setUserId(user.id);
 
-      const [planResult, tradesResult, checklistResult] = await Promise.all([
+      const [planResult, tradesResult, checklistResult, accountsResult] = await Promise.all([
         supabase
           .from("trading_plans")
           .select("*")
@@ -218,6 +237,7 @@ export default function TradingPlanPage() {
           .select(
             `
               id,
+              account_id,
               trade_date,
               symbol,
               direction,
@@ -241,6 +261,11 @@ export default function TradingPlanPage() {
           .eq("user_id", user.id)
           .order("created_at", { ascending: false })
           .limit(12),
+
+        supabase
+          .from("trading_accounts")
+          .select("id,currency")
+          .eq("user_id", user.id),
       ]);
 
       if (planResult.data) {
@@ -267,6 +292,17 @@ export default function TradingPlanPage() {
 
       if (!tradesResult.error) {
         setTrades((tradesResult.data as Trade[]) || []);
+      }
+
+      if (!accountsResult.error) {
+        setAccountCurrencies(
+          Object.fromEntries(
+            (accountsResult.data || []).map((account) => [
+              Number(account.id),
+              String(account.currency || "").toUpperCase(),
+            ])
+          )
+        );
       }
 
       if (!checklistResult.error) {
@@ -436,8 +472,8 @@ export default function TradingPlanPage() {
         setupPct: null as number | null,
         compliantTrades: 0,
         nonCompliantTrades: 0,
-        pnlCompliant: 0,
-        pnlNonCompliant: 0,
+        pnlCompliantByCurrency: {} as Record<string, number>,
+        pnlNonCompliantByCurrency: {} as Record<string, number>,
         recent: [] as Array<{
           trade: Trade;
           compliant: boolean;
@@ -459,8 +495,8 @@ export default function TradingPlanPage() {
 
     let compliantTrades = 0;
     let nonCompliantTrades = 0;
-    let pnlCompliant = 0;
-    let pnlNonCompliant = 0;
+    const pnlCompliantByCurrency: Record<string, number> = {};
+    const pnlNonCompliantByCurrency: Record<string, number> = {};
 
     const recent: Array<{
       trade: Trade;
@@ -521,10 +557,14 @@ export default function TradingPlanPage() {
 
       if (compliant) {
         compliantTrades += 1;
-        pnlCompliant += Number(trade.result_amount || 0);
+        const currency = accountCurrencies[Number(trade.account_id)] || "UNKNOWN";
+        pnlCompliantByCurrency[currency] =
+          (pnlCompliantByCurrency[currency] || 0) + Number(trade.result_amount || 0);
       } else if (checks.length > 0) {
         nonCompliantTrades += 1;
-        pnlNonCompliant += Number(trade.result_amount || 0);
+        const currency = accountCurrencies[Number(trade.account_id)] || "UNKNOWN";
+        pnlNonCompliantByCurrency[currency] =
+          (pnlNonCompliantByCurrency[currency] || 0) + Number(trade.result_amount || 0);
       }
 
       if (recent.length < 6) {
@@ -550,11 +590,11 @@ export default function TradingPlanPage() {
       setupPct: setupKnown ? (setupValid / setupKnown) * 100 : null,
       compliantTrades,
       nonCompliantTrades,
-      pnlCompliant,
-      pnlNonCompliant,
+      pnlCompliantByCurrency,
+      pnlNonCompliantByCurrency,
       recent,
     };
-  }, [trades, plan]);
+  }, [trades, plan, accountCurrencies]);
 
   if (loading) {
     return (
@@ -725,13 +765,13 @@ export default function TradingPlanPage() {
         <ResultCompareCard
           title="Trades conformes"
           count={discipline.compliantTrades}
-          pnl={discipline.pnlCompliant}
+          pnlByCurrency={discipline.pnlCompliantByCurrency}
           positive
         />
         <ResultCompareCard
           title="Trades hors plan"
           count={discipline.nonCompliantTrades}
-          pnl={discipline.pnlNonCompliant}
+          pnlByCurrency={discipline.pnlNonCompliantByCurrency}
           positive={false}
         />
       </section>
@@ -1318,26 +1358,29 @@ function ProgressMetric({
 function ResultCompareCard({
   title,
   count,
-  pnl,
+  pnlByCurrency,
   positive,
 }: {
   title: string;
   count: number;
-  pnl: number;
+  pnlByCurrency: Record<string, number>;
   positive: boolean;
 }) {
-  const tone =
-    pnl > 0 ? "text-emerald-400" : pnl < 0 ? "text-red-400" : "text-white";
+  const totals = formatCurrencyTotals(pnlByCurrency);
 
   return (
     <div className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5">
       <div className="flex items-center justify-between gap-3">
         <div>
           <div className="text-[10px] text-[color:var(--muted)]">{title}</div>
-          <div className={`mt-2 text-2xl font-semibold ${tone}`}>
-            {pnl > 0 ? "+" : ""}
-            {frMoney(pnl)} $US
+          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-lg font-semibold">
+            {totals.length ? totals.map((total) => (
+              <span key={total.label} className={total.amount < 0 ? "text-red-400" : total.amount > 0 ? "text-emerald-400" : "text-white"}>{total.amount > 0 ? "+" : ""}{total.label}</span>
+            )) : <span className="text-white/45">—</span>}
           </div>
+          {Object.hasOwn(pnlByCurrency, "UNKNOWN") ? (
+            <div className="mt-1 text-[9px] text-amber-300">Devise indisponible pour certains trades</div>
+          ) : null}
           <div className="mt-1 text-[9px] text-white/30">
             {count} trade{count !== 1 ? "s" : ""}
           </div>
