@@ -852,10 +852,30 @@ export default function CopieurPage() {
     setBusy(true);
     setError(false);
     try {
-      const data = await post({ action: "connect", alias: alias.trim(), platform, login, server: effectiveServer, password, consent: true });
+      const normalizedServer = effectiveServer.trim().toLowerCase();
+      const existingReceiver = receivers.find((receiver) =>
+        receiver.login.trim() === login.trim() &&
+        receiver.platform.toUpperCase() === platform &&
+        receiver.server.trim().toLowerCase() === normalizedServer
+      );
+      const connectResult = existingReceiver?.status === "connected"
+        ? { receiverId: existingReceiver.id, reusedReceiver: true }
+        : await post({
+            action: "connect",
+            receiverId: existingReceiver?.id,
+            alias: alias.trim(),
+            platform,
+            login,
+            server: effectiveServer,
+            password,
+            consent: true,
+          });
+      const data = {
+        ...connectResult,
+        reusedReceiver: Boolean(existingReceiver) || Boolean(connectResult.reusedReceiver),
+      };
       let syncNotice = "";
       if (syncConsent) {
-        const normalizedServer = effectiveServer.trim().toLowerCase();
         const existingHosted = hostedAccountSyncs.find((row) => {
           const connection = row.investpro_mt_connections;
           return connection && connection.login?.trim() === login.trim() &&
@@ -932,7 +952,13 @@ export default function CopieurPage() {
         setSelectedReceiverId(data.receiverId);
         if (data.status) applyStatus(data.status);
       }
-      setMessage(syncNotice ? `Nouveau compte receveur connecté. ${syncNotice}` : "Nouveau compte receveur connecté.");
+      if (!syncConsent) {
+        syncNotice = "Connexion Copier active. Pour afficher aussi ce compte dans Mes comptes avec son solde, reconnecte ce même compte en cochant l’autorisation MetaSync.";
+      }
+      const receiverMessage = data.reusedReceiver
+        ? existingReceiver?.status === "connected" ? "Compte receveur déjà connecté." : "Compte receveur reconnecté."
+        : "Nouveau compte receveur connecté.";
+      setMessage(syncNotice ? `${receiverMessage} ${syncNotice}` : receiverMessage);
     } catch (cause) {
       setError(true);
       setMessage(cause instanceof Error ? cause.message : "Connexion impossible.");
@@ -1763,7 +1789,7 @@ export default function CopieurPage() {
               </div>
               <div className="mt-4 rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4"><div className="flex gap-3"><LockKeyhole size={16} className="mt-0.5 text-[color:var(--gold)]" /><div><div className="text-[10px] font-semibold text-white">Le risque se règle après</div><p className="mt-1 text-[9px] leading-5 text-white/35">Lots, risque %, SL/TP, protections et mapping sont séparés de la connexion.</p></div></div></div>
               <label className="mt-4 flex items-start gap-3 rounded-2xl border border-white/[0.06] bg-black/20 p-4 text-[10px] leading-5 text-white/50"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[#d4a934]" />J’autorise InvestPro à transmettre ces identifiants au moteur de copie pour établir et maintenir la connexion.</label>
-              <label className="mt-3 flex items-start gap-3 rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.035] p-4 text-[10px] leading-5 text-white/55"><input type="checkbox" checked={syncConsent} onChange={(e) => setSyncConsent(e.target.checked)} className="mt-0.5 h-4 w-4 accent-emerald-500" /><span>Pour afficher automatiquement le solde et l’equity, j’autorise aussi InvestPro à créer la connexion MetaSync et à conserver mes identifiants chiffrés, si le serveur est pris en charge. Cette autorisation est facultative.</span></label>
+              <label className="mt-3 flex items-start gap-3 rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.035] p-4 text-[10px] leading-5 text-white/55"><input type="checkbox" checked={syncConsent} onChange={(e) => setSyncConsent(e.target.checked)} className="mt-0.5 h-4 w-4 accent-emerald-500" /><span><strong className="text-emerald-200">Pour afficher ce compte dans Mes comptes et synchroniser le solde/equity :</strong> j’autorise InvestPro à créer la connexion MetaSync et à conserver mes identifiants chiffrés, si le serveur est pris en charge. Sans cette autorisation, le compte sera relié uniquement au Copier.</span></label>
               {syncConsent ? <div className="mt-3 grid grid-cols-1 gap-3 rounded-2xl border border-white/[0.06] bg-black/20 p-4 sm:grid-cols-2">
                 <Field label="Devise du compte"><input className="ip-field" required maxLength={3} pattern="[A-Z]{3}" value={accountCurrency} onChange={(e) => setAccountCurrency(e.target.value.toUpperCase())} placeholder="USD" /></Field>
                 <Field label="Type de compte"><select className="ip-field" required value={accountType} onChange={(e) => setAccountType(e.target.value as "real" | "demo" | "prop")}><option value="real">Réel</option><option value="demo">Démo</option><option value="prop">Prop firm</option></select></Field>

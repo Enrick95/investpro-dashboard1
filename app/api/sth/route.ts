@@ -92,6 +92,7 @@ export async function POST(req: Request) {
   let db: SupabaseClient | undefined;
   let lock: string | undefined;
   let createdReceiverId: string | undefined;
+  let reusedReceiver = false;
 
   try {
     const user = await permission();
@@ -132,26 +133,51 @@ export async function POST(req: Request) {
       if (receiverId) {
         providerUserId = await providerUserFor(db, user.id, receiverId);
       } else {
-        const providerId = randomUUID();
-        const { data, error } = await db
+        // Reuse the existing receiver when someone reconnects it to enable
+        // MetaSync later. Otherwise retrying from the add form would create a
+        // duplicate receiver for the same trading account.
+        const { data: existingRows, error: existingError } = await db
           .from("copier_receivers")
-          .insert({
-            user_id: user.id,
-            provider_user_id: providerId,
-            alias: b.alias.trim(),
-            platform: b.platform,
-            login: b.login,
-            server: b.server.trim(),
-            status: "connected",
-            is_primary: false,
-            config: { risk_mode: "fixed" },
-          })
-          .select("id,provider_user_id")
-          .single();
-        if (error || !data) throw Error("DB");
-        createdReceiverId = String(data.id);
-        receiverId = createdReceiverId;
-        providerUserId = String(data.provider_user_id);
+          .select("id,provider_user_id,server")
+          .eq("user_id", user.id)
+          .eq("platform", b.platform)
+          .eq("login", b.login)
+          .order("created_at", { ascending: true })
+          .limit(20);
+        if (existingError) throw Error("DB");
+
+        const normalizedServer = b.server.trim().toLowerCase();
+        const existing = (existingRows || []).find((row) =>
+          String(row.server || "").trim().toLowerCase() === normalizedServer &&
+          typeof row.provider_user_id === "string" && row.provider_user_id.length > 0
+        );
+
+        if (existing) {
+          reusedReceiver = true;
+          receiverId = String(existing.id);
+          providerUserId = String(existing.provider_user_id);
+        } else {
+          const providerId = randomUUID();
+          const { data, error } = await db
+            .from("copier_receivers")
+            .insert({
+              user_id: user.id,
+              provider_user_id: providerId,
+              alias: b.alias.trim(),
+              platform: b.platform,
+              login: b.login,
+              server: b.server.trim(),
+              status: "connected",
+              is_primary: false,
+              config: { risk_mode: "fixed" },
+            })
+            .select("id,provider_user_id")
+            .single();
+          if (error || !data) throw Error("DB");
+          createdReceiverId = String(data.id);
+          receiverId = createdReceiverId;
+          providerUserId = String(data.provider_user_id);
+        }
       }
 
       const defaultLots = lotValue(process.env.STH_DEFAULT_LOTS || "0.01");
@@ -212,6 +238,7 @@ export async function POST(req: Request) {
     return json({
       status: { ...status, masterAccountsList: status.masterAccountsList.filter((m) => owned.has(m.id)) },
       receiverId: receiverId || "legacy",
+      reusedReceiver,
       message: "État confirmé par le moteur de copie.",
     });
   } catch (e) {
