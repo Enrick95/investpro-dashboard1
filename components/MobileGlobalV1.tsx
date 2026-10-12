@@ -556,7 +556,7 @@ export default function MobileGlobalV1() {
             z-index: 1350;
             left: 0;
             right: 0;
-            bottom: calc(-1 * env(safe-area-inset-bottom, 0px));
+            bottom: 0;
             display: grid;
             grid-template-columns: repeat(5, minmax(0, 1fr));
             gap: 2px;
