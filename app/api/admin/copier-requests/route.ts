@@ -247,16 +247,59 @@ export async function PATCH(request: Request) {
   }
 
   if (status === "activated") {
-    // Master accounts are source accounts; never mirror them into the customer's receiver list.
-    // Clean only legacy rows that this flow explicitly tagged as automatic Master mirrors.
-    const { error: receiverCleanupError } = await admin
+    const { data: existingReceiver } = await admin
       .from("copier_receivers")
-      .delete()
+      .select("id")
       .eq("user_id", current.user_id)
-      .filter("config->>activation_source", "eq", "admin_social_trade_hub")
-      .filter("config->>request_id", "eq", String(current.id));
-    if (receiverCleanupError) {
-      console.error("[copier-requests] impossible de nettoyer le miroir Master", receiverCleanupError);
+      .eq("platform", current.platform)
+      .eq("login", current.login)
+      .eq("server", current.server)
+      .maybeSingle();
+
+    if (existingReceiver?.id) {
+      await admin
+        .from("copier_receivers")
+        .update({
+          provider_user_id: current.provider_user_id,
+          alias: current.alias,
+          status: "connected",
+          last_connected_at: new Date().toISOString(),
+          config: {
+            activation_source: "admin_social_trade_hub",
+            request_id: current.id,
+          },
+        })
+        .eq("id", existingReceiver.id);
+    } else {
+      const { count } = await admin
+        .from("copier_receivers")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", current.user_id);
+
+      const { error: insertError } = await admin
+        .from("copier_receivers")
+        .insert({
+          user_id: current.user_id,
+          provider_user_id: current.provider_user_id,
+          alias: current.alias,
+          platform: current.platform,
+          login: current.login,
+          server: current.server,
+          status: "connected",
+          is_primary: Number(count || 0) === 0,
+          last_connected_at: new Date().toISOString(),
+          config: {
+            activation_source: "admin_social_trade_hub",
+            request_id: current.id,
+          },
+        });
+
+      if (insertError) {
+        return NextResponse.json(
+          { error: `Activation impossible : ${insertError.message}` },
+          { status: 500 }
+        );
+      }
     }
   }
 
@@ -297,28 +340,22 @@ export async function PATCH(request: Request) {
         ? `Votre demande pour le compte ${alias} n’a pas pu être acceptée.${reason ? ` Motif : ${reason}` : " Contactez notre équipe pour connaître les étapes à suivre."}`
         : `Notre équipe traite actuellement votre demande pour le compte ${alias}. Vous recevrez une notification quand la vérification sera terminée.`;
     const eventKey = `copier-master-${status}-${current.id}`;
-    let noticeInserted = false;
     try {
-      const notice = await createCopierNotice(admin, {
+      await createCopierNotice(admin, {
         eventKey,
         userId: current.user_id,
         title,
         message,
       });
-      noticeInserted = notice.inserted;
     } catch (noticeError) {
       console.error("[copier-master] notification non enregistrée", noticeError);
     }
-    const emailResult = noticeInserted
-      ? await sendCopierEmail(admin, eventKey, current.user_id, title, message)
-      : { sent: false, reason: "notification_not_recorded" };
+    const emailResult = await sendCopierEmail(admin, eventKey, current.user_id, title, message);
     if (!emailResult.sent && emailResult.reason !== "email_not_configured") {
       console.error("[copier-master] e-mail non envoyé", emailResult.reason);
     }
-    if (noticeInserted) {
-      const pushResult = await sendCopierPush(admin, eventKey, current.user_id, title, message);
-      if (!pushResult.sent && !["push_not_configured", "no_active_subscription"].includes(pushResult.reason || "")) console.error("[copier-master] push non envoyé", pushResult.reason);
-    }
+    const pushResult = await sendCopierPush(admin, eventKey, current.user_id, title, message);
+    if (!pushResult.sent && !["push_not_configured", "no_active_subscription"].includes(pushResult.reason || "")) console.error("[copier-master] push non envoyé", pushResult.reason);
   }
   return NextResponse.json({
     ok: true,

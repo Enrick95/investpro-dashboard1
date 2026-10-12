@@ -372,7 +372,6 @@ function matchingAccount(accounts: LooseAccount[], target: { login: string; plat
     if (account) return {
       ...account,
       currency: account.currency || connection?.currency,
-      equity: synced[0].equity,
       current_equity: synced[0].equity,
       sync_last_seen: connection?.last_sync,
     };
@@ -461,7 +460,6 @@ export default function CopieurPage() {
   const latestMasterRequests = useMemo(() => {
     const seen = new Set<string>();
     return activationRequests.filter((request) => {
-      if (request.removal_status === "completed") return false;
       const key = `${request.platform}:${request.login}:${request.server.trim().toLowerCase()}`;
       if (seen.has(key)) return false;
       seen.add(key);
@@ -474,7 +472,7 @@ export default function CopieurPage() {
     ? receivers.find((receiver) => receiver.login === approvedMaster.login && receiver.platform === approvedMaster.platform && receiver.server === approvedMaster.server) || null
     : null;
   const virtualReceivers = useMemo(() => {
-    const rows: Array<Receiver & { legacy?: boolean }> = receivers.filter((r) => r.config?.activation_source !== "admin_social_trade_hub" && !approvedMasterLogins.has(`${r.platform}:${r.login}`)).map((r) => ({ ...r }));
+    const rows: Array<Receiver & { legacy?: boolean }> = receivers.filter((r) => !approvedMasterLogins.has(`${r.platform}:${r.login}`)).map((r) => ({ ...r }));
     if (legacyConnected) {
       rows.unshift({
         id: "legacy",
@@ -609,13 +607,13 @@ export default function CopieurPage() {
   async function loadRows() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const [r1, r2] = await Promise.all([
+    const [r1, r2, hostedResponse] = await Promise.all([
       supabase.from("copier_receivers").select("*").eq("user_id", user.id).order("created_at", { ascending: true }),
       supabase.from("trading_accounts").select("*").eq("user_id", user.id),
+      fetch("/api/metasync/hosted", { cache: "no-store" }).then(async (response) => response.ok ? response.json() : null).catch(() => null),
     ]);
     if (!r1.error) setReceivers((r1.data || []) as Receiver[]);
     if (!r2.error) setAccounts((r2.data || []) as LooseAccount[]);
-    const hostedResponse = await fetch("/api/metasync/hosted", { cache: "no-store" }).then(async (response) => response.ok ? response.json() : null).catch(() => null);
     setHostedAccountSyncs(Array.isArray(hostedResponse?.connections) ? hostedResponse.connections as HostedAccountSync[] : []);
     const configResponse = await fetch("/api/copier/config-request", { cache: "no-store" });
     if (configResponse.ok) {
@@ -680,8 +678,8 @@ export default function CopieurPage() {
 
   useEffect(() => { void refresh(); }, []);
 
-  // Refresh the balances already collected by MetaSync without creating a
-  // separate connector or changing any stored account configuration.
+  // Keep displayed balances aligned with the existing MetaSync snapshots while
+  // the Copier page stays open. No new connector or account is created here.
   useEffect(() => {
     const timer = window.setInterval(() => {
       if (document.visibilityState !== "visible") return;
@@ -1182,6 +1180,7 @@ export default function CopieurPage() {
             <div className="mt-4 rounded-[18px] border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-3 md:mt-5 md:rounded-[22px] md:p-4">
               <div className="flex items-center justify-between gap-3"><div className="min-w-0"><div className="break-words text-lg font-semibold leading-tight text-white md:text-2xl">{approvedMaster?.alias || "Aucun Master approuvé"}</div><div className="mt-1 text-[10px] text-white/40 md:text-[11px]">{approvedMaster ? `#${approvedMaster.login} • ${approvedMaster.server}` : "La demande de Master doit être approuvée par un administrateur."}</div></div><button className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/20 text-white/70 md:h-10 md:w-10"><Settings2 size={15} /></button></div>
               <div className="mt-3 grid grid-cols-3 gap-2 md:mt-5 md:gap-3">{[["Equity", masterEquity == null ? "—" : money(masterEquity, masterCurrency)], ["Solde", masterBalance == null ? "En attente de sync" : money(masterBalance, masterCurrency)], ["P&L jour", masterPnl == null ? "—" : money(masterPnl, masterCurrency)]].map(([label, value], index) => <div key={label} className="min-w-0 rounded-lg border border-white/[0.06] bg-black/20 p-2 md:rounded-xl md:p-3"><div className="text-[7px] uppercase tracking-[0.06em] text-white/30 md:text-[9px] md:tracking-[0.08em]">{label}</div><div className={cn("mt-1 break-words text-[10px] font-semibold leading-snug md:mt-2 md:text-lg", index === 2 && Number(masterPnl) > 0 ? "text-emerald-400" : index === 2 && Number(masterPnl) < 0 ? "text-red-400" : "text-white")}>{value}</div></div>)}</div>
+              {approvedMaster && masterBalance == null ? <div className="mt-3 rounded-xl border border-amber-500/15 bg-amber-500/[0.04] p-3 text-[10px] leading-5 text-white/55"><div className="font-semibold text-amber-200">Solde non synchronisé</div><p className="mt-1">Pour afficher le solde et l’equity de ce Master, connecte ce même compte MT4/MT5 dans Mes comptes avec la synchronisation MetaSync. Le Copier reprendra ensuite ses données automatiquement.</p><a href="/dashboard/comptes" className="mt-2 inline-flex min-h-9 items-center rounded-lg border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 font-semibold text-[color:var(--gold)]">Ouvrir Mes comptes</a></div> : null}
             </div>
 
           </section>

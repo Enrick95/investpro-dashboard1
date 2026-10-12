@@ -17,7 +17,7 @@ const menu:MenuItem[]=[
  {key:'copy',g:'TRADING',p:'/copieur',l:'InvestPro Copier',i:Repeat2},
  {key:'tradingview',g:'MARCHÉS & ANALYSE',p:'/tradingview',l:'TradingView',i:BarChart3},
  {key:'calendar',g:'MARCHÉS & ANALYSE',p:'/calendrier',l:'Calendrier éco',i:CalendarDays},
- {key:'fundamentals',g:'MARCHÉS & ANALYSE',p:'/analyse-fondamentale',l:'Analyse fondamentale',i:Globe2},
+ {key:'fundamentals',g:'MARCHÉS & ANALYSE',p:'/analyse-fondamentale',l:'Analyse fondamentale',i:Globe2,soon:true},
  {key:'financialjuice',g:'MARCHÉS & ANALYSE',p:'/financialjuice',l:'FinancialJuice',i:Zap},
  {key:'vip',g:'COMMUNAUTÉ',p:'/performances-vip',l:'Performances VIP',i:TrendingUp},
  {key:'ranking',g:'COMMUNAUTÉ',p:'/classement',l:'Classement',i:Trophy},

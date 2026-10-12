@@ -142,21 +142,16 @@ export async function PATCH(request: Request) {
       const title = "Réglage de copie reçu";
       const message = "Votre demande de réglage a bien été transmise à l’équipe InvestPro. Le réglage actuellement actif reste en place pendant son traitement. Vous recevrez une notification dès que le résultat sera confirmé.";
       const eventKey = `copier-config-request-${requestId}`;
-      let noticeInserted = false;
-      try { noticeInserted = (await createCopierNotice(admin, { eventKey, userId: user.id, title, message })).inserted; }
+      try { await createCopierNotice(admin, { eventKey, userId: user.id, title, message }); }
       catch (noticeError) { console.error("[copier-settings] notification client non enregistrée", noticeError); }
       for (const adminId of await copierAdminUserIds(admin)) {
         try { await createCopierNotice(admin, { eventKey: `copier-config-request-admin-${requestId}-${adminId}`, userId: adminId, title: "Nouveau réglage Copier à traiter", message: `Une demande de réglage attend un traitement · compte receveur ${receiverId}.`, href: "/dashboard/admin/copieur" }); }
         catch (noticeError) { console.error("[copier-settings] notification admin non enregistrée", noticeError); }
       }
-      const emailResult = noticeInserted
-        ? await sendCopierEmail(admin, eventKey, user.id, title, message)
-        : { sent: false, reason: "notification_not_recorded" };
+      const emailResult = await sendCopierEmail(admin, eventKey, user.id, title, message);
       if (!emailResult.sent && emailResult.reason !== "email_not_configured") console.error("[copier-settings] e-mail non envoyé", emailResult.reason);
-      if (noticeInserted) {
-        const pushResult = await sendCopierPush(admin, eventKey, user.id, title, message);
-        if (!pushResult.sent && !["push_not_configured", "no_active_subscription"].includes(pushResult.reason || "")) console.error("[copier-settings] push non envoyé", pushResult.reason);
-      }
+      const pushResult = await sendCopierPush(admin, eventKey, user.id, title, message);
+      if (!pushResult.sent && !["push_not_configured", "no_active_subscription"].includes(pushResult.reason || "")) console.error("[copier-settings] push non envoyé", pushResult.reason);
       requestStatus = "pending";
     } else {
       const { error: updateError } = await supabase

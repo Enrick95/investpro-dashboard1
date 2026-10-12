@@ -1149,6 +1149,121 @@
     gap:12px 18px;
   }
 }
+
+/* Product preview: use the real dashboard vocabulary and neutral empty states,
+   so the marketing page never implies fictional account performance. */
+.previewLabel{
+  position:absolute;
+  top:3px;
+  left:4%;
+  z-index:10;
+  display:flex;
+  align-items:center;
+  gap:7px;
+  color:#e9b64e;
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:1.35px;
+}
+.productPreview{
+  position:relative;
+  width:100%;
+  max-width:790px;
+  min-height:510px;
+  padding-top:26px;
+}
+.productDesktop{
+  width:100%;
+  height:438px;
+  display:grid;
+  grid-template-columns:145px minmax(0,1fr);
+  overflow:hidden;
+  border:1px solid rgba(239,189,84,.42);
+  border-radius:19px;
+  background:#080a08;
+  box-shadow:0 35px 70px rgba(0,0,0,.62),0 0 55px rgba(236,173,42,.1),inset 0 1px rgba(255,255,255,.035);
+  transform:rotate(-1deg) rotateY(-3deg);
+}
+.productSidebar{
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  padding:17px 10px;
+  border-right:1px solid rgba(255,255,255,.06);
+  background:linear-gradient(180deg,#0d0f0d,#080908);
+  color:#92978f;
+  font-size:9px;
+}
+.productSidebar>span:not(.productActive){padding:9px 7px;border-radius:6px}
+.productBrand{display:flex;align-items:center;gap:7px;margin:0 4px 15px;color:#f7f1e5}
+.productBrand b{font-size:11px;line-height:1.05}
+.productBrand small{display:block;margin-top:3px;color:#a8a59d;font-size:6px;letter-spacing:2px}
+.productActive{padding:9px 7px;border-radius:6px;color:#f0bc51;background:linear-gradient(90deg,rgba(161,108,22,.28),rgba(82,60,23,.06));box-shadow:inset 2px 0 #e8ad3b}
+.productMain{min-width:0;padding:15px;background:radial-gradient(circle at 85% 0%,rgba(217,155,45,.08),transparent 35%),#090b09}
+.productTopline{display:flex;justify-content:space-between;align-items:center;color:#858a83;font-size:8px}
+.productTopline b{color:#e8b54d}
+.productAvatar{display:grid;place-items:center;width:24px;height:24px;border:1px solid rgba(239,189,84,.2);border-radius:50%;color:#e8b54d;font-weight:800}
+.productHeading{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:13px 0}
+.productHeading small,.productBanner small{display:block;color:#d8ad4c;font-size:7px;font-weight:800;letter-spacing:1px}
+.productHeading h2{margin:4px 0;font-size:20px;letter-spacing:-.5px}
+.productHeading p{margin:0;color:#858a83;font-size:8px}
+.productButton{white-space:nowrap;padding:8px 10px;border:1px solid rgba(239,189,84,.3);border-radius:7px;background:rgba(217,172,67,.12);color:#efc35e;font-size:8px;font-weight:700}
+.productBanner{display:flex;justify-content:space-between;gap:15px;padding:12px;border:1px solid rgba(239,189,84,.18);border-radius:10px;background:linear-gradient(110deg,rgba(217,172,67,.09),rgba(255,255,255,.015))}
+.productBanner>div:first-child>b{display:block;margin:6px 0 3px;font-size:12px}
+.productBanner>div:first-child>span{display:block;color:#9da097;font-size:8px}
+.productRules{display:flex;flex-direction:column;gap:6px;min-width:125px}
+.productRules b{color:#f0bc51;font-size:10px}.productRules i{color:#aaa99f;font-size:7px;font-style:normal;font-weight:500}
+.productMetrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:9px}
+.productMetrics>div{min-width:0;padding:9px;border:1px solid rgba(255,255,255,.055);border-radius:8px;background:#0d100d}
+.productMetrics small,.productMetrics span{display:block;overflow:hidden;color:#81877f;font-size:7px;text-overflow:ellipsis;white-space:nowrap}
+.productMetrics b{display:block;margin:5px 0;color:#f1eee6;font-size:15px}
+.productChart{margin-top:9px;padding:10px;border:1px solid rgba(255,255,255,.055);border-radius:9px;background:#0b0d0b}
+.productChart>div:first-child{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.productChart>div:first-child b{font-size:10px}.productChart>div:first-child small{color:#7b817b;font-size:6px;letter-spacing:.5px}
+.productEmptyChart{height:112px;display:grid;place-items:center;margin-top:8px;border-radius:6px;background:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px);background-size:100% 28px;color:#70776f;font-size:8px;text-align:center}
+.productPhone{position:absolute;z-index:8;right:-1%;bottom:0;width:188px;height:390px;padding:7px;border:2px solid #494b44;border-radius:31px;background:#050605;box-shadow:0 25px 55px rgba(0,0,0,.72),0 0 35px rgba(228,167,49,.13);transform:rotate(2deg)}
+.productPhone:before{content:"";position:absolute;z-index:3;top:9px;left:50%;width:54px;height:13px;transform:translateX(-50%);border-radius:99px;background:#050605}
+.phoneScreen{position:relative;height:100%;overflow:hidden;padding:12px 10px 0;border-radius:23px;background:linear-gradient(180deg,#11140f,#090b09 48%);color:#f5f3ee}
+.phoneStatus{display:flex;justify-content:space-between;padding:0 4px 7px;color:#e6e6df;font-size:7px;font-weight:700}
+.phoneBrand{display:flex;align-items:center;gap:6px;padding:7px 0;border-bottom:1px solid rgba(239,189,84,.16)}
+.phoneBrand .miniBars{transform:scale(.72);transform-origin:left center;width:12px}
+.phoneBrand>b{font-size:10px}.phoneBrand>span:last-child{display:grid;place-items:center;width:19px;height:19px;margin-left:auto;border:1px solid rgba(239,189,84,.24);border-radius:50%;color:#edbd58;font-size:7px}
+.phoneGreeting{display:flex;flex-direction:column;gap:4px;margin-top:14px}
+.phoneGreeting small{color:#dbb351;font-size:6px;font-weight:800;letter-spacing:.65px}
+.phoneGreeting b{font-size:14px;letter-spacing:-.3px}.phoneGreeting>span{color:#858a83;font-size:7px}
+.phoneBalance{margin-top:12px;padding:10px;border:1px solid rgba(239,189,84,.2);border-radius:12px;background:linear-gradient(140deg,rgba(217,172,67,.12),rgba(255,255,255,.025))}
+.phoneBalance small{display:block;color:#a9a99e;font-size:6px;letter-spacing:.7px}.phoneBalance>b{display:block;margin:4px 0;font-size:22px}.phoneBalance>span{color:#898d86;font-size:6px}
+.phoneMiniChart{height:31px;display:flex;align-items:flex-end;gap:4px;margin-top:8px;border-bottom:1px solid rgba(255,255,255,.05)}
+.phoneMiniChart i{flex:1;height:var(--h,50%);border-radius:3px 3px 0 0;background:linear-gradient(0deg,rgba(217,172,67,.18),#e9b64e)}
+.phoneMiniChart i:nth-child(1){height:25%}.phoneMiniChart i:nth-child(2){height:43%}.phoneMiniChart i:nth-child(3){height:37%}.phoneMiniChart i:nth-child(4){height:57%}.phoneMiniChart i:nth-child(5){height:48%}.phoneMiniChart i:nth-child(6){height:72%}.phoneMiniChart i:nth-child(7){height:63%}.phoneMiniChart i:nth-child(8){height:86%}.phoneMiniChart i:nth-child(9){height:76%}
+.phoneSectionTitle{display:flex;justify-content:space-between;align-items:center;margin:13px 0 7px;font-size:8px;font-weight:750}.phoneSectionTitle span{color:#d9ad48;font-size:6px}
+.phoneTiles{display:grid;grid-template-columns:1fr 1fr;gap:6px}.phoneTiles>div{padding:8px;border:1px solid rgba(255,255,255,.06);border-radius:9px;background:#11130f}.phoneTiles small{display:block;color:#8a8e87;font-size:6px}.phoneTiles b{display:block;margin-top:5px;font-size:13px}
+.phoneEmpty{padding:10px;border:1px solid rgba(255,255,255,.05);border-radius:9px;color:#8a8e87;font-size:6px;line-height:1.5;text-align:center}
+.phoneTabbar{position:absolute;right:0;bottom:0;left:0;display:flex;justify-content:space-around;padding:8px 2px 7px;border-top:1px solid rgba(255,255,255,.07);background:#0b0d0b;color:#d8ad4c}
+.phoneTabbar>span{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px}.phoneTabbar small{color:#898e86;font-size:5px}
+@media(max-width:1180px){.productPreview{transform:scale(.95);transform-origin:center}.productPhone{right:-2%}}
+@media(max-width:900px){.productPreview{max-width:740px;transform:none}.productDesktop{width:96%;height:410px}.productPhone{right:0;bottom:-8px}}
+@media(max-width:640px){
+  .heroVisual{min-height:450px;overflow:visible}
+  .previewLabel{top:0;left:1%;font-size:7px;letter-spacing:.9px}
+  .productPreview{min-height:420px;padding-top:25px}
+  .productDesktop{width:100%;height:294px;grid-template-columns:58px minmax(0,1fr);border-radius:12px;transform:none}
+  .productSidebar{gap:4px;padding:10px 4px;font-size:0}
+  .productBrand{justify-content:center;margin:0 0 8px}.productBrand b,.productSidebar>span:not(.productActive){display:none}
+  .productActive{height:26px;padding:7px 5px;font-size:0;text-align:center}.productActive:first-letter{font-size:11px}
+  .productMain{padding:8px}.productTopline{font-size:6px}.productAvatar{width:18px;height:18px;font-size:7px}
+  .productHeading{margin:8px 0}.productHeading small,.productBanner small{font-size:5px}.productHeading h2{font-size:12px}.productHeading p{max-width:170px;font-size:6px}.productButton{padding:6px;font-size:0}.productButton:first-letter{font-size:10px}
+  .productBanner{padding:7px;gap:4px}.productBanner>div:first-child>b{margin:4px 0 2px;font-size:8px}.productBanner>div:first-child>span{max-width:160px;font-size:6px}.productRules{min-width:75px;gap:3px}.productRules b{font-size:7px}.productRules i{font-size:5px}
+  .productMetrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;margin-top:5px}.productMetrics>div{padding:5px}.productMetrics small,.productMetrics span{font-size:5px}.productMetrics b{margin:3px 0;font-size:10px}
+  .productChart{margin-top:5px;padding:6px}.productChart>div:first-child b{font-size:7px}.productChart>div:first-child small{font-size:4px}.productEmptyChart{height:48px;margin-top:5px;font-size:6px}
+  .productPhone{right:2%;bottom:-3px;width:145px;height:305px;padding:6px;border-radius:25px;transform:rotate(2deg)}
+  .phoneScreen{padding:9px 8px 0;border-radius:18px}.productPhone:before{top:7px;width:42px;height:10px}
+  .phoneStatus{padding-bottom:4px;font-size:6px}.phoneBrand{gap:4px;padding:4px 0}.phoneBrand>b{font-size:8px}.phoneBrand>span:last-child{width:16px;height:16px;font-size:6px}
+  .phoneGreeting{gap:3px;margin-top:9px}.phoneGreeting small{font-size:5px}.phoneGreeting b{font-size:11px}.phoneGreeting>span{font-size:6px}
+  .phoneBalance{margin-top:8px;padding:7px}.phoneBalance small{font-size:5px}.phoneBalance>b{margin:3px 0;font-size:17px}.phoneBalance>span{font-size:5px}.phoneMiniChart{height:22px;margin-top:5px}
+  .phoneSectionTitle{margin:9px 0 5px;font-size:7px}.phoneSectionTitle span{font-size:5px}.phoneTiles{gap:4px}.phoneTiles>div{padding:6px}.phoneTiles small{font-size:5px}.phoneTiles b{margin-top:3px;font-size:10px}.phoneEmpty{padding:7px;font-size:5px}
+  .phoneTabbar{padding:6px 2px}.phoneTabbar>span{font-size:9px}.phoneTabbar small{font-size:4px}
+}
 @media(prefers-reduced-motion:reduce){
   .page *{
     scroll-behavior:auto!important;

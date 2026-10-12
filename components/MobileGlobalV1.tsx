@@ -77,17 +77,19 @@ function MenuTile({
   href,
   label,
   icon,
+  soon,
   onClick,
 }: {
   href: string;
   label: string;
   icon: ReactNode;
+  soon?: boolean;
   onClick: () => void;
 }) {
   return (
     <Link href={href} onClick={onClick} className="ip-more-tile">
       <span className="ip-more-tile-icon">{icon}</span>
-      <span>{label}</span>
+      <span>{label}{soon ? <small className="ip-soon-badge">Bientôt</small> : null}</span>
     </Link>
   );
 }
@@ -391,7 +393,7 @@ export default function MobileGlobalV1() {
     () => [
       { navKey: "calendar" as NavigationKey, href: "/dashboard/calendrier", label: "Calendrier éco", icon: <CalendarDays size={20} /> },
       { navKey: "tradingview" as NavigationKey, href: "/dashboard/tradingview", label: "TradingView", icon: <LineChart size={20} /> },
-      { navKey: "fundamentals" as NavigationKey, href: "/dashboard/analyse-fondamentale", label: "Analyse fonda.", icon: <Landmark size={20} /> },
+      { navKey: "fundamentals" as NavigationKey, href: "/dashboard/analyse-fondamentale", label: "Analyse fonda.", soon: true, icon: <Landmark size={20} /> },
       { navKey: "financialjuice" as NavigationKey, href: "/dashboard/financialjuice", label: "FinancialJuice", icon: <Newspaper size={20} /> },
     ].filter((item) => visibility[item.navKey] !== false),
     [visibility]
@@ -720,6 +722,17 @@ export default function MobileGlobalV1() {
             display: flex;
             align-items: center;
             justify-content: center;
+          }
+
+          .ip-soon-badge {
+            display: inline-block;
+            margin-left: 4px;
+            padding: 2px 5px;
+            border: 1px solid rgba(216,175,71,.28);
+            border-radius: 999px;
+            color: #f3cf78;
+            font-size: 8px;
+            white-space: nowrap;
           }
 
           /* Dashboard : plus dense et proche de la maquette */

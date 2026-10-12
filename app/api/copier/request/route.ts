@@ -164,8 +164,7 @@ export async function POST(request: Request) {
       const eventKey = `copier-master-removal-${removalRows[0].id}`;
       const title = "Demande de retrait Master reçue";
       const message = `La demande de retrait de ${selected.alias} a été transmise à l’équipe InvestPro. Le compte restera associé jusqu’à la confirmation du retrait.`;
-      let noticeInserted = false;
-      try { noticeInserted = (await createCopierNotice(admin, { eventKey, userId: user.id, title, message })).inserted; }
+      try { await createCopierNotice(admin, { eventKey, userId: user.id, title, message }); }
       catch (noticeError) { console.error("[copier-request] notification de retrait non enregistrée", noticeError); }
       for (const adminId of await copierAdminUserIds(admin)) {
         for (const removal of removalRows) {
@@ -173,10 +172,10 @@ export async function POST(request: Request) {
           catch (noticeError) { console.error("[copier-request] alerte admin de retrait non enregistrée", noticeError); }
         }
       }
-      if (noticeInserted) {
-        await sendCopierEmail(admin, eventKey, user.id, title, message);
-        await sendCopierPush(admin, eventKey, user.id, title, message);
-      }
+      const emailResult = await sendCopierEmail(admin, eventKey, user.id, title, message);
+      if (!emailResult.sent && emailResult.reason !== "email_not_configured") console.error("[copier-request] e-mail de retrait non envoyé", emailResult.reason);
+      const pushResult = await sendCopierPush(admin, eventKey, user.id, title, message);
+      if (!pushResult.sent && !["push_not_configured", "no_active_subscription"].includes(pushResult.reason || "")) console.error("[copier-request] push de retrait non envoyée", pushResult.reason);
       return NextResponse.json({ ok: true, message: "Ta demande de retrait est envoyée. Le Master restera actif jusqu’à sa vérification par l’équipe InvestPro." });
     }
 
@@ -253,15 +252,13 @@ export async function POST(request: Request) {
 
     const confirmation = "Votre demande d’activation de compte Master a bien été envoyée ! Notre équipe va procéder à sa vérification. Vous recevrez une notification dès que votre compte sera activé.";
     const title = "Demande de compte Master reçue";
-    let clientNoticeInserted = false;
     try {
-      const notice = await createCopierNotice(admin, {
+      await createCopierNotice(admin, {
         eventKey: `copier-master-request-${data.id}`,
         userId: user.id,
         title,
         message: confirmation,
       });
-      clientNoticeInserted = notice.inserted;
     } catch (noticeError) {
       console.error("[copier-request] notification client non enregistrée", noticeError);
     }
@@ -281,16 +278,12 @@ export async function POST(request: Request) {
     }
 
     const eventKey = `copier-master-request-${data.id}`;
-    const emailResult = clientNoticeInserted
-      ? await sendCopierEmail(admin, eventKey, user.id, title, confirmation)
-      : { sent: false, reason: "notification_not_recorded" };
+    const emailResult = await sendCopierEmail(admin, eventKey, user.id, title, confirmation);
     if (!emailResult.sent && emailResult.reason !== "email_not_configured") {
       console.error("[copier-request] e-mail de confirmation non envoyé", emailResult.reason);
     }
-    if (clientNoticeInserted) {
-      const pushResult = await sendCopierPush(admin, eventKey, user.id, title, confirmation);
-      if (!pushResult.sent && !["push_not_configured", "no_active_subscription"].includes(pushResult.reason || "")) console.error("[copier-request] push non envoyé", pushResult.reason);
-    }
+    const pushResult = await sendCopierPush(admin, eventKey, user.id, title, confirmation);
+    if (!pushResult.sent && !["push_not_configured", "no_active_subscription"].includes(pushResult.reason || "")) console.error("[copier-request] push non envoyé", pushResult.reason);
 
     return NextResponse.json({
       ok: true,

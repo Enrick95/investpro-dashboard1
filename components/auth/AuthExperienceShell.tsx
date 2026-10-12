@@ -140,10 +140,15 @@ function Brand() {
 
 function LiveCommunity({ compact = false }: { compact?: boolean }) {
   return (
-    <div className={compact ? "inline-flex items-center gap-2.5" : "inline-flex items-center gap-3 rounded-full border border-emerald-500/15 bg-emerald-500/[0.045] px-3.5 py-2"}>
-      <span className="h-2.5 w-2.5 rounded-full bg-[#d9ac43] shadow-[0_0_12px_rgba(217,172,67,.55)]" />
-      <span className="text-[10px] font-semibold text-[#e5c77f]">
-        Espace membres InvestPro
+    <div className={compact
+      ? "inline-flex items-center gap-2.5 rounded-full border border-emerald-400/20 bg-emerald-400/[0.06] px-3 py-2"
+      : "inline-flex items-center gap-3 rounded-full border border-emerald-400/20 bg-emerald-400/[0.06] px-3.5 py-2"}>
+      <span aria-hidden="true" className="relative flex h-2.5 w-2.5 shrink-0">
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60 motion-reduce:animate-none" />
+        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_13px_rgba(52,211,153,.75)]" />
+      </span>
+      <span className="text-[10px] font-semibold text-emerald-200">
+        Espace membres InvestPro · communauté active
       </span>
     </div>
   );
