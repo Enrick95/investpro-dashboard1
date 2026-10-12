@@ -28,6 +28,7 @@ import {
 
 import { createClient } from "@/lib/supabase/client";
 import { loadActiveTradingScope, scopeTradesToActiveAccounts } from "@/lib/trading/activeScope";
+import { convertToEur, formatEur, rateDateLabel, useUsdEurRate } from "@/lib/currency";
 
 /* =========================================================
    TYPES
@@ -1039,6 +1040,7 @@ function parseInvestingHtml(
 ========================================================= */
 
 export default function DashboardPage() {
+  const { usdToEur, rateDate, rateLoading } = useUsdEurRate();
   const reduceMotion = useReducedMotion();
 
   const supabase =
@@ -1649,23 +1651,24 @@ export default function DashboardPage() {
       [trades]
     );
 
-  const capitalByCurrency = useMemo(() => {
-    return accounts.reduce<Record<string, number>>((totals, account) => {
-      const currency = (account.currency || "UNKNOWN").toUpperCase();
-      totals[currency] = (totals[currency] || 0) + Number(account.current_balance || 0);
-      return totals;
-    }, {});
-  }, [accounts]);
+  const totalCapitalEur = useMemo(() => {
+    const converted = accounts.map((account) =>
+      convertToEur(Number(account.current_balance || 0), account.currency, usdToEur)
+    );
+    return converted.some((value) => value === null)
+      ? null
+      : converted.reduce<number>((sum, value) => sum + Number(value), 0);
+  }, [accounts, usdToEur]);
 
-  const monthPnlByCurrency = useMemo(() => {
-    return monthTrades.reduce<Record<string, number>>((totals, trade) => {
-      const currency = trade.account_id == null
-        ? "UNKNOWN"
-        : (accountMap.get(trade.account_id)?.currency || "UNKNOWN").toUpperCase();
-      totals[currency] = (totals[currency] || 0) + Number(trade.result_amount || 0);
-      return totals;
-    }, {});
-  }, [monthTrades, accountMap]);
+  const monthPnlEur = useMemo(() => {
+    const converted = monthTrades.map((trade) => {
+      const currency = trade.account_id == null ? null : accountMap.get(trade.account_id)?.currency;
+      return convertToEur(Number(trade.result_amount || 0), currency, usdToEur);
+    });
+    return converted.some((value) => value === null)
+      ? null
+      : converted.reduce<number>((sum, value) => sum + Number(value), 0);
+  }, [monthTrades, accountMap, usdToEur]);
 
   const dashboardStats =
     useMemo(() => {
@@ -2009,7 +2012,9 @@ export default function DashboardPage() {
             accounts.length ===
             0
               ? "—"
-              : formatCurrencyBreakdown(capitalByCurrency)
+              : totalCapitalEur === null
+                ? rateLoading ? "Chargement…" : "—"
+                : formatEur(totalCapitalEur)
           }
           sub={
             accounts.length ===
@@ -2020,7 +2025,7 @@ export default function DashboardPage() {
                   1
                     ? "s"
                     : ""
-                }${Object.keys(capitalByCurrency).length > 1 ? " · totaux par devise" : ""}`
+                } · ${totalCapitalEur === null ? (rateLoading ? "récupération du taux" : "conversion indisponible") : rateDateLabel(rateDate)}`
           }
         />
 
@@ -2035,21 +2040,23 @@ export default function DashboardPage() {
             monthTrades.length ===
             0
               ? "—"
-              : formatCurrencyBreakdown(monthPnlByCurrency)
+              : monthPnlEur === null
+                ? rateLoading ? "Chargement…" : "—"
+                : formatEur(monthPnlEur)
           }
           sub={
             monthTrades.length ===
             0
               ? "Aucune donnée"
-              : Object.keys(monthPnlByCurrency).length > 1
-                ? "Totaux séparés par devise · aucune conversion appliquée"
-                : "Ce mois-ci"
+              : monthPnlEur === null
+                ? "Conversion EUR indisponible pour une devise de trade"
+                : `${rateDateLabel(rateDate)} · ce mois-ci`
           }
           positive={
             monthTrades.length >
               0 &&
-            Object.keys(monthPnlByCurrency).length === 1
-              ? Object.values(monthPnlByCurrency)[0] >= 0
+            monthPnlEur !== null
+              ? monthPnlEur >= 0
               : undefined
           }
         />

@@ -28,6 +28,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import PerformanceCalendar from '@/components/performance/PerformanceCalendar';
 import { pushNotif } from "@/lib/notifyStore";
+import { convertToEur, formatEur, rateDateLabel, useUsdEurRate } from "@/lib/currency";
 
 /* =========================================================
    TYPES
@@ -786,6 +787,7 @@ function evaluatePlan(
 ========================================================= */
 
 export default function JournalPage() {
+  const { usdToEur, rateDate, rateLoading } = useUsdEurRate();
   const supabase =
     useMemo(
       () =>
@@ -1757,6 +1759,16 @@ export default function JournalPage() {
       trades,
       tradingPlan,
     ]);
+
+  const totalPnlEur = useMemo(() => {
+    const converted = trades.map((trade) => {
+      const currency = trade.account_id == null ? null : accountMap.get(trade.account_id)?.currency;
+      return convertToEur(Number(trade.result_amount || 0), currency, usdToEur);
+    });
+    return converted.some((value) => value === null)
+      ? null
+      : converted.reduce<number>((sum, value) => sum + Number(value), 0);
+  }, [trades, accountMap, usdToEur]);
 
   /* =========================================================
      AUTOMATIC RESULT
@@ -2814,19 +2826,15 @@ export default function JournalPage() {
               />
             }
             label="P&L total"
-            value={
-              journalCurrency
-                ? formatCurrency(
-                    stats.pnl,
-                    journalCurrency
-                  )
-                : "Multi-devises"
-            }
-            positive={
-              journalCurrency
-                ? stats.pnl >= 0
-                : undefined
-            }
+            value={trades.length === 0
+              ? "—"
+              : totalPnlEur === null
+                ? rateLoading ? "Chargement…" : "—"
+                : formatEur(totalPnlEur)}
+            positive={totalPnlEur === null ? undefined : totalPnlEur >= 0}
+            sub={totalPnlEur === null
+              ? "Conversion EUR indisponible pour une devise"
+              : rateDateLabel(rateDate)}
           />
 
           <StatCard
@@ -4383,11 +4391,13 @@ function StatCard({
   label,
   value,
   positive,
+  sub,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   positive?: boolean;
+  sub?: string;
 }) {
   return (
     <div
@@ -4431,6 +4441,7 @@ function StatCard({
           >
             {value}
           </div>
+          {sub ? <div className="mt-1 max-w-40 text-[8px] leading-3 text-white/35">{sub}</div> : null}
         </div>
       </div>
     </div>

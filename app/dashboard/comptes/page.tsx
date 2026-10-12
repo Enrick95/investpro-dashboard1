@@ -24,6 +24,7 @@ import {
 
 import { createClient } from "@/lib/supabase/client";
 import { pushNotif } from "@/lib/notifyStore";
+import { convertToEur, formatEur, rateDateLabel, useUsdEurRate } from "@/lib/currency";
 
 /* =========================================================
    TYPES
@@ -70,6 +71,8 @@ type TradingAccount = {
 
   updated_at: string;
 };
+
+type CopierOrigin = "Master" | "Receveur" | "Copieur";
 
 type AccountForm = {
   name: string;
@@ -185,6 +188,7 @@ function accountTypeLabel(
 ========================================================= */
 
 export default function ComptesPage() {
+  const { usdToEur, rateDate, rateLoading } = useUsdEurRate();
   const deletingRef = useRef(false);
   const [deletingAccountId, setDeletingAccountId] = useState<number | null>(null);
   const [syncPanelVersion, setSyncPanelVersion] = useState(0);
@@ -211,6 +215,8 @@ export default function ComptesPage() {
     useState<
       TradingAccount[]
     >([]);
+
+  const [copierOrigins, setCopierOrigins] = useState<Record<number, CopierOrigin>>({});
 
   const [
     loading,
@@ -327,6 +333,45 @@ export default function ComptesPage() {
         (data as TradingAccount[]) ||
           []
       );
+
+      const [hostedResponse, receiverResult, masterResponse] = await Promise.all([
+        fetch("/api/metasync/hosted", { cache: "no-store" })
+          .then(async (response) => response.ok ? response.json() : null)
+          .catch(() => null),
+        supabase.from("copier_receivers")
+          .select("login,server,platform")
+          .eq("user_id", user.id),
+        fetch("/api/copier/request", { cache: "no-store" })
+          .then(async (response) => response.ok ? response.json() : null)
+          .catch(() => null),
+      ]);
+      const normalize = (value: unknown) => String(value || "").trim().toLowerCase();
+      const copierLogins = [
+        ...(receiverResult.data || []).map((row: any) => ({ ...row, kind: "Receveur" as const })),
+        ...((masterResponse?.requests || []) as any[])
+          .filter((row) => row.status === "activated")
+          .map((row) => ({ ...row, kind: "Master" as const })),
+      ];
+      const origins: Record<number, CopierOrigin> = {};
+      const metaConnections = ((hostedResponse?.connections || []) as any[]).map((row) => {
+        const nested = Array.isArray(row.investpro_mt_connections)
+          ? row.investpro_mt_connections[0]
+          : row.investpro_mt_connections;
+        return nested || null;
+      }).filter((row): row is NonNullable<typeof row> => Boolean(row));
+      for (const connection of metaConnections) {
+        const matches = copierLogins.filter((item) =>
+          normalize(item.login) === normalize(connection.login) &&
+          normalize(item.platform) === normalize(connection.platform) &&
+          normalize(item.server) === normalize(connection.server)
+        );
+        if (matches.length && Number.isFinite(Number(connection.account_id))) {
+          const hasMaster = matches.some((item) => item.kind === "Master");
+          const hasReceiver = matches.some((item) => item.kind === "Receveur");
+          origins[Number(connection.account_id)] = hasMaster && hasReceiver ? "Copieur" : hasMaster ? "Master" : "Receveur";
+        }
+      }
+      setCopierOrigins(origins);
     } finally {
       setLoading(
         false
@@ -340,16 +385,6 @@ export default function ComptesPage() {
 
   const stats =
     useMemo(() => {
-      const balancesByCurrency = accounts.reduce<Record<string, number>>(
-        (totals, account) => {
-          const currency = (account.currency || "EUR").toUpperCase();
-          totals[currency] =
-            (totals[currency] || 0) + Number(account.current_balance || 0);
-          return totals;
-        },
-        {}
-      );
-
       const realAccounts =
         accounts.filter(
           (account) =>
@@ -375,8 +410,6 @@ export default function ComptesPage() {
         total:
           accounts.length,
 
-        balancesByCurrency,
-
         realAccounts,
 
         propAccounts,
@@ -384,6 +417,15 @@ export default function ComptesPage() {
         automaticAccounts,
       };
     }, [accounts]);
+
+  const capitalTotalEur = useMemo(() => {
+    const converted = accounts.map((account) =>
+      convertToEur(Number(account.current_balance || 0), account.currency, usdToEur)
+    );
+    return converted.some((value) => value === null)
+      ? null
+      : converted.reduce<number>((sum, value) => sum + Number(value), 0);
+  }, [accounts, usdToEur]);
 
   /* =========================================================
      MODALS
@@ -802,15 +844,17 @@ export default function ComptesPage() {
             }
             label="Capital total"
             value={
-              Object.keys(stats.balancesByCurrency).length === 0
+              stats.total === 0
                 ? formatMoney(0, "EUR")
-                : Object.entries(stats.balancesByCurrency)
-                    .map(([currency, amount]) => formatMoney(amount, currency))
-                    .join(" · ")
+                : capitalTotalEur === null
+                  ? rateLoading ? "Chargement…" : "—"
+                  : formatEur(capitalTotalEur)
             }
-            sub={Object.keys(stats.balancesByCurrency).length > 1
-              ? "Totaux séparés par devise · aucune conversion appliquée"
-              : "Capital actuel déclaré"}
+            sub={stats.total === 0
+              ? "Capital actuel déclaré"
+              : capitalTotalEur === null
+                ? rateLoading ? "Récupération du taux de change" : "Conversion EUR indisponible pour une devise"
+                : rateDateLabel(rateDate)}
           />
 
           <StatCard
@@ -977,6 +1021,7 @@ export default function ComptesPage() {
                     account={
                       account
                     }
+                    copierOrigin={copierOrigins[account.id]}
                     onEdit={() =>
                       openEditAccount(
                         account
@@ -1577,6 +1622,7 @@ function AccountCard({
   deleting,
   deleteDisabled,
   account,
+  copierOrigin,
   onEdit,
   onDelete,
 }: {
@@ -1584,6 +1630,8 @@ function AccountCard({
   deleteDisabled: boolean;
   account:
     TradingAccount;
+
+  copierOrigin?: CopierOrigin;
 
   onEdit:
     () => void;
@@ -1668,7 +1716,9 @@ function AccountCard({
               text-[color:var(--gold)]
             "
           >
-            {account.connection_type === "automatic" ? "Auto-sync" : "Manuel"}
+            {copierOrigin
+              ? copierOrigin === "Copieur" ? "Copieur" : `Copieur · ${copierOrigin}`
+              : account.connection_type === "automatic" ? "Auto-sync" : "Manuel"}
           </span>
         </div>
 
