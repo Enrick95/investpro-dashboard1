@@ -340,19 +340,15 @@ export default function ComptesPage() {
 
   const stats =
     useMemo(() => {
-      const totalBalance =
-        accounts.reduce(
-          (
-            total,
-            account
-          ) =>
-            total +
-            Number(
-              account.current_balance ||
-                0
-            ),
-          0
-        );
+      const balancesByCurrency = accounts.reduce<Record<string, number>>(
+        (totals, account) => {
+          const currency = (account.currency || "EUR").toUpperCase();
+          totals[currency] =
+            (totals[currency] || 0) + Number(account.current_balance || 0);
+          return totals;
+        },
+        {}
+      );
 
       const realAccounts =
         accounts.filter(
@@ -379,7 +375,7 @@ export default function ComptesPage() {
         total:
           accounts.length,
 
-        totalBalance,
+        balancesByCurrency,
 
         realAccounts,
 
@@ -805,13 +801,16 @@ export default function ComptesPage() {
               />
             }
             label="Capital total"
-            value={formatMoney(
-              stats.totalBalance,
-              accounts[0]
-                ?.currency ||
-                "EUR"
-            )}
-            sub="Capital actuel déclaré"
+            value={
+              Object.keys(stats.balancesByCurrency).length === 0
+                ? formatMoney(0, "EUR")
+                : Object.entries(stats.balancesByCurrency)
+                    .map(([currency, amount]) => formatMoney(amount, currency))
+                    .join(" · ")
+            }
+            sub={Object.keys(stats.balancesByCurrency).length > 1
+              ? "Totaux séparés par devise · aucune conversion appliquée"
+              : "Capital actuel déclaré"}
           />
 
           <StatCard
