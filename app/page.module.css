@@ -1752,3 +1752,76 @@
   .copierSpotlightLink{width:100%;justify-content:center}
   .copierSteps{gap:8px}
 }
+
+/* Mouvement et lumière discrets sur l’accueil. */
+@keyframes homepageGlowPulse{
+  0%,100%{opacity:.42;transform:scale(.94)}
+  50%{opacity:.78;transform:scale(1.06)}
+}
+@keyframes homepageDashboardFloat{
+  0%,100%{transform:rotate(-1deg) rotateY(-3deg) translateY(0)}
+  50%{transform:rotate(-.6deg) rotateY(-2deg) translateY(-5px)}
+}
+@keyframes homepagePhoneFloat{
+  0%,100%{transform:rotate(2deg) translateY(0)}
+  50%{transform:rotate(1deg) translateY(-7px)}
+}
+@keyframes homepageSheen{
+  0%,65%,100%{opacity:0;transform:translateX(-130%)}
+  15%,45%{opacity:.16}
+}
+.heroVisual::before{
+  content:"";
+  position:absolute;
+  z-index:-1;
+  inset:8% 4%;
+  border-radius:50%;
+  background:radial-gradient(ellipse,rgba(234,177,57,.2),rgba(74,111,74,.07) 42%,transparent 72%);
+  filter:blur(30px);
+  animation:homepageGlowPulse 9s ease-in-out infinite;
+  pointer-events:none;
+}
+.productDesktop{
+  position:relative;
+  animation:homepageDashboardFloat 9s ease-in-out infinite;
+  transition:box-shadow .35s ease,border-color .35s ease;
+}
+.productDesktop::after{
+  content:"";
+  position:absolute;
+  z-index:4;
+  inset:0;
+  background:linear-gradient(108deg,transparent 35%,rgba(255,223,151,.12) 49%,transparent 63%);
+  animation:homepageSheen 12s ease-in-out infinite;
+  pointer-events:none;
+}
+.productDesktop:hover{
+  border-color:rgba(255,211,112,.62);
+  box-shadow:0 35px 70px rgba(0,0,0,.62),0 0 68px rgba(236,173,42,.18),inset 0 1px rgba(255,255,255,.035);
+}
+.productPhone{
+  animation:homepagePhoneFloat 7s ease-in-out infinite;
+  transition:box-shadow .35s ease,border-color .35s ease;
+}
+.productPhone:hover{
+  border-color:#77745f;
+  box-shadow:0 28px 60px rgba(0,0,0,.76),0 0 44px rgba(228,167,49,.24);
+}
+.primaryButton,.primaryButtonLarge{
+  transition:transform .22s ease,filter .22s ease,box-shadow .22s ease;
+}
+.primaryButton:hover,.primaryButtonLarge:hover{
+  box-shadow:0 0 36px rgba(231,171,52,.36),inset 0 1px rgba(255,255,255,.48);
+}
+.featureCard:hover{
+  box-shadow:0 17px 38px rgba(0,0,0,.28),0 0 26px rgba(232,171,51,.09);
+}
+@media(max-width:640px){
+  .productDesktop{animation:none}
+  .productPhone{animation-duration:8s}
+}
+@media(prefers-reduced-motion:reduce){
+  .heroVisual::before,.productDesktop,.productDesktop::after,.productPhone{animation:none!important}
+  .productDesktop,.productPhone,.primaryButton,.primaryButtonLarge,.featureCard{transition:none!important}
+  .productDesktop:hover,.productPhone:hover,.featureCard:hover{transform:none}
+}
