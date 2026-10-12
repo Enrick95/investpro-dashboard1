@@ -92,6 +92,7 @@ function riskModeLabel(mode: RiskMode) {
 type LooseAccount = Record<string, unknown>;
 type HostedAccountSync = {
   active?: boolean;
+  status?: string;
   equity?: number | null;
   investpro_mt_connections?: {
     account_id?: number;
@@ -382,12 +383,20 @@ function matchingAccount(accounts: LooseAccount[], target: { login: string; plat
   const syncedConnection = synced[0]?.investpro_mt_connections;
   if (syncedConnection) {
     const account = accounts.find((row) => Number(row.id) === Number(syncedConnection.account_id));
-    if (account) return {
-      ...account,
-      currency: account.currency || syncedConnection.currency,
-      current_equity: synced[0].equity ?? account.current_equity ?? account.equity,
-      sync_last_seen: syncedConnection.last_sync,
-    };
+    if (account) {
+      const hasSnapshot = Boolean(syncedConnection.last_sync) || synced[0].equity != null;
+      return {
+        ...account,
+        ...(synced[0].status === "error" && !hasSnapshot
+          ? { current_balance: null, balance: null, equity: null, current_equity: null }
+          : {}),
+        currency: account.currency || syncedConnection.currency,
+        current_equity: synced[0].status === "error" && !hasSnapshot
+          ? null
+          : synced[0].equity ?? account.current_equity ?? account.equity,
+        sync_last_seen: syncedConnection.last_sync,
+      };
+    }
     // Hosted MetaSync can already have a fresh equity snapshot before a local
     // account row is linked. Keep that verified snapshot visible without
     // inventing a balance or creating a second credential/connection record.
@@ -858,7 +867,26 @@ export default function CopieurPage() {
           const rowServer = String(row.server ?? row.server_name ?? row.broker_server ?? "").trim().toLowerCase();
           return accountNumber(row).trim() === login.trim() && rowPlatform === platform && rowServer === normalizedServer;
         });
-        if (existingHosted || existingAccount) {
+        if (existingHosted?.active !== false && existingHosted?.status === "error") {
+          const hostedBroker = hostedBrokers.find((item) => item.platform.toUpperCase() === platform && item.server.trim().toLowerCase() === normalizedServer);
+          if (!hostedBroker) {
+            syncNotice = "MetaSync avait échoué et ce serveur n’est plus disponible dans le catalogue. Aucun solde n’a été confirmé.";
+          } else {
+            try {
+              const syncResponse = await fetch("/api/metasync/hosted", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ broker: hostedBroker.id, login, password, currency: accountCurrency.trim().toUpperCase(), type: accountType, syncConsent: true }),
+              });
+              const syncData = await syncResponse.json().catch(() => ({}));
+              syncNotice = syncResponse.ok
+                ? "La synchronisation MetaSync en échec a été relancée avec les identifiants saisis. Le solde s’affichera après une première réponse valide du serveur."
+                : `Le receveur est connecté, mais MetaSync n’a pas pu être relancé : ${syncData.error || "réessaie plus tard"}`;
+            } catch {
+              syncNotice = "Le receveur est connecté, mais la relance MetaSync n’a pas été confirmée. Vérifie le statut dans InvestPro Copier.";
+            }
+          }
+        } else if (existingHosted || existingAccount) {
           syncNotice = existingHosted?.active === false
             ? "La connexion MetaSync existe déjà mais est arrêtée ; réactive-la dans Mes comptes pour actualiser le solde."
             : "La connexion MetaSync déjà présente sera réutilisée pour le solde.";
@@ -1111,6 +1139,14 @@ export default function CopieurPage() {
   }
 
   const masterAccountRow = approvedMaster ? matchingAccount(accounts, approvedMaster, hostedAccountSyncs) : undefined;
+  const masterSyncFailed = Boolean(approvedMaster && hostedAccountSyncs.some((row) => {
+    const connection = row.investpro_mt_connections;
+    return row.active !== false && row.status === "error" && connection &&
+      connection.login?.trim() === approvedMaster.login.trim() &&
+      connection.platform?.toUpperCase() === approvedMaster.platform &&
+      connection.server?.trim().toLowerCase() === approvedMaster.server.trim().toLowerCase() &&
+      !connection.last_sync && row.equity == null;
+  }));
   const masterBalance = stat(masterAccountRow, ["current_balance", "balance"]);
   const masterEquity = stat(masterAccountRow, ["equity", "current_equity"]);
   const masterPnl = stat(masterAccountRow, ["daily_pnl", "pnl_today", "today_pnl"]);
@@ -1338,8 +1374,8 @@ export default function CopieurPage() {
               <div className="flex items-center justify-between gap-3"><div className="min-w-0"><div className="break-words text-lg font-semibold leading-tight text-white md:text-2xl">{approvedMaster?.alias || "Aucun Master approuvé"}</div><div className="mt-1 text-[10px] text-white/40 md:text-[11px]">{approvedMaster ? `#${approvedMaster.login} • ${approvedMaster.server}` : "La demande de Master doit être approuvée par un administrateur."}</div></div><button className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/20 text-white/70 md:h-10 md:w-10"><Settings2 size={15} /></button></div>
               <div className="mt-3 grid grid-cols-3 gap-2 md:mt-5 md:gap-3">{[["Equity", masterEquity == null ? "—" : money(masterEquity, masterCurrency)], ["Solde", masterBalance == null ? "En attente de sync" : money(masterBalance, masterCurrency)], ["P&L jour", masterPnl == null ? "—" : money(masterPnl, masterCurrency)]].map(([label, value], index) => <div key={label} className="min-w-0 rounded-lg border border-white/[0.06] bg-black/20 p-2 md:rounded-xl md:p-3"><div className="text-[7px] uppercase tracking-[0.06em] text-white/30 md:text-[9px] md:tracking-[0.08em]">{label}</div><div className={cn("mt-1 break-words text-[10px] font-semibold leading-snug md:mt-2 md:text-lg", index === 2 && Number(masterPnl) > 0 ? "text-emerald-400" : index === 2 && Number(masterPnl) < 0 ? "text-red-400" : "text-white")}>{value}</div></div>)}</div>
               {approvedMaster && masterBalance == null ? <div className="mt-3 rounded-xl border border-amber-500/15 bg-amber-500/[0.04] p-3 text-[10px] leading-5 text-white/55">
-                <div className="font-semibold text-amber-200">Solde non synchronisé</div>
-                <p className="mt-1">Autorise MetaSync pour relier ce Master approuvé à la synchronisation des soldes. Tes identifiants déjà chiffrés seront transmis côté serveur ; ils ne seront jamais affichés ni journalisés.</p>
+                <div className={cn("font-semibold", masterSyncFailed ? "text-red-300" : "text-amber-200")}>{masterSyncFailed ? "Échec de la synchronisation MetaSync" : "Solde non synchronisé"}</div>
+                <p className="mt-1">{masterSyncFailed ? "Aucun solde n’a été confirmé par le connecteur. Relance MetaSync ici ; le système reprendra les identifiants chiffrés du Master et n’affichera pas un zéro trompeur." : "Autorise MetaSync pour relier ce Master approuvé à la synchronisation des soldes. Tes identifiants déjà chiffrés seront transmis côté serveur ; ils ne seront jamais affichés ni journalisés."}</p>
                 <label className="mt-3 flex cursor-pointer items-start gap-2"><input type="checkbox" checked={masterSyncConsent} onChange={(event) => setMasterSyncConsent(event.target.checked)} className="mt-0.5 h-4 w-4 accent-emerald-500" /><span>J’autorise InvestPro à créer une connexion MetaSync pour ce compte et à conserver ses identifiants chiffrés afin de synchroniser le solde et l’equity.</span></label>
                 <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <label className="block"><span className="mb-1 block text-[9px] text-white/45">Devise exacte</span><input className="ip-field" maxLength={3} value={masterSyncCurrency} onChange={(event) => setMasterSyncCurrency(event.target.value.toUpperCase())} placeholder="USD, EUR…" /></label>
@@ -1358,8 +1394,16 @@ export default function CopieurPage() {
               <div className="hidden grid-cols-[56px_1.7fr_.7fr_.8fr_.9fr_.9fr_.8fr_.75fr_.9fr] gap-3 border-b border-white/[0.06] bg-black/25 px-4 py-3 text-[9px] font-bold uppercase tracking-[0.08em] text-white/30 xl:grid"><div></div><div>Nom du compte</div><div>Plateforme</div><div>Statut</div><div>Solde</div><div>Equity</div><div>P&L jour</div><div>Ouverts</div><div>Actions</div></div>
               {virtualReceivers.length === 0 ? <div className="p-10 text-center text-white/40">Aucun receveur pour le moment.</div> : virtualReceivers.map((receiver) => {
                 const s = receiver.id === "legacy" ? { balance: null, equity: null, pnl: null, open: null, currency: "USD", lastSync: null } : statsFor(receiver);
+                const hostedSyncError = hostedAccountSyncs.some((row) => {
+                  const connection = row.investpro_mt_connections;
+                  return row.active !== false && row.status === "error" && connection &&
+                    connection.login?.trim() === receiver.login.trim() &&
+                    connection.platform?.toUpperCase() === receiver.platform &&
+                    connection.server?.trim().toLowerCase() === receiver.server.trim().toLowerCase() &&
+                    !connection.last_sync && row.equity == null;
+                });
                 const selected = selectedReceiverId === receiver.id;
-                return <div key={receiver.id} className={cn("grid grid-cols-1 gap-3 border-b border-white/[0.05] px-4 py-4 last:border-0 xl:grid-cols-[56px_1.7fr_.7fr_.8fr_.9fr_.9fr_.8fr_.75fr_.9fr] xl:items-center", selected ? "bg-[color:var(--gold-soft)]" : "bg-black/10 hover:bg-white/[0.02]") }><div className="flex items-center"><button onClick={() => void selectReceiver(receiver.id)} className={cn("flex h-6 w-6 items-center justify-center rounded-md border text-[10px]", selected ? "border-[color:var(--gold-border)] bg-[color:var(--gold)] text-black" : "border-white/10 text-white/50")}>{selected ? <Check size={13} /> : null}</button></div><button onClick={() => void selectReceiver(receiver.id)} className="text-left"><div className="text-sm font-semibold text-white">{receiver.alias}</div><div className="mt-1 text-[10px] text-white/35">#{receiver.login}{s.lastSync ? ` · MetaSync ${new Date(s.lastSync).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}` : ""}</div></button><div className="text-[11px] font-semibold text-[color:var(--gold)]">{receiver.platform}</div><div><ReceiverStatusBadge status={receiver.status} /></div><div className="text-[11px] text-white/70">{money(s.balance, s.currency)}</div><div className="text-[11px] text-white/70">{money(s.equity, s.currency)}</div><div className={cn("text-[11px] font-medium", Number(s.pnl) > 0 ? "text-emerald-400" : Number(s.pnl) < 0 ? "text-red-400" : "text-white/60")}>{s.pnl == null ? "—" : money(s.pnl, s.currency)}</div><div className="text-[11px] text-white/70">{s.open == null ? "—" : String(s.open)}</div><div className="flex items-center gap-2"><button onClick={() => { setShowStats(true); void selectReceiver(receiver.id); }} aria-label={`Statistiques de ${receiver.alias}`} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 text-white/60 hover:text-white xl:h-8 xl:w-8 xl:rounded-lg"><Activity size={14} /></button><button onClick={() => void selectReceiver(receiver.id)} aria-label={`Configurer ${receiver.alias}`} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 text-white/60 hover:text-white xl:h-8 xl:w-8 xl:rounded-lg"><Settings2 size={14} /></button>{receiver.id !== "legacy" ? <button onClick={() => { setRemoveReceiverId(receiver.id); setDisconnectConsent(false); setRemoveError(""); }} aria-label={`Retirer ${receiver.alias}`} className="flex h-11 w-11 items-center justify-center rounded-xl border border-red-500/20 text-red-400 hover:bg-red-500/10 xl:h-8 xl:w-8 xl:rounded-lg"><Unplug size={14} /></button> : null}</div></div>;
+                return <div key={receiver.id} className={cn("grid grid-cols-1 gap-3 border-b border-white/[0.05] px-4 py-4 last:border-0 xl:grid-cols-[56px_1.7fr_.7fr_.8fr_.9fr_.9fr_.8fr_.75fr_.9fr] xl:items-center", selected ? "bg-[color:var(--gold-soft)]" : "bg-black/10 hover:bg-white/[0.02]") }><div className="flex items-center"><button onClick={() => void selectReceiver(receiver.id)} className={cn("flex h-6 w-6 items-center justify-center rounded-md border text-[10px]", selected ? "border-[color:var(--gold-border)] bg-[color:var(--gold)] text-black" : "border-white/10 text-white/50")}>{selected ? <Check size={13} /> : null}</button></div><button onClick={() => void selectReceiver(receiver.id)} className="text-left"><div className="text-sm font-semibold text-white">{receiver.alias}</div><div className="mt-1 text-[10px] text-white/35">#{receiver.login}{s.lastSync ? ` · MetaSync ${new Date(s.lastSync).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}` : ""}</div>{hostedSyncError ? <div className="mt-1 text-[9px] leading-4 text-red-300">MetaSync en échec · aucun solde confirmé. Vérifie les identifiants et le serveur puis relance l’ajout.</div> : null}</button><div className="text-[11px] font-semibold text-[color:var(--gold)]">{receiver.platform}</div><div><ReceiverStatusBadge status={receiver.status} /></div><div className="text-[11px] text-white/70">{money(s.balance, s.currency)}</div><div className="text-[11px] text-white/70">{money(s.equity, s.currency)}</div><div className={cn("text-[11px] font-medium", Number(s.pnl) > 0 ? "text-emerald-400" : Number(s.pnl) < 0 ? "text-red-400" : "text-white/60")}>{s.pnl == null ? "—" : money(s.pnl, s.currency)}</div><div className="text-[11px] text-white/70">{s.open == null ? "—" : String(s.open)}</div><div className="flex items-center gap-2"><button onClick={() => { setShowStats(true); void selectReceiver(receiver.id); }} aria-label={`Statistiques de ${receiver.alias}`} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 text-white/60 hover:text-white xl:h-8 xl:w-8 xl:rounded-lg"><Activity size={14} /></button><button onClick={() => void selectReceiver(receiver.id)} aria-label={`Configurer ${receiver.alias}`} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 text-white/60 hover:text-white xl:h-8 xl:w-8 xl:rounded-lg"><Settings2 size={14} /></button>{receiver.id !== "legacy" ? <button onClick={() => { setRemoveReceiverId(receiver.id); setDisconnectConsent(false); setRemoveError(""); }} aria-label={`Retirer ${receiver.alias}`} className="flex h-11 w-11 items-center justify-center rounded-xl border border-red-500/20 text-red-400 hover:bg-red-500/10 xl:h-8 xl:w-8 xl:rounded-lg"><Unplug size={14} /></button> : null}</div></div>;
               })}
             </div>
             {virtualReceivers.some((receiver) => receiver.id !== "legacy" && (() => { const stats = statsFor(receiver); return stats.balance == null || stats.equity == null; })()) ? <div className="mt-3 flex flex-col gap-2 rounded-xl border border-amber-500/15 bg-amber-500/[0.04] p-3 text-[10px] leading-5 text-white/55 sm:flex-row sm:items-center sm:justify-between"><span>Les comptes receveurs reprennent automatiquement les soldes disponibles dans MetaSync. Si un chiffre manque, relie ce même compte dans Mes comptes.</span><a href="/dashboard/comptes" className="inline-flex min-h-9 shrink-0 items-center rounded-lg border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 font-semibold text-[color:var(--gold)]">Ouvrir Mes comptes</a></div> : null}

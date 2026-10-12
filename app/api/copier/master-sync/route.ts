@@ -117,7 +117,19 @@ export async function POST(req: Request) {
     .limit(1)
     .maybeSingle();
   if (connectionError) return reply({ error: 'Impossible de vérifier les connexions MetaSync existantes.' }, 503);
-  if (currentConnection) return reply({ ok: true, alreadyConnected: true });
+  if (currentConnection) {
+    const { data: hostedConnection, error: hostedLookupError } = await admin
+      .from('investpro_mt_hosted')
+      .select('status,active')
+      .eq('connection_id', currentConnection.id)
+      .maybeSingle();
+    if (hostedLookupError) return reply({ error: 'Impossible de vérifier l’état de la synchronisation MetaSync.' }, 503);
+    // An already-working link is reused. A failed hosted job can be safely
+    // re-queued below with the freshly re-entered password and a new generation.
+    if (!hostedConnection || !hostedConnection.active || hostedConnection.status !== 'error') {
+      return reply({ ok: true, alreadyConnected: true });
+    }
+  }
 
   let password: string;
   try {
