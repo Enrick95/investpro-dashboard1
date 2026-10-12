@@ -172,6 +172,18 @@ function formatCurrency(
   }
 }
 
+function formatCurrencyBreakdown(values: Record<string, number>) {
+  return Object.entries(values)
+    .map(([currency, amount]) => {
+      if (currency === "UNKNOWN") {
+        return `${new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)} · devise inconnue`;
+      }
+
+      return formatCurrency(amount, currency);
+    })
+    .join(" · ");
+}
+
 function formatDate(
   value: string
 ) {
@@ -1637,36 +1649,26 @@ export default function DashboardPage() {
       [trades]
     );
 
+  const capitalByCurrency = useMemo(() => {
+    return accounts.reduce<Record<string, number>>((totals, account) => {
+      const currency = (account.currency || "UNKNOWN").toUpperCase();
+      totals[currency] = (totals[currency] || 0) + Number(account.current_balance || 0);
+      return totals;
+    }, {});
+  }, [accounts]);
+
+  const monthPnlByCurrency = useMemo(() => {
+    return monthTrades.reduce<Record<string, number>>((totals, trade) => {
+      const currency = trade.account_id == null
+        ? "UNKNOWN"
+        : (accountMap.get(trade.account_id)?.currency || "UNKNOWN").toUpperCase();
+      totals[currency] = (totals[currency] || 0) + Number(trade.result_amount || 0);
+      return totals;
+    }, {});
+  }, [monthTrades, accountMap]);
+
   const dashboardStats =
     useMemo(() => {
-      const totalCapital =
-        accounts.reduce(
-          (
-            total,
-            account
-          ) =>
-            total +
-            Number(
-              account.current_balance ||
-                0
-            ),
-          0
-        );
-
-      const monthPnl =
-        monthTrades.reduce(
-          (
-            total,
-            trade
-          ) =>
-            total +
-            Number(
-              trade.result_amount ||
-                0
-            ),
-          0
-        );
-
       const wins =
         monthTrades.filter(
           (
@@ -1722,18 +1724,13 @@ export default function DashboardPage() {
           : 0;
 
       return {
-        totalCapital,
-        monthPnl,
         winrate,
         averageRisk,
 
         tradesThisMonth:
           monthTrades.length,
       };
-    }, [
-      accounts,
-      monthTrades,
-    ]);
+    }, [monthTrades]);
 
   /* =====================================================
      WEEK GOALS
@@ -2012,12 +2009,7 @@ export default function DashboardPage() {
             accounts.length ===
             0
               ? "—"
-              : accountCurrency
-              ? formatCurrency(
-                  dashboardStats.totalCapital,
-                  accountCurrency
-                )
-              : "Multi-devises"
+              : formatCurrencyBreakdown(capitalByCurrency)
           }
           sub={
             accounts.length ===
@@ -2028,7 +2020,7 @@ export default function DashboardPage() {
                   1
                     ? "s"
                     : ""
-                }`
+                }${Object.keys(capitalByCurrency).length > 1 ? " · totaux par devise" : ""}`
           }
         />
 
@@ -2043,25 +2035,21 @@ export default function DashboardPage() {
             monthTrades.length ===
             0
               ? "—"
-              : accountCurrency
-              ? formatCurrency(
-                  dashboardStats.monthPnl,
-                  accountCurrency
-                )
-              : "Multi-devises"
+              : formatCurrencyBreakdown(monthPnlByCurrency)
           }
           sub={
             monthTrades.length ===
             0
               ? "Aucune donnée"
-              : "Ce mois-ci"
+              : Object.keys(monthPnlByCurrency).length > 1
+                ? "Totaux séparés par devise · aucune conversion appliquée"
+                : "Ce mois-ci"
           }
           positive={
             monthTrades.length >
               0 &&
-            accountCurrency
-              ? dashboardStats.monthPnl >=
-                0
+            Object.keys(monthPnlByCurrency).length === 1
+              ? Object.values(monthPnlByCurrency)[0] >= 0
               : undefined
           }
         />
