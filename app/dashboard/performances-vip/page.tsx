@@ -1796,12 +1796,17 @@ export default function PerformancesVipPage() {
                 />
               </svg>
             ) : (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-sm text-[color:var(--muted)]">
-                  Les performances
-                  apparaîtront après
-                  l'ajout des premiers
-                  trades VIP.
+              <div className="absolute inset-0 flex items-center justify-center p-5">
+                <div className="flex max-w-md flex-col items-center rounded-2xl border border-[color:var(--border)] bg-[color:var(--panel)]/80 px-6 py-5 text-center shadow-[0_12px_36px_rgba(0,0,0,0.18)]">
+                  <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]">
+                    <BarChart3 size={20} aria-hidden="true" />
+                  </span>
+                  <span className="text-sm font-semibold text-white">
+                    Votre courbe commencera ici
+                  </span>
+                  <span className="mt-1 text-xs leading-5 text-[color:var(--muted)]">
+                    Ajoutez un trade VIP pour suivre votre résultat cumulé en R sur cette période.
+                  </span>
                 </div>
               </div>
             )}

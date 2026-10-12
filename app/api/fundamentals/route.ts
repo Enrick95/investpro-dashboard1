@@ -20,7 +20,7 @@ export async function POST(req:Request){
   if(!allowedOrigin)return respond({error:'Adresse du site non autorisée.'},403);
   // La phase pilote est terminée : tout membre InvestPro authentifié peut demander
   // une synthèse. Les quotas serveur Supabase restent appliqués.
-  if(!process.env.OPENAI_API_KEY)return respond({error:'La synthèse IA n’est pas encore activée. Consultez les sources des deux devises ci-dessous.'},503);
+  if(!process.env.OPENAI_API_KEY)return respond({error:'La synthèse IA n’est pas configurée sur cet environnement. L’administrateur doit ajouter OPENAI_API_KEY dans Vercel puis redéployer. Les sources officielles restent consultables ci-dessous.'},503);
   if(Number(req.headers.get('content-length')||0)>1024)return respond({error:'Requête trop longue.'},413);
   const text=await req.text();if(text.length>1024)return respond({error:'Requête trop longue.'},413);
   let input;try{input=JSON.parse(text)}catch{return respond({error:'Requête invalide.'},400)}

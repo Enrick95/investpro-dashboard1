@@ -90,6 +90,18 @@ function riskModeLabel(mode: RiskMode) {
   return "Lots fixes";
 }
 type LooseAccount = Record<string, unknown>;
+type HostedAccountSync = {
+  active?: boolean;
+  equity?: number | null;
+  investpro_mt_connections?: {
+    account_id?: number;
+    login?: string;
+    server?: string;
+    platform?: string;
+    currency?: string;
+    last_sync?: string | null;
+  } | null;
+};
 
 type ActivationRequest = {
   id: string;
@@ -345,7 +357,27 @@ function accountNumber(row: LooseAccount) {
   return String(row.login ?? row.account_number ?? row.external_account_id ?? row.external_id ?? row.name ?? "");
 }
 
-function matchingAccount(accounts: LooseAccount[], target: { login: string; platform: string; server: string }) {
+function matchingAccount(accounts: LooseAccount[], target: { login: string; platform: string; server: string }, hostedSyncs: HostedAccountSync[] = []) {
+  const serverKey = target.server.trim().toLowerCase();
+  const synced = hostedSyncs.filter((row) => {
+    const connection = row.investpro_mt_connections;
+    return row.active !== false && connection &&
+      String(connection.login || "") === target.login &&
+      String(connection.platform || "").toUpperCase() === target.platform.toUpperCase() &&
+      String(connection.server || "").trim().toLowerCase() === serverKey;
+  });
+  if (synced.length === 1) {
+    const connection = synced[0].investpro_mt_connections;
+    const account = accounts.find((row) => Number(row.id) === Number(connection?.account_id));
+    if (account) return {
+      ...account,
+      currency: account.currency || connection?.currency,
+      equity: synced[0].equity,
+      current_equity: synced[0].equity,
+      sync_last_seen: connection?.last_sync,
+    };
+  }
+
   const candidates = accounts.filter((row) => {
     const platform = String(row.platform || "").toUpperCase();
     return accountNumber(row) === target.login && (!platform || platform === target.platform);
@@ -373,6 +405,7 @@ export default function CopieurPage() {
 
   const [receivers, setReceivers] = useState<Receiver[]>([]);
   const [accounts, setAccounts] = useState<LooseAccount[]>([]);
+  const [hostedAccountSyncs, setHostedAccountSyncs] = useState<HostedAccountSync[]>([]);
   const [legacyConnected, setLegacyConnected] = useState(false);
   const [selectedReceiverId, setSelectedReceiverId] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<SthStatus | null>(null);
@@ -582,6 +615,8 @@ export default function CopieurPage() {
     ]);
     if (!r1.error) setReceivers((r1.data || []) as Receiver[]);
     if (!r2.error) setAccounts((r2.data || []) as LooseAccount[]);
+    const hostedResponse = await fetch("/api/metasync/hosted", { cache: "no-store" }).then(async (response) => response.ok ? response.json() : null).catch(() => null);
+    setHostedAccountSyncs(Array.isArray(hostedResponse?.connections) ? hostedResponse.connections as HostedAccountSync[] : []);
     const configResponse = await fetch("/api/copier/config-request", { cache: "no-store" });
     if (configResponse.ok) {
       const configData = await configResponse.json();
@@ -644,6 +679,25 @@ export default function CopieurPage() {
   }
 
   useEffect(() => { void refresh(); }, []);
+
+  // Refresh the balances already collected by MetaSync without creating a
+  // separate connector or changing any stored account configuration.
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      void (async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const [accountsResponse, hostedResponse] = await Promise.all([
+          supabase.from("trading_accounts").select("*").eq("user_id", user.id),
+          fetch("/api/metasync/hosted", { cache: "no-store" }).then(async (response) => response.ok ? response.json() : null).catch(() => null),
+        ]);
+        if (!accountsResponse.error) setAccounts((accountsResponse.data || []) as LooseAccount[]);
+        setHostedAccountSyncs(Array.isArray(hostedResponse?.connections) ? hostedResponse.connections as HostedAccountSync[] : []);
+      })().catch(() => {});
+    }, 15000);
+    return () => window.clearInterval(timer);
+  }, [supabase]);
 
   async function selectReceiver(id: string) {
     setSelectedReceiverId(id);
@@ -891,7 +945,7 @@ export default function CopieurPage() {
   }, [configurationRequests, selectedReceiverId]);
 
   function statsFor(receiver: Receiver) {
-    const row = matchingAccount(accounts, receiver);
+    const row = matchingAccount(accounts, receiver, hostedAccountSyncs);
     const currency = String(row?.currency || "USD");
     return {
       balance: stat(row, ["current_balance", "balance"]),
@@ -902,7 +956,7 @@ export default function CopieurPage() {
     };
   }
 
-  const masterAccountRow = approvedMaster ? matchingAccount(accounts, approvedMaster) : undefined;
+  const masterAccountRow = approvedMaster ? matchingAccount(accounts, approvedMaster, hostedAccountSyncs) : undefined;
   const masterBalance = stat(masterAccountRow, ["current_balance", "balance"]);
   const masterEquity = stat(masterAccountRow, ["equity", "current_equity"]);
   const masterPnl = stat(masterAccountRow, ["daily_pnl", "pnl_today", "today_pnl"]);
