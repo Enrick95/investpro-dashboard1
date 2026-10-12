@@ -153,10 +153,11 @@ export default function HealthPage() {
           },
           {
             label: "Connexions automatiques",
-            detail:
-              mt.length + futures.length > 0
-                ? `${mt.length + futures.length} connexion(s) détectée(s)`
-                : "Aucune connexion automatique",
+            detail: mt.length + futures.length > 0
+              ? `${mt.length + futures.length} connexion(s) détectée(s)`
+              : automatic > 0
+                ? `${automatic} compte(s) indiqué(s) en Auto-sync · état détaillé à vérifier`
+                : "Aucune connexion automatique détectée",
             ok: mt.length + futures.length > 0 || automatic > 0,
             href: "/dashboard/connexions",
           },
