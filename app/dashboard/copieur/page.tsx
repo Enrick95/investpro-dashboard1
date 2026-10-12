@@ -427,7 +427,8 @@ function stat(row: LooseAccount | undefined, keys: string[]) {
 export default function CopieurPage() {
   const supabase = useMemo(() => createClient(), []);
   const [enabled, setEnabled] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(true);
+  const [engineChecked, setEngineChecked] = useState(false);
   const [error, setError] = useState(false);
   const [message, setMessage] = useState("Chargement d’InvestPro Copier…");
   const [checked, setChecked] = useState("");
@@ -731,6 +732,7 @@ export default function CopieurPage() {
   async function refresh() {
     setBusy(true);
     setError(false);
+    setEngineChecked(false);
     try {
       await Promise.all([loadRows(), loadActivationRequests()]);
       const legacy = await fetch("/api/sth?receiverId=legacy", { cache: "no-store" });
@@ -761,6 +763,7 @@ export default function CopieurPage() {
       setError(true);
       setMessage(cause instanceof Error ? cause.message : "Connexion indisponible.");
     } finally {
+      setEngineChecked(true);
       setBusy(false);
     }
   }
@@ -1288,7 +1291,7 @@ export default function CopieurPage() {
           <section className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4">
             <div className="inline-flex rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1.5 text-[9px] font-semibold text-[color:var(--gold)]">Gestion des comptes MetaTrader</div>
             <div className="mt-3 flex items-start justify-between gap-3"><div><h1 className="text-2xl font-semibold tracking-tight text-white">InvestPro Copier</h1><p className="mt-1 text-[11px] leading-5 text-white/45">Configure ta copie en trois étapes simples.</p></div><button type="button" onClick={() => void refresh()} disabled={busy} aria-label="Actualiser les comptes" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.025] text-white/65 disabled:opacity-50"><RefreshCw size={15} className={busy ? "animate-spin" : ""} /></button></div>
-            <div className={cn("mt-3 flex items-center gap-2 rounded-xl border px-3 py-2", enabled ? "border-emerald-500/15 bg-emerald-500/[0.04]" : "border-amber-500/15 bg-amber-500/[0.035]")}><span className={cn("h-2 w-2 shrink-0 rounded-full", enabled ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,.6)]" : "bg-amber-400")} /><span className={cn("min-w-0 flex-1 truncate text-[10px] font-semibold", enabled ? "text-emerald-200" : "text-amber-200")}>{enabled ? "Moteur de copie disponible" : "Moteur de copie indisponible"}</span><span className="shrink-0 text-[8px] text-white/35">{checked ? `Vérifié ${checked}` : "En attente"}</span></div>
+            <div className={cn("mt-3 flex items-center gap-2 rounded-xl border px-3 py-2", enabled ? "border-emerald-500/15 bg-emerald-500/[0.04]" : "border-amber-500/15 bg-amber-500/[0.035]")}><span className={cn("h-2 w-2 shrink-0 rounded-full", enabled ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,.6)]" : "bg-amber-400")} /><span className={cn("min-w-0 flex-1 truncate text-[10px] font-semibold", enabled ? "text-emerald-200" : "text-amber-200")}>{!engineChecked ? "Vérification du moteur…" : error ? "Statut temporairement indisponible" : enabled ? "Moteur de copie disponible" : "Moteur de copie indisponible"}</span><span className="shrink-0 text-[8px] text-white/35">{checked ? `Vérifié ${checked}` : "Vérification en cours"}</span></div>
             {error ? <div role="alert" className="mt-3 rounded-xl border border-red-500/20 bg-red-500/[0.055] px-3 py-2 text-[10px] leading-5 text-red-300">{message}</div> : null}
             {requestSuccess ? <div role="status" className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-2 text-[10px] leading-5 text-emerald-300">{requestSuccess}</div> : null}
           </section>
@@ -1348,7 +1351,7 @@ export default function CopieurPage() {
                   <span className={cn("relative h-2 w-2 rounded-full", enabled ? "bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,.65)]" : "bg-amber-400")} />
                 </span>
                 <div className="min-w-0">
-                  <div className={cn("text-xs font-semibold", enabled ? "text-emerald-200" : "text-amber-200")}>{enabled ? "Moteur de copie disponible" : "Moteur de copie indisponible"}</div>
+                  <div className={cn("text-xs font-semibold", enabled ? "text-emerald-200" : "text-amber-200")}>{!engineChecked ? "Vérification du moteur…" : error ? "Statut temporairement indisponible" : enabled ? "Moteur de copie disponible" : "Moteur de copie indisponible"}</div>
                   <div className="mt-0.5 truncate text-[10px] text-white/45">{error ? "Synchronisation à vérifier" : errorCount > 0 ? `${errorCount} connexion${errorCount > 1 ? "s" : ""} à vérifier` : `${connectedCount} receveur${connectedCount > 1 ? "s" : ""} connecté${connectedCount > 1 ? "s" : ""} · ${activeMasters.length} liaison${activeMasters.length > 1 ? "s" : ""} Master active${activeMasters.length > 1 ? "s" : ""}`}</div>
                 </div>
               </div>
