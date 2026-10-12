@@ -78,7 +78,12 @@ export async function GET(request: Request) {
       .limit(100);
 
     if (error) throw error;
-    return NextResponse.json({ requests: data || [] });
+    return NextResponse.json({ requests: (data || []).map((row: any) => ({
+      ...row,
+      admin_note: row.status === "rejected"
+        ? String(row.admin_note || "").replace(/[<>]/g, "").replace(/\s+/g, " ").slice(0, 240)
+        : null,
+    })) });
   } catch (error) {
     console.error("[copier/config-request][GET]", error);
     return NextResponse.json({ error: "Impossible de charger les demandes." }, { status: 500 });
@@ -199,7 +204,7 @@ export async function POST(request: Request) {
       ok: true,
       request: row,
       message:
-        "Configuration transmise à InvestPro. Elle sera appliquée manuellement dans Social Trade Hub avant confirmation.",
+        "Configuration transmise à l’équipe InvestPro pour traitement. Le réglage actuellement actif reste en place jusqu’à confirmation.",
     });
   } catch (error) {
     console.error("[copier/config-request][POST]", error);

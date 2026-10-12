@@ -9,7 +9,6 @@ import {
   FileText,
   ChevronRight,
   Clock3,
-  LineChart,
   ShieldCheck,
   Target,
   TrendingUp,
@@ -20,6 +19,7 @@ import { loadActiveTradingScope, scopeTradesToActiveAccounts } from "@/lib/tradi
 import NotificationEngine from "@/components/NotificationEngine";
 import MobileGlobalV1 from "@/components/MobileGlobalV1";
 import InstallAppExperience from "@/components/InstallAppExperience";
+import PwaPushPrompt from "@/components/PwaPushPrompt";
 import NewMemberJourney from "@/components/NewMemberJourney";
 import PremiumEmptyStateGuide from "@/components/PremiumEmptyStateGuide";
 import SmartDashboardInsights from "@/components/intelligence/SmartDashboardInsights";
@@ -118,25 +118,6 @@ export default function DashboardTemplate({
   }, [isHome, supabase]);
 
 
-  useEffect(() => {
-    if (!isHome) return;
-
-    const hideLegacyHero = () => {
-      const nodes = Array.from(document.querySelectorAll("h1, h2, h3, div, span"));
-      const titleNode = nodes.find((node) =>
-        node.textContent?.replace(/\s+/g, " ").trim().startsWith("Bienvenue dans ton espace InvestPro")
-      );
-
-      const section = titleNode?.closest("section");
-      if (section instanceof HTMLElement) {
-        section.dataset.investproLegacyHeroHidden = "1";
-        section.style.display = "none";
-      }
-    };
-
-    const timer = window.setTimeout(hideLegacyHero, 250);
-    return () => window.clearTimeout(timer);
-  }, [isHome]);
 
   useEffect(() => {
     if (!isHome) return;
@@ -471,11 +452,7 @@ export default function DashboardTemplate({
         <section className="mb-5 rounded-[24px] border border-[color:var(--gold-border)] bg-[color:var(--panel)] p-4 md:p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gold)]">
-                <LineChart size={11} />
-                Dashboard V4
-              </div>
-              <h2 className="mt-3 text-lg font-semibold text-white">
+              <h2 className="text-lg font-semibold text-white">
                 Analyse rapide
               </h2>
               <p className="mt-1 text-[10px] text-[color:var(--muted)]">
@@ -517,7 +494,7 @@ export default function DashboardTemplate({
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <div className="text-[9px] uppercase tracking-[0.08em] text-white/30">
-                    Mini equity curve
+                    Courbe de capital
                   </div>
                   <div
                     className={[
@@ -583,6 +560,7 @@ export default function DashboardTemplate({
       <NotificationEngine />
       <MobileGlobalV1 />
       <InstallAppExperience />
+      <PwaPushPrompt />
       <PremiumEmptyStateGuide />
       {children}
     </>

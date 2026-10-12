@@ -1,6 +1,5 @@
 import Link from "next/link";
 import {
-  Activity,
   ArrowRight,
   BarChart3,
   BookOpen,
@@ -8,15 +7,12 @@ import {
   CheckCircle2,
   CircleDollarSign,
   Cloud,
-  Copy,
   Layers3,
   MonitorSmartphone,
-  Play,
   RefreshCw,
   ShieldCheck,
   Smartphone,
   Target,
-  TrendingUp,
   WalletCards,
 } from "lucide-react";
 import styles from "./page.module.css";
@@ -34,7 +30,7 @@ const features = [
     num: "02",
     icon: Layers3,
     title: "Mes comptes",
-    text: "Suivez plusieurs comptes en temps réel. Une vision globale de vos performances.",
+    text: "Suivez plusieurs comptes, saisis manuellement ou synchronisés, dans une vue d’ensemble.",
     href: "/dashboard/comptes",
     kind: "accounts",
   },
@@ -58,7 +54,7 @@ const features = [
     num: "05",
     icon: RefreshCw,
     title: "Synchronisation",
-    text: "Accédez à vos données sur tous vos appareils, automatiquement.",
+    text: "Reliez une plateforme compatible pour importer les données prises en charge et suivre son état.",
     href: "/dashboard/connexions",
     kind: "sync",
   },
@@ -136,12 +132,11 @@ export default function Home() {
 
           <div className={styles.heroActions}>
             <Link href="/dashboard" className={styles.primaryButtonLarge}>
-              Découvrir mon espace <ArrowRight size={18} />
+              Accéder à mon espace <ArrowRight size={18} />
             </Link>
 
             <Link href="/login" className={styles.demoButton}>
-              <Play size={16} fill="currentColor" />
-              Voir la démo <span>2 min</span>
+              Se connecter <ArrowRight size={16} />
             </Link>
           </div>
 
@@ -159,149 +154,38 @@ export default function Home() {
         </div>
 
         <div className={styles.heroVisual}>
-          <div className={styles.stackOne} />
-          <div className={styles.stackTwo} />
-
-          <div className={styles.dashboardMock}>
-            <div className={styles.mockSidebar}>
-              <div className={styles.mockLogo}>
-                <span className={styles.miniBars}>
-                  <i />
-                  <i />
-                  <i />
-                </span>
-                <b>investpro</b>
+          <div className={styles.previewLabel}><MonitorSmartphone size={14} /> L’ESPACE INVESTPRO, SUR ORDINATEUR ET MOBILE</div>
+          <div className={styles.productPreview}>
+            <div className={styles.productDesktop}>
+              <div className={styles.productSidebar}>
+                <div className={styles.productBrand}><span className={styles.miniBars}><i /><i /><i /></span><b>investpro<small>TRADING</small></b></div>
+                <span className={styles.productActive}>▦ &nbsp; Dashboard</span>
+                <span>▤ &nbsp; Mes comptes</span>
+                <span>⌁ &nbsp; Connexions</span>
+                <span>▧ &nbsp; Journal</span>
+                <span>▣ &nbsp; Plan de trading</span>
+                <span>▥ &nbsp; Rapports</span>
+                <span>↗ &nbsp; Performances VIP</span>
               </div>
-
-              <div className={styles.mockNavItemActive}>Tableau de bord</div>
-              <div>Journal de trading</div>
-              <div>Mes comptes</div>
-              <div>Plan de trading</div>
-              <div>Analyses</div>
-              <div>Calendrier</div>
-              <div className={styles.mockSync}>Synchronisation</div>
-            </div>
-
-            <div className={styles.mockMain}>
-              <div className={styles.mockHeader}>
-                <div>
-                  <strong>Bonjour, Trader 👋</strong>
-                  <small>Voici un aperçu de vos performances.</small>
-                </div>
-                <span>Cette semaine</span>
-              </div>
-
-              <div className={styles.mockMetrics}>
-                <div>
-                  <small>P&L Total</small>
-                  <strong className={styles.positive}>+2 458 €</strong>
-                  <span>+12,4%</span>
-                </div>
-                <div>
-                  <small>Trades</small>
-                  <strong>24</strong>
-                  <span>cette semaine</span>
-                </div>
-                <div>
-                  <small>Win rate</small>
-                  <strong>62%</strong>
-                  <span>performance</span>
-                </div>
-              </div>
-
-              <div className={styles.mockChart}>
-                <div className={styles.mockChartTop}>
-                  <div>
-                    <small>Évolution du capital</small>
-                    <strong>27 416 €</strong>
-                  </div>
-                  <span>APERÇU DÉMO</span>
-                </div>
-
-                <svg viewBox="0 0 520 170" preserveAspectRatio="none">
-                  <defs>
-                    <linearGradient id="area" x1="0" x2="0" y1="0" y2="1">
-                      <stop offset="0%" stopColor="#e7b653" stopOpacity=".25" />
-                      <stop offset="100%" stopColor="#e7b653" stopOpacity="0" />
-                    </linearGradient>
-                  </defs>
-                  <path
-                    d="M0 138 L28 128 L52 132 L78 114 L105 120 L132 96 L160 103 L188 78 L215 88 L246 64 L273 70 L302 52 L333 60 L361 42 L392 48 L420 29 L447 34 L475 19 L520 8 L520 170 L0 170 Z"
-                    fill="url(#area)"
-                  />
-                  <path
-                    d="M0 138 L28 128 L52 132 L78 114 L105 120 L132 96 L160 103 L188 78 L215 88 L246 64 L273 70 L302 52 L333 60 L361 42 L392 48 L420 29 L447 34 L475 19 L520 8"
-                    fill="none"
-                    stroke="#efbf5c"
-                    strokeWidth="4"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-
-                <div className={styles.mockDays}>
-                  <span>Lun</span>
-                  <span>Mar</span>
-                  <span>Mer</span>
-                  <span>Jeu</span>
-                  <span>Ven</span>
-                  <span>Sam</span>
-                  <span>Dim</span>
-                </div>
+              <div className={styles.productMain}>
+                <div className={styles.productTopline}><span>Espace trader&nbsp; › &nbsp;<b>Dashboard</b></span><span className={styles.productAvatar}>IP</span></div>
+                <div className={styles.productHeading}><div><small>VOTRE TRADING, EN PERSPECTIVE</small><h2>Bonjour, Trader.</h2><p>Gardez une vue claire sur vos résultats et vos prochaines décisions.</p></div><span className={styles.productButton}>＋ Ajouter un trade</span></div>
+                <div className={styles.productBanner}><div><small>INVESTPRO TRADING HUB</small><b>Votre discipline fait la différence.</b><span>Apprenez, analysez et suivez votre trading au même endroit.</span></div><div className={styles.productRules}><small>LES REPÈRES DU PLAN</small><b>— <i>Risque maximum / trade</i></b><b>— <i>Trades maximum / jour</i></b></div></div>
+                <div className={styles.productMetrics}><div><small>Solde des comptes</small><b>18 640 €</b><span>Exemple fictif · 2 comptes</span></div><div><small>Résultat net</small><b className={styles.demoPositive}>+1 284 €</b><span>Exemple fictif · période</span></div><div><small>Taux de réussite</small><b>76 %</b><span>Exemple fictif · hors BE</span></div><div><small>Trades de la période</small><b>24</b><span>Exemple fictif</span></div></div>
+                <div className={styles.productChart}><div><b>La régularité se construit.</b><small>APERÇU ILLUSTRATIF · DONNÉES FICTIVES</small></div><div className={styles.productDemoChart}><span>Résultat net cumulé</span><b>+1 284 €</b><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><small>Les chiffres présentés sont des exemples fictifs.</small></div></div>
               </div>
             </div>
-          </div>
-
-          <div className={styles.riskCard}>
-            <ShieldCheck size={18} />
-            <div>
-              <small>Risque du jour</small>
-              <strong>-0.8%</strong>
-              <span>Dans la limite</span>
-            </div>
-          </div>
-
-          <div className={styles.tradeCard}>
-            <div className={styles.tradeCoin}>EU</div>
-            <div>
-              <small>EURUSD</small>
-              <strong>Achat · 1.2 lots</strong>
-            </div>
-            <div className={styles.tradeProfit}>
-              +320 €
-              <span>+1.6%</span>
-            </div>
-          </div>
-
-          <div className={styles.phoneMock}>
-            <div className={styles.phoneNotch} />
-            <div className={styles.phoneTitle}>Mon compte</div>
-            <strong>27 416 €</strong>
-            <span>+18.2%</span>
-            <svg viewBox="0 0 180 70" preserveAspectRatio="none">
-              <path
-                d="M0 58 L18 54 L35 48 L53 51 L70 40 L88 43 L105 31 L121 35 L139 20 L154 23 L180 8"
-                fill="none"
-                stroke="#e7b653"
-                strokeWidth="3"
-              />
-            </svg>
-            <div className={styles.phoneTrades}>
-              <div>
-                <span>EURUSD</span>
-                <b className={styles.positive}>+200 €</b>
-              </div>
-              <div>
-                <span>BTCUSD</span>
-                <b className={styles.negative}>-150 €</b>
-              </div>
-              <div>
-                <span>XAUUSD</span>
-                <b className={styles.positive}>+280 €</b>
-              </div>
-              <div>
-                <span>NAS100</span>
-                <b className={styles.positive}>+412 €</b>
+            <div className={styles.productPhone} aria-label="Aperçu de l’interface mobile InvestPro">
+              <div className={styles.phoneScreen}>
+                <div className={styles.phoneStatus}><span>9:41</span><span>● ● ▰</span></div>
+                <div className={styles.phoneBrand}><span className={styles.miniBars}><i /><i /><i /></span><b>investpro</b><span>IP</span></div>
+                <div className={styles.phoneGreeting}><small>VOTRE TRADING, EN PERSPECTIVE</small><b>Bonjour, Trader.</b><span>Votre espace en un coup d’œil.</span></div>
+                <div className={styles.phoneBalance}><small>SOLDE DES COMPTES · EXEMPLE FICTIF</small><b>18 640 €</b><span>Exemple illustratif</span><div className={styles.phoneMiniChart}><i /><i /><i /><i /><i /><i /><i /><i /><i /></div></div>
+                <div className={styles.phoneSectionTitle}>Vos indicateurs</div>
+                <div className={styles.phoneTiles}><div><small>Résultat net · fictif</small><b>+1 284 €</b></div><div><small>Taux réussite · fictif</small><b>76 %</b></div></div>
+                <div className={styles.phoneSectionTitle}>Derniers trades <span>Tout voir&nbsp; →</span></div>
+                <div className={styles.phoneEmpty}>Vos trades apparaîtront ici après leur ajout.</div>
+                <div className={styles.phoneTabbar}><span>⌂<small>Accueil</small></span><span>▤<small>Journal</small></span><span>◉<small>Comptes</small></span><span>☻<small>Profil</small></span></div>
               </div>
             </div>
           </div>
@@ -466,8 +350,8 @@ export default function Home() {
                     <div className={styles.syncedBadge}>
                       <span><Check size={18} /></span>
                       <div>
-                        <b>Synchronisé</b>
-                        <small>il y a 2 minutes</small>
+                            <b>Aperçu d’un connecteur</b>
+                            <small>Données d’exemple</small>
                       </div>
                     </div>
                   </div>
@@ -483,6 +367,25 @@ export default function Home() {
               </Link>
             </article>
           ))}
+        </div>
+
+        <div className={styles.copierSpotlight}>
+          <div className={styles.copierSpotlightCopy}>
+            <span className={styles.copierSpotlightEyebrow}>INVESTPRO COPIER</span>
+            <h3>Vos comptes, vos réglages, une vue claire.</h3>
+            <p>
+              Retrouvez les comptes receveurs, les liaisons Master et les
+              paramètres de risque dans un espace conçu pour suivre chaque étape.
+            </p>
+            <Link href="/dashboard/copieur" className={styles.copierSpotlightLink}>
+              Découvrir InvestPro Copier <ArrowRight size={16} />
+            </Link>
+          </div>
+          <div className={styles.copierSteps} aria-label="Étapes de configuration">
+            <div><span>01</span><b>Choisir les comptes</b><small>Master et receveurs</small></div>
+            <div><span>02</span><b>Régler le risque</b><small>Volumes et exécution</small></div>
+            <div><span>03</span><b>Suivre l’activité</b><small>État et historique</small></div>
+          </div>
         </div>
       </section>
 
@@ -500,13 +403,12 @@ export default function Home() {
           </p>
 
           <div className={styles.betaActions}>
-            <Link href="/dashboard" className={styles.primaryButtonLarge}>
-              Demander mon accès <ArrowRight size={17} />
+            <Link href="/signup" className={styles.primaryButtonLarge}>
+              Créer mon compte gratuitement <ArrowRight size={17} />
             </Link>
 
             <Link href="/login" className={styles.demoButton}>
-              <Play size={15} fill="currentColor" />
-              Voir la démo
+              Se connecter <ArrowRight size={15} />
             </Link>
           </div>
 
@@ -600,8 +502,8 @@ export default function Home() {
           par une meilleure préparation.
         </h2>
 
-        <Link href="/dashboard" className={styles.primaryButtonLarge}>
-          Ouvrir mon espace <ArrowRight size={17} />
+        <Link href="/signup" className={styles.primaryButtonLarge}>
+          Créer mon compte <ArrowRight size={17} />
         </Link>
       </section>
 

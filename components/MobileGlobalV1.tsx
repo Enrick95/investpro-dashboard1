@@ -6,25 +6,30 @@ import { defaultVisibility, type NavigationKey } from "@/lib/navigation/config";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   BarChart3,
+  Bug,
   BookOpen,
   CalendarDays,
   Cable,
   Crown,
+  CreditCard,
   ChartNoAxesCombined,
   CircleUserRound,
   ClipboardCheck,
   GraduationCap,
   Grid2X2,
+  History,
   Landmark,
   Library,
+  LifeBuoy,
   LineChart,
   Menu,
   Newspaper,
-  ShieldCheck,
   Smartphone,
+  Settings,
   Target,
   TrendingUp,
   Trophy,
+  Users,
   WalletCards,
   X,
   Zap,
@@ -56,6 +61,7 @@ function BottomTab({
   return (
     <Link
       href={href}
+      aria-current={active ? "page" : undefined}
       className={[
         "ip-mobile-tab",
         active ? "ip-mobile-tab-active" : "",
@@ -71,17 +77,19 @@ function MenuTile({
   href,
   label,
   icon,
+  soon,
   onClick,
 }: {
   href: string;
   label: string;
   icon: ReactNode;
+  soon?: boolean;
   onClick: () => void;
 }) {
   return (
     <Link href={href} onClick={onClick} className="ip-more-tile">
       <span className="ip-more-tile-icon">{icon}</span>
-      <span>{label}</span>
+      <span>{label}{soon ? <small className="ip-soon-badge">Bientôt</small> : null}</span>
     </Link>
   );
 }
@@ -113,6 +121,16 @@ export default function MobileGlobalV1() {
   const isReports =
     activeFor(pathname, "/dashboard/rapports") ||
     activeFor(pathname, "/dashboard/rapport-mensuel");
+
+  const bottomTabs = useMemo(
+    () => [
+      { navKey: "dashboard" as NavigationKey, href: "/dashboard", label: "Accueil", icon: <Grid2X2 size={21} />, active: pathname === "/dashboard" },
+      { navKey: "journal" as NavigationKey, href: "/dashboard/journal", label: "Journal", icon: <BookOpen size={21} />, active: activeFor(pathname, "/dashboard/journal") },
+      { navKey: "accounts" as NavigationKey, href: "/dashboard/comptes", label: "Comptes", icon: <WalletCards size={21} />, active: activeFor(pathname, "/dashboard/comptes") },
+      { navKey: "reports" as NavigationKey, href: "/dashboard/rapports", label: "Rapports", icon: <BarChart3 size={21} />, active: isReports },
+    ].filter((item) => item.navKey === "dashboard" || visibility[item.navKey] !== false),
+    [isReports, pathname, visibility]
+  );
 
   useEffect(() => {
     setMoreOpen(false);
@@ -361,83 +379,81 @@ export default function MobileGlobalV1() {
 
   const tradingTiles = useMemo(
     () => [
-      { key: "accounts" as NavigationKey, href: "/dashboard/comptes", label: "Comptes", icon: <WalletCards size={20} /> },
-      { key: "connections" as NavigationKey, href: "/dashboard/connexions", label: "Connexions", icon: <Cable size={20} /> },
-      { key: "plan" as NavigationKey, href: "/dashboard/plan", label: "Plan trading", icon: <ClipboardCheck size={20} /> },
-      { key: "risk" as NavigationKey, href: "/dashboard/simulateur", label: "Simulateur", icon: <Target size={20} /> },
-      { key: "reports" as NavigationKey, href: "/dashboard/rapport-mensuel", label: "Bilan mensuel", icon: <ChartNoAxesCombined size={20} /> },
-      { key: "copy" as NavigationKey, href: "/dashboard/copieur", label: "InvestPro Copier", icon: <Repeat2 size={20} /> },
-    ].filter((item) => visibility[item.key] !== false),
+      { navKey: "accounts" as NavigationKey, href: "/dashboard/comptes", label: "Comptes", icon: <WalletCards size={20} /> },
+      { navKey: "connections" as NavigationKey, href: "/dashboard/connexions", label: "Connexions", icon: <Cable size={20} /> },
+      { navKey: "plan" as NavigationKey, href: "/dashboard/plan", label: "Plan trading", icon: <ClipboardCheck size={20} /> },
+      { navKey: "risk" as NavigationKey, href: "/dashboard/simulateur", label: "Simulateur", icon: <Target size={20} /> },
+      { navKey: "reports" as NavigationKey, href: "/dashboard/rapport-mensuel", label: "Bilan mensuel", icon: <ChartNoAxesCombined size={20} /> },
+      { navKey: "copy" as NavigationKey, href: "/dashboard/copieur", label: "InvestPro Copier", icon: <Repeat2 size={20} /> },
+    ].filter((item) => visibility[item.navKey] !== false),
     [visibility]
   );
 
   const marketTiles = useMemo(
     () => [
-      { key: "calendar" as NavigationKey, href: "/dashboard/calendrier", label: "Calendrier éco", icon: <CalendarDays size={20} /> },
-      { key: "tradingview" as NavigationKey, href: "/dashboard/tradingview", label: "TradingView", icon: <LineChart size={20} /> },
-      { key: "fundamentals" as NavigationKey, href: "/dashboard/analyse-fondamentale", label: "Analyse fonda.", icon: <Landmark size={20} /> },
-      { key: "financialjuice" as NavigationKey, href: "/dashboard/financialjuice", label: "FinancialJuice", icon: <Newspaper size={20} /> },
-    ].filter((item) => visibility[item.key] !== false),
+      { navKey: "calendar" as NavigationKey, href: "/dashboard/calendrier", label: "Calendrier éco", icon: <CalendarDays size={20} /> },
+      { navKey: "tradingview" as NavigationKey, href: "/dashboard/tradingview", label: "TradingView", icon: <LineChart size={20} /> },
+      { navKey: "fundamentals" as NavigationKey, href: "/dashboard/analyse-fondamentale", label: "Analyse fonda.", soon: true, icon: <Landmark size={20} /> },
+      { navKey: "financialjuice" as NavigationKey, href: "/dashboard/financialjuice", label: "FinancialJuice", icon: <Newspaper size={20} /> },
+    ].filter((item) => visibility[item.navKey] !== false),
     [visibility]
   );
 
   const communityTiles = useMemo(
     () => [
-      { key: "vip" as NavigationKey, href: "/dashboard/performances-vip", label: "Performances VIP", icon: <TrendingUp size={20} /> },
-      { key: "ranking" as NavigationKey, href: "/dashboard/classement", label: "Classement", icon: <Trophy size={20} /> },
-      { key: "challenges" as NavigationKey, href: "/dashboard/challenges", label: "Challenges", icon: <Zap size={20} /> },
-    ].filter((item) => visibility[item.key] !== false),
+      { navKey: "vip" as NavigationKey, href: "/dashboard/performances-vip", label: "Performances VIP", icon: <TrendingUp size={20} /> },
+      { navKey: "ranking" as NavigationKey, href: "/dashboard/classement", label: "Classement", icon: <Trophy size={20} /> },
+      { navKey: "challenges" as NavigationKey, href: "/dashboard/challenges", label: "Challenges", icon: <Zap size={20} /> },
+      { navKey: "members" as NavigationKey, href: "/dashboard/membres", label: "Membres", icon: <Users size={20} /> },
+    ].filter((item) => visibility[item.navKey] !== false),
     [visibility]
   );
 
   const ecosystemTiles = useMemo(
     () => [
-      { key: "partners" as NavigationKey, href: "/dashboard/partenaires", label: "Partenaires", icon: <Handshake size={20} /> },
-    ].filter((item) => visibility[item.key] !== false),
+      { navKey: "partners" as NavigationKey, href: "/dashboard/partenaires", label: "Partenaires", icon: <Handshake size={20} /> },
+    ].filter((item) => visibility[item.navKey] !== false),
+    [visibility]
+  );
+
+  const academyTiles = useMemo(
+    () => [
+      { navKey: "academy" as NavigationKey, href: "/dashboard/academy", label: "Formations", icon: <GraduationCap size={20} /> },
+      { navKey: "library" as NavigationKey, href: "/dashboard/academy/bibliotheque", label: "Bibliothèque", icon: <Library size={20} /> },
+      { navKey: "progression" as NavigationKey, href: "/dashboard/academy/progression", label: "Progression", icon: <TrendingUp size={20} /> },
+    ].filter((item) => visibility[item.navKey] !== false),
     [visibility]
   );
 
   const accountTiles = useMemo(
     () => [
-      { key: "academy" as NavigationKey, href: "/dashboard/academy", label: "Formations", icon: <GraduationCap size={20} /> },
-      { key: "library" as NavigationKey, href: "/dashboard/academy/bibliotheque", label: "Bibliothèque", icon: <Library size={20} /> },
-      { key: "progression" as NavigationKey, href: "/dashboard/academy/progression", label: "Progression", icon: <TrendingUp size={20} /> },
-      { key: "profile" as NavigationKey, href: "/dashboard/profil", label: "Mon profil", icon: <CircleUserRound size={20} /> },
-    ].filter((item) => visibility[item.key] !== false),
+      { navKey: "profile" as NavigationKey, href: "/dashboard/profil", label: "Mon profil", icon: <CircleUserRound size={20} /> },
+      { navKey: "subscription" as NavigationKey, href: "/dashboard/abonnement", label: "Abonnement", icon: <Crown size={20} /> },
+      { navKey: "billing" as NavigationKey, href: "/dashboard/facturation", label: "Facturation", icon: <CreditCard size={20} /> },
+      { navKey: "history" as NavigationKey, href: "/dashboard/historique", label: "Historique", icon: <History size={20} /> },
+      { navKey: "settings" as NavigationKey, href: "/dashboard/parametres", label: "Paramètres", icon: <Settings size={20} /> },
+      { navKey: "bug" as NavigationKey, href: "/dashboard/bug", label: "Signaler un bug", icon: <Bug size={20} /> },
+      { navKey: "support" as NavigationKey, href: "/dashboard/contact", label: "Support", icon: <LifeBuoy size={20} /> },
+    ].filter((item) => visibility[item.navKey] !== false),
     [visibility]
   );
 
   return (
     <>
-      <nav className="ip-mobile-global-nav" aria-label="Navigation mobile">
-        <BottomTab
-          href="/dashboard"
-          label="Accueil"
-          active={pathname === "/dashboard"}
-          icon={<Grid2X2 size={21} />}
-        />
-        <BottomTab
-          href="/dashboard/journal"
-          label="Journal"
-          active={activeFor(pathname, "/dashboard/journal")}
-          icon={<BookOpen size={21} />}
-        />
-        <BottomTab
-          href="/dashboard/comptes"
-          label="Comptes"
-          active={activeFor(pathname, "/dashboard/comptes")}
-          icon={<WalletCards size={21} />}
-        />
-        <BottomTab
-          href="/dashboard/rapports"
-          label="Rapports"
-          active={isReports}
-          icon={<BarChart3 size={21} />}
-        />
+      <nav
+        className="ip-mobile-global-nav"
+        aria-label="Navigation mobile"
+        style={{ gridTemplateColumns: `repeat(${bottomTabs.length + 1}, minmax(0, 1fr))` }}
+      >
+        {bottomTabs.map((item) => (
+          <BottomTab key={item.navKey} href={item.href} label={item.label} icon={item.icon} active={item.active} />
+        ))}
 
         <button
           type="button"
           onClick={() => setMoreOpen(true)}
+          aria-expanded={moreOpen}
+          aria-controls="investpro-more-menu"
           className={["ip-mobile-tab", moreOpen ? "ip-mobile-tab-active" : ""].join(" ")}
         >
           <Menu size={21} />
@@ -454,7 +470,7 @@ export default function MobileGlobalV1() {
             onClick={() => setMoreOpen(false)}
           />
 
-          <div className="ip-more-sheet">
+          <div id="investpro-more-menu" className="ip-more-sheet" role="region" aria-label="Menu des fonctionnalités">
             <div className="ip-more-head">
               <div>
                 <div className="ip-more-title">Plus</div>
@@ -472,22 +488,22 @@ export default function MobileGlobalV1() {
             </div>
 
             <div className="ip-more-scroll">
-              <MenuGroup title="Trading">
+              {tradingTiles.length ? <MenuGroup title="Trading">
                 {tradingTiles.map((item) => (
-                  <MenuTile {...item} onClick={() => setMoreOpen(false)} />
+                  <MenuTile key={item.href} {...item} onClick={() => setMoreOpen(false)} />
                 ))}
-              </MenuGroup>
+              </MenuGroup> : null}
 
-              <MenuGroup title="Marchés & analyse">
+              {marketTiles.length ? <MenuGroup title="Marchés & analyse">
                 {marketTiles.map((item) => (
-                  <MenuTile {...item} onClick={() => setMoreOpen(false)} />
+                  <MenuTile key={item.href} {...item} onClick={() => setMoreOpen(false)} />
                 ))}
-              </MenuGroup>
+              </MenuGroup> : null}
 
               {communityTiles.length ? (
                 <MenuGroup title="Communauté">
                   {communityTiles.map((item) => (
-                    <MenuTile {...item} onClick={() => setMoreOpen(false)} />
+                    <MenuTile key={item.href} {...item} onClick={() => setMoreOpen(false)} />
                   ))}
                 </MenuGroup>
               ) : null}
@@ -495,16 +511,22 @@ export default function MobileGlobalV1() {
               {ecosystemTiles.length ? (
                 <MenuGroup title="Écosystème">
                   {ecosystemTiles.map((item) => (
-                    <MenuTile {...item} onClick={() => setMoreOpen(false)} />
+                    <MenuTile key={item.href} {...item} onClick={() => setMoreOpen(false)} />
                   ))}
                 </MenuGroup>
               ) : null}
 
-              <MenuGroup title="Compte">
-                {accountTiles.map((item) => (
-                  <MenuTile {...item} onClick={() => setMoreOpen(false)} />
+              {academyTiles.length ? <MenuGroup title="Academy">
+                {academyTiles.map((item) => (
+                  <MenuTile key={item.href} {...item} onClick={() => setMoreOpen(false)} />
                 ))}
-              </MenuGroup>
+              </MenuGroup> : null}
+
+              {accountTiles.length ? <MenuGroup title="Compte">
+                {accountTiles.map((item) => (
+                  <MenuTile key={item.href} {...item} onClick={() => setMoreOpen(false)} />
+                ))}
+              </MenuGroup> : null}
 
               <MenuGroup title="Application">
                 <InstallMenuTile onClick={openInstallGuide} />
@@ -569,6 +591,15 @@ export default function MobileGlobalV1() {
             background: rgba(216,175,71,.10);
           }
 
+          .ip-mobile-tab-active::before {
+            content: "";
+            width: 15px;
+            height: 2px;
+            border-radius: 99px;
+            background: currentColor;
+            box-shadow: 0 0 12px rgba(216,175,71,.65);
+          }
+
           .ip-more-overlay {
             position: fixed;
             inset: 0;
@@ -587,8 +618,10 @@ export default function MobileGlobalV1() {
             position: absolute;
             left: 10px;
             right: 10px;
+            top: max(12px, env(safe-area-inset-top));
             bottom: calc(76px + env(safe-area-inset-bottom));
-            max-height: min(76vh, 680px);
+            display: flex;
+            flex-direction: column;
             overflow: hidden;
             border: 1px solid rgba(216,175,71,.22);
             border-radius: 26px;
@@ -630,7 +663,8 @@ export default function MobileGlobalV1() {
           }
 
           .ip-more-scroll {
-            max-height: calc(min(76vh, 680px) - 72px);
+            min-height: 0;
+            flex: 1;
             overflow-y: auto;
             padding: 14px 14px 20px;
             scrollbar-width: none;
@@ -688,6 +722,17 @@ export default function MobileGlobalV1() {
             display: flex;
             align-items: center;
             justify-content: center;
+          }
+
+          .ip-soon-badge {
+            display: inline-block;
+            margin-left: 4px;
+            padding: 2px 5px;
+            border: 1px solid rgba(216,175,71,.28);
+            border-radius: 999px;
+            color: #f3cf78;
+            font-size: 8px;
+            white-space: nowrap;
           }
 
           /* Dashboard : plus dense et proche de la maquette */

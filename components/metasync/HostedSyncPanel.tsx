@@ -129,7 +129,7 @@ export default function HostedSyncPanel({ initialPlatform = "MT5" }: { initialPl
     queued: "En attente",
     connecting: "Connexion en cours",
     syncing: "Synchronisation active",
-    error: "À vérifier",
+    error: "Échec de synchronisation · cause non précisée",
     capacity: "En file d’attente",
     stopped: "Déconnecté",
     ready: "Prêt",

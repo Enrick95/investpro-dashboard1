@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-export const PERMISSIONS = ["overview","users","users_write","moderation","inbox","inbox_write","copier","copier_write","finance","analytics","feedback","feedback_write","system","navigation"] as const;
+export const PERMISSIONS = ["overview","users","users_write","moderation","inbox","inbox_write","copier","copier_write","announcements_write","finance","analytics","feedback","feedback_write","system","navigation"] as const;
 export type AdminPermission = typeof PERMISSIONS[number] | "staff";
 export function ownerIds() { return (process.env.INVESTPRO_ADMIN_USER_IDS || "").split(",").map(s=>s.trim()).filter(Boolean); }
 export function isOwner(id: string) { return ownerIds().includes(id); }

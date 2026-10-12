@@ -128,56 +128,65 @@ export default function NewMemberJourney({
           const Icon = step.icon;
 
           return (
-            <div
-              key={step.key}
-              className="bg-[color:var(--panel)] p-4 md:p-5"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div
-                  className={[
-                    "grid h-10 w-10 place-items-center rounded-xl border",
-                    done
-                      ? "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-400"
-                      : "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]",
-                  ].join(" ")}
-                >
-                  {done ? <Check size={17} /> : <Icon size={17} />}
-                </div>
-
-                <span
-                  className={[
-                    "inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[8px] font-bold uppercase",
-                    done
-                      ? "border-emerald-500/15 bg-emerald-500/[0.05] text-emerald-400"
-                      : "border-white/[0.07] bg-black/20 text-white/30",
-                  ].join(" ")}
-                >
-                  {done ? <Check size={9} /> : <Circle size={8} />}
-                  {done ? "Terminé" : "À faire"}
-                </span>
-              </div>
-
-              <div className="mt-4 text-[12px] font-semibold text-white">
-                {step.title}
-              </div>
-
-              <p className="mt-1 min-h-[40px] text-[9px] leading-4 text-white/35">
-                {step.text}
-              </p>
-
+            <div key={step.key} className="bg-[color:var(--panel)]">
               {done ? (
-                <div className="mt-4 inline-flex items-center gap-2 text-[9px] font-semibold text-emerald-400">
-                  <Check size={12} />
-                  Étape complétée
-                </div>
+                <>
+                  <div className="flex items-center gap-3 p-3 md:hidden">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-400">
+                      <Check size={16} />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-[12px] font-semibold text-white">
+                      {step.title}
+                    </span>
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-500/15 bg-emerald-500/[0.05] px-2 py-1 text-[8px] font-bold uppercase text-emerald-400">
+                      <Check size={9} /> Terminé
+                    </span>
+                  </div>
+
+                  <div className="hidden p-5 md:block">
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="grid h-10 w-10 place-items-center rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-400">
+                        <Check size={17} />
+                      </span>
+                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/15 bg-emerald-500/[0.05] px-2 py-1 text-[8px] font-bold uppercase text-emerald-400">
+                        <Check size={9} /> Terminé
+                      </span>
+                    </div>
+                    <div className="mt-4 text-[12px] font-semibold text-white">
+                      {step.title}
+                    </div>
+                    <p className="mt-1 min-h-[40px] text-[9px] leading-4 text-white/35">
+                      {step.text}
+                    </p>
+                    <div className="mt-4 inline-flex items-center gap-2 text-[9px] font-semibold text-emerald-400">
+                      <Check size={12} /> Étape complétée
+                    </div>
+                  </div>
+                </>
               ) : (
-                <Link
-                  href={step.href}
-                  className="mt-4 inline-flex items-center gap-1.5 text-[9px] font-semibold text-[color:var(--gold)] no-underline"
-                >
-                  {step.cta}
-                  <ArrowRight size={11} />
-                </Link>
+                <div className="p-4 md:p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="grid h-10 w-10 place-items-center rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]">
+                      <Icon size={17} />
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded-full border border-white/[0.07] bg-black/20 px-2 py-1 text-[8px] font-bold uppercase text-white/30">
+                      <Circle size={8} /> À faire
+                    </span>
+                  </div>
+                  <div className="mt-4 text-[12px] font-semibold text-white">
+                    {step.title}
+                  </div>
+                  <p className="mt-1 min-h-[40px] text-[9px] leading-4 text-white/35">
+                    {step.text}
+                  </p>
+                  <Link
+                    href={step.href}
+                    className="mt-4 inline-flex items-center gap-1.5 text-[9px] font-semibold text-[color:var(--gold)] no-underline"
+                  >
+                    {step.cta}
+                    <ArrowRight size={11} />
+                  </Link>
+                </div>
               )}
             </div>
           );

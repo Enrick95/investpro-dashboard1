@@ -119,8 +119,12 @@ function shortDay(date: Date) {
 }
 
 function normalizeSession(v: string | null) {
-  if (!v) return "Non renseigné";
+  if (!v) return "Données manquantes";
   return v.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function isImportedTradeLabel(value: string | null) {
+  return /^(MT4|MT5) synchronisé$/i.test(value?.trim() || "");
 }
 
 function safePct(num: number, den: number) {
@@ -297,7 +301,7 @@ export default function RapportsPage() {
     function aggregate(getLabel: (trade: Trade) => string): BreakdownRow[] {
       const map = new Map<string, { count: number; pnl: number; wins: number; losses: number }>();
       filteredTrades.forEach((trade) => {
-        const label = getLabel(trade) || "Non renseigné";
+        const label = getLabel(trade) || "Données manquantes";
         const row = map.get(label) || { count: 0, pnl: 0, wins: 0, losses: 0 };
         const result = Number(trade.result_amount || 0);
         row.count += 1;
@@ -314,21 +318,23 @@ export default function RapportsPage() {
     const weekdays = aggregate((t) => new Date(t.trade_date).toLocaleDateString("fr-FR", { weekday: "long" }));
     const hours = aggregate((t) => `${String(new Date(t.trade_date).getHours()).padStart(2, "0")}h`);
     return {
-      symbols: aggregate((t) => t.symbol || "Non renseigné"),
+      symbols: aggregate((t) => t.symbol || "Données manquantes"),
       sessions: aggregate((t) => normalizeSession(t.session)),
-      setups: aggregate((t) => t.setup || "Non renseigné"),
-      timeframes: aggregate((t) => t.timeframe || "Non renseigné"),
+      setups: aggregate((t) => isImportedTradeLabel(t.setup) ? "" : t.setup || "Données manquantes"),
+      timeframes: aggregate((t) => t.timeframe || "Données manquantes"),
       weekdays,
       hours,
     };
   }, [filteredTrades]);
 
   const intelligence = useMemo(() => {
-    const bestSession = breakdowns.sessions[0] || null;
-    const worstSession = breakdowns.sessions.length
-      ? breakdowns.sessions[breakdowns.sessions.length - 1]
+    const reportedSessions = breakdowns.sessions.filter((row) => row.label !== "Données manquantes");
+    const reportedSetups = breakdowns.setups.filter((row) => row.label !== "Données manquantes");
+    const bestSession = reportedSessions[0] || null;
+    const worstSession = reportedSessions.length
+      ? reportedSessions[reportedSessions.length - 1]
       : null;
-    const bestSetup = breakdowns.setups[0] || null;
+    const bestSetup = reportedSetups[0] || null;
 
     const messages: {
       tone: "good" | "warn" | "neutral";

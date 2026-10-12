@@ -18,8 +18,6 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 
-const SOCIAL_PROOF = "+400 traders";
-
 export default function AuthExperienceShell({
   children,
   mode,
@@ -142,13 +140,15 @@ function Brand() {
 
 function LiveCommunity({ compact = false }: { compact?: boolean }) {
   return (
-    <div className={compact ? "inline-flex items-center gap-2.5" : "inline-flex items-center gap-3 rounded-full border border-emerald-500/15 bg-emerald-500/[0.045] px-3.5 py-2"}>
-      <span className="relative flex h-2.5 w-2.5">
-        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-45" />
-        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
+    <div className={compact
+      ? "inline-flex items-center gap-2.5 rounded-full border border-emerald-400/20 bg-emerald-400/[0.06] px-3 py-2"
+      : "inline-flex items-center gap-3 rounded-full border border-emerald-400/20 bg-emerald-400/[0.06] px-3.5 py-2"}>
+      <span aria-hidden="true" className="relative flex h-2.5 w-2.5 shrink-0">
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60 motion-reduce:animate-none" />
+        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_13px_rgba(52,211,153,.75)]" />
       </span>
-      <span className="text-[10px] font-semibold text-emerald-300">
-        {SOCIAL_PROOF} dans la communauté InvestPro
+      <span className="text-[10px] font-semibold text-emerald-200">
+        Plus de 427 membres actifs
       </span>
     </div>
   );
@@ -169,12 +169,12 @@ function DashboardPreview() {
       <div className="flex items-center justify-between gap-3">
         <div>
           <div className="text-[8px] font-semibold uppercase tracking-[0.14em] text-[#d9ac43]">
-            Aperçu InvestPro
+            Aperçu illustratif
           </div>
           <div className="mt-1 text-[12px] font-semibold text-white">Vue d&apos;ensemble</div>
         </div>
-        <span className="rounded-full border border-emerald-500/15 bg-emerald-500/[0.05] px-2 py-1 text-[7px] font-bold uppercase text-emerald-400">
-          Connecté
+        <span className="rounded-full border border-[#d9ac43]/20 bg-[#d9ac43]/[0.06] px-2 py-1 text-[7px] font-bold uppercase text-[#e5b94d]">
+          Exemple fictif
         </span>
       </div>
 
