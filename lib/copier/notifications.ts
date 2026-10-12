@@ -52,6 +52,80 @@ async function finishDelivery(db: SupabaseClient, delivery: CopierDelivery, stat
   if (error) console.error(`[copier-notifications] delivery ${delivery.channel} non journalisée`, error.message);
 }
 
+function escapeHtml(value: string) {
+  return value.replace(/[&<>\"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+    "'": "&#39;",
+  })[character] || character);
+}
+
+function buildCopierEmailHtml(subject: string, message: string, href: string) {
+  const safeSubject = escapeHtml(subject);
+  const safeMessage = escapeHtml(message).replace(/\r?\n/g, "<br>");
+  const safeHref = `https://www.investprotrading.fr${href.startsWith("/") ? href : "/dashboard/copieur"}`;
+
+  return `<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light only">
+    <title>${safeSubject}</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f1f2ef;font-family:Arial,Helvetica,sans-serif;color:#20231f;">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">${safeSubject} — retrouvez les détails dans votre espace InvestPro.</div>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f1f2ef;padding:32px 12px;">
+      <tr><td align="center">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;background:#ffffff;border:1px solid #e4e5df;border-radius:16px;overflow:hidden;">
+          <tr><td style="height:5px;background:#e9b64d;font-size:0;line-height:0;">&nbsp;</td></tr>
+          <tr>
+            <td style="padding:26px 32px;background:#10120f;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td style="vertical-align:middle;padding-right:14px;">
+                    <img src="https://www.investprotrading.fr/logo.webp" width="54" height="54" alt="" style="display:block;width:54px;height:54px;border:0;border-radius:12px;">
+                  </td>
+                  <td style="vertical-align:middle;">
+                    <div style="font-size:17px;line-height:22px;font-weight:700;letter-spacing:1.4px;color:#ffffff;">INVESTPRO</div>
+                    <div style="margin-top:3px;font-size:11px;line-height:16px;letter-spacing:3px;color:#c9c5b8;">TRADING</div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:34px 32px 10px;">
+              <div style="display:inline-block;padding:7px 11px;border:1px solid #ead49c;border-radius:999px;background:#fbf7eb;color:#8b671b;font-size:10px;line-height:14px;font-weight:700;letter-spacing:1.1px;">ESPACE CLIENT</div>
+              <h1 style="margin:18px 0 0;font-size:25px;line-height:32px;font-weight:700;color:#171a16;">${safeSubject}</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:14px 32px 8px;font-size:16px;line-height:26px;color:#4b5049;">
+              ${safeMessage}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 32px 32px;">
+              <a href="${escapeHtml(safeHref)}" style="display:inline-block;padding:14px 22px;border:1px solid #dba83d;border-radius:9px;background:#e9b64d;color:#17140c;text-decoration:none;font-size:15px;line-height:20px;font-weight:700;">Ouvrir mon espace InvestPro&nbsp; &#8594;</a>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 32px;background:#f7f7f4;border-top:1px solid #e9eae4;font-size:12px;line-height:19px;color:#777c73;">
+              Vous recevez cet e-mail car une action liée à votre compte InvestPro a été effectuée.<br>
+              <span style="color:#454a43;font-weight:700;">L’équipe InvestPro Trading</span>
+            </td>
+          </tr>
+        </table>
+        <div style="padding:16px 12px 0;font-size:11px;line-height:17px;color:#858980;">InvestPro Trading · <a href="https://www.investprotrading.fr" style="color:#777c73;text-decoration:underline;">investprotrading.fr</a></div>
+      </td></tr>
+    </table>
+  </body>
+</html>`;
+}
+
 export async function createCopierNotice(db: SupabaseClient, notice: CopierNotice) {
   const { data, error } = await db.from("investpro_notifications").upsert(
     {
@@ -104,6 +178,7 @@ export async function sendCopierEmail(
         to: [email],
         subject,
         text: `${message}\n\nhttps://www.investprotrading.fr${href}\n\nL’équipe InvestPro Trading`,
+        html: buildCopierEmailHtml(subject, message, href),
       }),
       signal: AbortSignal.timeout(8000),
     });
