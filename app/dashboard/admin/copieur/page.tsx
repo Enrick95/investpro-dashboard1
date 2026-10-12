@@ -64,6 +64,8 @@ type ConfigRow = {
   };
 };
 
+type RequestTab = "pending" | "active" | "history";
+
 
 const statusLabel: Record<string, string> = {
   pending: "En attente",
@@ -84,6 +86,7 @@ export default function AdminCopierRequestsPage() {
   const [masterIds, setMasterIds] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const [masterSuccess, setMasterSuccess] = useState("");
+  const [requestTab, setRequestTab] = useState<RequestTab>("pending");
 
   async function headers(): Promise<Record<string, string>> {
     const {
@@ -216,6 +219,8 @@ export default function AdminCopierRequestsPage() {
       if (!response.ok) throw new Error(data.error || "Mise à jour impossible.");
 
       await load(true);
+      if (status === "activated") setRequestTab("active");
+      if (status === "rejected") setRequestTab("history");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Erreur.");
     } finally {
@@ -250,6 +255,14 @@ export default function AdminCopierRequestsPage() {
   }
 
   const pending = rows.filter((row) => ["pending", "processing"].includes(row.status)).length;
+  const activeRequests = rows.filter((row) => row.status === "activated");
+  const pendingRequests = rows.filter((row) => ["pending", "processing"].includes(row.status));
+  const historyRequests = rows.filter((row) => row.status === "rejected");
+  const visibleRequests = requestTab === "pending"
+    ? pendingRequests
+    : requestTab === "active"
+      ? activeRequests
+      : historyRequests;
   const pendingConfigs = configRows.filter((row) => ["pending", "processing"].includes(row.status)).length;
 
   return (
@@ -298,23 +311,47 @@ export default function AdminCopierRequestsPage() {
         </div>
       ) : null}
 
+      <section className="rounded-2xl border border-white/[0.07] bg-[color:var(--panel)] p-2">
+        <div role="tablist" aria-label="Catégories des demandes Master" className="flex flex-wrap gap-2">
+          {([
+            ["pending", "À traiter", pendingRequests.length],
+            ["active", "Comptes activés", activeRequests.length],
+            ["history", "Refusées", historyRequests.length],
+          ] as const).map(([tab, label, count]) => (
+            <button
+              key={tab}
+              type="button"
+              role="tab"
+              aria-selected={requestTab === tab}
+              onClick={() => setRequestTab(tab)}
+              className={`inline-flex min-h-10 items-center gap-2 rounded-xl px-4 text-xs font-semibold transition ${requestTab === tab ? "bg-[color:var(--gold-soft)] text-[color:var(--gold)]" : "text-white/45 hover:bg-white/[0.04] hover:text-white/75"}`}
+            >
+              {label}
+              <span className="rounded-full bg-black/25 px-2 py-0.5 text-[10px]">{count}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
       {loading ? (
         <div className="flex min-h-52 items-center justify-center">
           <Loader2 className="animate-spin text-[color:var(--gold)]" />
         </div>
-      ) : rows.length === 0 ? (
+      ) : visibleRequests.length === 0 ? (
         <section className="rounded-[24px] border border-white/[0.07] bg-[color:var(--panel)] p-10 text-center">
           <ShieldCheck className="mx-auto text-white/20" />
           <div className="mt-3 text-sm font-semibold text-white">
-            Aucune demande
+            {requestTab === "pending" ? "Aucune demande à traiter" : requestTab === "active" ? "Aucun compte Master activé" : "Aucune demande refusée"}
           </div>
           <div className="mt-1 text-xs text-white/35">
-            Les demandes envoyées depuis InvestPro Copier apparaîtront ici.
+            {requestTab === "pending" ? "Les nouvelles demandes apparaîtront ici." : requestTab === "active" ? "Les Masters apparaîtront ici après confirmation de leur activation." : "Les demandes refusées apparaîtront ici."}
           </div>
         </section>
       ) : (
         <div className="space-y-4">
-          {rows.map((row) => (
+          {visibleRequests.map((row) => {
+            const reviewable = ["pending", "processing"].includes(row.status);
+            return (
             <section
               key={row.id}
               className="rounded-[24px] border border-white/[0.07] bg-[color:var(--panel)] p-5 md:p-6"
@@ -394,7 +431,7 @@ export default function AdminCopierRequestsPage() {
                       {row.provider_master_id ? <div className="mt-2 text-[10px] font-semibold text-emerald-300">Master associé · {row.provider_master_id}</div> : null}
                     </div>
                   )}
-                  <div className="mt-3 rounded-2xl border border-white/[0.06] bg-black/20 p-4">
+                  {reviewable ? <div className="mt-3 rounded-2xl border border-white/[0.06] bg-black/20 p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <div className="text-[8px] uppercase text-white/25">
@@ -413,11 +450,11 @@ export default function AdminCopierRequestsPage() {
                         Afficher
                       </button>
                     </div>
-                  </div>
+                  </div> : null}
                 </div>
               </div>
 
-              <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-[1fr_auto]">
+              {reviewable ? <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-[1fr_auto]">
                 <textarea
                   value={notes[row.id] || ""}
                   onChange={(event) =>
@@ -456,9 +493,14 @@ export default function AdminCopierRequestsPage() {
                     Refuser
                   </button>
                 </div>
-              </div>
+              </div> : row.status === "rejected" ? (
+                <button disabled={busyId === row.id} onClick={() => void update(row, "pending")} className="mt-5 h-10 rounded-xl border border-[color:var(--gold-border)] px-4 text-xs font-semibold text-[color:var(--gold)] disabled:opacity-50">Remettre en attente</button>
+              ) : row.admin_note ? (
+                <div className="mt-5 rounded-xl border border-white/[0.06] bg-black/20 p-3 text-xs text-white/50">Note admin : {row.admin_note}</div>
+              ) : null}
             </section>
-          ))}
+            );
+          })}
         </div>
       )}
 
