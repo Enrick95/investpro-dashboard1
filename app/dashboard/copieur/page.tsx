@@ -357,6 +357,18 @@ function accountNumber(row: LooseAccount) {
   return String(row.login ?? row.account_number ?? row.external_account_id ?? row.external_id ?? row.name ?? "");
 }
 
+function isExplicitReceiver(receiver: Receiver, masterRequests: ActivationRequest[]) {
+  if (receiver.config?.activation_source === "admin_social_trade_hub") return false;
+  const matchingMaster = masterRequests.find((request) =>
+    Boolean(request.provider_master_id) &&
+    receiver.login === request.login &&
+    receiver.platform === request.platform &&
+    receiver.server.trim().toLowerCase() === request.server.trim().toLowerCase()
+  );
+  if (!matchingMaster?.activated_at) return true;
+  return Date.parse(receiver.created_at) > Date.parse(matchingMaster.activated_at);
+}
+
 function matchingAccount(accounts: LooseAccount[], target: { login: string; platform: string; server: string }, hostedSyncs: HostedAccountSync[] = []) {
   const serverKey = target.server.trim().toLowerCase();
   const synced = hostedSyncs.filter((row) => {
@@ -475,13 +487,12 @@ export default function CopieurPage() {
       return true;
     });
   }, [activationRequests]);
-  const isMasterMirror = (receiver: Receiver) => receiver.config?.activation_source === "admin_social_trade_hub";
   const approvedMaster = latestMasterRequests.find((r) => r.status === "activated" && Boolean(r.provider_master_id) && !["pending", "processing", "completed"].includes(r.removal_status)) || null;
   const approvedMasterReceiver = approvedMaster
-    ? receivers.find((receiver) => !isMasterMirror(receiver) && receiver.login === approvedMaster.login && receiver.platform === approvedMaster.platform && receiver.server === approvedMaster.server) || null
+    ? receivers.find((receiver) => isExplicitReceiver(receiver, latestMasterRequests) && receiver.login === approvedMaster.login && receiver.platform === approvedMaster.platform && receiver.server === approvedMaster.server) || null
     : null;
   const virtualReceivers = useMemo(() => {
-    const rows: Array<Receiver & { legacy?: boolean }> = receivers.filter((r) => r.config?.activation_source !== "admin_social_trade_hub").map((r) => ({ ...r }));
+    const rows: Array<Receiver & { legacy?: boolean }> = receivers.filter((receiver) => isExplicitReceiver(receiver, latestMasterRequests)).map((r) => ({ ...r }));
     if (legacyConnected) {
       rows.unshift({
         id: "legacy",
@@ -498,7 +509,7 @@ export default function CopieurPage() {
       });
     }
     return rows;
-  }, [receivers, legacyConnected]);
+  }, [receivers, legacyConnected, latestMasterRequests]);
 
   async function authHeaders(): Promise<Record<string, string>> {
     const {
