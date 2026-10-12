@@ -729,6 +729,14 @@ export default function CopieurPage() {
   }, [supabase]);
 
   async function selectReceiver(id: string) {
+    if (selectedReceiverId === id) {
+      setSelectedReceiverId(null);
+      setSelectedStatus(null);
+      setSelectedMasters({});
+      setMasterConsent(false);
+      setRiskModalOpen(false);
+      return;
+    }
     setSelectedReceiverId(id);
     setBusy(true);
     setError(false);
@@ -1088,6 +1096,7 @@ export default function CopieurPage() {
       const masters = (Object.entries(selectedMasters) as Array<[string, { on: boolean; lots: string }]>).filter(([, v]) => v.on).map(([id, v]) => ({ id, lots: Number(v.lots || 0.01) }));
       if (riskSettings.mode === "fixed") {
         const data = await post({ action: "masters", receiverId: selectedReceiverId, consent: true, masters });
+        if (data.ok === false) throw new Error(data.error || "La liaison Master n’a pas été confirmée.");
         if (data.status) applyStatus(data.status);
       }
       if (selectedReceiverId !== "legacy") {
@@ -1101,7 +1110,7 @@ export default function CopieurPage() {
           }),
         });
         const result = await response.json();
-        if (!response.ok) throw new Error(result.error || "Impossible d’enregistrer les réglages de copie.");
+        if (!response.ok || result.ok === false) throw new Error(result.error || "Impossible d’enregistrer les réglages de copie.");
         setRiskSavedAt(new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }));
         setRiskSaveState(result.requestStatus === "pending" ? "pending" : "saved");
       }
