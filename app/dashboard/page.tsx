@@ -28,7 +28,8 @@ import {
 
 import { createClient } from "@/lib/supabase/client";
 import { loadActiveTradingScope, scopeTradesToActiveAccounts } from "@/lib/trading/activeScope";
-import { convertToEur, formatEur, rateDateLabel, useUsdEurRate } from "@/lib/currency";
+import DisplayCurrencySelect from "@/components/currency/DisplayCurrencySelect";
+import { convertCurrency, formatDisplayCurrency, rateDateLabel, useCurrencyRates, useDisplayCurrency } from "@/lib/currency";
 
 /* =========================================================
    TYPES
@@ -1040,7 +1041,8 @@ function parseInvestingHtml(
 ========================================================= */
 
 export default function DashboardPage() {
-  const { usdToEur, rateDate, rateLoading } = useUsdEurRate();
+  const { rates, rateDate, rateLoading } = useCurrencyRates();
+  const { displayCurrency } = useDisplayCurrency();
   const reduceMotion = useReducedMotion();
 
   const supabase =
@@ -1651,24 +1653,24 @@ export default function DashboardPage() {
       [trades]
     );
 
-  const totalCapitalEur = useMemo(() => {
+  const totalCapital = useMemo(() => {
     const converted = accounts.map((account) =>
-      convertToEur(Number(account.current_balance || 0), account.currency, usdToEur)
+      convertCurrency(Number(account.current_balance || 0), account.currency, displayCurrency, rates)
     );
     return converted.some((value) => value === null)
       ? null
       : converted.reduce<number>((sum, value) => sum + Number(value), 0);
-  }, [accounts, usdToEur]);
+  }, [accounts, displayCurrency, rates]);
 
-  const monthPnlEur = useMemo(() => {
+  const monthPnl = useMemo(() => {
     const converted = monthTrades.map((trade) => {
       const currency = trade.account_id == null ? null : accountMap.get(trade.account_id)?.currency;
-      return convertToEur(Number(trade.result_amount || 0), currency, usdToEur);
+      return convertCurrency(Number(trade.result_amount || 0), currency, displayCurrency, rates);
     });
     return converted.some((value) => value === null)
       ? null
       : converted.reduce<number>((sum, value) => sum + Number(value), 0);
-  }, [monthTrades, accountMap, usdToEur]);
+  }, [monthTrades, accountMap, displayCurrency, rates]);
 
   const dashboardStats =
     useMemo(() => {
@@ -1977,10 +1979,13 @@ export default function DashboardPage() {
         <h1 className="text-xl font-semibold text-white md:text-2xl">
           Vue d’ensemble
         </h1>
-        <div className="hidden items-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-2 md:flex">
-          <ShieldCheck size={15} className="text-[color:var(--gold)]" />
-          <span className="text-xs text-[color:var(--muted)]">Plan</span>
-          <span className="text-xs font-bold text-[color:var(--gold)]">{planLabel}</span>
+        <div className="flex items-center gap-2">
+          <DisplayCurrencySelect compact />
+          <div className="hidden items-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-2 md:flex">
+            <ShieldCheck size={15} className="text-[color:var(--gold)]" />
+            <span className="text-xs text-[color:var(--muted)]">Plan</span>
+            <span className="text-xs font-bold text-[color:var(--gold)]">{planLabel}</span>
+          </div>
         </div>
       </motion.div>
 
@@ -2012,9 +2017,9 @@ export default function DashboardPage() {
             accounts.length ===
             0
               ? "—"
-              : totalCapitalEur === null
+              : totalCapital === null
                 ? rateLoading ? "Chargement…" : "—"
-                : formatEur(totalCapitalEur)
+                : formatDisplayCurrency(totalCapital, displayCurrency)
           }
           sub={
             accounts.length ===
@@ -2025,7 +2030,7 @@ export default function DashboardPage() {
                   1
                     ? "s"
                     : ""
-                } · ${totalCapitalEur === null ? (rateLoading ? "récupération du taux" : "conversion indisponible") : rateDateLabel(rateDate)}`
+                } · ${totalCapital === null ? (rateLoading ? "récupération du taux" : "conversion indisponible") : rateDateLabel(rateDate, displayCurrency)}`
           }
         />
 
@@ -2040,23 +2045,23 @@ export default function DashboardPage() {
             monthTrades.length ===
             0
               ? "—"
-              : monthPnlEur === null
+              : monthPnl === null
                 ? rateLoading ? "Chargement…" : "—"
-                : formatEur(monthPnlEur)
+                : formatDisplayCurrency(monthPnl, displayCurrency)
           }
           sub={
             monthTrades.length ===
             0
               ? "Aucune donnée"
-              : monthPnlEur === null
-                ? "Conversion EUR indisponible pour une devise de trade"
-                : `${rateDateLabel(rateDate)} · ce mois-ci`
+              : monthPnl === null
+                ? `Conversion ${displayCurrency} indisponible pour une devise de trade`
+                : `${rateDateLabel(rateDate, displayCurrency)} · ce mois-ci`
           }
           positive={
             monthTrades.length >
               0 &&
-            monthPnlEur !== null
-              ? monthPnlEur >= 0
+            monthPnl !== null
+              ? monthPnl >= 0
               : undefined
           }
         />

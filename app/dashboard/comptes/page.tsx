@@ -24,7 +24,8 @@ import {
 
 import { createClient } from "@/lib/supabase/client";
 import { pushNotif } from "@/lib/notifyStore";
-import { convertToEur, formatEur, rateDateLabel, useUsdEurRate } from "@/lib/currency";
+import DisplayCurrencySelect from "@/components/currency/DisplayCurrencySelect";
+import { convertCurrency, formatDisplayCurrency, rateDateLabel, useCurrencyRates, useDisplayCurrency } from "@/lib/currency";
 
 /* =========================================================
    TYPES
@@ -188,7 +189,8 @@ function accountTypeLabel(
 ========================================================= */
 
 export default function ComptesPage() {
-  const { usdToEur, rateDate, rateLoading } = useUsdEurRate();
+  const { rates, rateDate, rateLoading } = useCurrencyRates();
+  const { displayCurrency } = useDisplayCurrency();
   const deletingRef = useRef(false);
   const [deletingAccountId, setDeletingAccountId] = useState<number | null>(null);
   const [syncPanelVersion, setSyncPanelVersion] = useState(0);
@@ -418,14 +420,14 @@ export default function ComptesPage() {
       };
     }, [accounts]);
 
-  const capitalTotalEur = useMemo(() => {
+  const capitalTotal = useMemo(() => {
     const converted = accounts.map((account) =>
-      convertToEur(Number(account.current_balance || 0), account.currency, usdToEur)
+      convertCurrency(Number(account.current_balance || 0), account.currency, displayCurrency, rates)
     );
     return converted.some((value) => value === null)
       ? null
       : converted.reduce<number>((sum, value) => sum + Number(value), 0);
-  }, [accounts, usdToEur]);
+  }, [accounts, displayCurrency, rates]);
 
   /* =========================================================
      MODALS
@@ -784,12 +786,14 @@ export default function ComptesPage() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={
-              openNewAccount
-            }
-            className="
+          <div className="flex flex-wrap items-center gap-2">
+            <DisplayCurrencySelect />
+            <button
+              type="button"
+              onClick={
+                openNewAccount
+              }
+              className="
               inline-flex
               h-11
               items-center
@@ -804,13 +808,14 @@ export default function ComptesPage() {
               transition
               hover:bg-[color:var(--gold-2)]
             "
-          >
-            <Plus
-              size={16}
-            />
+            >
+              <Plus
+                size={16}
+              />
 
-            Ajouter un compte
-          </button>
+              Ajouter un compte
+            </button>
+          </div>
         </div>
 
         {/* =====================================================
@@ -845,16 +850,16 @@ export default function ComptesPage() {
             label="Capital total"
             value={
               stats.total === 0
-                ? formatMoney(0, "EUR")
-                : capitalTotalEur === null
+                ? formatDisplayCurrency(0, displayCurrency)
+                : capitalTotal === null
                   ? rateLoading ? "Chargement…" : "—"
-                  : formatEur(capitalTotalEur)
+                  : formatDisplayCurrency(capitalTotal, displayCurrency)
             }
             sub={stats.total === 0
               ? "Capital actuel déclaré"
-              : capitalTotalEur === null
-                ? rateLoading ? "Récupération du taux de change" : "Conversion EUR indisponible pour une devise"
-                : rateDateLabel(rateDate)}
+              : capitalTotal === null
+                ? rateLoading ? "Récupération du taux de change" : `Conversion ${displayCurrency} indisponible pour une devise`
+                : rateDateLabel(rateDate, displayCurrency)}
           />
 
           <StatCard

@@ -28,7 +28,8 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import PerformanceCalendar from '@/components/performance/PerformanceCalendar';
 import { pushNotif } from "@/lib/notifyStore";
-import { convertToEur, formatEur, rateDateLabel, useUsdEurRate } from "@/lib/currency";
+import DisplayCurrencySelect from "@/components/currency/DisplayCurrencySelect";
+import { convertCurrency, formatDisplayCurrency, rateDateLabel, useCurrencyRates, useDisplayCurrency } from "@/lib/currency";
 
 /* =========================================================
    TYPES
@@ -787,7 +788,8 @@ function evaluatePlan(
 ========================================================= */
 
 export default function JournalPage() {
-  const { usdToEur, rateDate, rateLoading } = useUsdEurRate();
+  const { rates, rateDate, rateLoading } = useCurrencyRates();
+  const { displayCurrency } = useDisplayCurrency();
   const supabase =
     useMemo(
       () =>
@@ -1760,15 +1762,15 @@ export default function JournalPage() {
       tradingPlan,
     ]);
 
-  const totalPnlEur = useMemo(() => {
+  const totalPnl = useMemo(() => {
     const converted = trades.map((trade) => {
       const currency = trade.account_id == null ? null : accountMap.get(trade.account_id)?.currency;
-      return convertToEur(Number(trade.result_amount || 0), currency, usdToEur);
+      return convertCurrency(Number(trade.result_amount || 0), currency, displayCurrency, rates);
     });
     return converted.some((value) => value === null)
       ? null
       : converted.reduce<number>((sum, value) => sum + Number(value), 0);
-  }, [trades, accountMap, usdToEur]);
+  }, [trades, accountMap, displayCurrency, rates]);
 
   /* =========================================================
      AUTOMATIC RESULT
@@ -2567,6 +2569,7 @@ export default function JournalPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 lg:gap-3">
+            <DisplayCurrencySelect />
             <div
               className="
                 rounded-xl
@@ -2828,13 +2831,13 @@ export default function JournalPage() {
             label="P&L total"
             value={trades.length === 0
               ? "—"
-              : totalPnlEur === null
+              : totalPnl === null
                 ? rateLoading ? "Chargement…" : "—"
-                : formatEur(totalPnlEur)}
-            positive={totalPnlEur === null ? undefined : totalPnlEur >= 0}
-            sub={totalPnlEur === null
-              ? "Conversion EUR indisponible pour une devise"
-              : rateDateLabel(rateDate)}
+                : formatDisplayCurrency(totalPnl, displayCurrency)}
+            positive={totalPnl === null ? undefined : totalPnl >= 0}
+            sub={totalPnl === null
+              ? `Conversion ${displayCurrency} indisponible pour une devise`
+              : rateDateLabel(rateDate, displayCurrency)}
           />
 
           <StatCard
