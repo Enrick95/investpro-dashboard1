@@ -119,7 +119,7 @@ export async function GET(request: Request) {
         admin
           .from("investpro_mt_hosted")
           .select(
-            "id,user_id,broker_id,active,status,updated_at,capital_auto,capital_reference,capital_method,equity"
+            "id,user_id,connection_id,broker_id,active,status,updated_at,capital_auto,capital_reference,capital_method,equity"
           )
           .order("updated_at", { ascending: false }),
         []
@@ -210,22 +210,18 @@ export async function GET(request: Request) {
       };
     });
 
-    const hostedByUser = new Map<string, any[]>();
+    const hostedByConnection = new Map<string, any[]>();
     for (const hosted of hostedResult.data) {
-      const list = hostedByUser.get(hosted.user_id) || [];
+      if (!hosted.connection_id) continue;
+      const list = hostedByConnection.get(hosted.connection_id) || [];
       list.push(hosted);
-      hostedByUser.set(hosted.user_id, list);
+      hostedByConnection.set(hosted.connection_id, list);
     }
 
     const metatrader = mtResult.data.map((connection: any) => {
       const account: any = accountMap.get(Number(connection.account_id)) || {};
-      const hostedCandidates = hostedByUser.get(connection.user_id) || [];
-      const hosted = hostedCandidates.find(
-        (item: any) =>
-          item.active &&
-          (String(item.status || "").toLowerCase() === "syncing" ||
-            String(item.status || "").toLowerCase() === "ready")
-      );
+      const hostedCandidates = hostedByConnection.get(connection.id) || [];
+      const hosted = hostedCandidates[0] || null;
 
       const warnings = Array.isArray(connection.warnings)
         ? connection.warnings.map(String)
@@ -237,12 +233,15 @@ export async function GET(request: Request) {
       } else if (!connection.revoked && connection.last_sync && !isRecent(connection.last_sync, 10)) {
         status = "stale";
       }
+      if (!connection.revoked && status.toLowerCase() === "error") {
+        warnings.push("Le worker MetaTrader signale une erreur. Vérifie la connexion, le serveur et les identifiants.");
+      }
 
       return {
         id: `mt-${connection.id}`,
         raw_id: connection.id,
         source: connection.platform || "MetaTrader",
-        kind: hosted ? "MetaTrader hébergé" : "MetaTrader",
+        kind: hosted?.active ? "MetaTrader hébergé" : "MetaTrader",
         member: member(connection.user_id),
         account_name:
           account.name ||
