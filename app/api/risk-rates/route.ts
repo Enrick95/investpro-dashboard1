@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 export const revalidate = 3600;
 
-const supportedCurrencies = new Set(Intl.supportedValuesOf("currency"));
+const supportedCurrencies = new Set([...Intl.supportedValuesOf("currency"), "CNH"]);
 const unavailableMessage = "Taux de change indisponibles.";
 
 function isValidDate(value: unknown): value is string {
@@ -37,7 +37,7 @@ function parseRates(value: unknown) {
       throw new Error("Invalid rate fields");
     }
 
-    // Frankfurter also publishes non-ISO currency aliases; do not expose them as account currencies.
+    // CNH is the offshore yuan used by the Forex catalog; ignore other unsupported aliases.
     if (!supportedCurrencies.has(row.quote)) continue;
     if (dates[row.quote] !== undefined || (row.quote === "EUR" && row.rate !== 1)) {
       throw new Error("Inconsistent rate response");

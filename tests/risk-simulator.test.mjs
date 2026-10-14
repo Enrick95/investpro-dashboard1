@@ -4,9 +4,11 @@ import {
   calculatePosition,
   floorVolume,
   getInstrument,
+  getSimpleInstrument,
   parseDecimal,
   resolveConversion,
   SUGGESTED_ASSETS,
+  SIMPLE_ASSETS,
 } from "../lib/risk-simulator.ts";
 
 function close(actual, expected, message) {
@@ -244,4 +246,55 @@ test("French decimal entry accepts common grouping, but rejects malformed and sc
   for (const value of ["", " ", "1,2,3", "1.2.3", "12abc", "1e3", "Infinity"]) {
     assert.ok(Number.isNaN(parseDecimal(value)), value);
   }
+});
+
+test("simple calculator chooses explicit Forex, gold, silver and index conventions automatically", () => {
+  for (const [symbol, contractSize, profitCurrency, indexConvention] of [
+    ["EURUSD.a", 100_000, "USD", false],
+    ["GOLD", 100, "USD", false],
+    ["SILVER", 5000, "USD", false],
+    ["USTEC", 1, "USD", true],
+    ["DAX", 1, "EUR", true],
+    ["JP225", 1, "JPY", true],
+  ]) {
+    const instrument = getSimpleInstrument(symbol);
+    assert.ok(instrument, symbol);
+    assert.equal(instrument.contractSize, contractSize, symbol);
+    assert.equal(instrument.profitCurrency, profitCurrency, symbol);
+    assert.equal(instrument.indexConvention, indexConvention, symbol);
+  }
+});
+
+test("simple calculator never invents contracts for unknown or unsupported instruments", () => {
+  for (const symbol of ["BrokerSpecial", "USDUSD", "", "XPTUSD", "XPDUSD", "WTI", "BTCUSD"]) {
+    assert.equal(getSimpleInstrument(symbol), null, symbol);
+  }
+  for (const symbol of ["EURUSD", "XAUUSD", "XAGUSD", "NAS100"]) {
+    assert.ok(SIMPLE_ASSETS.some(item => item.symbol === symbol), symbol);
+  }
+  assert.ok(SIMPLE_ASSETS.every(item => getSimpleInstrument(item.symbol) !== null));
+  assert.ok(!SIMPLE_ASSETS.some(item => ["energy", "crypto"].includes(item.market)));
+});
+
+test("a lot-only sell is valid even when a hypothetical take profit would be negative", () => {
+  const result = position({ entry: 1, stop: 2, rr: undefined, contractSize: 1 });
+  assert.equal(result.error, "");
+  assert.equal(result.isBuy, false);
+  assert.equal(result.lots, 100);
+  assert.equal(result.actualRisk, 100);
+  assert.ok(Number.isNaN(result.target));
+  assert.equal(result.gain, 0);
+});
+
+test("lot-only sizing uses the SL conversion without requiring an unused TP conversion", () => {
+  const instrument = getSimpleInstrument("USDJPY");
+  const conversion = resolveConversion({ ...instrument, accountCurrency: "USD", stop: 149, target: NaN });
+  assert.equal(conversion.source, "pair");
+  assert.ok(Number.isNaN(conversion.gainRate));
+  const result = position({ symbol: "USDJPY", entry: 150, stop: 149, rr: undefined, ...conversion });
+  assert.equal(result.error, "");
+  assert.equal(result.lots, 0.14);
+  close(result.actualRisk, 14_000 / 149);
+  assert.equal(result.gain, 0);
+  assert.ok(result.actualRisk <= 100);
 });
