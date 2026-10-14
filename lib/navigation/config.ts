@@ -10,6 +10,7 @@ export type NavigationKey =
   | "risk"
   | "reports"
   | "copy"
+  | "copyFutures"
   | "tradingview"
   | "calendar"
   | "fundamentals"
@@ -45,7 +46,9 @@ export const navigationDefinitions: NavigationDefinition[] = [
   { key: "plan", label: "Plan de trading", href: "/dashboard/plan", group: "TRADING", defaultVisible: true, order: 23 },
   { key: "risk", label: "Simulateur risque", href: "/dashboard/simulateur", group: "TRADING", defaultVisible: true, order: 24 },
   { key: "reports", label: "Rapports", href: "/dashboard/rapports", group: "TRADING", defaultVisible: true, order: 25 },
-  { key: "copy", label: "Copieur multi-comptes", href: "/dashboard/copieur", group: "TRADING", defaultVisible: true, order: 26 },
+  { key: "copy", label: "InvestPro Copy CFD", href: "/dashboard/copieur", group: "TRADING", defaultVisible: true, order: 26 },
+
+  { key: "copyFutures", label: "InvestPro Copy Futures", href: "/dashboard/copieur-futures", group: "TRADING", defaultVisible: true, order: 27 },
 
   { key: "tradingview", label: "TradingView", href: "/dashboard/tradingview", group: "MARCHÉS & ANALYSE", defaultVisible: true, order: 30 },
   { key: "calendar", label: "Calendrier éco", href: "/dashboard/calendrier", group: "MARCHÉS & ANALYSE", defaultVisible: true, order: 31 },
