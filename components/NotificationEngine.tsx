@@ -1,5 +1,7 @@
 "use client";
 
+import { planAllowsAsset } from "@/lib/trading-plan-assets";
+
 import { useEffect, useMemo, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { pushNotif } from "@/lib/notifyStore";
@@ -28,11 +30,6 @@ type TradeRow = {
   setup: string | null;
   trade_date: string;
 };
-
-function normalizeAsset(value: string | null | undefined) {
-  const clean = String(value || "").trim().toUpperCase().replace(/\s+/g, "");
-  return clean === "GOLD" ? "XAUUSD" : clean;
-}
 
 function normalizeSession(value: string | null | undefined) {
   return String(value || "")
@@ -77,8 +74,7 @@ function complianceReasons(trade: TradeRow, plan: TradingPlan | null) {
   }
 
   if (plan.allowed_assets?.length) {
-    const allowed = plan.allowed_assets.map(normalizeAsset);
-    if (!allowed.includes(normalizeAsset(trade.symbol))) {
+    if (!planAllowsAsset(plan.allowed_assets, trade.symbol)) {
       reasons.push(`${trade.symbol} hors actifs autorisés`);
     }
   }
