@@ -8,8 +8,8 @@ import { createClient as createCookieClient } from "@/lib/supabase/server";
 import { isSameVipOrigin, isVipMembershipActive, normalizeVipCode } from "@/lib/vip/membership";
 import type { VipMembership, VipMembershipType } from "@/lib/vip/types";
 
-export const VIP_MEMBERSHIP_COLUMNS = "user_id,email,type,started_at,expires_at,status,renewal_requested_at,created_at,updated_at";
-export const VIP_INVITATION_COLUMNS = "id,email,type,created_by,created_at,expires_at,redeemed_at,redeemed_by,revoked_at";
+export const VIP_MEMBERSHIP_COLUMNS = "user_id,email,type,first_name,last_name,affiliation_broker,started_at,expires_at,status,renewal_requested_at,created_at,updated_at";
+export const VIP_INVITATION_COLUMNS = "id,email,type,first_name,last_name,affiliation_broker,created_by,created_at,expires_at,redeemed_at,redeemed_by,revoked_at";
 
 export class VipRequestError extends Error {
   constructor(message: string, public status = 400) { super(message); }

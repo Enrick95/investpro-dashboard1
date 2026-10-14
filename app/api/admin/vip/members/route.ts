@@ -1,6 +1,7 @@
 import { authenticateAdmin } from "@/lib/admin/permissions";
 import { createVipInvitationCode, hashVipInvitationCode, readVipJson, VIP_INVITATION_COLUMNS, VIP_MEMBERSHIP_COLUMNS, vipErrorResponse, vipJson } from "@/lib/vip/membership-server";
 import { isValidVipEmail, isVipMembershipType, normalizeVipEmail } from "@/lib/vip/membership";
+import { validateVipIdentity } from "@/lib/vip/identity";
 import type { VipInvitation } from "@/lib/vip/types";
 
 export const runtime = "nodejs";
@@ -30,13 +31,36 @@ export async function POST(request: Request) {
     if (body.action === "invite") {
       const email = normalizeVipEmail(body.email);
       if (!isValidVipEmail(email) || !isVipMembershipType(body.type)) return vipJson({ error: "E-mail et origine de l’accès valides requis." }, 400);
+      const identity = validateVipIdentity(body, body.type);
+      if (!identity.ok) return vipJson({ error: identity.error }, 400);
       const { data: existing, error: lookupError } = await context.admin.from("vip_memberships").select("user_id").eq("email", email).maybeSingle();
       if (lookupError) throw lookupError;
       if (existing) return vipJson({ error: "Un accès existe déjà pour ce compte. Utilisez les actions de renouvellement ou de réactivation." }, 409);
       const code = createVipInvitationCode(body.type);
-      const { data, error } = await context.admin.from("vip_invitations").insert({ email, type: body.type, code_hash: hashVipInvitationCode(code), created_by: context.user.id }).select(VIP_INVITATION_COLUMNS).single();
+      const { data, error } = await context.admin.from("vip_invitations").insert({ email, type: body.type, ...identity.identity, code_hash: hashVipInvitationCode(code), created_by: context.user.id }).select(VIP_INVITATION_COLUMNS).single();
       if (error) throw error;
       return vipJson({ code, invitation: data as VipInvitation, activationUrl: `/vip?code=${encodeURIComponent(code)}` }, 201);
+    }
+    if (body.action === "updateIdentity") {
+      if (typeof body.userId !== "string" || !uuid.test(body.userId)) return vipJson({ error: "Membre invalide." }, 400);
+      const { data: current, error: lookupError } = await context.admin.from("vip_memberships").select("type").eq("user_id", body.userId).maybeSingle();
+      if (lookupError) throw lookupError;
+      if (!current) return vipJson({ error: "Ce membre n’a pas d’accès VIP." }, 404);
+      if (!isVipMembershipType(current.type)) throw new Error("vip_membership_type_invalid");
+      const identity = validateVipIdentity(body, current.type);
+      if (!identity.ok) return vipJson({ error: identity.error }, 400);
+      const { data, error } = await context.admin.rpc("vip_update_identity", {
+        p_user_id: body.userId,
+        p_first_name: identity.identity.first_name,
+        p_last_name: identity.identity.last_name,
+        p_affiliation_broker: identity.identity.affiliation_broker,
+      });
+      if (error) {
+        if (error.message === "vip_membership_missing") return vipJson({ error: "Ce membre n’a pas d’accès VIP." }, 404);
+        if (error.message === "vip_identity_invalid" || error.message === "vip_affiliation_broker_required") return vipJson({ error: "Vérifiez le prénom, le nom et le broker de l’affiliation." }, 400);
+        throw error;
+      }
+      return vipJson({ ok: true, membership: data });
     }
     if (body.action === "revokeInvitation") {
       if (typeof body.id !== "string" || !uuid.test(body.id)) return vipJson({ error: "Invitation invalide." }, 400);

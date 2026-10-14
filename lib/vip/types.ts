@@ -1,3 +1,5 @@
+import type { VipAffiliationBroker } from "./identity";
+
 export type VipMembershipType = "affiliation" | "abonnement";
 export type VipMembershipStatus = "active" | "suspended";
 
@@ -5,6 +7,9 @@ export type VipMembership = {
   user_id: string;
   email: string;
   type: VipMembershipType;
+  first_name: string | null;
+  last_name: string | null;
+  affiliation_broker: VipAffiliationBroker | null;
   started_at: string;
   expires_at: string | null;
   status: VipMembershipStatus;
@@ -17,6 +22,9 @@ export type VipInvitation = {
   id: string;
   email: string;
   type: VipMembershipType;
+  first_name: string | null;
+  last_name: string | null;
+  affiliation_broker: VipAffiliationBroker | null;
   created_by: string | null;
   created_at: string;
   expires_at: string;
