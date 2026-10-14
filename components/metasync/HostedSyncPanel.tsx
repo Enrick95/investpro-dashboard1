@@ -48,8 +48,8 @@ export default function HostedSyncPanel({ initialPlatform = "MT5" }: { initialPl
   const [broker, setBroker] = useState("");
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
-  const [currency, setCurrency] = useState("USD");
-  const [type, setType] = useState("prop");
+  const [currency, setCurrency] = useState("");
+  const [type, setType] = useState("");
   const [syncConsent, setSyncConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -231,27 +231,46 @@ export default function HostedSyncPanel({ initialPlatform = "MT5" }: { initialPl
             </Field>
 
             <Field label="Devise">
-              <input
+              <select
                 required
-                maxLength={3}
-                pattern="[A-Z]{3}"
                 className="ip-connection-input"
                 value={currency}
-                onChange={(event) => setCurrency(event.target.value.toUpperCase())}
-                placeholder="USD"
-              />
+                onChange={(event) => setCurrency(event.target.value)}
+              >
+                <option value="" disabled>Choisir votre devise</option>
+                <option value="USD">USD — Dollar américain</option>
+                <option value="EUR">EUR — Euro</option>
+                <option value="CHF">CHF — Franc suisse</option>
+                <option value="GBP">GBP — Livre sterling</option>
+                <option value="CAD">CAD — Dollar canadien</option>
+                <option value="AUD">AUD — Dollar australien</option>
+                <option value="JPY">JPY — Yen japonais</option>
+                <option value="NZD">NZD — Dollar néo-zélandais</option>
+                <option value="SGD">SGD — Dollar de Singapour</option>
+                <option value="HKD">HKD — Dollar de Hong Kong</option>
+                <option value="ZAR">ZAR — Rand sud-africain</option>
+                <option value="USC">USC — Centime de dollar américain (compte cent)</option>
+              </select>
+              <span className="mt-2 block text-[10px] leading-4 text-white/40">
+                Choisissez la devise affichée dans MetaTrader, même si vous habitez dans un autre pays.
+              </span>
             </Field>
 
             <Field label="Type de compte">
               <select
+                required
                 className="ip-connection-input"
                 value={type}
                 onChange={(event) => setType(event.target.value)}
               >
+                <option value="" disabled>Choisir le type de compte</option>
                 <option value="real">Réel</option>
                 <option value="demo">Démo</option>
                 <option value="prop">Prop firm</option>
               </select>
+              <span className="mt-2 block text-[10px] leading-4 text-white/40">
+                Réel : vos fonds. Démo : fonds virtuels. Prop firm : challenge ou compte financé.
+              </span>
             </Field>
           </div>
 
