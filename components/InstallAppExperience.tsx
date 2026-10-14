@@ -17,6 +17,21 @@ type InstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 };
 
+const INSTALL_REMINDER_KEY = "investpro-install-reminder-until-v2";
+
+function canOfferInstall() {
+  try {
+    const until = Number(window.localStorage.getItem(INSTALL_REMINDER_KEY));
+    return !Number.isFinite(until) || until <= Date.now();
+  } catch { return true; }
+}
+
+function rememberInstallOffer(days: number) {
+  try {
+    window.localStorage.setItem(INSTALL_REMINDER_KEY, String(Date.now() + days * 86400000));
+  } catch { /* Private browsing must not prevent opening or closing the invitation. */ }
+}
+
 function isStandaloneMode() {
   if (typeof window === "undefined") return false;
 
@@ -30,7 +45,8 @@ function isStandaloneMode() {
 
 function isIOSDevice() {
   if (typeof navigator === "undefined") return false;
-  return /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  return /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 }
 
 export default function InstallAppExperience() {
@@ -38,75 +54,102 @@ export default function InstallAppExperience() {
   const [tab, setTab] = useState<"ios" | "android">("ios");
   const [deferredPrompt, setDeferredPrompt] = useState<InstallPromptEvent | null>(null);
   const [standalone, setStandalone] = useState(false);
+  const [bannerVisible, setBannerVisible] = useState(false);
+  const [installError, setInstallError] = useState("");
 
   useEffect(() => {
-    const standaloneNow = isStandaloneMode();
-
-    setStandalone(standaloneNow);
-    setTab(isIOSDevice() ? "ios" : "android");
-
-    if (standaloneNow) {
-      window.localStorage.setItem("investpro_app_installed", "1");
-      return;
-    }
-
+    let installed = isStandaloneMode();
+    const mobile = window.matchMedia("(max-width: 900px)");
+    const displayMode = window.matchMedia("(display-mode: standalone)");
+    const timer = window.setTimeout(() => {
+      setStandalone(installed);
+      setTab(isIOSDevice() ? "ios" : "android");
+      setBannerVisible(!installed && mobile.matches && canOfferInstall());
+    }, 3000);
     const onBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
       setDeferredPrompt(event as InstallPromptEvent);
     };
-
     const onInstalled = () => {
-      window.localStorage.setItem("investpro_app_installed", "1");
+      installed = true;
+      setBannerVisible(false);
       setGuideOpen(false);
+      setDeferredPrompt(null);
       setStandalone(true);
+      rememberInstallOffer(30);
     };
-
+    const onDisplayMode = () => {
+      installed = isStandaloneMode();
+      setStandalone(installed);
+      if (installed) { setBannerVisible(false); setGuideOpen(false); }
+    };
+    const onMobile = () => setBannerVisible(!installed && mobile.matches && canOfferInstall());
     const onOpenGuide = () => {
+      if (installed) return;
+      setTab(isIOSDevice() ? "ios" : "android");
+      setInstallError("");
       setGuideOpen(true);
     };
-
     window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
     window.addEventListener("appinstalled", onInstalled);
     window.addEventListener("investpro:open-install-guide", onOpenGuide);
-
+    mobile.addEventListener("change", onMobile);
+    displayMode.addEventListener("change", onDisplayMode);
     return () => {
+      window.clearTimeout(timer);
       window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
       window.removeEventListener("appinstalled", onInstalled);
       window.removeEventListener("investpro:open-install-guide", onOpenGuide);
+      mobile.removeEventListener("change", onMobile);
+      displayMode.removeEventListener("change", onDisplayMode);
     };
   }, []);
-
-  function remindLater() {
-    setGuideOpen(false);
-  }
 
   function closeGuide() {
     setGuideOpen(false);
   }
 
+  function remindLater() {
+    rememberInstallOffer(7);
+    setBannerVisible(false);
+    setGuideOpen(false);
+  }
+
   function markInstalled() {
-    window.localStorage.setItem("investpro_app_installed", "1");
+    rememberInstallOffer(30);
+    setBannerVisible(false);
     setGuideOpen(false);
   }
 
   async function installAndroid() {
     if (!deferredPrompt) return;
-
-    await deferredPrompt.prompt();
-    const choice = await deferredPrompt.userChoice;
-
-    if (choice.outcome === "accepted") {
-      window.localStorage.setItem("investpro_app_installed", "1");
-      setGuideOpen(false);
+    setInstallError("");
+    try {
+      await deferredPrompt.prompt();
+      const choice = await deferredPrompt.userChoice;
+      if (choice.outcome === "accepted") markInstalled();
+    } catch {
+      setInstallError("L’installation directe n’est pas disponible. Utilise le menu Chrome indiqué ci-dessus.");
+    } finally {
+      setDeferredPrompt(null);
     }
-
-    setDeferredPrompt(null);
   }
 
   if (standalone) return null;
 
   return (
     <>
+      {bannerVisible && !guideOpen ? (
+        <aside className="ip-install-banner" aria-label="Installer InvestPro">
+          <Smartphone size={25} aria-hidden="true" />
+          <div className="ip-install-banner-copy">
+            <strong>InvestPro sur ton téléphone</strong>
+            <span>Ajoute l’app à ton écran d’accueil.</span>
+          </div>
+          <button type="button" className="ip-install-banner-action" onClick={() => { setInstallError(""); setGuideOpen(true); }}>Installer</button>
+          <button type="button" className="ip-install-banner-dismiss" onClick={remindLater} aria-label="Me le rappeler plus tard"><X size={17} /></button>
+        </aside>
+      ) : null}
       {guideOpen ? (
         <div className="ip-install-overlay">
           <button
@@ -116,7 +159,7 @@ export default function InstallAppExperience() {
             onClick={closeGuide}
           />
 
-          <section className="ip-install-modal" role="dialog" aria-modal="true">
+          <section className="ip-install-modal" role="dialog" aria-modal="true" aria-labelledby="ip-install-title">
             <button
               type="button"
               className="ip-install-close"
@@ -131,7 +174,7 @@ export default function InstallAppExperience() {
               InvestPro Mobile
             </div>
 
-            <h2 className="ip-install-title">
+            <h2 id="ip-install-title" className="ip-install-title">
               Installe InvestPro comme une <span>vraie app.</span>
             </h2>
 
@@ -220,6 +263,8 @@ export default function InstallAppExperience() {
               </button>
             ) : null}
 
+            {installError ? <p role="alert" className="ip-install-subtitle">{installError}</p> : null}
+
             <button
               type="button"
               className="ip-install-done"
@@ -241,11 +286,31 @@ export default function InstallAppExperience() {
       ) : null}
 
       <style jsx global>{`
-        .ip-install-overlay {
-          display: none;
-        }
+        .ip-install-overlay, .ip-install-banner { display: none; }
 
         @media (max-width: 900px) {
+          .ip-install-banner {
+            position: fixed;
+            z-index: 1250;
+            left: 12px;
+            right: 12px;
+            bottom: calc(88px + env(safe-area-inset-bottom));
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 10px 14px 14px;
+            border: 1px solid rgba(224,182,79,.35);
+            border-radius: 18px;
+            background: #11140f;
+            color: #e0b64f;
+            box-shadow: 0 12px 40px rgba(0,0,0,.5);
+          }
+          .ip-install-banner-copy { flex: 1; min-width: 0; }
+          .ip-install-banner-copy strong { display: block; color: white; font-size: 12px; line-height: 1.4; }
+          .ip-install-banner-copy span { display: block; margin-top: 3px; color: rgba(255,255,255,.6); font-size: 10px; line-height: 1.4; }
+          .ip-install-banner-action { min-height: 44px; padding: 0 12px; border: 0; border-radius: 11px; background: #e0b64f; color: #090a09; font-size: 11px; font-weight: 750; }
+          .ip-install-banner-dismiss { display: grid; place-items: center; min-width: 32px; min-height: 44px; border: 0; background: transparent; color: rgba(255,255,255,.6); }
+
           .ip-install-overlay {
             position: fixed;
             inset: 0;
