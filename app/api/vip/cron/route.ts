@@ -3,7 +3,7 @@ import {vipDatabase,vipJson} from "@/lib/vip/membership-server";
 import {deliverVipNotifications} from "@/lib/vip/notifications";
 export const dynamic="force-dynamic";
 export const runtime="nodejs";
-export const maxDuration=60;
+export const maxDuration=300;
 export async function GET(request:Request) {
   const secret=process.env.CRON_SECRET;
   const token=request.headers.get("authorization")||"";

@@ -16,6 +16,8 @@ export default function VipLanding({ initialCode }: { initialCode: string }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const nextPath = code.trim() ? `/vip?code=${encodeURIComponent(code.trim())}` : "/vip";
+  const authQuery = `next=${encodeURIComponent(nextPath)}`;
   useEffect(() => {
     let alive = true;
     async function load() {
@@ -56,7 +58,7 @@ export default function VipLanding({ initialCode }: { initialCode: string }) {
         <div className={s.activation}>
           {loading ? <p role="status">Vérification de votre accès…</p> : access?.active ? <><span className={s.active}><ShieldCheck size={15} /> Votre espace est prêt</span><Link href="/dashboard/vip" className={s.primary}>Ouvrir mon espace VIP <ArrowRight size={17} /></Link></> : <>
             <form onSubmit={redeem}><label htmlFor="vip-code"><KeyRound size={15} /> Votre invitation personnelle</label><input id="vip-code" value={code} onChange={(event) => setCode(event.target.value)} placeholder="Saisissez votre code d’invitation" autoComplete="off" spellCheck={false} maxLength={256} required />
-              {access ? <><small>Connecté avec {access.user.email}. L’invitation doit être liée à cette adresse.</small><button className={s.primary} disabled={busy || !code.trim()}>{busy ? "Activation…" : "Activer mon espace"}<ArrowRight size={17} /></button></> : <div className={s.authActions}><Link onClick={keepInvitation} href="/login?next=%2Fvip" className={s.primary}>Me connecter <ArrowRight size={17} /></Link><Link onClick={keepInvitation} href="/signup?next=%2Fvip" className={s.secondary}>Créer mon compte</Link></div>}
+              {access ? <><small>Connecté avec {access.user.email}. L’invitation doit être liée à cette adresse.</small><button className={s.primary} disabled={busy || !code.trim()}>{busy ? "Activation…" : "Activer mon espace"}<ArrowRight size={17} /></button></> : <div className={s.authActions}><Link onClick={keepInvitation} href={`/login?${authQuery}`} className={s.primary}>Me connecter <ArrowRight size={17} /></Link><Link onClick={keepInvitation} href={`/signup?${authQuery}`} className={s.secondary}>Créer mon compte</Link></div>}
             </form><small>{access ? "Votre adresse e-mail doit être confirmée pour activer l’accès." : "Déjà inscrit ? Conservez votre compte. Votre invitation vous attend après la connexion."}</small>
           </>}
           {error && <p className={s.error} role="alert">{error}</p>}

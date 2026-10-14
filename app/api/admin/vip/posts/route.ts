@@ -1,9 +1,10 @@
 import {authenticateAdmin} from "@/lib/admin/permissions";
 import {vipJson,readVipJson,VipRequestError} from "@/lib/vip/membership-server";
 import {deliverVipNotifications} from "@/lib/vip/notifications";
+import {after} from "next/server";
 export const dynamic="force-dynamic";
 export const runtime="nodejs";
-export const maxDuration=60;
+export const maxDuration=300;
 const categories=["signal","analysis","followup","partnership"];
 export async function GET(request:Request) {
   const access=await authenticateAdmin(request,"users_write");
@@ -15,6 +16,7 @@ export async function POST(request:Request) {
   try {
     const access=await authenticateAdmin(request,"users_write");
     if("error" in access)return vipJson({error:access.error},access.status);
+    if(process.env.VERCEL_ENV==="preview")return vipJson({error:"Publiez depuis le site principal pour envoyer les alertes aux membres."},403);
     const body=await readVipJson(request,20000);
     const title=typeof body.title==="string"?body.title.trim():"";
     const text=typeof body.body==="string"?body.body.trim():"";
@@ -35,8 +37,10 @@ export async function POST(request:Request) {
     const {data:post,error}=await access.admin.from("vip_posts").insert({category:body.category,title,body:text,symbol:symbol||null,direction,levels,image_url:imageUrl||null,created_by:access.user.id,published:true}).select("*").single();
     if(error)throw error;
     // The insert trigger queues one generic notification per active member in the same transaction.
-    let notifications:unknown={queued:true};
-    try{notifications=await deliverVipNotifications(access.admin);}catch{notifications={queued:true,retryPending:true};}
-    return vipJson({post,notifications},201);
+    after(async()=>{
+      try{await deliverVipNotifications(access.admin);}
+      catch{console.error("VIP_NOTIFICATION_DELIVERY_RETRY_PENDING");}
+    });
+    return vipJson({post,notifications:{queued:true}},201);
   } catch(error){return vipJson({error:error instanceof VipRequestError?error.message:"Publication impossible. Réessayez après avoir actualisé le fil pour vérifier qu’elle n’a pas déjà été publiée."},error instanceof VipRequestError?error.status:503);}
 }

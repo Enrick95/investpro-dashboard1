@@ -56,6 +56,36 @@ export function isVipMembershipActive(
   return getVipMemberState(membership, now) === "active";
 }
 
+/** A queued renewal notice applies only to the member's current expiry and current phase. */
+export function isCurrentVipRenewalNotice(
+  eventKey: string,
+  userId: string,
+  membership: VipMembership | null | undefined,
+  now: number | Date = Date.now(),
+): boolean {
+  if (!membership || membership.status !== "active" || membership.type !== "abonnement" || !membership.expires_at) return false;
+  const timestamp = Number(now);
+  const start = Date.parse(membership.started_at);
+  const expiry = Date.parse(membership.expires_at);
+  if (!Number.isFinite(timestamp) || !Number.isFinite(start) || start > timestamp || !Number.isFinite(expiry) || expiry <= start) return false;
+  const prefix = `vip:renewal:${userId}:`;
+  const suffix = eventKey.endsWith(":j3") ? ":j3" : eventKey.endsWith(":expired") ? ":expired" : null;
+  if (!eventKey.startsWith(prefix) || !suffix) return false;
+  // PostgreSQL ::text uses a space and may emit +00; JSON uses ISO T and +00:00.
+  const rawDate = eventKey.slice(prefix.length, -suffix.length);
+  const match = rawDate.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2})(?:\.(\d{1,6}))?(Z|[+-]\d{2}(?::?\d{2})?)$/);
+  if (!match) return false;
+  const fraction = match[3] ? `.${match[3].padEnd(3, "0").slice(0, 3)}` : "";
+  const offset = match[4] === "Z" || match[4].length === 6 ? match[4]
+    : match[4].length === 3 ? `${match[4]}:00` : `${match[4].slice(0, 3)}:${match[4].slice(3)}`;
+  const queuedExpiry = Date.parse(`${match[1]}T${match[2]}${fraction}${offset}`);
+  if (queuedExpiry !== expiry) return false;
+  const day = 24 * 60 * 60 * 1000;
+  return suffix === ":j3"
+    ? expiry > timestamp && expiry <= timestamp + 3 * day
+    : expiry <= timestamp && expiry > timestamp - 7 * day;
+}
+
 export function safeVipTelegramUrl(value: unknown): string | null {
   if (typeof value !== "string" || value.length > 2048) return null;
   try {

@@ -2,7 +2,7 @@ import "server-only";
 import type {SupabaseClient} from "@supabase/supabase-js";
 import webpush from "web-push";
 import {validPushEndpoint} from "./push-validation";
-import {isVipMembershipActive} from "./membership";
+import {isCurrentVipRenewalNotice,isVipMembershipActive} from "./membership";
 import type {VipMembership} from "./types";
 
 export function vipPushConfig() {
@@ -21,21 +21,29 @@ export async function deliverVipNotifications(db:SupabaseClient, limit=20) {
   if (!config.available) return {sent:0,failed:0,skipped:0,unavailable:true};
   webpush.setVapidDetails(config.subject,config.publicKey,config.privateKey);
   const claimLimit=Number.isFinite(limit)?Math.max(1,Math.min(Math.trunc(limit),20)):20;
-  const {data:rows,error}=await db.rpc("vip_claim_notifications",{p_limit:claimLimit});
-  if(error)throw new Error("VIP_NOTIFICATION_CLAIM_FAILED");
   const counts={sent:0,failed:0,skipped:0};
   type QueuedNotice={id:string;kind:string;user_id:string;title:string;message:string;event_key:string};
-  const queued=(rows||[]) as QueuedNotice[];
-  // Five recipients run together; at most four batches fit within the 60-second job.
-  for (let offset=0;offset<queued.length;offset+=5) {
-    const batch=await Promise.allSettled(queued.slice(offset,offset+5).map(async row=>{
+  const startedAt=performance.now();
+  let remaining=false;
+  while(true) {
+    // Only reserve the next small batch when there is time to finish every claimed row.
+    if(performance.now()-startedAt>=250000){remaining=true;break;}
+    const {data:rows,error}=await db.rpc("vip_claim_notifications",{p_limit:claimLimit});
+    if(error)throw new Error("VIP_NOTIFICATION_CLAIM_FAILED");
+    const queued=(rows||[]) as QueuedNotice[];
+    if(!queued.length)break;
+    let trackingFailed=false;
+    // Ten recipients run together. A claimed batch is always finished before stopping.
+    for (let offset=0;offset<queued.length;offset+=10) {
+      const batch=await Promise.allSettled(queued.slice(offset,offset+10).map(async row=>{
     let status:"sent"|"failed"|"skipped"="skipped", lastError:string|null=null;
-    if (row.kind === "publication") {
+    if (row.kind === "publication" || row.kind === "renewal") {
       const {data:member,error:memberError}=await db.from("vip_memberships").select("type,started_at,expires_at,status").eq("user_id",row.user_id).maybeSingle();
       if(memberError) {status="failed";lastError="membership_lookup_failed";}
-      else if (!isVipMembershipActive(member as VipMembership|null)) lastError="membership_inactive";
+      else if (row.kind === "renewal" && !isCurrentVipRenewalNotice(row.event_key,row.user_id,member as VipMembership|null)) lastError="stale_renewal_reminder";
+      else if (row.kind === "publication" && !isVipMembershipActive(member as VipMembership|null)) lastError="membership_inactive";
       else status="sent";
-    } else status="sent";
+    } else lastError="unsupported_notification_kind";
     if(status==="sent") {
       const {data:subscriptions,error:subscriptionError}=await db.from("vip_push_subscriptions").select("id,endpoint,p256dh,auth").eq("user_id",row.user_id).limit(10);
       if(subscriptionError){status="failed";lastError="subscription_lookup_failed";}
@@ -59,8 +67,10 @@ export async function deliverVipNotifications(db:SupabaseClient, limit=20) {
     const {error:finishError}=await db.from("vip_notification_outbox").update({status,last_error:lastError,updated_at:new Date().toISOString()}).eq("id",row.id).eq("status","processing");
     if(finishError)throw new Error("VIP_NOTIFICATION_TRACKING_FAILED");
     counts[status]++;
-    }));
-    if(batch.some(result=>result.status==="rejected"))throw new Error("VIP_NOTIFICATION_BATCH_FAILED");
+      }));
+      if(batch.some(result=>result.status==="rejected"))trackingFailed=true;
+    }
+    if(trackingFailed)throw new Error("VIP_NOTIFICATION_BATCH_FAILED");
   }
-  return counts;
+  return {...counts,remaining};
 }
