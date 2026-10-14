@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { defaultVisibility, type NavigationKey } from "@/lib/navigation/config";
 import {useVipNavigation} from "@/components/vip/useVipNavigation";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import {
   BarChart3,
   Bug,
@@ -96,7 +97,7 @@ function MenuTile({
 }
 
 
-function InstallMenuTile({ onClick }: { onClick: () => void }) {
+function InstallMenuTile({ onClick }: { onClick: (event: MouseEvent<HTMLButtonElement>) => void }) {
   return (
     <button type="button" onClick={onClick} className="ip-more-tile">
       <span className="ip-more-tile-icon">
@@ -111,13 +112,16 @@ export default function MobileGlobalV1() {
   const pathname = usePathname();
   const vipVisible=useVipNavigation(pathname);
   const [moreOpen, setMoreOpen] = useState(false);
+  const moreTriggerRef = useRef<HTMLButtonElement>(null);
   const [visibility, setVisibility] = useState<Record<NavigationKey, boolean>>(defaultVisibility());
 
-  function openInstallGuide() {
+  function openInstallGuide(event: MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    moreTriggerRef.current?.focus({ preventScroll: true });
+    // Open the guide before removing the menu so a tap cannot hit the page underneath.
+    window.dispatchEvent(new Event("investpro:open-install-guide"));
     setMoreOpen(false);
-    window.setTimeout(() => {
-      window.dispatchEvent(new Event("investpro:open-install-guide"));
-    }, 80);
   }
 
   const isReports =
@@ -458,6 +462,7 @@ export default function MobileGlobalV1() {
         <button
           type="button"
           onClick={() => setMoreOpen(true)}
+          ref={moreTriggerRef}
           aria-expanded={moreOpen}
           aria-controls="investpro-more-menu"
           className={["ip-mobile-tab", moreOpen ? "ip-mobile-tab-active" : ""].join(" ")}
@@ -467,7 +472,7 @@ export default function MobileGlobalV1() {
         </button>
       </nav>
 
-      {moreOpen ? (
+      {moreOpen ? createPortal(
         <div className="ip-more-overlay">
           <button
             type="button"
@@ -539,7 +544,7 @@ export default function MobileGlobalV1() {
               </MenuGroup>
             </div>
           </div>
-        </div>
+        </div>, document.body
       ) : null}
 
       <style jsx global>{`
