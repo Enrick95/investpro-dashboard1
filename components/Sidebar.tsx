@@ -5,7 +5,7 @@ import {useEffect,useMemo,useState} from 'react';
 import {LayoutDashboard,GraduationCap,Library,TrendingUp,WalletCards,BarChart3,CalendarDays,Globe2,BookOpen,Calculator,Repeat2,Trophy,Target,Users,User,LifeBuoy,ClipboardCheck,Settings,CreditCard,Bug,History,Zap,Cable,Handshake} from 'lucide-react';
 import {defaultVisibility,type NavigationKey} from '@/lib/navigation/config';
 
-type MenuItem={key:NavigationKey;g:string;p:string;l:string;i:React.ElementType;soon?:boolean};
+type MenuItem={key:NavigationKey;g:string;p:string;l:string;i:React.ElementType;soon?:boolean;subtitle?:string};
 const menu:MenuItem[]=[
  {key:'dashboard',g:'ACCUEIL',p:'',l:'Dashboard',i:LayoutDashboard},
  {key:'accounts',g:'TRADING',p:'/comptes',l:'Mes comptes',i:WalletCards},
@@ -14,7 +14,8 @@ const menu:MenuItem[]=[
  {key:'plan',g:'TRADING',p:'/plan',l:'Plan de trading',i:ClipboardCheck},
  {key:'risk',g:'TRADING',p:'/simulateur',l:'Simulateur risque',i:Calculator},
  {key:'reports',g:'TRADING',p:'/rapports',l:'Rapports',i:BarChart3},
- {key:'copy',g:'TRADING',p:'/copieur',l:'InvestPro Copier',i:Repeat2},
+ {key:'copy',g:'TRADING',p:'/copieur',l:'InvestPro Copy',subtitle:'CFD',i:Repeat2},
+ {key:'copyFutures',g:'TRADING',p:'/copieur-futures',l:'InvestPro Copy',subtitle:'Futures',i:Repeat2,soon:true},
  {key:'tradingview',g:'MARCHÉS & ANALYSE',p:'/tradingview',l:'TradingView',i:BarChart3},
  {key:'calendar',g:'MARCHÉS & ANALYSE',p:'/calendrier',l:'Calendrier éco',i:CalendarDays},
  {key:'fundamentals',g:'MARCHÉS & ANALYSE',p:'/analyse-fondamentale',l:'Analyse fondamentale',i:Globe2,soon:true},
@@ -44,7 +45,7 @@ export default function Sidebar(){
  useEffect(()=>{let dead=false;fetch('/api/navigation',{cache:'no-store'}).then(r=>r.json()).then(d=>{if(!dead&&d?.visibility)setVisibility(v=>({...v,...d.visibility}))}).catch(()=>{});return()=>{dead=true}},[pathname]);
  const visibleMenu=useMemo(()=>menu.filter(item=>visibility[item.key]!==false),[visibility]);
  const active=(p:string)=>{const href='/dashboard'+p;return pathname===href||(p!==''&&pathname.startsWith(`${href}/`));};
- const links=<nav aria-label="Navigation principale">{visibleMenu.map((m,n)=><div key={m.key}>{(n===0||visibleMenu[n-1].g!==m.g)&&<div className="aura-nav-label">{m.g}</div>}<Link href={'/dashboard'+m.p} className={'aura-nav-item '+(active(m.p)?'active':'')} aria-current={active(m.p)?'page':undefined}><m.i size={18}/><span>{m.l}</span>{m.soon&&<small>Bientôt</small>}</Link></div>)}</nav>;
+ const links=<nav aria-label="Navigation principale">{visibleMenu.map((m,n)=><div key={m.key}>{(n===0||visibleMenu[n-1].g!==m.g)&&<div className="aura-nav-label">{m.g}</div>}<Link href={'/dashboard'+m.p} className={'aura-nav-item '+(active(m.p)?'active':'')} aria-current={active(m.p)?'page':undefined} aria-label={m.subtitle?[m.l,m.subtitle,m.soon?'Bientôt':''].filter(Boolean).join(' · '):undefined}><m.i size={18}/><span className="min-w-0">{m.l}{m.subtitle&&<em className="block text-[10px] not-italic leading-4 opacity-65">{m.subtitle}</em>}</span>{m.soon&&<small className="shrink-0">Bientôt</small>}</Link></div>)}</nav>;
  const brand=<Link href="/" className="aura-brand"><BarChart3 size={32}/><span>investpro<small>TRADING</small></span></Link>;
  return <aside className="aura-sidebar">{brand}<p className="aura-workspace-label">TRADING HUB</p><div className="aura-nav-scroll">{links}{adminDestination&&<><div className="aura-nav-label">ÉQUIPE</div><Link href={adminDestination} className="aura-nav-item"><Settings size={18}/><span>Administration</span></Link></>}</div><Link className="aura-sidebar-footer" href="/dashboard/profil"><User size={19}/><span>Mon espace personnel</span></Link></aside>;
 
