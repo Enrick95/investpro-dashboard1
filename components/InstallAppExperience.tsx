@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Apple,
   Check,
@@ -56,6 +56,7 @@ export default function InstallAppExperience() {
   const [standalone, setStandalone] = useState(false);
   const [bannerVisible, setBannerVisible] = useState(false);
   const [installError, setInstallError] = useState("");
+  const dialogRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     let installed = isStandaloneMode();
@@ -63,7 +64,6 @@ export default function InstallAppExperience() {
     const displayMode = window.matchMedia("(display-mode: standalone)");
     const timer = window.setTimeout(() => {
       setStandalone(installed);
-      setTab(isIOSDevice() ? "ios" : "android");
       setBannerVisible(!installed && mobile.matches && canOfferInstall());
     }, 3000);
     const onBeforeInstallPrompt = (event: Event) => {
@@ -81,11 +81,12 @@ export default function InstallAppExperience() {
     const onDisplayMode = () => {
       installed = isStandaloneMode();
       setStandalone(installed);
-      if (installed) { setBannerVisible(false); setGuideOpen(false); }
+      if (installed) setBannerVisible(false);
     };
     const onMobile = () => setBannerVisible(!installed && mobile.matches && canOfferInstall());
     const onOpenGuide = () => {
-      if (installed) return;
+      installed = isStandaloneMode();
+      setStandalone(installed);
       setTab(isIOSDevice() ? "ios" : "android");
       setInstallError("");
       setGuideOpen(true);
@@ -104,6 +105,35 @@ export default function InstallAppExperience() {
       displayMode.removeEventListener("change", onDisplayMode);
     };
   }, []);
+
+  useEffect(() => {
+    if (!guideOpen) return;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    dialog.querySelector<HTMLButtonElement>(".ip-install-close")?.focus({ preventScroll: true });
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault(); setGuideOpen(false); return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])')).filter((element) => element.getClientRects().length > 0);
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!first || !last) { event.preventDefault(); dialog.focus(); return; }
+      const outside = !dialog.contains(document.activeElement);
+      if (event.shiftKey && (document.activeElement === first || outside)) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && (document.activeElement === last || outside)) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+      if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
+    };
+  }, [guideOpen]);
 
   function closeGuide() {
     setGuideOpen(false);
@@ -135,18 +165,16 @@ export default function InstallAppExperience() {
     }
   }
 
-  if (standalone) return null;
-
   return (
     <>
-      {bannerVisible && !guideOpen ? (
+      {bannerVisible && !standalone && !guideOpen ? (
         <aside className="ip-install-banner" aria-label="Installer InvestPro">
           <Smartphone size={25} aria-hidden="true" />
           <div className="ip-install-banner-copy">
             <strong>InvestPro sur ton téléphone</strong>
             <span>Ajoute l’app à ton écran d’accueil.</span>
           </div>
-          <button type="button" className="ip-install-banner-action" onClick={() => { setInstallError(""); setGuideOpen(true); }}>Installer</button>
+          <button type="button" className="ip-install-banner-action" onClick={() => { setTab(isIOSDevice() ? "ios" : "android"); setInstallError(""); setGuideOpen(true); }}>Installer</button>
           <button type="button" className="ip-install-banner-dismiss" onClick={remindLater} aria-label="Me le rappeler plus tard"><X size={17} /></button>
         </aside>
       ) : null}
@@ -155,11 +183,12 @@ export default function InstallAppExperience() {
           <button
             type="button"
             aria-label="Fermer"
+            tabIndex={-1}
             className="ip-install-backdrop"
             onClick={closeGuide}
           />
 
-          <section className="ip-install-modal" role="dialog" aria-modal="true" aria-labelledby="ip-install-title">
+          <section ref={dialogRef} tabIndex={-1} className="ip-install-modal" role="dialog" aria-modal="true" aria-labelledby="ip-install-title" aria-describedby="ip-install-description">
             <button
               type="button"
               className="ip-install-close"
@@ -175,11 +204,11 @@ export default function InstallAppExperience() {
             </div>
 
             <h2 id="ip-install-title" className="ip-install-title">
-              Installe InvestPro comme une <span>vraie app.</span>
+              {standalone ? <>Ton application <span>est déjà ouverte.</span></> : <>Installe InvestPro comme une <span>vraie app.</span></>}
             </h2>
 
-            <p className="ip-install-subtitle">
-              Accède à ton espace directement depuis ton écran d’accueil, sans chercher le site à chaque fois.
+            <p id="ip-install-description" className="ip-install-subtitle">
+              {standalone ? "Tu utilises déjà InvestPro en mode application. Aucune nouvelle installation n’est nécessaire ici. Tu peux retrouver ci-dessous les étapes pour un autre téléphone." : "Accède à ton espace directement depuis ton écran d’accueil, sans chercher le site à chaque fois."}
             </p>
 
             <div className="ip-install-benefits">
@@ -188,10 +217,11 @@ export default function InstallAppExperience() {
               <span><Check size={13} /> Aucun App Store</span>
             </div>
 
-            <div className="ip-install-tabs">
+            <div className="ip-install-tabs" aria-label="Choisir ton téléphone">
               <button
                 type="button"
                 onClick={() => setTab("ios")}
+                aria-pressed={tab === "ios"}
                 className={tab === "ios" ? "active" : ""}
               >
                 <Apple size={17} />
@@ -201,6 +231,7 @@ export default function InstallAppExperience() {
               <button
                 type="button"
                 onClick={() => setTab("android")}
+                aria-pressed={tab === "android"}
                 className={tab === "android" ? "active" : ""}
               >
                 <Smartphone size={17} />
@@ -226,7 +257,7 @@ export default function InstallAppExperience() {
                   number="3"
                   icon={<Download size={17} />}
                   title="Choisis « Sur l’écran d’accueil »"
-                  text="Puis confirme avec « Ajouter ». InvestPro apparaîtra avec tes applications."
+                  text="Active « Ouvrir comme app web » si proposé, puis confirme avec « Ajouter »."
                 />
               </div>
             ) : (
@@ -235,7 +266,7 @@ export default function InstallAppExperience() {
                   number="1"
                   icon={<Smartphone size={17} />}
                   title="Ouvre InvestPro dans Chrome"
-                  text="Utilise Chrome sur ton téléphone Android."
+                  text="Utilise Chrome sur ton téléphone Android, Samsung inclus."
                 />
                 <InstallStep
                   number="2"
@@ -247,12 +278,13 @@ export default function InstallAppExperience() {
                   number="3"
                   icon={<Download size={17} />}
                   title="Installe l’application"
-                  text="Choisis « Installer l’application » ou « Ajouter à l’écran d’accueil »."
+                  text="Choisis « Installer et créer un raccourci » ou « Installer l’application », puis confirme avec « Installer »."
                 />
+                <p className="ip-install-platform-note"><strong>Samsung Internet :</strong> touche l’icône d’installation dans la barre d’adresse si elle apparaît. Sinon, ouvre InvestPro dans Chrome et suis les étapes ci-dessus.</p>
               </div>
             )}
 
-            {tab === "android" && deferredPrompt ? (
+            {tab === "android" && deferredPrompt && !standalone ? (
               <button
                 type="button"
                 className="ip-install-primary"
@@ -268,10 +300,10 @@ export default function InstallAppExperience() {
             <button
               type="button"
               className="ip-install-done"
-              onClick={markInstalled}
+              onClick={standalone ? closeGuide : markInstalled}
             >
               <Check size={16} />
-              J’ai terminé l’installation
+              {standalone ? "Fermer le guide" : "J’ai terminé l’installation"}
             </button>
 
             <button
@@ -286,7 +318,7 @@ export default function InstallAppExperience() {
       ) : null}
 
       <style jsx global>{`
-        .ip-install-overlay, .ip-install-banner { display: none; }
+        .ip-install-banner { display: none; }
 
         @media (max-width: 900px) {
           .ip-install-banner {
@@ -310,15 +342,17 @@ export default function InstallAppExperience() {
           .ip-install-banner-copy span { display: block; margin-top: 3px; color: rgba(255,255,255,.6); font-size: 10px; line-height: 1.4; }
           .ip-install-banner-action { min-height: 44px; padding: 0 12px; border: 0; border-radius: 11px; background: #e0b64f; color: #090a09; font-size: 11px; font-weight: 750; }
           .ip-install-banner-dismiss { display: grid; place-items: center; min-width: 32px; min-height: 44px; border: 0; background: transparent; color: rgba(255,255,255,.6); }
+        }
 
           .ip-install-overlay {
             position: fixed;
             inset: 0;
             z-index: 1900;
             display: flex;
-            align-items: flex-end;
+            align-items: center;
             justify-content: center;
-            padding: 14px 12px calc(14px + env(safe-area-inset-bottom));
+            padding: 24px 16px;
+            box-sizing: border-box;
           }
 
           .ip-install-backdrop {
@@ -334,28 +368,34 @@ export default function InstallAppExperience() {
             position: relative;
             z-index: 1;
             width: min(100%, 560px);
-            max-height: 88vh;
+            min-width: 0;
+            max-height: calc(100vh - 48px);
+            max-height: calc(100dvh - 48px);
             overflow-y: auto;
+            overscroll-behavior: contain;
             border: 1px solid rgba(224,182,79,.28);
             border-radius: 26px;
-            padding: 22px 18px 18px;
+            padding: 26px 24px 22px;
             background:
               radial-gradient(circle at 100% 0, rgba(224,182,79,.08), transparent 34%),
               #0c0e0c;
             box-shadow: 0 32px 90px rgba(0,0,0,.72);
-            scrollbar-width: none;
+            scrollbar-width: thin;
+            box-sizing: border-box;
           }
 
-          .ip-install-modal::-webkit-scrollbar {
-            display: none;
+          .ip-install-modal * { box-sizing: border-box; }
+          .ip-install-modal button:focus-visible {
+            outline: 2px solid #e0b64f;
+            outline-offset: 3px;
           }
 
           .ip-install-close {
             position: absolute;
             top: 16px;
             right: 16px;
-            width: 38px;
-            height: 38px;
+            width: 44px;
+            height: 44px;
             border-radius: 12px;
             border: 1px solid rgba(255,255,255,.08);
             background: rgba(255,255,255,.035);
@@ -366,6 +406,7 @@ export default function InstallAppExperience() {
 
           .ip-install-badge {
             width: fit-content;
+            max-width: calc(100% - 50px);
             display: inline-flex;
             align-items: center;
             gap: 7px;
@@ -374,7 +415,7 @@ export default function InstallAppExperience() {
             border-radius: 999px;
             background: rgba(224,182,79,.07);
             color: var(--gold, #e0b64f);
-            font-size: 8px;
+            font-size: 9px;
             font-weight: 800;
             letter-spacing: .12em;
             text-transform: uppercase;
@@ -385,7 +426,7 @@ export default function InstallAppExperience() {
             max-width: 430px;
             color: white;
             font-size: clamp(25px, 7vw, 34px);
-            line-height: 1.03;
+            line-height: 1.13;
             letter-spacing: -.035em;
             font-weight: 800;
           }
@@ -397,8 +438,8 @@ export default function InstallAppExperience() {
           .ip-install-subtitle {
             margin-top: 10px;
             max-width: 480px;
-            color: rgba(255,255,255,.48);
-            font-size: 12px;
+            color: rgba(255,255,255,.66);
+            font-size: 13px;
             line-height: 1.6;
           }
 
@@ -414,7 +455,7 @@ export default function InstallAppExperience() {
             align-items: center;
             gap: 5px;
             color: rgba(255,255,255,.66);
-            font-size: 9px;
+            font-size: 11px;
             font-weight: 650;
           }
 
@@ -457,7 +498,7 @@ export default function InstallAppExperience() {
 
           .ip-install-step {
             display: grid;
-            grid-template-columns: 42px 34px minmax(0,1fr);
+            grid-template-columns: 38px 24px minmax(0,1fr);
             gap: 10px;
             align-items: center;
             padding: 12px;
@@ -485,16 +526,19 @@ export default function InstallAppExperience() {
 
           .ip-install-step-title {
             color: white;
-            font-size: 11px;
+            font-size: 13px;
             font-weight: 750;
+            line-height: 1.5;
           }
 
           .ip-install-step-text {
             margin-top: 2px;
-            color: rgba(255,255,255,.38);
-            font-size: 9px;
-            line-height: 1.45;
+            color: rgba(255,255,255,.64);
+            font-size: 12px;
+            line-height: 1.65;
           }
+          .ip-install-platform-note { margin: 5px 2px 0; color: rgba(255,255,255,.64); font-size: 12px; line-height: 1.7; }
+          .ip-install-platform-note strong { color: rgba(255,255,255,.85); }
 
           .ip-install-primary,
           .ip-install-done,
@@ -530,12 +574,22 @@ export default function InstallAppExperience() {
           }
 
           .ip-install-later {
-            height: 36px;
+            min-height: 44px;
             border: 0;
             background: transparent;
-            color: rgba(255,255,255,.34);
-            font-size: 9px;
+            color: rgba(255,255,255,.60);
+            font-size: 12px;
           }
+        @media (max-width: 900px) {
+          .ip-install-overlay { align-items: flex-end; padding: 14px 12px calc(14px + env(safe-area-inset-bottom)); }
+          .ip-install-modal { max-height: calc(100vh - 28px - env(safe-area-inset-bottom)); max-height: calc(100dvh - 28px - env(safe-area-inset-bottom)); padding: 24px 18px 18px; }
+        }
+        @media (max-width: 420px) {
+          .ip-install-step { grid-template-columns: 32px minmax(0,1fr); padding: 11px 10px; gap: 9px; align-items: start; }
+          .ip-install-step-number { width: 30px; height: 30px; border-radius: 10px; font-size: 12px; }
+          .ip-install-step-icon { display: none; }
+          .ip-install-title { font-size: 27px; }
+          .ip-install-benefits { gap: 7px 10px; }
         }
       `}</style>
     </>
