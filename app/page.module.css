@@ -1341,6 +1341,27 @@
   font-weight:750;
 }
 .copierSpotlightLink:hover{background:rgba(241,190,84,.15)}
+.futuresStatus{
+  min-width:0;
+  padding:24px;
+  border:1px solid rgba(241,190,84,.2);
+  border-radius:14px;
+  background:rgba(0,0,0,.25);
+}
+.futuresBadge{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  padding:6px 11px;
+  border:1px solid rgba(241,190,84,.34);
+  border-radius:999px;
+  color:#f2c35d;
+  background:rgba(241,190,84,.08);
+  font-size:11px;
+  font-weight:750;
+}
+.futuresStatus>b{display:block;margin-top:15px;color:#eeeae0;font-size:18px}
+.futuresStatus>p{margin:9px 0 0;color:#aeb0aa;font-size:13px;line-height:1.65}
 .copierSteps{
   display:grid;
   gap:10px;
