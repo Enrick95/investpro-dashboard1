@@ -1,25 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { ACCOUNT_CURRENCIES, MARKETS, SUGGESTED_ASSETS, calculatePosition, getInstrument, parseDecimal, resolveConversion, type AssetMarket } from "@/lib/risk-simulator";
 
 import {
   AlertTriangle,
   Calculator,
-  CheckCircle2,
   RotateCcw,
-  ShieldCheck,
-  Target,
-  TrendingUp,
-  WalletCards,
 } from "lucide-react";
 
 type RiskMode = "percent" | "amount";
 
-function safeNumber(value: string) {
-  const number = Number(String(value).replace(",", "."));
-
-  return Number.isFinite(number) ? number : 0;
-}
+const safeNumber = parseDecimal;
 
 function formatNumber(value: number, digits = 2) {
   if (!Number.isFinite(value)) {
@@ -46,220 +38,90 @@ export default function SimulateurRisquePage() {
   const [riskAmount, setRiskAmount] =
     useState("100");
 
-  /*
-   * L'utilisateur entre maintenant directement :
-   * - son prix d'entrée
-   * - son Stop Loss
-   *
-   * Le simulateur calcule automatiquement
-   * la distance entre les deux.
-   */
   const [entryPrice, setEntryPrice] =
-    useState("2350");
+    useState("");
 
   const [stopLossPrice, setStopLossPrice] =
-    useState("2340");
+    useState("");
 
-  /*
-   * Valeur monétaire d'un mouvement de prix de 1.00
-   * pour 1 lot.
-   *
-   * Cette valeur dépend du symbole et du broker.
-   * Elle pourra être automatisée plus tard avec MT5.
-   */
   const [valuePerPoint, setValuePerPoint] =
-    useState("10");
+    useState("");
 
   const [rr, setRr] = useState("2");
 
+
+  const [brokerOpen, setBrokerOpen] = useState(false);
+  const [market, setMarket] = useState<AssetMarket | "all">("all");
+  const [symbol, setSymbol] = useState("");
+  const [profitCurrency, setProfitCurrency] = useState("");
+  const [specMode, setSpecMode] = useState<"contract" | "ticks">("contract");
+  const [tickSize, setTickSize] = useState("");
+  const [tickValue, setTickValue] = useState("");
+  const [minLot, setMinLot] = useState("0.01");
+  const [lotStep, setLotStep] = useState("0.01");
+  const [maxLot, setMaxLot] = useState("");
+  const [manualRate, setManualRate] = useState("");
+  const [rateData, setRateData] = useState<{ base: string; rates: Record<string, number>; dates: Record<string, string> } | null>(null);
+  const [rateLoading, setRateLoading] = useState(true);
+  const instrument = getInstrument(symbol, market === "all" ? "custom" : market);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/risk-rates", { signal: controller.signal })
+      .then(async response => {
+        if (!response.ok) throw new Error("rates");
+        return response.json() as Promise<{ base: string; rates: Record<string, number>; dates: Record<string, string> }>;
+      })
+      .then(data => {
+        if (!controller.signal.aborted && data.base === "EUR" && data.rates && data.dates) setRateData(data);
+      })
+      .catch(() => { /* Manual conversion is available when reference rates cannot load. */ })
+      .finally(() => { if (!controller.signal.aborted) setRateLoading(false); });
+    return () => controller.abort();
+  }, []);
+
+  function chooseSymbol(value: string, hint: AssetMarket | "all" = market) {
+    const next = getInstrument(value, hint === "all" ? "custom" : hint);
+    setSymbol(value.toUpperCase());
+    if (next.profitCurrency) setMarket(next.market);
+    setValuePerPoint(next.contractSize ? String(next.contractSize) : "");
+    setProfitCurrency(next.profitCurrency);
+    setBrokerOpen(Boolean(value) && !next.contractSize);
+    setEntryPrice(""); setStopLossPrice(""); setManualRate("");
+    setTickSize(""); setTickValue(""); setSpecMode("contract");
+    setMinLot("0.01"); setLotStep("0.01"); setMaxLot("");
+  }
+
+
   const calculated = useMemo(() => {
-    const capital = Math.max(
-      0,
-      safeNumber(balance)
-    );
-
-    const riskPercentage = Math.max(
-      0,
-      safeNumber(riskPercent)
-    );
-
-    const fixedRisk = Math.max(
-      0,
-      safeNumber(riskAmount)
-    );
-
-    const entry = Math.max(
-      0,
-      safeNumber(entryPrice)
-    );
-
-    const stopLoss = Math.max(
-      0,
-      safeNumber(stopLossPrice)
-    );
-
-    /*
-     * Exemple :
-     *
-     * Entrée : 2350
-     * SL : 2340
-     *
-     * Distance = 10
-     */
-    const stopDistance = Math.abs(
-      entry - stopLoss
-    );
-
-    const pointValue = Math.max(
-      0,
-      safeNumber(valuePerPoint)
-    );
-
-    const riskMoney =
-      riskMode === "percent"
-        ? capital *
-          (riskPercentage / 100)
-        : fixedRisk;
-
-    const effectiveRiskPercent =
-      capital > 0
-        ? (riskMoney / capital) * 100
-        : 0;
-
-    /*
-     * Perte avec 1 lot si le SL est touché
-     *
-     * Exemple :
-     * Distance = 10
-     * Valeur = 10€
-     *
-     * => 100€ pour 1 lot
-     */
-    const lossPerLot =
-      stopDistance * pointValue;
-
-    /*
-     * Taille de position permettant
-     * de respecter exactement le risque.
-     */
-    const lotSize =
-      lossPerLot > 0
-        ? riskMoney / lossPerLot
-        : 0;
-
-    const targetRR = Math.max(
-      0,
-      safeNumber(rr)
-    );
-
-    const gain1R = riskMoney;
-
-    const gain2R =
-      riskMoney * 2;
-
-    const gain3R =
-      riskMoney * 3;
-
-    const potentialGain =
-      riskMoney * targetRR;
-
-    /*
-     * Prix du TP calculé automatiquement.
-     *
-     * Si le SL est sous l'entrée :
-     * on considère un BUY.
-     *
-     * Si le SL est au-dessus :
-     * on considère un SELL.
-     */
-    const isBuy =
-      stopLoss < entry;
-
-    const takeProfit =
-      entry > 0 &&
-      stopDistance > 0 &&
-      targetRR > 0
-        ? isBuy
-          ? entry +
-            stopDistance *
-              targetRR
-          : entry -
-            stopDistance *
-              targetRR
-        : 0;
-
-    const capitalAfterLoss = Math.max(
-      0,
-      capital - riskMoney
-    );
-
-    const capitalAfterWin =
-      capital + potentialGain;
-
-    let riskLevel:
-      | "safe"
-      | "medium"
-      | "high" = "safe";
-
-    if (
-      effectiveRiskPercent > 2
-    ) {
-      riskLevel = "high";
-    } else if (
-      effectiveRiskPercent > 1
-    ) {
-      riskLevel = "medium";
-    }
-
+    const capital = safeNumber(balance);
+    const entry = safeNumber(entryPrice), stopLoss = safeNumber(stopLossPrice);
+    const targetRR = safeNumber(rr);
+    const stopDistance = Math.abs(entry - stopLoss);
+    const isBuy = stopLoss < entry;
+    const takeProfit = isBuy ? entry + stopDistance * targetRR : entry - stopDistance * targetRR;
+    const riskMoney = riskMode === "percent" ? capital * safeNumber(riskPercent) / 100 : safeNumber(riskAmount);
+    const effectiveRiskPercent = capital > 0 ? riskMoney / capital * 100 : NaN;
+    const conversion = resolveConversion({
+      profitCurrency, accountCurrency: currency,
+      baseCurrency: profitCurrency === instrument.profitCurrency ? instrument.baseCurrency : undefined,
+      stop: stopLoss, target: takeProfit, manualRate: manualRate.trim() ? safeNumber(manualRate) : undefined,
+      rates: rateData?.rates,
+    });
+    const result = calculatePosition({
+      symbol, balance: capital, budget: riskMoney, entry, stop: stopLoss, rr: targetRR,
+      mode: specMode, contractSize: safeNumber(valuePerPoint), lossRate: conversion.lossRate, gainRate: conversion.gainRate,
+      tickSize: safeNumber(tickSize), tickValue: safeNumber(tickValue), minLot: safeNumber(minLot), lotStep: safeNumber(lotStep),
+      maxLot: maxLot.trim() ? safeNumber(maxLot) : undefined,
+    });
     return {
-      capital,
-
-      entry,
-
-      stopLoss,
-
-      stopDistance,
-
-      isBuy,
-
-      takeProfit,
-
-      riskMoney,
-
-      effectiveRiskPercent,
-
-      pointValue,
-
-      lossPerLot,
-
-      lotSize,
-
-      targetRR,
-
-      gain1R,
-
-      gain2R,
-
-      gain3R,
-
-      potentialGain,
-
-      capitalAfterLoss,
-
-      capitalAfterWin,
-
-      riskLevel,
+      ...result, conversion, capital, entry, stopLoss, stopDistance, isBuy, takeProfit, riskMoney,
+      effectiveRiskPercent, lotSize: result.lots, targetRR,
+      potentialGain: result.gain, capitalAfterLoss: capital - result.actualRisk,
+      capitalAfterWin: capital + result.gain,
     };
-  }, [
-    balance,
-    riskMode,
-    riskPercent,
-    riskAmount,
-    entryPrice,
-    stopLossPrice,
-    valuePerPoint,
-    rr,
-  ]);
+  }, [balance, entryPrice, stopLossPrice, rr, riskMode, riskPercent, riskAmount, profitCurrency,
+    currency, instrument.profitCurrency, instrument.baseCurrency, manualRate, rateData,
+    symbol, specMode, valuePerPoint, tickSize, tickValue, minLot, lotStep, maxLot]);
 
   function resetSimulator() {
     setCurrency("EUR");
@@ -272,11 +134,13 @@ export default function SimulateurRisquePage() {
 
     setRiskAmount("100");
 
-    setEntryPrice("2350");
+    setMarket("all");
+    chooseSymbol("", "all");
+    setEntryPrice("");
 
-    setStopLossPrice("2340");
+    setStopLossPrice("");
 
-    setValuePerPoint("10");
+    setValuePerPoint("");
 
     setRr("2");
   }
@@ -287,921 +151,132 @@ export default function SimulateurRisquePage() {
     setRiskPercent(value);
   }
 
+
+  const valid = !calculated.error;
+  const money = (value: number) => formatNumber(value) + " " + currency;
+  const rateDate = [rateData?.dates[profitCurrency], rateData?.dates[currency]].filter(Boolean).sort()[0];
+  const suggestions = SUGGESTED_ASSETS.filter(item => market === "all" || item.market === market);
   return (
-    <div className="investpro-mobile-page space-y-4 pb-4 lg:space-y-5 lg:pb-10">
-      {/* HEADER */}
+    <div className="investpro-mobile-page space-y-5 pb-8">
+      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div><div className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-[color:var(--gold)]">Préparer mon trade</div>
+          <h1 className="text-2xl font-semibold text-white">Simulateur de <span className="text-[color:var(--gold)]">risque</span></h1>
+          <p className="mt-2 max-w-xl text-sm leading-6 text-[color:var(--muted)]">Choisis un actif et ton risque maximum. Tes prix d’entrée et de Stop Loss déterminent la taille de position.</p>
+        </div>
+        <button type="button" onClick={resetSimulator} className="inline-flex min-h-11 items-center justify-center gap-2 self-start rounded-xl border border-[color:var(--border)] px-4 text-xs text-white/60"><RotateCcw size={14} />Réinitialiser</button>
+      </header>
 
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-white">
-            Simulateur de{" "}
-            <span className="text-[color:var(--gold)]">
-              risque
-            </span>
-          </h1>
+      <div className="grid items-start gap-5 xl:grid-cols-12">
+        <div className="space-y-4 xl:col-span-8">
+          <Step number="01" title="Quel actif veux-tu trader ?" description="Recherche une paire Forex, le gold, un indice ou le symbole de ton broker.">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <SelectField label="Marché" value={market} onChange={value => { setMarket(value as AssetMarket | "all"); chooseSymbol("", value as AssetMarket | "all"); }}>
+                <option value="all">Tous les marchés</option>{MARKETS.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
+              </SelectField>
+              <label className="block"><span className="mb-2 block text-xs text-white/60">Actif / paire de devises</span>
+                <input className={inputClass} list="risk-assets" value={symbol} onChange={event => chooseSymbol(event.target.value)} autoComplete="off" spellCheck={false} placeholder="Ex. EURUSD, GOLD, NAS100…" />
+                <datalist id="risk-assets">{suggestions.map(item => <option key={item.symbol} value={item.symbol}>{item.label}</option>)}</datalist>
+              </label>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">{["EURUSD", "GBPJPY", "XAUUSD", "NAS100", "GER40"].map(value => <button type="button" key={value} aria-pressed={instrument.symbol === value} onClick={() => chooseSymbol(value, "all")} className={"min-h-9 rounded-lg border px-3 text-xs transition " + (instrument.symbol === value ? activeClass : inactiveClass)}>{value === "XAUUSD" ? "Gold · XAUUSD" : value}</button>)}</div>
+            {symbol ? <p className="mt-4 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 py-3 text-xs leading-5 text-white/65">
+              <strong className="text-[color:var(--gold)]">{instrument.label}</strong>
+              {instrument.contractSize ? " · Contrat standard indicatif de " + formatNumber(instrument.contractSize, 0) + (instrument.market === "metals" ? " onces par lot." : " unités par lot.") : " · Renseigne la valeur du contrat dans les paramètres du broker ci-dessous."}
+            </p> : <p className="mt-3 text-xs leading-5 text-white/35">Les suggestions ne limitent pas le choix : tu peux saisir un autre symbole. GOLD est reconnu comme XAUUSD.</p>}
+          </Step>
 
-          <p className="mt-1 text-sm text-[color:var(--muted)]">
-            Entre ton prix d’entrée,
-            ton Stop Loss et ton risque.
-            InvestPro calcule automatiquement
-            ta taille de position.
-          </p>
+          <Step number="02" title="Combien acceptes-tu de risquer ?" description="Le budget est calculé dans la devise de ton compte.">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Capital du compte" value={balance} onChange={setBalance} suffix={currency} placeholder="10000" />
+              <SelectField label="Devise du compte" value={currency} onChange={value => { setCurrency(value); setManualRate(""); if (specMode === "ticks") setTickValue(""); }}>{ACCOUNT_CURRENCIES.map(code => <option key={code} value={code}>{code}</option>)}</SelectField>
+              <SelectField label="Exprimer mon risque en" value={riskMode} onChange={value => setRiskMode(value as RiskMode)}><option value="percent">Pourcentage du capital</option><option value="amount">Montant fixe</option></SelectField>
+              {riskMode === "percent" ? <Field label="Risque maximum" value={riskPercent} onChange={setRiskPercent} suffix="%" /> : <Field label="Montant maximum à risquer" value={riskAmount} onChange={setRiskAmount} suffix={currency} />}
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-2"><span className="mr-1 text-xs text-white/35">Accès rapide</span>{["0.5", "1", "1.5", "2"].map(value => <button type="button" key={value} onClick={() => selectRisk(value)} aria-pressed={riskMode === "percent" && riskPercent === value} className={"min-h-9 rounded-lg border px-3 text-xs " + (riskMode === "percent" && riskPercent === value ? activeClass : inactiveClass)}>{value.replace(".", ",")} %</button>)}</div>
+          </Step>
+
+          <Step number="03" title="Où sont ton entrée et ton Stop Loss ?" description="Le sens du trade est déduit de la position du Stop Loss.">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Prix d’entrée" value={entryPrice} onChange={setEntryPrice} placeholder={instrument.market === "forex" ? "Ex. 1,10000" : "Prix de l’actif"} />
+              <Field label="Stop Loss" value={stopLossPrice} onChange={setStopLossPrice} placeholder={instrument.market === "forex" ? "Ex. 1,09500" : "Prix du Stop Loss"} />
+            </div>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <Field label="Ratio de prix visé" value={rr} onChange={setRr} suffix="R" />
+              <div className="rounded-xl border border-white/5 bg-black/20 p-3"><span className="text-xs text-white/45">Distance entrée → SL</span><div className="mt-2 text-sm font-semibold text-[color:var(--gold)]">{formatNumber(calculated.stopDistance, 8)}{instrument.pipSize && Number.isFinite(calculated.stopDistance) ? <span className="ml-2 text-xs font-normal text-white/45">({formatNumber(calculated.stopDistance / instrument.pipSize)} pips)</span> : null}</div></div>
+            </div>
+            {Number.isFinite(calculated.stopDistance) && calculated.stopDistance > 0 && <p className="mt-4 text-xs text-white/45">Sens estimé : <strong className={calculated.isBuy ? "text-emerald-400" : "text-red-400"}>{calculated.isBuy ? "ACHAT" : "VENTE"}</strong> · Objectif de prix {formatNumber(calculated.targetRR)}R</p>}
+          </Step>
+
+          {symbol && <details id="risk-broker-settings" className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--panel)] p-4 sm:p-5" open={brokerOpen} onToggle={event => setBrokerOpen(event.currentTarget.open)}>
+            <summary className="cursor-pointer text-sm font-semibold text-white">Paramètres du broker <span className="ml-2 text-xs font-normal text-white/40">{instrument.contractSize ? "Contrat standard · modifiable" : "À compléter pour cet actif"}</span></summary>
+            <p className="mt-3 text-xs leading-5 text-white/45">Dans MetaTrader : clic droit sur le symbole → Spécification. Le contrat, le minimum et le pas de volume peuvent varier selon le compte.</p>
+            <div className="mt-4"><SelectField label="Méthode de calcul" value={specMode} onChange={value => setSpecMode(value as "contract" | "ticks")}><option value="contract">Taille du contrat / valeur d’un point</option><option value="ticks">Taille et valeur du tick du broker</option></SelectField></div>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">{specMode === "contract" ? <>
+              <Field label={instrument.market === "forex" ? "Unités par lot" : instrument.market === "metals" ? "Onces par lot" : "Valeur d’un mouvement de prix de 1 pour 1 lot"} value={valuePerPoint} onChange={setValuePerPoint} suffix={instrument.market === "forex" || instrument.market === "metals" ? undefined : profitCurrency} placeholder="Valeur indiquée par le broker" />
+              <SelectField label="Devise du profit du contrat" value={profitCurrency} onChange={value => { setProfitCurrency(value); setManualRate(""); }}><option value="">Choisir la devise</option>{ACCOUNT_CURRENCIES.map(code => <option key={code}>{code}</option>)}</SelectField>
+            </> : <>
+              <Field label="Taille du tick (variation de prix)" value={tickSize} onChange={setTickSize} placeholder="Ex. 0,00001 ou 0,01" />
+              <Field label="Valeur du tick de perte pour 1 lot" value={tickValue} onChange={setTickValue} suffix={currency} placeholder="Dans la devise du compte" />
+              <p className="text-xs leading-5 text-white/40 sm:col-span-2">Valeur du tick dans la devise de ton compte ({currency}). Le gain est estimé avec la même valeur ; il peut différer de la valeur du tick de profit.</p>
+            </>}</div>
+            {specMode === "contract" && profitCurrency && profitCurrency !== currency && <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4">
+              <div className="text-xs text-white/65">Conversion : 1 {profitCurrency} = {formatNumber(calculated.conversion.lossRate, 8)} {currency}</div>
+              <p className="mt-2 text-xs leading-5 text-white/40">{calculated.conversion.source === "pair" ? "Taux déduit de la paire au prix du SL. Le gain est converti au prix du TP." : calculated.conversion.source === "manual" ? "Taux personnalisé utilisé pour la simulation." : calculated.conversion.source === "reference" ? "Taux de référence Frankfurter du " + (rateDate || "dernier jour disponible") + ", indicatif et non temps réel." : rateLoading ? "Chargement du taux de référence…" : "Taux automatique indisponible : renseigne la conversion ci-dessous."}</p>
+              <div className="mt-3"><Field label={"Taux personnalisé · 1 " + profitCurrency + " en " + currency} value={manualRate} onChange={setManualRate} placeholder={Number.isFinite(calculated.conversion.lossRate) ? formatNumber(calculated.conversion.lossRate, 8) : "Taux nécessaire au calcul"} /></div>
+            </div>}
+            <div className="mt-4 grid gap-4 sm:grid-cols-3"><Field label="Volume minimum" value={minLot} onChange={setMinLot} suffix="lot" /><Field label="Pas de volume" value={lotStep} onChange={setLotStep} suffix="lot" /><Field label="Volume maximum (facultatif)" value={maxLot} onChange={setMaxLot} suffix="lots" placeholder="Non renseigné" /></div>
+            <p className="mt-3 text-xs leading-5 text-white/40">Les volumes 0,01 sont indicatifs. Adapte-les aux spécifications du broker ; le volume calculé est arrondi vers le bas.</p>
+          </details>}
         </div>
 
-        <button
-          type="button"
-          onClick={resetSimulator}
-          className="
-            inline-flex
-            h-10
-            items-center
-            gap-2
-            rounded-xl
-            border border-[color:var(--border)]
-            bg-[color:var(--panel)]
-            px-4
-            text-xs
-            text-white/70
-            transition
-            hover:bg-white/[0.04]
-            hover:text-white
-          "
-        >
-          <RotateCcw size={14} />
-
-          Réinitialiser
-        </button>
-      </div>
-
-      {/* KPI */}
-
-      <section className="grid grid-cols-2 gap-2 lg:gap-3 xl:grid-cols-4">
-        <StatCard
-          icon={
-            <ShieldCheck size={18} />
-          }
-          label="Risque maximum"
-          value={`${formatNumber(
-            calculated.riskMoney
-          )} ${currency}`}
-          sub={`${formatNumber(
-            calculated.effectiveRiskPercent
-          )}% du capital`}
-        />
-
-        <StatCard
-          icon={
-            <Calculator size={18} />
-          }
-          label="Taille de position"
-          value={
-            calculated.lotSize > 0
-              ? `${formatNumber(
-                  calculated.lotSize,
-                  4
-                )} lot`
-              : "—"
-          }
-          sub="Calculée avec Entrée + SL"
-        />
-
-        <StatCard
-          icon={
-            <Target size={18} />
-          }
-          label="Take Profit estimé"
-          value={
-            calculated.takeProfit > 0
-              ? formatNumber(
-                  calculated.takeProfit,
-                  5
-                )
-              : "—"
-          }
-          sub={`Objectif ${formatNumber(
-            calculated.targetRR
-          )}R`}
-        />
-
-        <StatCard
-          icon={
-            <TrendingUp size={18} />
-          }
-          label="Gain potentiel"
-          value={`+${formatNumber(
-            calculated.potentialGain
-          )} ${currency}`}
-          sub={`Risk / Reward 1:${formatNumber(
-            calculated.targetRR
-          )}`}
-        />
-      </section>
-
-      {/* MAIN */}
-
-      <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-        {/* CALCULATOR */}
-
-        <div
-          className="
-            xl:col-span-8
-            rounded-[22px]
-            border border-[color:var(--border)]
-            bg-[color:var(--panel)]
-            p-5
-          "
-        >
-          <div>
-            <h2 className="text-base font-semibold text-white">
-              Calcul de position
-            </h2>
-
-            <p className="mt-1 text-xs text-[color:var(--muted)]">
-              Renseigne les paramètres
-              du trade que tu veux prendre.
-            </p>
-          </div>
-
-          {/* RISK PRESETS */}
-
-          <div className="mt-6">
-            <div className="mb-2 text-xs text-white/60">
-              Risque rapide
+        <aside className="space-y-4 xl:sticky xl:top-5 xl:col-span-4">
+          <section className="rounded-[22px] border border-[color:var(--gold-border)] bg-[color:var(--panel)] p-5">
+            <div className="flex items-center gap-2 text-[color:var(--gold)]"><Calculator size={18} /><h2 className="text-sm font-semibold text-white">Ma taille de position</h2></div>
+            <div aria-live="polite" className="mt-6"><div className="text-4xl font-semibold text-[color:var(--gold)]">{valid ? formatNumber(calculated.lotSize, 8) : "—"}{valid && <span className="ml-2 text-base font-normal text-white/50">lot{calculated.lotSize > 1 ? "s" : ""}</span>}</div>
+              <p className="mt-2 text-xs text-white/40">{valid ? symbol + " · " + (calculated.isBuy ? "Achat" : "Vente") + " · volume arrondi au pas de " + lotStep : "Complète les trois étapes pour obtenir ton volume."}</p>
+              {!valid && <div className="mt-5 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-xs leading-5 text-amber-200">{calculated.error}</div>}
             </div>
-
-            <div className="flex flex-wrap gap-2">
-              {[
-                "0.5",
-                "1",
-                "1.5",
-                "2",
-              ].map((value) => {
-                const active =
-                  riskMode ===
-                    "percent" &&
-                  riskPercent ===
-                    value;
-
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() =>
-                      selectRisk(value)
-                    }
-                    className={[
-                      "h-9 rounded-xl border px-4 text-xs font-semibold transition",
-
-                      active
-                        ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]"
-                        : "border-[color:var(--border)] bg-black/20 text-white/60 hover:text-white",
-                    ].join(" ")}
-                  >
-                    {value}%
-                  </button>
-                );
-              })}
+            <div className="mt-6 space-y-2">
+              <ResultRow label="Budget de risque maximum" value={money(calculated.riskMoney)} />
+              <ResultRow label="Perte estimée au SL" value={valid ? "−" + money(calculated.actualRisk) : "—"} type="loss" />
+              <ResultRow label="Gain potentiel estimé au TP" value={valid ? "+" + money(calculated.potentialGain) : "—"} type="win" />
+              <ResultRow label="Take Profit estimé" value={valid ? formatNumber(calculated.takeProfit, 8) : "—"} />
             </div>
-          </div>
-
-          <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-            {/* CAPITAL */}
-
-            <Field
-              label="Capital"
-              value={balance}
-              onChange={setBalance}
-              suffix={currency}
-              placeholder="10000"
-            />
-
-            {/* CURRENCY */}
-
-            <SelectField
-              label="Devise du compte"
-              value={currency}
-              onChange={setCurrency}
-            >
-              <option value="EUR">
-                EUR
-              </option>
-
-              <option value="USD">
-                USD
-              </option>
-
-              <option value="GBP">
-                GBP
-              </option>
-            </SelectField>
-
-            {/* RISK MODE */}
-
-            <SelectField
-              label="Type de risque"
-              value={riskMode}
-              onChange={(value) =>
-                setRiskMode(
-                  value as RiskMode
-                )
-              }
-            >
-              <option value="percent">
-                Pourcentage du capital
-              </option>
-
-              <option value="amount">
-                Montant fixe
-              </option>
-            </SelectField>
-
-            {riskMode ===
-            "percent" ? (
-              <Field
-                label="Risque"
-                value={riskPercent}
-                onChange={
-                  setRiskPercent
-                }
-                suffix="%"
-                placeholder="1"
-              />
-            ) : (
-              <Field
-                label="Montant à risquer"
-                value={riskAmount}
-                onChange={
-                  setRiskAmount
-                }
-                suffix={currency}
-                placeholder="100"
-              />
-            )}
-
-            {/* ENTRY */}
-
-            <Field
-              label="Prix d’entrée"
-              value={entryPrice}
-              onChange={
-                setEntryPrice
-              }
-              placeholder="2350.50"
-            />
-
-            {/* STOP LOSS */}
-
-            <Field
-              label="Stop Loss"
-              value={stopLossPrice}
-              onChange={
-                setStopLossPrice
-              }
-              placeholder="2340.00"
-            />
-
-            {/* DISTANCE */}
-
-            <div
-              className="
-                lg:col-span-2
-                flex
-                items-center
-                justify-between
-                rounded-xl
-                border border-white/[0.05]
-                bg-black/20
-                px-4 py-3
-              "
-            >
-              <div>
-                <div className="text-xs text-[color:var(--muted)]">
-                  Distance entrée → SL
-                </div>
-
-                <div className="mt-1 text-[10px] text-white/30">
-                  Calcul automatique
-                </div>
-              </div>
-
-              <div className="text-lg font-semibold text-[color:var(--gold)]">
-                {formatNumber(
-                  calculated.stopDistance,
-                  5
-                )}
-              </div>
+            {valid && <p className="mt-4 text-xs leading-5 text-white/40">Risque après arrondi : {formatNumber(calculated.actualRisk / calculated.capital * 100)} % du capital. {calculated.capped ? "Volume limité au maximum renseigné." : ""}</p>}
+            {specMode === "contract" && profitCurrency && profitCurrency !== currency && <p className="mt-3 text-xs leading-5 text-white/40">{calculated.conversion.source === "reference" ? "Converti en " + currency + " · taux de référence du " + rateDate : calculated.conversion.source === "pair" ? "Conversion calculée au prix du SL / TP." : calculated.conversion.source === "manual" ? "Conversion selon ton taux personnalisé." : rateLoading ? "Conversion en cours…" : "Conversion à renseigner dans les paramètres du broker."}</p>}
+            {symbol && <button type="button" onClick={() => setBrokerOpen(true)} className="mt-4 min-h-10 text-xs font-medium text-[color:var(--gold)] underline underline-offset-4">Vérifier les paramètres du broker</button>}
+            {calculated.effectiveRiskPercent > 2 && <p className="mt-4 flex gap-2 rounded-xl bg-red-500/5 p-3 text-xs leading-5 text-red-300"><AlertTriangle size={16} className="mt-0.5 shrink-0" />Ton budget dépasse 2 % du capital. Compare-le aux limites de ton plan.</p>}
+          </section>
+          <details className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--panel)] p-4">
+            <summary className="cursor-pointer text-xs font-semibold text-white/65">Comprendre mon résultat</summary>
+            <div className="mt-4 space-y-3 text-xs leading-5 text-white/45">
+              <p>Le volume est calculé à partir de ton budget et de la perte pour 1 lot au Stop Loss, puis arrondi vers le bas pour respecter le pas du broker.</p>
+              {valid && <><ResultRow label="Perte estimée pour 1 lot" value={money(calculated.lossPerLot)} /><ResultRow label="Volume avant arrondi" value={formatNumber(calculated.theoretical, 8) + " lots"} /><ResultRow label="RR monétaire estimé" value={"1:" + formatNumber(calculated.effectiveRR)} /><ResultRow label="Capital après un SL" value={money(calculated.capitalAfterLoss)} /><ResultRow label="Capital après le TP" value={money(calculated.capitalAfterWin)} /></>}
+              <p>Le ratio de prix peut différer légèrement du ratio monétaire lorsque la conversion de devise dépend du prix de sortie.</p>
             </div>
-
-            {/* AUTO SIDE */}
-
-            <div
-              className="
-                lg:col-span-2
-                flex
-                items-center
-                justify-between
-                rounded-xl
-                border border-white/[0.05]
-                bg-black/20
-                px-4 py-3
-              "
-            >
-              <span className="text-xs text-[color:var(--muted)]">
-                Sens détecté
-              </span>
-
-              <span
-                className={[
-                  "rounded-full border px-3 py-1 text-xs font-semibold",
-
-                  calculated.stopLoss <
-                  calculated.entry
-                    ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
-                    : calculated.stopLoss >
-                      calculated.entry
-                    ? "border-red-500/20 bg-red-500/10 text-red-400"
-                    : "border-white/10 bg-white/5 text-white/40",
-                ].join(" ")}
-              >
-                {calculated.stopLoss <
-                calculated.entry
-                  ? "ACHAT"
-                  : calculated.stopLoss >
-                    calculated.entry
-                  ? "VENTE"
-                  : "—"}
-              </span>
-            </div>
-
-            {/* POINT VALUE */}
-
-            <Field
-              label="Valeur d’un mouvement de prix de 1.00 pour 1 lot"
-              value={valuePerPoint}
-              onChange={
-                setValuePerPoint
-              }
-              suffix={currency}
-              placeholder="10"
-            />
-
-            {/* AUTO TP */}
-
-            <div>
-              <div className="mb-2 text-xs text-white/60">
-                Take Profit calculé
-              </div>
-
-              <div
-                className="
-                  flex
-                  h-11
-                  items-center
-                  rounded-xl
-                  border border-[color:var(--gold-border)]
-                  bg-[color:var(--gold-soft)]
-                  px-4
-                  text-sm
-                  font-semibold
-                  text-[color:var(--gold)]
-                "
-              >
-                {calculated.takeProfit >
-                0
-                  ? formatNumber(
-                      calculated.takeProfit,
-                      5
-                    )
-                  : "—"}
-              </div>
-            </div>
-
-            {/* RR */}
-
-            <div className="lg:col-span-2">
-              <div className="mb-2 text-xs text-white/60">
-                Ratio visé
-              </div>
-
-              <div className="grid grid-cols-4 gap-2">
-                {[
-                  "1",
-                  "1.5",
-                  "2",
-                  "3",
-                ].map(
-                  (value) => {
-                    const active =
-                      rr === value;
-
-                    return (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() =>
-                          setRr(
-                            value
-                          )
-                        }
-                        className={[
-                          "h-11 rounded-xl border text-sm font-semibold transition",
-
-                          active
-                            ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]"
-                            : "border-[color:var(--border)] bg-black/20 text-white/60 hover:text-white",
-                        ].join(
-                          " "
-                        )}
-                      >
-                        {value}R
-                      </button>
-                    );
-                  }
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* IMPORTANT */}
-
-          <div
-            className="
-              mt-6
-              flex gap-3
-              rounded-2xl
-              border border-[color:var(--gold-border)]
-              bg-[color:var(--gold-soft)]
-              p-4
-            "
-          >
-            <AlertTriangle
-              size={17}
-              className="mt-0.5 shrink-0 text-[color:var(--gold)]"
-            />
-
-            <div>
-              <div className="text-xs font-semibold text-white">
-                Calcul de la taille de position
-              </div>
-
-              <p className="mt-1 text-[11px] leading-5 text-[color:var(--muted)]">
-                Le risque en euros est calculé
-                automatiquement avec ton capital.
-                La taille de position dépend ensuite
-                de la distance entre ton entrée et ton
-                Stop Loss ainsi que de la valeur du
-                mouvement de prix pour ton broker.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* RIGHT */}
-
-        <div className="xl:col-span-4 space-y-4">
-          {/* RISK HEALTH */}
-
-          <div
-            className="
-              rounded-[22px]
-              border border-[color:var(--border)]
-              bg-[color:var(--panel)]
-              p-5
-            "
-          >
-            <div className="flex items-center gap-2">
-              <ShieldCheck
-                size={17}
-                className="text-[color:var(--gold)]"
-              />
-
-              <h2 className="text-sm font-semibold text-white">
-                Gestion du risque
-              </h2>
-            </div>
-
-            <div
-              className={[
-                "mt-5 rounded-2xl border p-4",
-
-                calculated.riskLevel ===
-                "safe"
-                  ? "border-emerald-500/20 bg-emerald-500/[0.06]"
-                  : calculated.riskLevel ===
-                    "medium"
-                  ? "border-amber-500/20 bg-amber-500/[0.06]"
-                  : "border-red-500/20 bg-red-500/[0.06]",
-              ].join(" ")}
-            >
-              <div className="flex items-center gap-3">
-                {calculated.riskLevel ===
-                "safe" ? (
-                  <CheckCircle2
-                    size={19}
-                    className="text-emerald-400"
-                  />
-                ) : (
-                  <AlertTriangle
-                    size={19}
-                    className={
-                      calculated.riskLevel ===
-                      "medium"
-                        ? "text-amber-400"
-                        : "text-red-400"
-                    }
-                  />
-                )}
-
-                <div>
-                  <div className="text-sm font-semibold text-white">
-                    {calculated.riskLevel ===
-                    "safe"
-                      ? "Risque maîtrisé"
-                      : calculated.riskLevel ===
-                        "medium"
-                      ? "Risque modéré"
-                      : "Risque élevé"}
-                  </div>
-
-                  <div className="mt-1 text-[10px] text-[color:var(--muted)]">
-                    {formatNumber(
-                      calculated.effectiveRiskPercent
-                    )}
-                    % de ton capital
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-5 space-y-3">
-              <ResultRow
-                label="Perte au SL"
-                value={`-${formatNumber(
-                  calculated.riskMoney
-                )} ${currency}`}
-                type="loss"
-              />
-
-              <ResultRow
-                label="Gain à 1R"
-                value={`+${formatNumber(
-                  calculated.gain1R
-                )} ${currency}`}
-                type="win"
-              />
-
-              <ResultRow
-                label="Gain à 2R"
-                value={`+${formatNumber(
-                  calculated.gain2R
-                )} ${currency}`}
-                type="win"
-              />
-
-              <ResultRow
-                label="Gain à 3R"
-                value={`+${formatNumber(
-                  calculated.gain3R
-                )} ${currency}`}
-                type="win"
-              />
-            </div>
-          </div>
-
-          {/* ACCOUNT IMPACT */}
-
-          <div
-            className="
-              rounded-[22px]
-              border border-[color:var(--border)]
-              bg-[color:var(--panel)]
-              p-5
-            "
-          >
-            <div className="flex items-center gap-2">
-              <WalletCards
-                size={17}
-                className="text-[color:var(--gold)]"
-              />
-
-              <h2 className="text-sm font-semibold text-white">
-                Impact sur le compte
-              </h2>
-            </div>
-
-            <div className="mt-5 space-y-3">
-              <ResultRow
-                label="Capital actuel"
-                value={`${formatNumber(
-                  calculated.capital
-                )} ${currency}`}
-              />
-
-              <ResultRow
-                label="Après un SL"
-                value={`${formatNumber(
-                  calculated.capitalAfterLoss
-                )} ${currency}`}
-                type="loss"
-              />
-
-              <ResultRow
-                label={`Après TP ${formatNumber(
-                  calculated.targetRR
-                )}R`}
-                value={`${formatNumber(
-                  calculated.capitalAfterWin
-                )} ${currency}`}
-                type="win"
-              />
-            </div>
-          </div>
-
-          {/* POSITION */}
-
-          <div
-            className="
-              rounded-[22px]
-              border border-[color:var(--gold-border)]
-              bg-gradient-to-br
-              from-[color:var(--gold-soft)]
-              to-transparent
-              p-5
-            "
-          >
-            <div className="text-xs text-[color:var(--muted)]">
-              Taille recommandée
-            </div>
-
-            <div className="mt-2 text-3xl font-semibold text-[color:var(--gold)]">
-              {calculated.lotSize >
-              0
-                ? formatNumber(
-                    calculated.lotSize,
-                    4
-                  )
-                : "—"}
-            </div>
-
-            <div className="mt-1 text-xs text-white/50">
-              lot / contrat indicatif
-            </div>
-
-            <div className="mt-5 border-t border-white/[0.06] pt-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-[color:var(--muted)]">
-                  Entrée
-                </span>
-
-                <span className="text-xs font-semibold text-white">
-                  {formatNumber(
-                    calculated.entry,
-                    5
-                  )}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-[color:var(--muted)]">
-                  Stop Loss
-                </span>
-
-                <span className="text-xs font-semibold text-red-400">
-                  {formatNumber(
-                    calculated.stopLoss,
-                    5
-                  )}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-[color:var(--muted)]">
-                  Take Profit
-                </span>
-
-                <span className="text-xs font-semibold text-emerald-400">
-                  {calculated.takeProfit >
-                  0
-                    ? formatNumber(
-                        calculated.takeProfit,
-                        5
-                      )
-                    : "—"}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-    </div>
-  );
-}
-
-/* =========================================================
-   COMPONENTS
-========================================================= */
-
-function StatCard({
-  icon,
-  label,
-  value,
-  sub,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  sub: string;
-}) {
-  return (
-    <div
-      className="
-        rounded-2xl
-        border border-[color:var(--border)]
-        bg-[color:var(--panel)]
-        p-4
-      "
-    >
-      <div className="flex items-center gap-3">
-        <div
-          className="
-            flex h-10 w-10
-            shrink-0
-            items-center justify-center
-            rounded-xl
-            border border-[color:var(--gold-border)]
-            bg-[color:var(--gold-soft)]
-            text-[color:var(--gold)]
-          "
-        >
-          {icon}
-        </div>
-
-        <div>
-          <div className="text-[10px] text-[color:var(--muted)]">
-            {label}
-          </div>
-
-          <div className="mt-1 text-lg font-semibold text-white">
-            {value}
-          </div>
-
-          <div className="mt-1 text-[9px] text-white/35">
-            {sub}
-          </div>
-        </div>
+          </details>
+          <p className="px-1 text-xs leading-5 text-white/35">Simulation uniquement, sans envoi d’ordre. Vérifie le contrat et les volumes auprès de ton broker. Résultats estimatifs, hors commissions, spread et slippage.</p>
+        </aside>
       </div>
     </div>
   );
 }
 
-function Field({
-  label,
-  value,
-  onChange,
-  suffix,
-  placeholder,
-}: {
-  label: string;
-  value: string;
-  onChange: (
-    value: string
-  ) => void;
-  suffix?: string;
-  placeholder?: string;
-}) {
-  return (
-    <label className="block">
-      <div className="mb-2 text-xs text-white/60">
-        {label}
-      </div>
-
-      <div className="relative">
-        <input
-          value={value}
-          inputMode="decimal"
-          onChange={(event) =>
-            onChange(
-              event.target.value
-            )
-          }
-          placeholder={placeholder}
-          className="
-            h-11
-            w-full
-            rounded-xl
-            border border-[color:var(--border)]
-            bg-black/20
-            px-4
-            pr-20
-            text-sm
-            text-white
-            outline-none
-            placeholder:text-white/20
-            focus:border-[color:var(--gold-border)]
-          "
-        />
-
-        {suffix ? (
-          <span
-            className="
-              pointer-events-none
-              absolute
-              right-4
-              top-1/2
-              -translate-y-1/2
-              text-[10px]
-              text-white/35
-            "
-          >
-            {suffix}
-          </span>
-        ) : null}
-      </div>
-    </label>
-  );
+const inputClass = "h-11 w-full rounded-xl border border-[color:var(--border)] bg-black/20 px-3 text-sm text-white outline-none placeholder:text-white/25 focus:border-[color:var(--gold-border)]";
+const activeClass = "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]";
+const inactiveClass = "border-white/10 bg-black/10 text-white/50 hover:text-white";
+function Step({ number, title, description, children }: { number: string; title: string; description: string; children: React.ReactNode }) {
+  return <section className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4 sm:p-5">
+    <div className="flex items-start gap-3"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[color:var(--gold-soft)] text-xs text-[color:var(--gold)]">{number}</span><div><h2 className="text-sm font-semibold text-white">{title}</h2><p className="mt-1 text-xs leading-5 text-white/40">{description}</p></div></div>
+    <div className="mt-5">{children}</div>
+  </section>;
 }
-
-function SelectField({
-  label,
-  value,
-  onChange,
-  children,
-}: {
-  label: string;
-  value: string;
-  onChange: (
-    value: string
-  ) => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="block">
-      <div className="mb-2 text-xs text-white/60">
-        {label}
-      </div>
-
-      <select
-        value={value}
-        onChange={(event) =>
-          onChange(
-            event.target.value
-          )
-        }
-        className="
-          h-11
-          w-full
-          rounded-xl
-          border border-[color:var(--border)]
-          bg-black/20
-          px-4
-          text-sm
-          text-white
-          outline-none
-          focus:border-[color:var(--gold-border)]
-        "
-      >
-        {children}
-      </select>
-    </label>
-  );
+function Field({ label, value, onChange, suffix, placeholder }: { label: string; value: string; onChange: (value: string) => void; suffix?: string; placeholder?: string }) {
+  return <label className="block"><span className="mb-2 block text-xs leading-5 text-white/60">{label}</span><div className="relative"><input className={inputClass + (suffix ? " pr-16" : "")} inputMode="decimal" value={value} onChange={event => onChange(event.target.value)} placeholder={placeholder} />{suffix && <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-white/35">{suffix}</span>}</div></label>;
 }
-
-function ResultRow({
-  label,
-  value,
-  type,
-}: {
-  label: string;
-  value: string;
-  type?: "win" | "loss";
-}) {
-  return (
-    <div
-      className="
-        flex items-center justify-between
-        rounded-xl
-        border border-white/[0.05]
-        bg-black/20
-        px-3 py-3
-      "
-    >
-      <span className="text-[11px] text-[color:var(--muted)]">
-        {label}
-      </span>
-
-      <span
-        className={[
-          "text-xs font-semibold",
-
-          type === "win"
-            ? "text-emerald-400"
-            : type === "loss"
-            ? "text-red-400"
-            : "text-white",
-        ].join(" ")}
-      >
-        {value}
-      </span>
-    </div>
-  );
+function SelectField({ label, value, onChange, children }: { label: string; value: string; onChange: (value: string) => void; children: React.ReactNode }) {
+  return <label className="block"><span className="mb-2 block text-xs leading-5 text-white/60">{label}</span><select className={inputClass} value={value} onChange={event => onChange(event.target.value)}>{children}</select></label>;
+}
+function ResultRow({ label, value, type }: { label: string; value: string; type?: "win" | "loss" }) {
+  return <div className="flex items-center justify-between gap-3 rounded-xl bg-black/20 px-3 py-3 text-xs"><span className="text-white/45">{label}</span><strong className={"text-right " + (type === "win" ? "text-emerald-400" : type === "loss" ? "text-red-400" : "text-white")}>{value}</strong></div>;
 }
