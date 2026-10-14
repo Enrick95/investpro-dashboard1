@@ -210,7 +210,7 @@ export default function TradingPlanPage() {
 
   async function loadData() {
     try {
-      setLoading(true);
+
 
       const {
         data: { user },
@@ -300,7 +300,7 @@ export default function TradingPlanPage() {
       if (!accountsResult.error) {
         setAccountCurrencies(
           Object.fromEntries(
-            (accountsResult.data || []).map((account) => [
+            (accountsResult.data || []).map((account: { id: string; currency: string | null }) => [
               Number(account.id),
               String(account.currency || "").toUpperCase(),
             ])
@@ -320,7 +320,9 @@ export default function TradingPlanPage() {
   }
 
   useEffect(() => {
-    loadData();
+    // Data and loading state are updated after the asynchronous authentication request.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
