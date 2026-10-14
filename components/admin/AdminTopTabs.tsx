@@ -9,6 +9,7 @@ const tabs = [
   { label: "Overview", href: "/dashboard/admin" },
   { label: "Finance", href: "/dashboard/admin/finance" },
   { label: "Utilisateurs", href: "/dashboard/admin/utilisateurs" },
+  { label: "VIP", href: "/dashboard/admin/vip" },
   { label: "Modération", href: "/dashboard/admin/moderation" },
   { label: "Inbox", href: "/dashboard/admin/inbox" },
   { label: "InvestPro Copier", href: "/dashboard/admin/copieur" },
@@ -24,7 +25,7 @@ export default function AdminTopTabs({
   onRevoke?: () => void; permissions?: string[];
 }) {
   const pathname = usePathname();
-  const tabsAllowed = tabs.filter(t=>!permissions||permissions.includes(({Overview:"overview",Finance:"finance",Utilisateurs:"users",Modération:"moderation",Inbox:"inbox","InvestPro Copier":"copier",Annonces:"announcements_write",Système:"system",Navigation:"navigation",Équipe:"staff"} as Record<string,string>)[t.label]));
+  const tabsAllowed = tabs.filter(t=>!permissions||permissions.includes(({Overview:"overview",Finance:"finance",Utilisateurs:"users",VIP:"users_write",Modération:"moderation",Inbox:"inbox","InvestPro Copier":"copier",Annonces:"announcements_write",Système:"system",Navigation:"navigation",Équipe:"staff"} as Record<string,string>)[t.label]));
   const supabase = useMemo(() => createClient(), []);
   const [inboxCount, setInboxCount] = useState(0);
   const [copierCount, setCopierCount] = useState(0);

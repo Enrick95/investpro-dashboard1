@@ -16,6 +16,7 @@ export type NavigationKey =
   | "fundamentals"
   | "financialjuice"
   | "vip"
+  | "privateVip"
   | "ranking"
   | "challenges"
   | "members"
@@ -56,6 +57,7 @@ export const navigationDefinitions: NavigationDefinition[] = [
   { key: "financialjuice", label: "FinancialJuice", href: "/dashboard/financialjuice", group: "MARCHÉS & ANALYSE", defaultVisible: true, order: 33 },
 
   { key: "vip", label: "Performances VIP", href: "/dashboard/performances-vip", group: "COMMUNAUTÉ", defaultVisible: true, order: 40 },
+  { key: "privateVip", label: "Mon espace VIP", href: "/dashboard/vip", group: "CERCLE PRIVÉ", defaultVisible: true, order: 44 },
   { key: "ranking", label: "Classement", href: "/dashboard/classement", group: "COMMUNAUTÉ", defaultVisible: false, order: 41 },
   { key: "challenges", label: "Challenges", href: "/dashboard/challenges", group: "COMMUNAUTÉ", defaultVisible: false, order: 42 },
   { key: "members", label: "Membres", href: "/dashboard/membres", group: "COMMUNAUTÉ", defaultVisible: false, order: 43 },

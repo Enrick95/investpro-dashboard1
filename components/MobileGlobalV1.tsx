@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { defaultVisibility, type NavigationKey } from "@/lib/navigation/config";
+import {useVipNavigation} from "@/components/vip/useVipNavigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   BarChart3,
@@ -108,6 +109,7 @@ function InstallMenuTile({ onClick }: { onClick: () => void }) {
 
 export default function MobileGlobalV1() {
   const pathname = usePathname();
+  const vipVisible=useVipNavigation(pathname);
   const [moreOpen, setMoreOpen] = useState(false);
   const [visibility, setVisibility] = useState<Record<NavigationKey, boolean>>(defaultVisibility());
 
@@ -133,6 +135,8 @@ export default function MobileGlobalV1() {
   );
 
   useEffect(() => {
+    // Synchronize the open mobile overlay with navigation, including browser back/forward.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMoreOpen(false);
   }, [pathname]);
 
@@ -402,12 +406,13 @@ export default function MobileGlobalV1() {
 
   const communityTiles = useMemo(
     () => [
+      ...(vipVisible ? [{navKey:"privateVip" as NavigationKey,href:"/dashboard/vip",label:"Mon espace VIP",icon:<Crown size={20}/>}]:[]),
       { navKey: "vip" as NavigationKey, href: "/dashboard/performances-vip", label: "Performances VIP", icon: <TrendingUp size={20} /> },
       { navKey: "ranking" as NavigationKey, href: "/dashboard/classement", label: "Classement", icon: <Trophy size={20} /> },
       { navKey: "challenges" as NavigationKey, href: "/dashboard/challenges", label: "Challenges", icon: <Zap size={20} /> },
       { navKey: "members" as NavigationKey, href: "/dashboard/membres", label: "Membres", icon: <Users size={20} /> },
     ].filter((item) => visibility[item.navKey] !== false),
-    [visibility]
+    [visibility,vipVisible]
   );
 
   const ecosystemTiles = useMemo(

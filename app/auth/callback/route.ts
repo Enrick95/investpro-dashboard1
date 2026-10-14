@@ -1,21 +1,22 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { safeNextPath } from "@/lib/auth-next-path";
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
-  const requestedNext = requestUrl.searchParams.get("next") || "/dashboard";
+  const next = safeNextPath(requestUrl.searchParams.get("next"));
 
-  const next =
-    requestedNext.startsWith("/") && !requestedNext.startsWith("//")
-      ? requestedNext
-      : "/dashboard";
+  function loginError(reason: string) {
+    const url = new URL("/login", requestUrl.origin);
+    url.searchParams.set("error", reason);
+    url.searchParams.set("next", next);
+    return NextResponse.redirect(url);
+  }
 
   if (!code) {
-    return NextResponse.redirect(
-      new URL("/login?error=oauth_missing_code", requestUrl.origin)
-    );
+    return loginError("oauth_missing_code");
   }
 
   const cookieStore = await cookies();
@@ -42,9 +43,7 @@ export async function GET(request: Request) {
   if (error) {
     console.error("InvestPro OAuth callback error:", error.message);
 
-    return NextResponse.redirect(
-      new URL("/login?error=oauth_exchange_failed", requestUrl.origin)
-    );
+    return loginError("oauth_exchange_failed");
   }
 
   return NextResponse.redirect(new URL(next, requestUrl.origin));
