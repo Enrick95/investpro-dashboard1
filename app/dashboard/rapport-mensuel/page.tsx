@@ -1,5 +1,7 @@
 "use client";
 
+import { planAllowsAsset } from "@/lib/trading-plan-assets";
+
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
@@ -167,7 +169,7 @@ function isCompliant(trade: Trade, plan: TradingPlan | null) {
 
   if (plan.allowed_assets?.length) {
     checks.push(
-      plan.allowed_assets.map(normalizeAsset).includes(normalizeAsset(trade.symbol))
+      planAllowsAsset(plan.allowed_assets, trade.symbol)
     );
   }
 
