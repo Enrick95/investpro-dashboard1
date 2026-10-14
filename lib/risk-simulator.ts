@@ -46,6 +46,18 @@ export function getInstrument(value: string, hint: AssetMarket = "custom"): Inst
 
 export const SUGGESTED_ASSETS = [...majorPairs, ...exoticPairs].map(symbol => getInstrument(symbol)).concat(catalog);
 
+// The simple calculator uses named conventions, never inferred broker specifications.
+export function getSimpleInstrument(value: string) {
+  const instrument = getInstrument(value);
+  if (instrument.contractSize) return { ...instrument, indexConvention: false };
+  if (instrument.market === "indices" && instrument.profitCurrency) {
+    return { ...instrument, contractSize: 1, indexConvention: true };
+  }
+  return null;
+}
+
+export const SIMPLE_ASSETS = SUGGESTED_ASSETS.filter(item => getSimpleInstrument(item.symbol) !== null);
+
 export function parseDecimal(value: string): number {
   if (!value.trim()) return NaN;
   const normalized = value.trim().replace(/[\s\u00a0\u202f]/g, "").replace(",", ".");
@@ -76,7 +88,7 @@ export function floorVolume(raw: number, step: number): number {
 }
 
 export type PositionInput = {
-  symbol: string; balance: number; budget: number; entry: number; stop: number; rr: number;
+  symbol: string; balance: number; budget: number; entry: number; stop: number; rr?: number;
   mode: "contract" | "ticks"; contractSize: number; lossRate: number; gainRate: number;
   tickSize: number; tickValue: number; minLot: number; lotStep: number; maxLot?: number;
 };
@@ -84,19 +96,21 @@ export function calculatePosition(input: PositionInput) {
   const positive = (value: number) => Number.isFinite(value) && value > 0;
   const distance = Math.abs(input.entry - input.stop);
   const isBuy = input.stop < input.entry;
-  const target = isBuy ? input.entry + distance * input.rr : input.entry - distance * input.rr;
+  const hasTarget = input.rr !== undefined;
+  const rr = input.rr ?? 0;
+  const target = hasTarget ? (isBuy ? input.entry + distance * rr : input.entry - distance * rr) : NaN;
   let error = "";
   if (!input.symbol.trim()) error = "Choisis l’actif à calculer.";
   else if (!positive(input.balance) || !positive(input.budget) || input.budget > input.balance) error = "Renseigne un capital et un risque valides, sans dépasser le capital.";
   else if (!positive(input.entry) || !positive(input.stop) || !positive(distance)) error = "Renseigne une entrée et un Stop Loss positifs et différents.";
-  else if (!positive(input.rr) || !positive(target)) error = "Le ratio doit donner un Take Profit positif.";
+  else if (hasTarget && (!positive(rr) || !positive(target))) error = "Le ratio doit donner un Take Profit positif.";
   else if (!positive(input.minLot) || !positive(input.lotStep) || (input.maxLot !== undefined && (!positive(input.maxLot) || input.maxLot < input.minLot))) error = "Vérifie le volume minimum, le pas et le maximum du broker.";
   else if (input.mode === "contract" && !positive(input.contractSize)) error = "Renseigne la taille du contrat ou la valeur d’un point indiquée par ton broker.";
-  else if (input.mode === "contract" && (!positive(input.lossRate) || !positive(input.gainRate))) error = "Renseigne le taux de conversion dans la devise du compte.";
+  else if (input.mode === "contract" && (!positive(input.lossRate) || (hasTarget && !positive(input.gainRate)))) error = "Renseigne le taux de conversion dans la devise du compte.";
   else if (input.mode === "ticks" && (!positive(input.tickSize) || !positive(input.tickValue))) error = "Renseigne la taille du tick et sa valeur de perte pour 1 lot.";
   const lossPerLot = input.mode === "ticks" ? distance / input.tickSize * input.tickValue : distance * input.contractSize * input.lossRate;
-  const gainPerLot = input.mode === "ticks" ? distance * input.rr / input.tickSize * input.tickValue : distance * input.rr * input.contractSize * input.gainRate;
-  if (!error && (!positive(lossPerLot) || !positive(gainPerLot))) error = "Ces paramètres ne permettent pas de calculer un volume fini.";
+  const gainPerLot = !hasTarget ? 0 : input.mode === "ticks" ? distance * rr / input.tickSize * input.tickValue : distance * rr * input.contractSize * input.gainRate;
+  if (!error && (!positive(lossPerLot) || (hasTarget && !positive(gainPerLot)))) error = "Ces paramètres ne permettent pas de calculer un volume fini.";
   const theoretical = !error ? input.budget / lossPerLot : 0;
   let lots = !error ? floorVolume(Math.min(theoretical, input.maxLot ?? Infinity), input.lotStep) : 0;
   if (!error && (!positive(lots) || lots < input.minLot - 1e-12)) { error = "Le volume minimum du broker dépasserait ton budget de risque."; lots = 0; }
