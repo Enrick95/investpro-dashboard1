@@ -6,6 +6,7 @@ import {
   Check,
   CheckCircle2,
   CircleDollarSign,
+  Clock3,
   Cloud,
   Layers3,
   MonitorSmartphone,
@@ -70,8 +71,8 @@ const faq = [
     "Oui. InvestPro permet de centraliser plusieurs comptes et de distinguer les comptes manuels des comptes synchronisés.",
   ],
   [
-    "InvestPro Copier est-il disponible ?",
-    "Le module multi-comptes et les outils de copie sont intégrés à l’écosystème InvestPro selon les connexions et accès disponibles.",
+    "Quelle différence entre Copy CFD et Copy Futures ?",
+    "InvestPro Copy CFD regroupe les outils de copie actuels, selon les connexions et accès disponibles. InvestPro Copy Futures est en préparation : ses plateformes compatibles et son ouverture seront annoncées sur sa page dédiée.",
   ],
   [
     "Comment lire mes performances ?",
@@ -371,20 +372,44 @@ export default function Home() {
 
         <div className={styles.copierSpotlight}>
           <div className={styles.copierSpotlightCopy}>
-            <span className={styles.copierSpotlightEyebrow}>INVESTPRO COPIER</span>
+            <span className={styles.copierSpotlightEyebrow}>INVESTPRO COPY · CFD</span>
             <h3>Vos comptes, vos réglages, une vue claire.</h3>
             <p>
               Retrouvez les comptes receveurs, les liaisons Master et les
               paramètres de risque dans un espace conçu pour suivre chaque étape.
             </p>
             <Link href="/dashboard/copieur" className={styles.copierSpotlightLink}>
-              Découvrir InvestPro Copier <ArrowRight size={16} />
+              Découvrir InvestPro Copy CFD <ArrowRight size={16} />
             </Link>
           </div>
           <div className={styles.copierSteps} aria-label="Étapes de configuration">
             <div><span>01</span><b>Choisir les comptes</b><small>Master et receveurs</small></div>
             <div><span>02</span><b>Régler le risque</b><small>Volumes et exécution</small></div>
             <div><span>03</span><b>Suivre l’activité</b><small>État et historique</small></div>
+          </div>
+        </div>
+        <div className={styles.copierSpotlight}>
+          <div className={styles.copierSpotlightCopy}>
+            <span className={styles.copierSpotlightEyebrow}>LE PROCHAIN CHAPITRE</span>
+            <h3>InvestPro Copy Futures</h3>
+            <p>
+              La copie multi-comptes sur futures se prépare. Un nouvel espace
+              pour retrouver vos comptes et copier vos opérations, directement
+              dans InvestPro.
+            </p>
+            <Link href="/copy-futures" className={styles.copierSpotlightLink}>
+              Découvrir le projet <ArrowRight size={16} />
+            </Link>
+          </div>
+          <div className={styles.futuresStatus}>
+            <span className={styles.futuresBadge}>
+              <Clock3 size={15} aria-hidden="true" /> Bientôt
+            </span>
+            <b>En préparation</b>
+            <p>
+              Les plateformes compatibles et la date d’ouverture seront
+              annoncées sur la page du projet.
+            </p>
           </div>
         </div>
       </section>
