@@ -18,7 +18,7 @@ import { createClient } from "@/lib/supabase/client";
 import { loadActiveTradingScope, scopeTradesToActiveAccounts } from "@/lib/trading/activeScope";
 import NotificationEngine from "@/components/NotificationEngine";
 import MobileGlobalV1 from "@/components/MobileGlobalV1";
-import InstallAppExperience from "@/components/InstallAppExperience";
+
 import PwaPushPrompt from "@/components/PwaPushPrompt";
 import NewMemberJourney from "@/components/NewMemberJourney";
 import PremiumEmptyStateGuide from "@/components/PremiumEmptyStateGuide";
@@ -559,7 +559,7 @@ export default function DashboardTemplate({
 
       <NotificationEngine />
       <MobileGlobalV1 />
-      <InstallAppExperience />
+
       <PwaPushPrompt />
       <PremiumEmptyStateGuide />
       {children}
