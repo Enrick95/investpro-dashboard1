@@ -210,7 +210,7 @@ export default function TradingPlanPage() {
 
   async function loadData() {
     try {
-      setLoading(true);
+
 
       const {
         data: { user },
@@ -320,7 +320,9 @@ export default function TradingPlanPage() {
   }
 
   useEffect(() => {
-    loadData();
+    // Data and loading state are updated after the asynchronous authentication request.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
