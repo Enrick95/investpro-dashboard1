@@ -13,13 +13,13 @@ import {
   Loader2,
   Save,
   ShieldCheck,
-  Target,
   TrendingDown,
   TrendingUp,
   X,
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
+import { ASSET_GROUPS, assetGroupLabel, isAssetGroup, parsePlanAssets, planAllowsAsset } from "@/lib/trading-plan-assets";
 
 type TradingPlan = {
   max_risk_percent: number;
@@ -114,11 +114,6 @@ const DEFAULT_CHECKLIST: ChecklistState = {
 
 const SESSION_OPTIONS = ["Asian", "London", "New York"];
 
-function normalizeAsset(value: string | null | undefined) {
-  const clean = String(value || "").trim().toUpperCase().replace(/\s+/g, "");
-  return clean === "GOLD" ? "XAUUSD" : clean;
-}
-
 function normalizeSession(value: string | null | undefined) {
   return String(value || "")
     .trim()
@@ -191,6 +186,12 @@ export default function TradingPlanPage() {
   const [savingChecklist, setSavingChecklist] = useState(false);
 
   const [plan, setPlan] = useState<TradingPlan>(DEFAULT_PLAN);
+  const [hasStoredPlan, setHasStoredPlan] = useState(false);
+  const [savedPlan, setSavedPlan] = useState<TradingPlan>(DEFAULT_PLAN);
+  const [activeTab, setActiveTab] = useState<"plan" | "discipline" | "checklist">("plan");
+  const [tradeFilter, setTradeFilter] = useState<"all" | "compliant" | "outside">("all");
+  const [loadError, setLoadError] = useState(false);
+  const hasChanges = !hasStoredPlan || JSON.stringify(plan) !== JSON.stringify(savedPlan);
   const [checklist, setChecklist] =
     useState<ChecklistState>(DEFAULT_CHECKLIST);
 
@@ -205,10 +206,7 @@ export default function TradingPlanPage() {
     text: string;
   } | null>(null);
 
-  useEffect(() => {
-    loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+
 
   async function loadData() {
     try {
@@ -268,11 +266,13 @@ export default function TradingPlanPage() {
           .eq("user_id", user.id),
       ]);
 
+      if (planResult.error || tradesResult.error || checklistResult.error || accountsResult.error) throw new Error("plan_load");
+      setLoadError(false);
       if (planResult.data) {
         const data = planResult.data;
-        setPlan({
+        const loadedPlan: TradingPlan = {
           max_risk_percent: Number(data.max_risk_percent) || 1,
-          max_trades_per_day: Number(data.max_trades_per_day) || 2,
+          max_trades_per_day: Number.isFinite(Number(data.max_trades_per_day)) ? Number(data.max_trades_per_day) : 2,
           minimum_rr: Number(data.minimum_rr) || 1,
           allowed_sessions: Array.isArray(data.allowed_sessions)
             ? data.allowed_sessions
@@ -287,7 +287,10 @@ export default function TradingPlanPage() {
           rule_after_two_losses: data.rule_after_two_losses || "",
           weekly_goal: data.weekly_goal || "",
           general_rules: data.general_rules || "",
-        });
+        };
+        setPlan(loadedPlan);
+        setSavedPlan(loadedPlan);
+        setHasStoredPlan(true);
       }
 
       if (!tradesResult.error) {
@@ -308,15 +311,21 @@ export default function TradingPlanPage() {
       if (!checklistResult.error) {
         setChecklistHistory((checklistResult.data as ChecklistHistory[]) || []);
       }
-    } catch (error) {
-      console.error("Erreur plan V2 :", error);
+    } catch {
+      setLoadError(true);
+      setMessage({ type: "error", text: "Impossible de charger toutes les données. Réessayez avant de modifier votre plan." });
     } finally {
       setLoading(false);
     }
   }
 
+  useEffect(() => {
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function savePlan() {
-    if (!userId) return;
+    if (!userId || loadError) return;
 
     try {
       setSavingPlan(true);
@@ -342,6 +351,8 @@ export default function TradingPlanPage() {
 
       if (error) throw error;
 
+      setSavedPlan(structuredClone(plan));
+      setHasStoredPlan(true);
       setMessage({
         type: "success",
         text: "Ton plan de trading a bien été enregistré.",
@@ -408,7 +419,8 @@ export default function TradingPlanPage() {
       });
 
       setChecklist(DEFAULT_CHECKLIST);
-      await loadData();
+      const history = await supabase.from("trade_checklists").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(12);
+      if (!history.error) setChecklistHistory((history.data as ChecklistHistory[]) || []);
     } catch (error) {
       console.error(error);
       setMessage({
@@ -430,17 +442,19 @@ export default function TradingPlanPage() {
   }
 
   function addAsset() {
-    const value = assetInput.trim().toUpperCase();
-    if (!value) return;
-
-    if (!plan.allowed_assets.includes(value)) {
-      setPlan((current) => ({
-        ...current,
-        allowed_assets: [...current.allowed_assets, value],
-      }));
-    }
-
+    const values = parsePlanAssets(assetInput);
+    if (!values.length) return;
+    setPlan(current => ({ ...current, allowed_assets: Array.from(new Set([...current.allowed_assets, ...values])) }));
     setAssetInput("");
+  }
+
+  function toggleAssetGroup(value: string) {
+    setPlan(current => ({
+      ...current,
+      allowed_assets: current.allowed_assets.some(item => item.toUpperCase() === value.toUpperCase())
+        ? current.allowed_assets.filter(item => item.toUpperCase() !== value.toUpperCase())
+        : [...current.allowed_assets, value],
+    }));
   }
 
   function addSetup() {
@@ -511,42 +525,41 @@ export default function TradingPlanPage() {
       const risk = Number(trade.risk_percent || 0);
       if (risk > 0) {
         riskKnown += 1;
-        const ok = risk <= Number(plan.max_risk_percent);
+        const ok = risk <= Number(savedPlan.max_risk_percent);
         if (ok) riskValid += 1;
         checks.push(ok);
-        if (!ok) reasons.push(`Risque ${risk}% > ${plan.max_risk_percent}%`);
+        if (!ok) reasons.push(`Risque ${risk}% > ${savedPlan.max_risk_percent}%`);
       }
 
       const rr = calculateRR(trade);
       if (rr != null) {
         rrKnown += 1;
-        const ok = rr >= Number(plan.minimum_rr);
+        const ok = rr >= Number(savedPlan.minimum_rr);
         if (ok) rrValid += 1;
         checks.push(ok);
-        if (!ok) reasons.push(`RR ${rr.toFixed(2)} < ${plan.minimum_rr}`);
+        if (!ok) reasons.push(`RR ${rr.toFixed(2)} < ${savedPlan.minimum_rr}`);
       }
 
-      if (plan.allowed_assets.length > 0) {
+      if (savedPlan.allowed_assets.length > 0) {
         assetKnown += 1;
-        const allowed = plan.allowed_assets.map(normalizeAsset);
-        const ok = allowed.includes(normalizeAsset(trade.symbol));
+        const ok = planAllowsAsset(savedPlan.allowed_assets, trade.symbol);
         if (ok) assetValid += 1;
         checks.push(ok);
         if (!ok) reasons.push(`${trade.symbol} hors plan`);
       }
 
-      if (plan.allowed_sessions.length > 0 && trade.session) {
+      if (savedPlan.allowed_sessions.length > 0 && trade.session) {
         sessionKnown += 1;
-        const allowed = plan.allowed_sessions.map(normalizeSession);
+        const allowed = savedPlan.allowed_sessions.map(normalizeSession);
         const ok = allowed.includes(normalizeSession(trade.session));
         if (ok) sessionValid += 1;
         checks.push(ok);
         if (!ok) reasons.push(`${trade.session} non autorisée`);
       }
 
-      if (plan.allowed_setups.length > 0 && trade.setup) {
+      if (savedPlan.allowed_setups.length > 0 && trade.setup) {
         setupKnown += 1;
-        const allowed = plan.allowed_setups.map(normalizeText);
+        const allowed = savedPlan.allowed_setups.map(normalizeText);
         const ok = allowed.includes(normalizeText(trade.setup));
         if (ok) setupValid += 1;
         checks.push(ok);
@@ -567,7 +580,7 @@ export default function TradingPlanPage() {
           (pnlNonCompliantByCurrency[currency] || 0) + Number(trade.result_amount || 0);
       }
 
-      if (recent.length < 6) {
+      if (recent.length < 100) {
         recent.push({ trade, compliant, reasons });
       }
     }
@@ -594,7 +607,7 @@ export default function TradingPlanPage() {
       pnlNonCompliantByCurrency,
       recent,
     };
-  }, [trades, plan, accountCurrencies]);
+  }, [trades, savedPlan, accountCurrencies]);
 
   if (loading) {
     return (
@@ -618,14 +631,14 @@ export default function TradingPlanPage() {
           </h1>
 
           <p className="mt-1 text-sm text-[color:var(--muted)]">
-            Définis tes règles, mesure ta discipline et vérifie ton setup avant chaque prise de position.
+            Un cadre clair pour vos marchés, votre risque et chaque prise de décision.
           </p>
         </div>
 
         <button
           type="button"
           onClick={savePlan}
-          disabled={savingPlan}
+          disabled={savingPlan || loadError || !hasChanges}
           className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-sm font-semibold text-black transition hover:bg-[color:var(--gold-2)] disabled:opacity-50"
         >
           {savingPlan ? (
@@ -633,7 +646,7 @@ export default function TradingPlanPage() {
           ) : (
             <Save size={15} />
           )}
-          Enregistrer mon plan
+          {savingPlan ? "Enregistrement…" : "Enregistrer mon plan"}
         </button>
       </div>
 
@@ -655,33 +668,23 @@ export default function TradingPlanPage() {
         </div>
       ) : null}
 
-      <section className="grid grid-cols-1 gap-3 md:grid-cols-3">
-        <StatCard
-          icon={<ShieldCheck size={18} />}
-          label="Risque max"
-          value={`${plan.max_risk_percent}%`}
-          sub="Par trade"
-        />
-        <StatCard
-          icon={<TrendingUp size={18} />}
-          label="Trades max"
-          value={String(plan.max_trades_per_day)}
-          sub="Par jour"
-        />
-        <StatCard
-          icon={<Target size={18} />}
-          label="RR minimum"
-          value={`1:${plan.minimum_rr}`}
-          sub="Risk / Reward"
-        />
-      </section>
 
-      <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+      <section aria-label="Mon bilan de discipline">
+        <div className="mb-3 flex flex-wrap justify-between gap-2 text-xs text-white/50"><span>Mon bilan de discipline</span><span>Calculé à partir de votre plan enregistré</span></div>
+        <div className="grid gap-3 lg:grid-cols-3">
+          <div className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5"><SectionTitle icon={<Gauge size={17} />} title="Score de discipline" /><div className="mt-4 flex items-center gap-4"><DisciplineRing score={discipline.score} /><p className="text-xs leading-5 text-white/50">Risque · RR · actifs<br />Sessions · setups</p></div></div>
+          <ResultCompareCard title="Trades conformes" count={discipline.compliantTrades} pnlByCurrency={discipline.pnlCompliantByCurrency} positive />
+          <ResultCompareCard title="Trades hors plan" count={discipline.nonCompliantTrades} pnlByCurrency={discipline.pnlNonCompliantByCurrency} positive={false} />
+        </div>
+      </section>
+      <details className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--panel)] p-4">
+        <summary className="cursor-pointer text-xs font-medium text-white/75">Voir le détail du score et les derniers trades</summary>
+        <div className="mt-4">      <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
         <div className="rounded-[24px] border border-[color:var(--gold-border)] bg-[color:var(--panel)] p-5 xl:col-span-5">
           <SectionTitle icon={<Gauge size={17} />} title="Score de discipline" />
 
           <div className="mt-5 flex flex-col gap-5 sm:flex-row sm:items-center">
-            <DisciplineRing score={discipline.score} />
+
 
             <div className="min-w-0 flex-1 space-y-3">
               <ProgressMetric
@@ -721,7 +724,7 @@ export default function TradingPlanPage() {
 
           <div className="mt-4 space-y-2">
             {discipline.recent.length ? (
-              discipline.recent.map(({ trade, compliant, reasons }) => (
+              discipline.recent.slice(0, 6).map(({ trade, compliant, reasons }) => (
                 <div
                   key={trade.id}
                   className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-black/20 px-3 py-3"
@@ -761,209 +764,76 @@ export default function TradingPlanPage() {
         </div>
       </section>
 
-      <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <ResultCompareCard
-          title="Trades conformes"
-          count={discipline.compliantTrades}
-          pnlByCurrency={discipline.pnlCompliantByCurrency}
-          positive
-        />
-        <ResultCompareCard
-          title="Trades hors plan"
-          count={discipline.nonCompliantTrades}
-          pnlByCurrency={discipline.pnlNonCompliantByCurrency}
-          positive={false}
-        />
-      </section>
+</div>
+      </details>
+      <div role="tablist" aria-label="Plan de trading" className="flex flex-wrap gap-5 border-b border-white/10">
+        {([["plan", "Mon plan"], ["discipline", "Ma discipline"], ["checklist", "Avant un trade"]] as const).map(([value, label]) => <button key={value} id={`plan-tab-${value}`} type="button" role="tab" aria-selected={activeTab === value} aria-controls={`plan-panel-${value}`} onClick={() => setActiveTab(value)} className={`min-h-12 border-b-2 text-xs font-medium transition ${activeTab === value ? "border-[color:var(--gold)] text-[color:var(--gold)]" : "border-transparent text-white/50 hover:text-white"}`}>{label}</button>)}
+      </div>
 
-      <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-        <div className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 xl:col-span-7">
-          <SectionTitle icon={<ShieldCheck size={17} />} title="Mes règles de risque" />
-
-          <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
-            <NumberField
-              label="Risque max / trade"
-              value={plan.max_risk_percent}
-              suffix="%"
-              step="0.1"
-              onChange={(value) =>
-                setPlan((current) => ({
-                  ...current,
-                  max_risk_percent: value,
-                }))
-              }
-            />
-            <NumberField
-              label="Trades max / jour"
-              value={plan.max_trades_per_day}
-              step="1"
-              onChange={(value) =>
-                setPlan((current) => ({
-                  ...current,
-                  max_trades_per_day: value,
-                }))
-              }
-            />
-            <NumberField
-              label="RR minimum"
-              value={plan.minimum_rr}
-              suffix="R"
-              step="0.1"
-              onChange={(value) =>
-                setPlan((current) => ({
-                  ...current,
-                  minimum_rr: value,
-                }))
-              }
-            />
+      <div id="plan-panel-plan" role="tabpanel" aria-labelledby="plan-tab-plan" hidden={activeTab !== "plan"} className="space-y-4">
+        <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6">
+          <PlanSection number="01" title="Mes limites de risque" description="Des plafonds, pas des objectifs à atteindre." />
+          <div className="mt-5 grid gap-4 sm:grid-cols-3">
+            <NumberField label="Risque maximum par trade" value={plan.max_risk_percent} suffix="%" step="0.1" onChange={value => setPlan(current => ({ ...current, max_risk_percent: value }))} />
+            <NumberField label="Maximum de trades par jour" value={plan.max_trades_per_day} step="1" onChange={value => setPlan(current => ({ ...current, max_trades_per_day: value }))} />
+            <NumberField label="RR minimum" value={plan.minimum_rr} suffix="R" step="0.1" onChange={value => setPlan(current => ({ ...current, minimum_rr: value }))} />
           </div>
-
-          <div className="mt-6">
-            <FieldLabel>Sessions autorisées</FieldLabel>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {SESSION_OPTIONS.map((session) => {
-                const active = plan.allowed_sessions.includes(session);
-                return (
-                  <button
-                    key={session}
-                    type="button"
-                    onClick={() => toggleSession(session)}
-                    className={[
-                      "h-10 rounded-xl border px-4 text-xs font-semibold transition",
-                      active
-                        ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]"
-                        : "border-[color:var(--border)] bg-black/20 text-white/45 hover:text-white",
-                    ].join(" ")}
-                  >
-                    {session}
-                  </button>
-                );
-              })}
-            </div>
+          <p className="mt-2 text-xs text-white/45">Pour le nombre de trades, 0 conserve votre réglage actuel.</p>
+          <div className="mt-5"><FieldLabel>Sessions autorisées</FieldLabel><div className="mt-2 flex flex-wrap gap-2">
+            {SESSION_OPTIONS.map(session => <button type="button" key={session} aria-pressed={plan.allowed_sessions.includes(session)} onClick={() => toggleSession(session)}
+              className={`min-h-11 rounded-xl border px-4 text-xs transition ${plan.allowed_sessions.includes(session) ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]" : "border-[color:var(--border)] text-white/60"}`}>
+              {session === "Asian" ? "Asie" : session === "London" ? "Londres" : session}
+            </button>)}
+          </div></div>
+        </section>
+        <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6">
+          <PlanSection number="02" title="Mes marchés & instruments" description="Autorisez une famille entière, des symboles précis, ou combinez les deux." />
+          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {ASSET_GROUPS.map(group => {
+              const selected = plan.allowed_assets.some(value => value.toUpperCase() === group.value.toUpperCase());
+              return <button key={group.value} type="button" aria-pressed={selected} onClick={() => toggleAssetGroup(group.value)}
+                className={`flex min-h-24 items-start justify-between gap-3 rounded-xl border p-4 text-left transition ${selected ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]" : "border-[color:var(--border)] bg-black/20 hover:border-white/25"}`}>
+                <span><span className="block text-sm font-medium text-white">{group.label}</span><span className="mt-1 block text-xs text-white/50">{group.description}</span></span>
+                <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${selected ? "border-[color:var(--gold)] bg-[color:var(--gold)] text-black" : "border-white/20 text-transparent"}`}><Check size={13} /></span>
+              </button>;
+            })}
           </div>
-
-          <div className="mt-6">
-            <FieldLabel>Actifs autorisés</FieldLabel>
-            <div className="mt-2 flex gap-2">
-              <input
-                value={assetInput}
-                onChange={(event) => setAssetInput(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    addAsset();
-                  }
-                }}
-                placeholder="Ex: GOLD, EURUSD, NAS100..."
-                className={inputClass}
-              />
-              <button
-                type="button"
-                onClick={addAsset}
-                className="rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 text-xs font-semibold text-[color:var(--gold)]"
-              >
-                Ajouter
-              </button>
-            </div>
-            <TagList
-              values={plan.allowed_assets}
-              onRemove={(value) =>
-                setPlan((current) => ({
-                  ...current,
-                  allowed_assets: current.allowed_assets.filter(
-                    (item) => item !== value
-                  ),
-                }))
-              }
-            />
+          <p className="mt-3 text-xs leading-5 text-white/50">Les catégories couvrent les symboles reconnus. Pour un nom propre à votre broker ou une action non reconnue, ajoutez son symbole exact ci-dessous. Le Forex n’inclut pas les métaux.</p>
+          <div className="mt-5 border-t border-white/10 pt-5"><label htmlFor="plan-assets" className="text-xs text-white/65">Ajouter des instruments précis</label>
+            <div className="mt-2 flex flex-col gap-2 sm:flex-row"><input id="plan-assets" className={inputClass} value={assetInput} onChange={event => setAssetInput(event.target.value)}
+              onKeyDown={event => { if(event.key === "Enter") { event.preventDefault(); addAsset(); } }} placeholder="XAUUSD, EURUSD, NAS100…" />
+              <button type="button" onClick={addAsset} className="min-h-11 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-5 text-xs text-[color:var(--gold)]">Ajouter</button></div>
+            <p className="mt-2 text-xs text-white/45">Plusieurs symboles à la fois, séparés par une virgule. GOLD est reconnu comme XAUUSD.</p>
+            <TagList values={plan.allowed_assets.filter(value => !isAssetGroup(value))} onRemove={value => setPlan(current => ({ ...current, allowed_assets: current.allowed_assets.filter(item => item !== value) }))} />
           </div>
-
-          <div className="mt-6">
-            <FieldLabel>Setups autorisés</FieldLabel>
-            <div className="mt-2 flex gap-2">
-              <input
-                value={setupInput}
-                onChange={(event) => setSetupInput(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    addSetup();
-                  }
-                }}
-                placeholder="Ex: SMC, OTE + OB, CHoCH..."
-                className={inputClass}
-              />
-              <button
-                type="button"
-                onClick={addSetup}
-                className="rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 text-xs font-semibold text-[color:var(--gold)]"
-              >
-                Ajouter
-              </button>
-            </div>
-            <TagList
-              values={plan.allowed_setups}
-              onRemove={(value) =>
-                setPlan((current) => ({
-                  ...current,
-                  allowed_setups: current.allowed_setups.filter(
-                    (item) => item !== value
-                  ),
-                }))
-              }
-            />
+          <div role="status" className="mt-4 flex gap-2 rounded-xl bg-[color:var(--gold-soft)] p-3 text-xs leading-5 text-[color:var(--gold)]"><CheckCircle2 size={15} className="mt-0.5 shrink-0" />
+            <span>{plan.allowed_assets.length ? "Autorisé : " + plan.allowed_assets.map(assetGroupLabel).join(" + ") : "Aucune restriction d’actif : tous les instruments sont autorisés, comme sur votre plan actuel."}</span>
           </div>
-        </div>
+        </section>
+        <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6">
+          <PlanSection number="03" title="Mes conditions d’entrée" description="Gardez une liste courte de setups que vous maîtrisez." />
+          <div className="mt-4 flex flex-wrap gap-2">{["SMC", "Breakout", "Pullback"].map(setup => <button key={setup} type="button" aria-pressed={plan.allowed_setups.includes(setup)} onClick={() => setPlan(current => ({ ...current, allowed_setups: current.allowed_setups.includes(setup) ? current.allowed_setups.filter(item => item !== setup) : [...current.allowed_setups, setup] }))}
+            className={`min-h-11 rounded-xl border px-4 text-xs ${plan.allowed_setups.includes(setup) ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]" : "border-[color:var(--border)] text-white/60"}`}>{setup}</button>)}</div>
+          <label htmlFor="plan-setup" className="mt-4 block text-xs text-white/65">Mon setup personnalisé</label><div className="mt-2 flex flex-col gap-2 sm:flex-row"><input id="plan-setup" className={inputClass} value={setupInput} onChange={event => setSetupInput(event.target.value)} onKeyDown={event => { if(event.key === "Enter") {event.preventDefault();addSetup();} }} placeholder="Ex. OTE + OB, CHoCH…" /><button type="button" onClick={addSetup} className="min-h-11 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-5 text-xs text-[color:var(--gold)]">Ajouter</button></div>
+          <TagList values={plan.allowed_setups.filter(value => !["SMC", "Breakout", "Pullback"].includes(value))} onRemove={value => setPlan(current => ({ ...current, allowed_setups: current.allowed_setups.filter(item => item !== value) }))} />
+        </section>
+        <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6">
+          <PlanSection number="04" title="Mes engagements personnels" description="Une règle claire pour chaque moment où la discipline compte." />
+          <div className="mt-5 grid gap-4 md:grid-cols-2"><TextareaField label="Après une perte" value={plan.rule_after_one_loss} onChange={value => setPlan(current => ({ ...current, rule_after_one_loss: value }))} /><TextareaField label="Après deux pertes" value={plan.rule_after_two_losses} onChange={value => setPlan(current => ({ ...current, rule_after_two_losses: value }))} /></div>
+          <div className="mt-4"><TextField label="Mon objectif de la semaine" value={plan.weekly_goal} onChange={value => setPlan(current => ({ ...current, weekly_goal: value }))} /></div>
+          <details className="mt-5"><summary className="cursor-pointer text-xs text-white/60">Règles complémentaires</summary><div className="mt-3"><TextareaField label="Mes autres règles" value={plan.general_rules} onChange={value => setPlan(current => ({ ...current, general_rules: value }))} placeholder="Ne pas déplacer le stop-loss, pas de revenge trading…" /></div></details>
+        </section>
+        <div className="flex flex-wrap items-center justify-between gap-3"><span role="status" className="text-xs text-white/50">{hasChanges ? "Modifications non enregistrées · le bilan utilise votre plan enregistré." : "Votre plan est enregistré."}</span><button type="button" onClick={savePlan} disabled={savingPlan || loadError || !hasChanges} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-xs font-semibold text-black disabled:opacity-40">{savingPlan ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}Enregistrer mon plan</button></div>
+      </div>
 
-        <div className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 xl:col-span-5">
-          <SectionTitle icon={<Target size={17} />} title="Discipline personnelle" />
-
-          <div className="mt-5 space-y-4">
-            <TextareaField
-              label="Après 1 perte"
-              value={plan.rule_after_one_loss}
-              onChange={(value) =>
-                setPlan((current) => ({
-                  ...current,
-                  rule_after_one_loss: value,
-                }))
-              }
-            />
-            <TextareaField
-              label="Après 2 pertes"
-              value={plan.rule_after_two_losses}
-              onChange={(value) =>
-                setPlan((current) => ({
-                  ...current,
-                  rule_after_two_losses: value,
-                }))
-              }
-            />
-            <TextareaField
-              label="Objectif de la semaine"
-              value={plan.weekly_goal}
-              onChange={(value) =>
-                setPlan((current) => ({
-                  ...current,
-                  weekly_goal: value,
-                }))
-              }
-            />
-            <TextareaField
-              label="Règles supplémentaires"
-              value={plan.general_rules}
-              onChange={(value) =>
-                setPlan((current) => ({
-                  ...current,
-                  general_rules: value,
-                }))
-              }
-              placeholder="Ex: pas de revenge trading, ne pas déplacer le SL..."
-            />
-          </div>
-        </div>
-      </section>
-
+      <div id="plan-panel-discipline" role="tabpanel" aria-labelledby="plan-tab-discipline" hidden={activeTab !== "discipline"} className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--panel)] p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3"><SectionTitle icon={<ClipboardCheck size={17} />} title="Mes trades face à mon plan" /><Link href="/dashboard/journal" className="text-xs text-[color:var(--gold)]">Ouvrir le journal →</Link></div>
+        <p className="mt-2 text-xs text-white/50">Contrôle des règles disponibles sur les trades clôturés. Les données manquantes ne sont pas évaluées. Affichage des 100 derniers trades maximum.</p>
+        <div className="my-4 flex flex-wrap gap-2">{([["all", "Tous"], ["compliant", "Conformes"], ["outside", "Hors plan"]] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={tradeFilter === value} onClick={() => setTradeFilter(value)} className={`min-h-10 rounded-lg border px-3 text-xs ${tradeFilter === value ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]" : "border-[color:var(--border)] text-white/60"}`}>{label}</button>)}</div>
+        <div className="space-y-2">{discipline.recent.filter(item => tradeFilter === "all" || (tradeFilter === "compliant" ? item.compliant : !item.compliant)).map(({trade, compliant, reasons}) => <div key={trade.id} className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-white/10 p-3"><div><div className="text-sm font-medium text-white">{trade.symbol} <span className="text-xs font-normal text-white/50">· {trade.direction === "buy" ? "Achat" : "Vente"} · {tradeDateLabel(trade.trade_date)}</span></div><p className="mt-1 text-xs text-white/50">{reasons.length ? reasons.join(" · ") : "Toutes les règles disponibles sont respectées."}</p></div><span className={`text-xs ${compliant ? "text-emerald-400" : "text-amber-300"}`}>{compliant ? "Conforme" : "À vérifier"}</span></div>)}</div>
+        {!discipline.recent.filter(item => tradeFilter === "all" || (tradeFilter === "compliant" ? item.compliant : !item.compliant)).length ? <EmptyState text="Aucun trade dans cette sélection." /> : null}
+      </div>
+      <div id="plan-panel-checklist" role="tabpanel" aria-labelledby="plan-tab-checklist" hidden={activeTab !== "checklist"} className="space-y-4">
       <section className="rounded-[22px] border border-[color:var(--gold-border)] bg-[color:var(--panel)] p-5">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <SectionTitle icon={<ClipboardCheck size={18} />} title="Checklist avant trade" />
@@ -998,6 +868,12 @@ export default function TradingPlanPage() {
           />
         </div>
 
+        <p className="mt-2 text-xs text-white/50">Contrôle basé sur votre plan enregistré : risque ≤ {savedPlan.max_risk_percent}% · RR ≥ 1:{savedPlan.minimum_rr}.</p>
+        {checklist.symbol.trim() ? (
+          <div role="status" className="mt-4 rounded-xl border border-[color:var(--border)] p-3 text-xs text-white/70">
+            {planAllowsAsset(savedPlan.allowed_assets, checklist.symbol) ? "Instrument autorisé dans votre plan enregistré." : "Cet instrument est hors de votre plan enregistré."}
+          </div>
+        ) : null}
         <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-4">
           <TextField
             label="Actif"
@@ -1091,7 +967,7 @@ export default function TradingPlanPage() {
           <ChecklistItem
             checked={checklist.rr_validated}
             label="RR respecté"
-            description={`Le trade respecte au minimum ton RR 1:${plan.minimum_rr}.`}
+            description={`Le trade respecte au minimum ton RR 1:${savedPlan.minimum_rr}.`}
             onChange={() =>
               setChecklist((current) => ({
                 ...current,
@@ -1102,7 +978,7 @@ export default function TradingPlanPage() {
           <ChecklistItem
             checked={checklist.risk_validated}
             label="Risque respecté"
-            description={`Le risque ne dépasse pas ${plan.max_risk_percent}% du capital.`}
+            description={`Le risque ne dépasse pas ${savedPlan.max_risk_percent}% du capital.`}
             onChange={() =>
               setChecklist((current) => ({
                 ...current,
@@ -1258,6 +1134,7 @@ export default function TradingPlanPage() {
           )}
         </div>
       </section>
+      </div>
     </div>
   );
 }
@@ -1267,33 +1144,6 @@ const inputClass = `
   bg-black/20 px-4 text-sm text-white outline-none
   placeholder:text-white/20 focus:border-[color:var(--gold-border)]
 `;
-
-function StatCard({
-  icon,
-  label,
-  value,
-  sub,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  sub: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--panel)] p-4">
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]">
-          {icon}
-        </div>
-        <div>
-          <div className="text-[10px] text-[color:var(--muted)]">{label}</div>
-          <div className="mt-1 text-lg font-semibold text-white">{value}</div>
-          <div className="mt-1 text-[9px] text-white/35">{sub}</div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function DisciplineRing({ score }: { score: number | null }) {
   const safe = score ?? 0;
@@ -1309,7 +1159,7 @@ function DisciplineRing({ score }: { score: number | null }) {
       : "Hors plan";
 
   return (
-    <div className="relative flex h-36 w-36 shrink-0 items-center justify-center rounded-full border border-[color:var(--gold-border)] bg-black/25">
+    <div className="relative flex h-28 w-28 shrink-0 items-center justify-center rounded-full border border-[color:var(--gold-border)] bg-black/25">
       <div
         className="absolute inset-2 rounded-full"
         style={{
@@ -1547,10 +1397,11 @@ function TagList({
           key={value}
           className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1.5 text-[10px] font-semibold text-[color:var(--gold)]"
         >
-          {value}
+          {assetGroupLabel(value)}
           <button
             type="button"
             onClick={() => onRemove(value)}
+            aria-label={`Retirer ${assetGroupLabel(value)}`}
             className="text-white/40 hover:text-white"
           >
             <X size={11} />
@@ -1575,6 +1426,8 @@ function ChecklistItem({
   return (
     <button
       type="button"
+      role="checkbox"
+      aria-checked={checked}
       onClick={onChange}
       className={[
         "flex items-start gap-3 rounded-2xl border p-4 text-left transition",
@@ -1611,3 +1464,8 @@ function EmptyState({ text }: { text: string }) {
     </div>
   );
 }
+
+function PlanSection({ number, title, description }: { number: string; title: string; description: string }) {
+  return <div><div className="flex items-center gap-3"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[color:var(--gold-soft)] text-xs text-[color:var(--gold)]">{number}</span><h2 className="text-base font-semibold text-white">{title}</h2></div><p className="mt-2 text-xs text-white/50">{description}</p></div>;
+}
+
