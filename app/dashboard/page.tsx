@@ -1,5 +1,7 @@
 "use client";
 
+import { planAllowsAsset } from "@/lib/trading-plan-assets";
+
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
@@ -384,26 +386,6 @@ function calculateRR(
   );
 }
 
-function normalizeAsset(
-  value: string
-) {
-  const clean =
-    String(
-      value || ""
-    )
-      .trim()
-      .toUpperCase()
-      .replace(
-        /\s+/g,
-        ""
-      );
-
-  return clean ===
-    "GOLD"
-    ? "XAUUSD"
-    : clean;
-}
-
 function normalizeSession(
   value:
     | string
@@ -504,18 +486,7 @@ function isTradePlanCompliant(
     plan.allowed_assets.length >
     0
   ) {
-    const allowedAssets =
-      plan.allowed_assets.map(
-        normalizeAsset
-      );
-
-    checks.push(
-      allowedAssets.includes(
-        normalizeAsset(
-          trade.symbol
-        )
-      )
-    );
+    checks.push(planAllowsAsset(plan.allowed_assets, trade.symbol));
   }
 
   /* SESSION */
