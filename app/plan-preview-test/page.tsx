@@ -1,0 +1,1 @@
+import Plan from "./plan"; export default function Preview(){return <main className="min-h-screen bg-[#080a08] p-4 md:p-8"><div className="mx-auto max-w-7xl"><Plan/></div></main>}
