@@ -1,11 +1,12 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Eye, EyeOff, Loader2, LockKeyhole, Mail, UserRound } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
+import { safeNextPath } from "@/lib/auth-next-path";
 import AuthExperienceShell, {
   AuthCardHeader,
   AuthFeatureStrip,
@@ -16,6 +17,15 @@ import AuthExperienceShell, {
 } from "@/components/auth/AuthExperienceShell";
 
 type Message = { kind: "success" | "error" | "info"; text: string } | null;
+
+function subscribeToLocation(callback: () => void) {
+  window.addEventListener("popstate", callback);
+  return () => window.removeEventListener("popstate", callback);
+}
+function requestedNextPath() {
+  return new URLSearchParams(window.location.search).get("next");
+}
+function serverNextPath() { return null; }
 
 export default function RegisterPage() {
   const supabase = useMemo(() => createClient(), []);
@@ -30,6 +40,8 @@ export default function RegisterPage() {
   const [busy, setBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
   const [message, setMessage] = useState<Message>(null);
+  const requestedNext = useSyncExternalStore(subscribeToLocation, requestedNextPath, serverNextPath);
+  const nextPath = requestedNext ? safeNextPath(requestedNext, "/dashboard/onboarding") : null;
 
   const strength = Math.min(
     4,
@@ -66,29 +78,34 @@ export default function RegisterPage() {
 
     try {
       setBusy(true);
+      const destination = safeNextPath(new URLSearchParams(window.location.search).get("next"), "/dashboard/onboarding");
+      const callback = new URL("/auth/callback", window.location.origin);
+      callback.searchParams.set("next", destination);
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
           data: { username: username.trim() },
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard/onboarding`,
+          emailRedirectTo: callback.toString(),
         },
       });
 
       if (error) throw error;
 
       if (data.session) {
-        router.push("/dashboard/onboarding");
+        router.push(destination);
         router.refresh();
         return;
       }
 
       setMessage({
         kind: "success",
-        text: "Ton compte est créé. Vérifie maintenant ta boîte e-mail pour confirmer ton adresse, puis tu seras dirigé vers l’onboarding InvestPro.",
+        text: destination.startsWith("/vip")
+          ? "Ton compte est créé. Vérifie maintenant ta boîte e-mail pour confirmer ton adresse, puis retrouve ton espace VIP."
+          : "Ton compte est créé. Vérifie maintenant ta boîte e-mail pour confirmer ton adresse, puis tu seras dirigé vers l’onboarding InvestPro.",
       });
-    } catch (error: any) {
-      setMessage({ kind: "error", text: error?.message || "Impossible de créer le compte." });
+    } catch (error: unknown) {
+      setMessage({ kind: "error", text: error instanceof Error ? error.message : "Impossible de créer le compte." });
     } finally {
       setBusy(false);
     }
@@ -98,20 +115,23 @@ export default function RegisterPage() {
     try {
       setGoogleBusy(true);
       setMessage(null);
-      const redirectTo = `${window.location.origin}/auth/callback?next=/dashboard/onboarding`;
+      const callback = new URL("/auth/callback", window.location.origin);
+      callback.searchParams.set("next", safeNextPath(new URLSearchParams(window.location.search).get("next"), "/dashboard/onboarding"));
+      const redirectTo = callback.toString();
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: { redirectTo },
       });
       if (error) throw error;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "";
       setGoogleBusy(false);
       setMessage({
         kind: "error",
         text:
-          String(error?.message || "").includes("provider is not enabled")
+          errorMessage.includes("provider is not enabled")
             ? "L’inscription Google n’est pas encore activée côté InvestPro. Crée ton compte avec ton e-mail pour le moment."
-            : error?.message || "Inscription Google impossible.",
+            : errorMessage || "Inscription Google impossible.",
       });
     }
   }
@@ -238,7 +258,7 @@ export default function RegisterPage() {
 
           <div className="pt-1 text-center text-[9px] text-white/35">
             Déjà membre ?{" "}
-            <Link href="/login" className="font-semibold text-[#d9ac43]">
+            <Link href={nextPath ? `/login?next=${encodeURIComponent(nextPath)}` : "/login"} className="font-semibold text-[#d9ac43]">
               Me connecter
             </Link>
           </div>

@@ -4,6 +4,7 @@ import {usePathname} from 'next/navigation';
 import {useEffect,useMemo,useState} from 'react';
 import {LayoutDashboard,GraduationCap,Library,TrendingUp,WalletCards,BarChart3,CalendarDays,Globe2,BookOpen,Calculator,Repeat2,Trophy,Target,Users,User,LifeBuoy,ClipboardCheck,Settings,CreditCard,Bug,History,Zap,Cable,Handshake} from 'lucide-react';
 import {defaultVisibility,type NavigationKey} from '@/lib/navigation/config';
+import {useVipNavigation} from '@/components/vip/useVipNavigation';
 
 type MenuItem={key:NavigationKey;g:string;p:string;l:string;i:React.ElementType;soon?:boolean;subtitle?:string};
 const menu:MenuItem[]=[
@@ -24,6 +25,7 @@ const menu:MenuItem[]=[
  {key:'ranking',g:'COMMUNAUTÉ',p:'/classement',l:'Classement',i:Trophy},
  {key:'challenges',g:'COMMUNAUTÉ',p:'/challenges',l:'Challenges',i:Target},
  {key:'members',g:'COMMUNAUTÉ',p:'/membres',l:'Membres',i:Users},
+ {key:'privateVip',g:'CERCLE PRIVÉ',p:'/vip',l:'Mon espace VIP',i:Users},
  {key:'partners',g:'ÉCOSYSTÈME',p:'/partenaires',l:'Partenaires',i:Handshake},
  {key:'academy',g:'ACADEMY',p:'/academy',l:'Mes formations',i:GraduationCap},
  {key:'library',g:'ACADEMY',p:'/academy/bibliotheque',l:'Bibliothèque',i:Library},
@@ -39,11 +41,12 @@ const menu:MenuItem[]=[
 
 export default function Sidebar(){
  const pathname=usePathname();
+ const vipVisible=useVipNavigation(pathname);
  const [adminDestination,setAdminDestination]=useState("");
  useEffect(()=>{let live=true;import("@/lib/supabase/client").then(({createClient})=>createClient().auth.getSession()).then(({data})=>{if(!data.session?.access_token)return;return fetch("/api/admin/me",{headers:{Authorization:`Bearer ${data.session.access_token}`},cache:"no-store"}).then(r=>{if(live&&r.ok)r.json().then(j=>{if(!live)return;const sections=["overview","inbox","copier","users","moderation","finance","system","navigation","staff"];const selected=sections.find(p=>j?.permissions?.includes(p));const route=({overview:"",inbox:"/inbox",copier:"/copieur",users:"/utilisateurs",moderation:"/moderation",finance:"/finance",system:"/systeme",navigation:"/navigation",staff:"/staff"} as Record<string,string>)[selected||"overview"];setAdminDestination("/dashboard/admin"+route)})})}).catch(()=>{});return()=>{live=false}},[]);
  const [visibility,setVisibility]=useState<Record<NavigationKey,boolean>>(defaultVisibility());
  useEffect(()=>{let dead=false;fetch('/api/navigation',{cache:'no-store'}).then(r=>r.json()).then(d=>{if(!dead&&d?.visibility)setVisibility(v=>({...v,...d.visibility}))}).catch(()=>{});return()=>{dead=true}},[pathname]);
- const visibleMenu=useMemo(()=>menu.filter(item=>visibility[item.key]!==false),[visibility]);
+ const visibleMenu=useMemo(()=>menu.filter(item=>visibility[item.key]!==false&&(item.key!=='privateVip'||vipVisible)),[visibility,vipVisible]);
  const active=(p:string)=>{const href='/dashboard'+p;return pathname===href||(p!==''&&pathname.startsWith(`${href}/`));};
  const links=<nav aria-label="Navigation principale">{visibleMenu.map((m,n)=><div key={m.key}>{(n===0||visibleMenu[n-1].g!==m.g)&&<div className="aura-nav-label">{m.g}</div>}<Link href={'/dashboard'+m.p} className={'aura-nav-item '+(active(m.p)?'active':'')} aria-current={active(m.p)?'page':undefined} aria-label={m.subtitle?[m.l,m.subtitle,m.soon?'Bientôt':''].filter(Boolean).join(' · '):undefined}><m.i size={18}/><span className="min-w-0">{m.l}{m.subtitle&&<em className="block text-[10px] not-italic leading-4 opacity-65">{m.subtitle}</em>}</span>{m.soon&&<small className="shrink-0">Bientôt</small>}</Link></div>)}</nav>;
  const brand=<Link href="/" className="aura-brand"><BarChart3 size={32}/><span>investpro<small>TRADING</small></span></Link>;

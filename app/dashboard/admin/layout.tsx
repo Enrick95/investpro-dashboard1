@@ -76,7 +76,7 @@ export default function AdminLayout({
       cancelled = true;
     };
   }, [router, supabase]);
-  const section=pathname.includes("/staff")?"staff":pathname.includes("/finance")?"finance":pathname.includes("/copieur")?"copier":pathname.includes("/navigation")?"navigation":pathname.includes("/systeme")?"system":pathname.includes("/moderation")?"moderation":pathname.includes("/inbox")?"inbox":pathname.includes("/utilisateurs")?"users":pathname.includes("/analytics")?"analytics":pathname.includes("/feedback")?"feedback":"overview";
+  const section=pathname.includes("/vip")?"users_write":pathname.includes("/staff")?"staff":pathname.includes("/finance")?"finance":pathname.includes("/copieur")?"copier":pathname.includes("/navigation")?"navigation":pathname.includes("/systeme")?"system":pathname.includes("/moderation")?"moderation":pathname.includes("/inbox")?"inbox":pathname.includes("/utilisateurs")?"users":pathname.includes("/analytics")?"analytics":pathname.includes("/feedback")?"feedback":"overview";
   const sectionAllowed=owner||permissions.includes(section);
 
   if (adminState === "checking") {

@@ -1,11 +1,12 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Eye, EyeOff, Loader2, LockKeyhole, Mail } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
+import { safeNextPath } from "@/lib/auth-next-path";
 import AuthExperienceShell, {
   AuthCardHeader,
   AuthFeatureStrip,
@@ -16,6 +17,15 @@ import AuthExperienceShell, {
 } from "@/components/auth/AuthExperienceShell";
 
 type Message = { kind: "success" | "error" | "info"; text: string } | null;
+
+function subscribeToLocation(callback: () => void) {
+  window.addEventListener("popstate", callback);
+  return () => window.removeEventListener("popstate", callback);
+}
+function requestedNextPath() {
+  return new URLSearchParams(window.location.search).get("next");
+}
+function serverNextPath() { return null; }
 
 export default function LoginPage() {
   const supabase = useMemo(() => createClient(), []);
@@ -28,10 +38,14 @@ export default function LoginPage() {
   const [googleBusy, setGoogleBusy] = useState(false);
   const [forgotMode, setForgotMode] = useState(false);
   const [message, setMessage] = useState<Message>(null);
+  const requestedNext = useSyncExternalStore(subscribeToLocation, requestedNextPath, serverNextPath);
+  const nextPath = requestedNext ? safeNextPath(requestedNext) : null;
 
   useEffect(() => {
+    const requestedNext = new URLSearchParams(window.location.search).get("next");
+    const destination = safeNextPath(requestedNext);
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) router.replace("/dashboard");
+      if (data.session) router.replace(destination);
     });
   }, [router, supabase]);
 
@@ -52,15 +66,16 @@ export default function LoginPage() {
       });
 
       if (error) throw error;
-      router.push("/dashboard");
+      router.push(safeNextPath(new URLSearchParams(window.location.search).get("next")));
       router.refresh();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "";
       setMessage({
         kind: "error",
         text:
-          error?.message === "Invalid login credentials"
+          errorMessage === "Invalid login credentials"
             ? "E-mail ou mot de passe incorrect."
-            : error?.message || "Connexion impossible pour le moment.",
+            : errorMessage || "Connexion impossible pour le moment.",
       });
     } finally {
       setBusy(false);
@@ -72,21 +87,24 @@ export default function LoginPage() {
       setGoogleBusy(true);
       setMessage(null);
 
-      const redirectTo = `${window.location.origin}/auth/callback?next=/dashboard`;
+      const callback = new URL("/auth/callback", window.location.origin);
+      callback.searchParams.set("next", safeNextPath(new URLSearchParams(window.location.search).get("next")));
+      const redirectTo = callback.toString();
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: { redirectTo },
       });
 
       if (error) throw error;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "";
       setGoogleBusy(false);
       setMessage({
         kind: "error",
         text:
-          String(error?.message || "").includes("provider is not enabled")
+          errorMessage.includes("provider is not enabled")
             ? "La connexion Google n’est pas encore activée côté InvestPro. Utilise e-mail / mot de passe pour le moment."
-            : error?.message || "Connexion Google impossible.",
+            : errorMessage || "Connexion Google impossible.",
       });
     }
   }
@@ -111,8 +129,8 @@ export default function LoginPage() {
         kind: "success",
         text: "Si cette adresse correspond à un compte, un lien de réinitialisation vient d’être envoyé.",
       });
-    } catch (error: any) {
-      setMessage({ kind: "error", text: error?.message || "Impossible d’envoyer le lien." });
+    } catch (error: unknown) {
+      setMessage({ kind: "error", text: error instanceof Error ? error.message : "Impossible d’envoyer le lien." });
     } finally {
       setBusy(false);
     }
@@ -221,7 +239,7 @@ export default function LoginPage() {
           ) : (
             <div className="pt-1 text-center text-[9px] text-white/35">
               Pas encore de compte ?{" "}
-              <Link href="/register" className="font-semibold text-[#d9ac43]">
+              <Link href={nextPath ? `/register?next=${encodeURIComponent(nextPath)}` : "/register"} className="font-semibold text-[#d9ac43]">
                 Créer mon espace
               </Link>
             </div>
