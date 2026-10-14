@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import PwaRegister from "@/components/PwaRegister";
+import InstallAppExperience from "@/components/InstallAppExperience";
 import "./globals.css";
 import "./aura.css";
 import "./fundamentals.css";
@@ -48,6 +49,7 @@ export default function RootLayout({
     <html lang="fr" className="dark" suppressHydrationWarning>
       <body>
         <PwaRegister />
+        <InstallAppExperience />
         {children}
       </body>
     </html>
