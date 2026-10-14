@@ -1,4 +1,6 @@
 "use client";
+
+import { planAllowsAsset, normalizePlanAsset } from "@/lib/trading-plan-assets";
 import {loadJournal as loadJournalRows} from "@/lib/metasync/loadJournal";
 
 import Link from "next/link";
@@ -505,19 +507,6 @@ function calculateTradeResult({
    PLAN HELPERS
 ========================================================= */
 
-function normalizeAsset(value: string) {
-  const clean = value
-    .trim()
-    .toUpperCase()
-    .replace(/\s+/g, "");
-
-  if (clean === "GOLD") {
-    return "XAUUSD";
-  }
-
-  return clean;
-}
-
 function normalizeSession(
   value?: string | null
 ) {
@@ -658,20 +647,8 @@ function evaluatePlan(
     plan.allowed_assets.length >
     0
   ) {
-    const asset =
-      normalizeAsset(
-        trade.symbol
-      );
-
-    const allowedAssets =
-      plan.allowed_assets.map(
-        normalizeAsset
-      );
-
-    const assetValid =
-      allowedAssets.includes(
-        asset
-      );
+    const asset = normalizePlanAsset(trade.symbol);
+    const assetValid = planAllowsAsset(plan.allowed_assets, trade.symbol);
 
     checks.push({
       key: "asset",
