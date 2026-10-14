@@ -1830,7 +1830,7 @@ html&gt;body{padding:0}&lt;/style&gt;
 
     &lt;section data-panel=&quot;activate&quot; class=&quot;ip-page ip-activation&quot; hidden&gt;
       &lt;div class=&quot;ip-step-heading&quot;&gt;&lt;span class=&quot;ip-eyebrow&quot;&gt;VOTRE ACCÈS PERSONNEL&lt;/span&gt;&lt;h1&gt;Une invitation.&lt;br&gt;&lt;em&gt;Votre propre espace.&lt;/em&gt;&lt;/h1&gt;&lt;p&gt;Rattachez votre invitation au compte que vous utiliserez sur InvestPro.&lt;/p&gt;&lt;/div&gt;
-      &lt;form class=&quot;ip-form&quot; id=&quot;ip-vip-form&quot;&gt;
+      &lt;div class=&quot;ip-form&quot; id=&quot;ip-vip-form&quot; role=&quot;group&quot; aria-label=&quot;Activation VIP&quot;&gt;
         &lt;div class=&quot;ip-form-top&quot;&gt;&lt;i data-lucide=&quot;key-round&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Activation VIP&lt;/span&gt;&lt;/div&gt;
         &lt;div class=&quot;ip-account-choice&quot; aria-label=&quot;Votre compte InvestPro&quot;&gt;
           &lt;button type=&quot;button&quot; class=&quot;cursor-interaction&quot; data-account=&quot;new&quot; aria-pressed=&quot;true&quot;&gt;Je crée mon compte&lt;/button&gt;
@@ -1844,9 +1844,9 @@ html&gt;body{padding:0}&lt;/style&gt;
         &lt;label&gt;Code d’invitation personnel&lt;input id=&quot;ip-code&quot; class=&quot;ip-code&quot; autocomplete=&quot;off&quot; value=&quot;IP-VIP-DEMO&quot; required&gt;&lt;/label&gt;
         &lt;p class=&quot;ip-field-note&quot;&gt;Ce code est réservé au compte invité. Il sert uniquement à la première activation.&lt;/p&gt;
         &lt;p id=&quot;ip-activation-error&quot; role=&quot;alert&quot; hidden&gt;&lt;/p&gt;
-        &lt;button class=&quot;ip-primary cursor-interaction&quot; type=&quot;submit&quot;&gt;&lt;span id=&quot;ip-activate-label&quot;&gt;Continuer vers mon compte&lt;/span&gt;&lt;i data-lucide=&quot;arrow-right&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+        &lt;button class=&quot;ip-primary cursor-interaction&quot; id=&quot;ip-activation-submit&quot; type=&quot;button&quot;&gt;&lt;span id=&quot;ip-activate-label&quot;&gt;Continuer vers mon compte&lt;/span&gt;&lt;i data-lucide=&quot;arrow-right&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
         &lt;p class=&quot;ip-demo-note&quot;&gt;Démonstration : IP-VIP-DEMO ouvre l’aperçu. La version réelle utilisera la connexion et la vérification e-mail InvestPro.&lt;/p&gt;
-      &lt;/form&gt;
+      &lt;/div&gt;
     &lt;/section&gt;
 
     &lt;section data-panel=&quot;feed&quot; class=&quot;ip-member&quot; hidden&gt;
@@ -2052,6 +2052,7 @@ html&gt;body{padding:0}&lt;/style&gt;
     root.querySelector(&#x27;#ip-activate-label&#x27;).textContent = state.account === &#x27;existing&#x27; ? &#x27;Me connecter et activer le VIP&#x27; : &#x27;Continuer vers mon compte&#x27;;
     root.querySelector(&#x27;#ip-private-content&#x27;).hidden = !state.active;
     root.querySelector(&#x27;#ip-access-lock&#x27;).hidden = state.active;
+    root.querySelector(&#x27;#ip-notification&#x27;).hidden = !state.alerts || !state.active;
     root.querySelector(&#x27;#ip-admin-status&#x27;).textContent = state.active ? &#x27;VIP actif&#x27; : &#x27;Accès suspendu&#x27;;
     root.querySelector(&#x27;#ip-revoke&#x27;).textContent = state.active ? &#x27;Suspendre l’accès d’exemple&#x27; : &#x27;Réactiver l’accès d’exemple&#x27;;
     root.querySelector(&#x27;#ip-admin-telegram&#x27;).textContent = state.telegramLinked ? &#x27;Compte relié · démonstration&#x27; : &#x27;À relier&#x27;;
@@ -2069,14 +2070,19 @@ html&gt;body{padding:0}&lt;/style&gt;
   root.querySelectorAll(&#x27;[data-filter]&#x27;).forEach(button =&gt; button.addEventListener(&#x27;click&#x27;,() =&gt; {
     state.filter = button.dataset.filter; render(); save();
   }));
-  root.querySelector(&#x27;#ip-vip-form&#x27;).addEventListener(&#x27;submit&#x27;,event =&gt; {
-    event.preventDefault();
+  function activatePreview() {
+    const email = root.querySelector(&#x27;#ip-email&#x27;);
+    if (!email.checkValidity()) { email.reportValidity(); return; }
     const error = root.querySelector(&#x27;#ip-activation-error&#x27;);
     if (root.querySelector(&#x27;#ip-code&#x27;).value.trim().toUpperCase() !== &#x27;IP-VIP-DEMO&#x27;) {
       error.textContent = &#x27;Pour cette démonstration, utilisez le code IP-VIP-DEMO.&#x27;; error.hidden = false; return;
     }
     error.hidden = true;
     state.active = true; state.screen = &#x27;feed&#x27;; render(); save();
+  }
+  root.querySelector(&#x27;#ip-activation-submit&#x27;).addEventListener(&#x27;click&#x27;,activatePreview);
+  root.querySelector(&#x27;#ip-vip-form&#x27;).addEventListener(&#x27;keydown&#x27;,event =&gt; {
+    if (event.key === &#x27;Enter&#x27; &amp;&amp; event.target.tagName === &#x27;INPUT&#x27;) { event.preventDefault(); activatePreview(); }
   });
   root.querySelector(&#x27;#ip-install&#x27;).addEventListener(&#x27;click&#x27;,() =&gt; {
     const guide = root.querySelector(&#x27;#ip-install-guide&#x27;); guide.hidden = !guide.hidden;
