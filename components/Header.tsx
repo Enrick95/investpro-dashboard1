@@ -1,6 +1,7 @@
 "use client";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import LanguageSwitcher from "@/components/i18n/LanguageSwitcher";
+import headerStyles from "./Header.module.css";
 
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -772,13 +773,14 @@ export default function Header() {
 
           {/* UTILISATEUR CONNECTÉ */}
           {!authLoading && !acc ? (
+            <span className={headerStyles.guestLogin}>
             <Button
-              className="hidden min-[430px]:inline-flex"
               onClick={() => {
                 window.location.href = "/login";
               }}
             >
               {t("Se connecter")}</Button>
+            </span>
           ) : null}
 
           {!authLoading && acc ? (

@@ -1,0 +1,6 @@
+.guestLogin { display: contents; }
+
+@media (max-width: 429px) {
+  /* The avatar provides the same login action while keeping the language control readable. */
+  .guestLogin { display: none !important; }
+}
