@@ -1,8 +1,7 @@
--- REVIEW DRAFT ONLY. Not applied and not registered as a Supabase migration.
--- Generate the official migration with "supabase migration new vip_existing_members"
--- before moving this reviewed SQL into supabase/migrations.
--- Requires the existing private VIP and affiliation identity migrations.
+-- Snapshot of the existing remote migration 20261015010753 (vip_existing_members_payment_intake).
 begin;
+set local lock_timeout = '3s';
+set local statement_timeout = '15s';
 
 create table public.vip_access_requests (
   id uuid primary key default gen_random_uuid(),
@@ -124,3 +123,4 @@ revoke all on function public.vip_review_access_request(uuid, text, uuid, text, 
 grant execute on function public.vip_review_access_request(uuid, text, uuid, text, text, text, text, date) to service_role;
 
 commit;
+

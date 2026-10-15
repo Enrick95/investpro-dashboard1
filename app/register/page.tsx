@@ -101,10 +101,10 @@ export default function RegisterPage() {
       setMessage({
         kind: "success",
         text: destination === "/vip/deja-membre"
-          ? "Ton compte est créé. Confirme ton adresse e-mail, puis retourne sur la page « Déjà membre VIP » pour choisir affiliation avec ton broker ou abonnement. L’équipe vérifiera ensuite ton accès."
+          ? "Vérifie ta boîte e-mail si une confirmation est nécessaire, puis retourne sur la page « Déjà membre VIP » pour renseigner ton accès. Si tu as déjà un compte avec cette adresse, connecte-toi directement."
           : destination.startsWith("/vip")
-          ? "Ton compte est créé. Vérifie maintenant ta boîte e-mail pour confirmer ton adresse, puis retrouve ton espace VIP."
-          : "Ton compte est créé. Vérifie maintenant ta boîte e-mail pour confirmer ton adresse, puis tu seras dirigé vers l’onboarding InvestPro.",
+          ? "Vérifie ta boîte e-mail si une confirmation est nécessaire, puis retrouve ton espace VIP. Si tu as déjà un compte avec cette adresse, connecte-toi directement."
+          : "Vérifie ta boîte e-mail si une confirmation est nécessaire. Si tu as déjà un compte avec cette adresse, connecte-toi pour retrouver ton espace InvestPro.",
       });
     } catch (error: unknown) {
       setMessage({ kind: "error", text: error instanceof Error ? error.message : "Impossible de créer le compte." });
@@ -151,6 +151,7 @@ export default function RegisterPage() {
 
         <div className="mt-6 space-y-4">
           {message ? <AuthMessage {...message} /> : null}
+          {message?.kind === "success" ? <Link href={nextPath ? `/login?next=${encodeURIComponent(nextPath)}` : "/login"} className="flex min-h-11 items-center justify-center rounded-xl border border-[#d9ac43]/35 px-4 py-3 text-sm font-semibold text-[#e7ba4d] hover:bg-[#d9ac43]/10">Me connecter avec mon compte</Link> : null}
 
           <GoogleButton onClick={googleRegister} busy={googleBusy} label="Continuer avec Google" />
           <Divider />
