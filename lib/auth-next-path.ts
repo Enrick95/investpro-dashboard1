@@ -8,7 +8,7 @@ function permittedPath(value: unknown): value is string {
     if (parsed.origin !== LOCAL_ORIGIN) return false;
     // Route segments are deliberate: encoded separators and dot traversal are not destinations.
     const path = value.split(/[?#]/, 1)[0];
-    return path === "/vip" || /^\/dashboard(?:\/[A-Za-z0-9_-]+)*\/?$/.test(path);
+    return path === "/vip" || path === "/vip/deja-membre" || /^\/dashboard(?:\/[A-Za-z0-9_-]+)*\/?$/.test(path);
   } catch {
     return false;
   }
