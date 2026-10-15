@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { ArrowRight, Check, ChartColumn, Clock3, RefreshCw, ShieldCheck } from "lucide-react";
+import { ArrowRight, Check, Clock3, RefreshCw } from "lucide-react";
 import { VipApiError, vipDate, vipRequest } from "@/lib/vip/client";
 import { VIP_AFFILIATION_BROKERS, vipAffiliationBrokerLabel } from "@/lib/vip/identity";
 import { validateVipAccessRequest } from "@/lib/vip/access-requests";
 import type { VipAccessRequest, VipMembership } from "@/lib/vip/types";
 import s from "./intake.module.css";
+import orbit from "../vip.module.css";
+import VipOnboardingShell from "../VipOnboardingShell";
 
 type Payload = { user: { email: string }; request: VipAccessRequest | null; membership: VipMembership | null; active: boolean };
 const next = encodeURIComponent("/vip/deja-membre");
@@ -45,11 +47,10 @@ export default function ExistingMemberIntake() {
     finally { setBusy(false); }
   }
   const pending = data?.request?.status === "pending";
-  return <main className={s.page}><div className={s.window}>
-    <header className={s.header}><Link href="/vip" className={s.brand}><ChartColumn size={29} /><span>investpro<small>TRADING VIP</small></span></Link><span className={s.secure}><ShieldCheck size={14} /> Accès vérifié</span></header>
-    <section className={s.hero}><span className={s.eyebrow}>DÉJÀ MEMBRE DU CANAL TELEGRAM</span><h1>Votre VIP.<br /><em>Votre espace personnel.</em></h1><p>Retrouvez vos analyses, vos signaux et vos outils InvestPro au même endroit. Rattachez votre accès actuel en quelques étapes.</p></section>
-    <div className={s.layout}>
-      <ol className={s.steps}><li><span>01</span><div><b>Votre compte InvestPro</b><p>Créez votre compte ou connectez-vous avec celui que vous avez déjà.</p></div></li><li><span>02</span><div><b>Votre accès actuel</b><p>Indiquez votre identité et comment vous avez rejoint le VIP. Votre pseudo Telegram peut aider à vous retrouver.</p></div></li><li><span>03</span><div><b>Une vérification par l’équipe</b><p>Nous confirmons votre accès. Vous retrouvez ensuite le VIP depuis votre compte.</p></div></li></ol>
+  return <VipOnboardingShell existingMember>
+    <section className={`${orbit.invitation} ${s.intakePanel}`} aria-labelledby="vip-existing-title">
+      <div><span className={orbit.kicker}>VOTRE ACCÈS ACTUEL</span><h2 id="vip-existing-title">Retrouvez votre orbite.</h2><p>Vous êtes déjà dans le canal VIP. Reliez votre adhésion à votre compte InvestPro pour retrouver votre espace personnel.</p></div>
+      <ol className={orbit.journey}><li><span>01</span><div><b>Votre compte InvestPro</b><small>Créez votre compte ou connectez-vous avec celui que vous avez déjà.</small></div></li><li><span>02</span><div><b>Votre accès actuel</b><small>Indiquez votre identité et comment vous avez rejoint le VIP. Votre pseudo Telegram peut aider à vous retrouver.</small></div></li><li><span>03</span><div><b>Une vérification par l’équipe</b><small>Nous confirmons votre accès. Vous retrouvez ensuite le VIP depuis votre compte.</small></div></li></ol>
       <section className={s.card} aria-labelledby="intake-title">
         {loading ? <p role="status">Vérification de votre compte…</p> : data?.membership ? <>
           <span className={s.status}><Check size={18} /> {data.active ? "Votre accès est prêt" : "Votre compte est déjà rattaché"}</span>
@@ -79,7 +80,6 @@ export default function ExistingMemberIntake() {
         </>}
         {error && <div className={s.error} role="alert">{error}<button type="button" onClick={() => void load()}>Réessayer</button></div>}
       </section>
-    </div>
-    <footer className={s.footer}>INVESTPRO TRADING VIP ™ <span>iPhone · Android · Ordinateur</span></footer>
-  </div></main>;
+    </section>
+  </VipOnboardingShell>;
 }
