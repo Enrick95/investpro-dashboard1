@@ -52,10 +52,12 @@ export type VipAccessRequest = {
   telegram_username: string | null;
   type: VipMembershipType;
   affiliation_broker: VipAffiliationBroker | null;
+  paid_on: string | null;
   status: "pending" | "approved" | "denied";
   created_at: string;
   reviewed_at: string | null;
   verified_type: VipMembershipType | null;
   verified_affiliation_broker: VipAffiliationBroker | null;
+  verified_paid_on: string | null;
   verified_expires_at: string | null;
 };

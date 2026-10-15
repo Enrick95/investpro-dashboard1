@@ -41,7 +41,7 @@ function fixture({ authorized = true, adminAuthorized = true, confirmed = true, 
   const calls = { auth: [], permissions: [], reads: [], writes: [], rpcs: [] };
   const db = {
     from(table) {
-      const query = { table, filters: [], columns: null, operation: null };
+      const query = { table, filters: [], columns: null, operation: null, ordering: null, limit: null };
       function result(single = false) {
         if (query.operation) return { data: { id: requestId, ...query.operation.value }, error: databaseError };
         calls.reads.push({ ...query, filters: [...query.filters] });
@@ -52,8 +52,8 @@ function fixture({ authorized = true, adminAuthorized = true, confirmed = true, 
         select(columns) { query.columns = columns; return chain; },
         eq(column, value) { query.filters.push([column, value]); return chain; },
         in(column, values) { query.filters.push([column, values]); return chain; },
-        order() { return chain; },
-        limit() { return chain; },
+        order(column, options) { query.ordering = { column, ...options }; return chain; },
+        limit(value) { query.limit = value; return chain; },
         insert(value) { query.operation = { kind: "insert", value }; calls.writes.push({ table, ...query.operation }); return chain; },
         upsert(value, options) { query.operation = { kind: "upsert", value, options }; calls.writes.push({ table, ...query.operation }); return chain; },
         update(value) { query.operation = { kind: "update", value }; calls.writes.push({ table, ...query.operation }); return chain; },
@@ -107,18 +107,22 @@ function fixture({ authorized = true, adminAuthorized = true, confirmed = true, 
     calls,
     get: search => request(memberRoute, "GET", undefined, search),
     post: body => request(memberRoute, "POST", body),
-    adminGet: () => request(adminRoute, "GET"),
+    adminGet: search => request(adminRoute, "GET", undefined, search),
     adminPost: body => request(adminRoute, "POST", body),
   };
 }
 
 const declaration = { firstName: "Élodie", lastName: "D’Ávila", telegramUsername: "@member_vip", type: "affiliation", affiliationBroker: "axi" };
 const plain = value => JSON.parse(JSON.stringify(value));
+function parisToday() {
+  const parts = new Intl.DateTimeFormat("en", { timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
+  return ["year", "month", "day"].map(type => parts.find(part => part.type === type).value).join("-");
+}
 
 test("a former member can declare each supported broker without granting themselves VIP access", async () => {
   for (const affiliationBroker of ["raise_fx", "vantage", "puprime", "axi"]) {
     const { post, calls } = fixture();
-    const response = await post({ ...declaration, affiliationBroker, user_id: otherUserId, email: "attacker@example.invalid", status: "approved", active: true, admin: true, expires_at: "2099-01-01", reviewed_by: otherUserId, verified_type: "affiliation", verified_affiliation_broker: "axi", verified_expires_at: null });
+    const response = await post({ ...declaration, affiliationBroker, user_id: otherUserId, email: "attacker@example.invalid", status: "approved", active: true, admin: true, paidOn: "2026-10-01", expires_at: "2099-01-01", reviewed_by: otherUserId, verified_type: "affiliation", verified_affiliation_broker: "axi", verified_expires_at: null });
     assert.equal(response.status, 201);
     assert.equal(calls.writes.length, 1);
     const write = calls.writes[0];
@@ -128,7 +132,7 @@ test("a former member can declare each supported broker without granting themsel
     assert.equal(write.value.affiliation_broker, affiliationBroker);
     assert.equal(write.value.status, "pending");
     assert.deepEqual(plain(write.value), {
-      first_name: "Élodie", last_name: "D’Ávila", telegram_username: "member_vip", type: "affiliation", affiliation_broker: affiliationBroker,
+      first_name: "Élodie", last_name: "D’Ávila", telegram_username: "member_vip", type: "affiliation", affiliation_broker: affiliationBroker, paid_on: null,
       user_id: userId, email, status: "pending",
     });
     for (const field of ["active", "admin", "expires_at", "reviewed_by"]) assert.equal(Object.hasOwn(write.value, field), false, field);
@@ -136,8 +140,8 @@ test("a former member can declare each supported broker without granting themsel
   }
 });
 
-test("a member can read only their own declaration even when another user ID is supplied", async () => {
-  const existingRequest = { id: requestId, user_id: userId, email, status: "pending" };
+test("a member can read only their own declaration and payment date even when another user ID is supplied", async () => {
+  const existingRequest = { id: requestId, user_id: userId, email, status: "pending", type: "abonnement", paid_on: "2026-10-01" };
   const { get, calls } = fixture({ existingRequest });
   const response = await get("?user_id=" + otherUserId + "&userId=" + otherUserId);
   assert.equal(response.status, 200);
@@ -145,6 +149,8 @@ test("a member can read only their own declaration even when another user ID is 
   assert.equal(reads.length, 1);
   assert.ok(reads[0].filters.some(([column, value]) => column === "user_id" && value === userId));
   assert.equal(JSON.stringify(response.body).includes(otherUserId), false);
+  assert.equal(response.body.request.paid_on, "2026-10-01");
+  assert.equal(response.body.active, false);
   assert.equal(calls.writes.length + calls.rpcs.length, 0);
 });
 
@@ -189,24 +195,27 @@ test("malformed declarations are rejected before any pending request is written"
   }
 });
 
-test("subscriptions clear stale broker choices and require the paid future expiry for approval", () => {
+test("subscriptions clear stale broker choices and require the actual payment date for approval", () => {
   const input = { ...declaration, type: "abonnement", affiliationBroker: "vantage" };
-  const declarationResult = validators.validateVipAccessRequest(input);
+  const now = Date.parse("2026-10-15T10:00:00Z");
+  const declarationResult = validators.validateVipAccessRequest({ ...input, paidOn: "2026-10-01" }, now);
   assert.equal(declarationResult.ok, true);
   assert.equal(declarationResult.value.affiliation_broker, null);
-  for (const expiresAt of [undefined, null, "", "not-a-date", "2020-01-01T00:00:00Z", 4102444800000]) {
-    assert.equal(validators.validateVipApproval({ ...input, expiresAt }).ok, false, String(expiresAt));
+  assert.equal(declarationResult.value.paid_on, "2026-10-01");
+  for (const paidOn of [undefined, null, "", "not-a-date", "2020-01-01", "2099-01-01", "2026-02-30", "2026-10-01T00:00:00Z", 4102444800000]) {
+    assert.equal(validators.validateVipApproval({ ...input, paidOn }, now).ok, false, String(paidOn));
   }
-  const approved = validators.validateVipApproval({ ...input, expiresAt: "2099-01-23T23:59:00+01:00" });
+  const approved = validators.validateVipApproval({ ...input, paidOn: "2026-10-01", expiresAt: "2099-01-23T23:59:00+01:00" }, now);
   assert.equal(approved.ok, true);
-  assert.equal(approved.value.expires_at, "2099-01-23T22:59:00.000Z");
+  assert.equal(approved.value.paid_on, "2026-10-01");
+  assert.equal(approved.value.expires_at, "2026-10-31T23:00:00.000Z");
   assert.equal(approved.value.affiliation_broker, null);
 });
 
 test("the administrative queue and approval always require users_write authorization", async () => {
   for (const method of ["adminGet", "adminPost"]) {
     const api = fixture({ adminAuthorized: false });
-    const response = await api[method]({ action: "approve", id: requestId, ...declaration });
+    const response = await api[method](method === "adminPost" ? { action: "approve", id: requestId, ...declaration } : undefined);
     assert.equal(response.status, 403);
     assert.deepEqual(api.calls.permissions, ["users_write"]);
     assert.equal(api.calls.reads.length + api.calls.writes.length + api.calls.rpcs.length, 0);
@@ -215,7 +224,7 @@ test("the administrative queue and approval always require users_write authoriza
 
 test("approval uses the service RPC and cannot forward arbitrary membership or reviewer fields", async () => {
   const api = fixture();
-  const response = await api.adminPost({ action: "approve", id: requestId, ...declaration, user_id: otherUserId, email: "attacker@example.invalid", status: "suspended", reviewed_by: otherUserId, admin: true, started_at: "1900-01-01", expires_at: "2099-01-01" });
+  const response = await api.adminPost({ action: "approve", id: requestId, ...declaration, user_id: otherUserId, email: "attacker@example.invalid", status: "suspended", reviewed_by: otherUserId, admin: true, started_at: "1900-01-01", paidOn: "2099-01-01", expires_at: "2099-01-01" });
   assert.equal(response.status, 200);
   assert.deepEqual(api.calls.permissions, ["users_write"]);
   assert.equal(api.calls.writes.length, 0);
@@ -226,12 +235,12 @@ test("approval uses the service RPC and cannot forward arbitrary membership or r
   assert.equal(args.p_reviewed_by, adminId);
   assert.equal(args.p_action, "approve");
   assert.equal(args.p_affiliation_broker, "axi");
-  assert.equal(args.p_expires_at, null);
-  for (const field of ["p_user_id", "p_email", "p_status", "p_admin", "p_started_at"]) assert.equal(Object.hasOwn(args, field), false, field);
+  assert.equal(args.p_paid_on, null);
+  for (const field of ["p_user_id", "p_email", "p_status", "p_admin", "p_started_at", "p_expires_at"]) assert.equal(Object.hasOwn(args, field), false, field);
 });
 
 test("invalid approval requests never reach the access-grant RPC", async () => {
-  for (const changes of [{ id: otherUserId + "-invalid" }, { action: "grant" }, { affiliationBroker: "unknown" }, { firstName: "" }, { type: "abonnement", expiresAt: "2020-01-01" }]) {
+  for (const changes of [{ id: otherUserId + "-invalid" }, { action: "grant" }, { affiliationBroker: "unknown" }, { firstName: "" }, { type: "abonnement", paidOn: "2020-01-01" }, { type: "abonnement", paidOn: "2099-01-01" }]) {
     const api = fixture();
     assert.equal((await api.adminPost({ action: "approve", id: requestId, ...declaration, ...changes })).status, 400, JSON.stringify(changes));
     assert.equal(api.calls.writes.length + api.calls.rpcs.length, 0);
@@ -281,6 +290,52 @@ test("a duplicate pending request is reported instead of overwriting an existing
   assert.equal(api.calls.rpcs.length, 0);
 });
 
+test("a member's subscription payment date is stored exactly as a pending declaration without VIP access", async () => {
+  const api = fixture();
+  const paidOn = parisToday();
+  const response = await api.post({ ...declaration, type: "abonnement", paidOn, paid_on: "2099-01-01", expiresAt: "2099-02-01T00:00:00Z", expires_at: "2099-02-01T00:00:00Z", verified_paid_on: "2099-01-01", verified_expires_at: "2099-02-01T00:00:00Z", active: true, status: "approved" });
+  assert.equal(response.status, 201);
+  assert.equal(api.calls.writes.length, 1);
+  assert.deepEqual(plain(api.calls.writes[0].value), {
+    first_name: "Élodie", last_name: "D’Ávila", telegram_username: "member_vip", type: "abonnement", affiliation_broker: null, paid_on: paidOn,
+    user_id: userId, email, status: "pending",
+  });
+  assert.equal(response.body.request.paid_on, paidOn);
+  assert.equal(response.body.request.status, "pending");
+  assert.equal(Object.hasOwn(response.body, "active"), false);
+  assert.equal(Object.hasOwn(response.body, "membership"), false);
+  assert.equal(api.calls.rpcs.length, 0);
+});
+
+test("future, missing and malformed subscription payment dates cannot create a pending declaration", async () => {
+  for (const paidOn of [undefined, null, "", "2099-01-01", "2026-02-29", "2026-02-30", "2026-04-31", "2026-10-01T00:00:00Z", " 2026-10-01", 20261001, {}]) {
+    const api = fixture();
+    assert.equal((await api.post({ ...declaration, type: "abonnement", paidOn })).status, 400, String(paidOn));
+    assert.equal(api.calls.reads.length + api.calls.writes.length + api.calls.rpcs.length, 0);
+  }
+});
+
+test("an expired declared payment can await admin correction but can never activate membership", async () => {
+  const api = fixture();
+  const response = await api.post({ ...declaration, type: "abonnement", paidOn: "2000-01-01" });
+  assert.equal(response.status, 201);
+  assert.equal(api.calls.writes[0].value.paid_on, "2000-01-01");
+  assert.equal(api.calls.writes[0].value.status, "pending");
+  assert.equal(api.calls.rpcs.length, 0);
+  assert.equal((await api.adminPost({ action: "approve", id: requestId, ...declaration, type: "abonnement", paidOn: "2000-01-01" })).status, 400);
+  assert.equal(api.calls.rpcs.length, 0);
+});
+
+test("affiliation declarations clear stale subscription payment input", async () => {
+  for (const paidOn of ["2099-01-01", "not-a-date"]) {
+    const api = fixture();
+    assert.equal((await api.post({ ...declaration, paidOn })).status, 201);
+    assert.equal(api.calls.writes[0].value.paid_on, null);
+    assert.equal(api.calls.writes[0].value.status, "pending");
+    assert.equal(api.calls.rpcs.length, 0);
+  }
+});
+
 test("the admin queue is restricted to declarations awaiting a decision", async () => {
   const existingRequest = { id: requestId, user_id: userId, status: "pending" };
   const api = fixture({ existingRequest });
@@ -294,24 +349,48 @@ test("the admin queue is restricted to declarations awaiting a decision", async 
   assert.equal(api.calls.writes.length + api.calls.rpcs.length, 0);
 });
 
-test("subscription approval passes the actual paid deadline unchanged and clears broker affiliation", async () => {
+test("approved request history requires admin permission and cannot mix in pending declarations", async () => {
+  const existingRequest = { id: requestId, user_id: userId, status: "approved", verified_type: "abonnement", verified_paid_on: "2026-10-01", verified_expires_at: "2026-10-31T23:00:00.000Z" };
+  const api = fixture({ existingRequest });
+  const response = await api.adminGet("?history=1&status=pending");
+  assert.equal(response.status, 200);
+  assert.deepEqual(api.calls.permissions, ["users_write"]);
+  assert.equal(api.calls.reads.length, 1);
+  assert.ok(api.calls.reads[0].filters.some(([column, value]) => column === "status" && value === "approved"));
+  assert.deepEqual(api.calls.reads[0].ordering, { column: "reviewed_at", ascending: false });
+  assert.equal(api.calls.reads[0].limit, 100);
+  assert.deepEqual(response.body.history, [existingRequest]);
+  assert.equal(Object.hasOwn(response.body, "requests"), false);
+  assert.equal(api.calls.writes.length + api.calls.rpcs.length, 0);
+
+  const forbidden = fixture({ adminAuthorized: false });
+  assert.equal((await forbidden.adminGet("?history=1")).status, 403);
+  assert.deepEqual(forbidden.calls.permissions, ["users_write"]);
+  assert.equal(forbidden.calls.reads.length + forbidden.calls.writes.length + forbidden.calls.rpcs.length, 0);
+});
+
+test("subscription approval sends the payment date only and cannot accept a client-supplied expiry", async () => {
   const api = fixture();
-  const response = await api.adminPost({ action: "approve", id: requestId, ...declaration, type: "abonnement", expiresAt: "2099-01-23T23:59:00+01:00" });
+  const paidOn = parisToday();
+  const response = await api.adminPost({ action: "approve", id: requestId, ...declaration, type: "abonnement", paidOn, expiresAt: "2099-01-23T23:59:00Z", expires_at: "2099-01-23T23:59:00Z", p_expires_at: "2099-01-23T23:59:00Z", paid_on: "2099-01-01" });
   assert.equal(response.status, 200);
   const args = plain(api.calls.rpcs[0].args);
   assert.equal(args.p_type, "abonnement");
-  assert.equal(args.p_expires_at, "2099-01-23T22:59:00.000Z");
+  assert.equal(args.p_paid_on, paidOn);
   assert.equal(args.p_affiliation_broker, null);
   assert.equal(Object.hasOwn(args, "p_months"), false);
+  assert.equal(Object.hasOwn(args, "p_expires_at"), false);
+  assert.equal(Object.hasOwn(args, "expires_at"), false);
+  assert.equal(Object.hasOwn(args, "expiresAt"), false);
 });
 
 test("denial sends no access-grant fields even when the client includes a valid approval payload", async () => {
   const api = fixture();
-  const response = await api.adminPost({ action: "deny", id: requestId, ...declaration, type: "abonnement", expiresAt: "2099-01-23T23:59:00Z" });
+  const response = await api.adminPost({ action: "deny", id: requestId, ...declaration, type: "abonnement", paidOn: parisToday(), expiresAt: "2099-01-23T23:59:00Z" });
   assert.equal(response.status, 200);
   assert.deepEqual(plain(api.calls.rpcs[0]), {
     name: "vip_review_access_request",
-    args: { p_request_id: requestId, p_action: "deny", p_reviewed_by: adminId, p_first_name: null, p_last_name: null, p_type: null, p_affiliation_broker: null, p_expires_at: null },
+    args: { p_request_id: requestId, p_action: "deny", p_reviewed_by: adminId, p_first_name: null, p_last_name: null, p_type: null, p_affiliation_broker: null, p_paid_on: null },
   });
   assert.equal(api.calls.writes.length, 0);
 });
