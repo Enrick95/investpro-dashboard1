@@ -6,5 +6,5 @@ const securityHeaders=[
   {key:"Permissions-Policy",value:"camera=(), microphone=(), geolocation=()"},
   {key:"Strict-Transport-Security",value:"max-age=31536000; includeSubDomains"},
 ];
-const nextConfig: NextConfig={poweredByHeader:false,compress:true,async headers(){return [{source:"/:path*",headers:securityHeaders}]}};
+const nextConfig: NextConfig={poweredByHeader:false,compress:true,async rewrites(){return [{source:"/enrick95",destination:"/enrick95.html"}]},async headers(){return [{source:"/:path*",headers:securityHeaders}]}};
 export default nextConfig;
