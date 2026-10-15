@@ -103,7 +103,7 @@ export default function PwaPushPrompt() {
   if (!visible) return null;
 
   return (
-    <aside role="dialog" aria-label={t("Notifications InvestPro")} className="fixed inset-x-3 bottom-24 z-[70] mx-auto max-w-md rounded-2xl border border-[color:var(--gold-border)] bg-[#11130f] p-4 shadow-2xl shadow-black/50 sm:inset-x-auto sm:bottom-6 sm:right-6">
+    <aside role="dialog" aria-label={t("Notifications InvestPro")} className="ip-push-prompt fixed inset-x-3 bottom-24 z-[70] mx-auto max-w-md rounded-2xl border border-[color:var(--gold-border)] bg-[#11130f] p-4 shadow-2xl shadow-black/50 sm:inset-x-auto sm:bottom-6 sm:right-6">
       <div className="flex items-start gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]"><Bell size={18} /></span>
         <div className="min-w-0 flex-1">

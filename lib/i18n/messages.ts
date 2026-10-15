@@ -8,6 +8,8 @@ import { sharedMessages } from "./shared";
 import { accountMessages } from "./account";
 import { adminMessages } from "./admin";
 import { connectionsMarketExtraMessages } from "./connections-market-extra";
+import { vipEditorMessages } from "./vip-editor";
+import { vipRailMessages } from "./vip-rail";
 
 /** Static application copy only. Member posts, names and trading data are never sent for translation. */
 export const messages: Readonly<Record<string, string>> = {
@@ -21,4 +23,6 @@ export const messages: Readonly<Record<string, string>> = {
   ...accountMessages,
   ...adminMessages,
   ...connectionsMarketExtraMessages,
+  ...vipEditorMessages,
+  ...vipRailMessages,
 };

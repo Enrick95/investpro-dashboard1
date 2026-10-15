@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import Link from "next/link";
 import { ArrowUpRight, Check, Copy, KeyRound, MessageCircle, Pencil, Plus, RefreshCw, Send, Settings, ShieldCheck, Users } from "lucide-react";
-import { vipDate, vipRequest, type VipMembership, type VipPost } from "@/lib/vip/client";
+import { vipDate, vipRequest, type VipMembership } from "@/lib/vip/client";
+import VipPublicationsEditor from "@/components/vip/VipPublicationsEditor";
 import type { VipAccessRequest, VipInvitation } from "@/lib/vip/types";
 import VipAccessRequestsAdmin from "./VipAccessRequestsAdmin";
 import { VIP_AFFILIATION_BROKERS, validateVipIdentity, vipAffiliationBrokerLabel, type VipAffiliationBroker } from "@/lib/vip/identity";
@@ -16,7 +17,6 @@ type Invitation = VipInvitation;
 type MembersPayload = { members: VipMembership[]; invitations: Invitation[]; settings: { telegramConfigured: boolean } };
 type GeneratedInvitation = { code: string; activationUrl: string; invitation: Invitation };
 type Tab = "members" | "requests" | "posts" | "settings";
-const blankPost = { category: "signal", title: "", body: "", symbol: "", direction: "", entry: "", stopLoss: "", takeProfit: "", takeProfit2: "", imageUrl: "" };
 const brokers = VIP_AFFILIATION_BROKERS;
 type Identity = { first_name?: string | null; last_name?: string | null; affiliation_broker?: Broker | null; type: "affiliation" | "abonnement" };
 function memberName(identity: Identity, tr: (value: string) => string = value => value) { return [identity.first_name, identity.last_name].filter(Boolean).join(" ").trim() || tr("Nom à renseigner"); }
@@ -48,7 +48,6 @@ export default function VipAdminPage() {
   const [generated, setGenerated] = useState<GeneratedInvitation | null>(null);
   const [copied, setCopied] = useState(false);
   const [telegramUrl, setTelegramUrl] = useState("");
-  const [post, setPost] = useState(blankPost);
   const [search, setSearch] = useState("");
   const [originFilter, setOriginFilter] = useState("all");
   const [editing, setEditing] = useState<{ userId: string; firstName: string; lastName: string; affiliationBroker: Broker | "" } | null>(null);
@@ -111,21 +110,6 @@ export default function VipAdminPage() {
     catch (cause) { setError(cause instanceof Error ? cause.message : tr("Impossible d’enregistrer le lien.")); }
     finally { setBusy(""); }
   }
-  async function publish(event: FormEvent) {
-    event.preventDefault(); setBusy("publish"); setMessage(""); setError("");
-    try {
-      const levels: Record<string, number> = {};
-      for (const key of ["entry", "stopLoss", "takeProfit", "takeProfit2"] as const) {
-        if (!post[key].trim()) continue;
-        const value = Number(post[key].replace(",", "."));
-        if (!Number.isFinite(value) || value <= 0) throw new Error(tr("Les niveaux doivent être des nombres positifs."));
-        levels[key] = value;
-      }
-      await vipRequest<{ post: VipPost }>("/api/admin/vip/posts", { method: "POST", body: JSON.stringify({ category: post.category, title: post.title.trim(), body: post.body.trim(), symbol: post.symbol.trim() || undefined, direction: post.direction || undefined, levels, imageUrl: post.imageUrl.trim() || undefined }) });
-      setPost(blankPost); setMessage(tr("Votre publication est disponible dans le canal privé."));
-    } catch (cause) { setError(cause instanceof Error ? cause.message : tr("La publication a échoué.")); }
-    finally { setBusy(""); }
-  }
   const query = searchable(search.trim());
   const members = data?.members.filter((member) => {
     const matchesOrigin = originFilter === "all" || (originFilter === "abonnement" ? member.type === "abonnement" : originFilter === "unknown" ? member.type === "affiliation" && !member.affiliation_broker : member.type === "affiliation" && member.affiliation_broker === originFilter);
@@ -172,7 +156,7 @@ export default function VipAdminPage() {
           {data.invitations.length > 0 && <section className={s.card}><h2>{tr("Invitations")}</h2><div className={s.invitations}>{data.invitations.map((invitation) => <div className={s.invitationRow} key={invitation.id}><div><b>{memberName(invitation, tr)}</b><span className={s.memberEmail}>{invitation.email}</span><small>{originLabel(invitation, tr)} · {vipDate(invitation.created_at, locale)} · {invitation.revoked_at ? tr("Révoquée") : invitation.redeemed_at ? tr("Activée") : new Date(invitation.expires_at).getTime() <= asOf ? tr("Expirée") : tr("En attente")}</small></div>{!invitation.revoked_at && !invitation.redeemed_at && <button type="button" className={s.secondary} disabled={Boolean(busy)} onClick={() => void action("revokeInvitation", { id: invitation.id })}>{tr("Révoquer")}</button>}</div>)}</div></section>}
           <p className={s.manual}><MessageCircle size={18} /><span>{tr("Telegram reste manuel : l’équipe valide l’entrée et retire les membres du canal séparément. La fin d’accès InvestPro ne retire personne de Telegram.")}</span></p>
         </>}
-        {tab === "posts" && <section className={s.card}><div className={s.cardHeading}><Send size={20} /><h2>{tr("Publier dans le cercle privé")}</h2></div><form onSubmit={publish} className={s.postForm}><div className={s.fields}><label>{tr("Type de publication")}<select value={post.category} onChange={(event) => setPost({ ...post, category: event.target.value })}><option value="signal">{tr("Signal")}</option><option value="analysis">{tr("Analyse")}</option><option value="followup">{tr("Suivi")}</option><option value="partnership">{tr("Partenariat")}</option></select></label><label>{tr("Titre")}<input value={post.title} onChange={(event) => setPost({ ...post, title: event.target.value })} required maxLength={160} placeholder={tr("Titre de votre publication")} /></label></div><label>{tr("Votre message")}<textarea value={post.body} onChange={(event) => setPost({ ...post, body: event.target.value })} rows={7} required maxLength={12000} placeholder={tr("Le contexte, le scénario ou votre mise à jour…")} /></label><details className={s.optional}><summary>{tr("Ajouter un actif, des niveaux ou une image")}</summary><div className={s.fields}><label>{tr("Actif")}<input value={post.symbol} onChange={(event) => setPost({ ...post, symbol: event.target.value.toUpperCase() })} maxLength={30} placeholder={tr("Ex. XAUUSD")} /></label><label>{tr("Sens")}<select value={post.direction} onChange={(event) => setPost({ ...post, direction: event.target.value })}><option value="">{tr("Non précisé")}</option><option value="buy">{tr("Achat")}</option><option value="sell">{tr("Vente")}</option></select></label></div><div className={s.levelFields}>{[["entry", tr("Entrée")], ["stopLoss", "Stop loss"], ["takeProfit", tr("Objectif 1")], ["takeProfit2", tr("Objectif 2")]].map(([key, label]) => <label key={key}>{label}<input value={post[key as keyof typeof blankPost]} onChange={(event) => setPost({ ...post, [key]: event.target.value })} inputMode="decimal" placeholder={tr("Facultatif")} /></label>)}</div><label>{tr("Image · lien HTTPS")}<input type="url" value={post.imageUrl} onChange={(event) => setPost({ ...post, imageUrl: event.target.value })} placeholder={tr("https://…")} /></label></details><button className={s.primary} disabled={Boolean(busy)}><Send size={16} />{busy === "publish" ? tr("Publication…") : tr("Publier dans le canal VIP")}</button><p className={s.fine}>{tr("La publication est réservée aux membres autorisés. Les niveaux décrivent votre scénario ; aucune opération de trading n’est exécutée.")}</p></form></section>}
+        <VipPublicationsEditor active={tab === "posts"} />
         {tab === "settings" && <section className={s.card}><div className={s.cardHeading}><Settings size={20} /><h2>{tr("Votre canal Telegram")}</h2></div><p className={s.fine}>{data.settings.telegramConfigured ? tr("Le lien privé du canal est configuré.") : tr("Le lien privé n’est pas encore configuré. Aucun faux lien n’est présenté aux membres.")}</p><form onSubmit={saveSettings} className={s.settingsForm}><label>{tr("Lien d’invitation privé")}<input type="url" value={telegramUrl} onChange={(event) => setTelegramUrl(event.target.value)} placeholder={tr("https://t.me/…")} autoComplete="off" /></label><p className={s.fine}>{tr("Ce lien est affiché uniquement aux membres VIP actifs. La validation des entrées et sorties reste manuelle sur Telegram.")}</p><button className={s.primary} disabled={Boolean(busy)}>{busy === "settings" ? tr("Enregistrement…") : tr("Enregistrer le lien privé")}</button></form></section>}
       </> : <div className={s.empty}><button type="button" className={s.secondary} onClick={() => void load(undefined, true)}>{tr("Réessayer ")}<RefreshCw size={16} /></button></div>}
     </>}

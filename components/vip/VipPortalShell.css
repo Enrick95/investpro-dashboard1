@@ -1,0 +1,40 @@
+/* Only the VIP portal owns this full-height shell. Other dashboard routes keep their layout. */
+body:has([data-investpro-vip-portal="true"]) {
+  height: 100dvh;
+  overflow: hidden !important;
+  padding-bottom: 0 !important;
+}
+body:has([data-investpro-vip-portal="true"]) .aura-app {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+body:has([data-investpro-vip-portal="true"]) .aura-main {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-height: 0;
+}
+body:has([data-investpro-vip-portal="true"]) .aura-topbar,
+body:has([data-investpro-vip-portal="true"]) .ip-mobile-global-nav,
+body:has([data-investpro-vip-portal="true"]) .aura-dock,
+body:has([data-investpro-vip-portal="true"]) .ip-support-floating,
+body:has([data-investpro-vip-portal="true"]) .ip-install-banner,
+body:has([data-investpro-vip-portal="true"]) .ip-push-prompt {
+  display: none !important;
+}
+body:has([data-investpro-vip-portal="true"]) .aura-content {
+  flex: 1;
+  min-height: 0;
+  padding: 0 !important;
+}
+body:has([data-investpro-vip-portal="true"]) .aura-content-inner {
+  height: 100%;
+  min-height: 0;
+  max-width: none;
+}
+body:has([data-investpro-vip-portal="true"]) .aura-content-inner > [data-investpro-vip-portal="true"] {
+  height: 100%;
+  margin: 0;
+  animation: none !important;
+}

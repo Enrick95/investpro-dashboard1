@@ -1,5 +1,29 @@
 import type { VipAffiliationBroker } from "./identity";
 
+export type VipPostCategory = "signal" | "analysis" | "performance" | "followup" | "partnership";
+export type VipReaction = "like" | "fire" | "heart";
+export type VipPostReactions = {
+  counts: Record<VipReaction, number>;
+  mine: VipReaction | null;
+};
+export type VipPost = {
+  id: string;
+  category: VipPostCategory;
+  title: string;
+  body: string;
+  symbol: string | null;
+  direction: "buy" | "sell" | null;
+  levels: { entry?: number; stopLoss?: number; takeProfit?: number; takeProfit2?: number };
+  /** Legacy HTTPS or a temporary signed URL for a private uploaded image. */
+  image_url: string | null;
+  /** Returned to administrators for preserving/replacing an attachment while editing. */
+  image_path?: string | null;
+  created_at: string;
+  updated_at?: string;
+  reactions?: VipPostReactions;
+};
+export type VipMediaUpload = { imagePath: string; imageUrl: string; mimeType: string; sizeBytes: number };
+
 export type VipMembershipType = "affiliation" | "abonnement";
 export type VipMembershipStatus = "active" | "suspended";
 

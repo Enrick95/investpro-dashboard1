@@ -1,0 +1,65 @@
+.post {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #303d2c;
+  border-radius: 16px;
+  background: #141d14;
+  color: #efefe5;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.6;
+}
+.post *, .viewer * { box-sizing: border-box; }
+.post button, .viewer button { font: inherit; cursor: pointer; touch-action: manipulation; }
+.post button:disabled { cursor: default; }
+.post button:focus-visible, .post a:focus-visible, .viewer button:focus-visible { outline: 2px solid #ffce76; outline-offset: -3px; }
+.copy { padding: 13px 12px 10px; }
+.byline { display: flex; align-items: center; gap: 7px; min-width: 0; margin-bottom: 11px; }
+.avatar { display: grid; place-items: center; width: 27px; height: 27px; flex-shrink: 0; border: 1px solid #65532e; border-radius: 9px; background: #292a18; color: #ffce76; }
+.author { flex: 1; min-width: 0; font-size: 10px; line-height: 1.4; color: #e5eadb; }
+.author b { font-size: 10px; font-weight: 550; }
+.author small { display: block; color: #acb6a4; font-size: 9px; font-weight: 400; }
+.edited { color: #a8c694; white-space: nowrap; }
+.badge { color: #ffce76; background: #2b2c1b; border-radius: 5px; font-size: 9px; padding: 4px 6px; white-space: nowrap; }
+.post h2 { font-size: 14px; line-height: 1.35; letter-spacing: -.2px; margin: 0 0 8px; font-weight: 600; overflow-wrap: anywhere; }
+.body { font-size: 11px; line-height: 1.65; color: #bdc8b4; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.symbol { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; font-size: 11px; color: #ffce76; margin-bottom: 9px; overflow-wrap: anywhere; }
+.buy, .sell { padding: 3px 6px; border-radius: 5px; background: #1c2d26; color: #8dd7b3; font-size: 9px; text-transform: uppercase; }
+.sell { background: #2c1c18; color: #ffb1a7; }
+.levels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; padding: 11px 0 0; margin: 11px 0 0; border-top: 1px solid #303d2c; }
+.levels > div { min-width: 0; }
+.levels dt { color: #acb6a4; font-size: 9px; }
+.levels dd { color: #efefe5; font-size: 11px; margin: 3px 0 0; overflow-wrap: anywhere; }
+.signalLabel { display: flex; align-items: center; gap: 9px; margin: 0 0 8px; font-size: 10px; font-weight: 550; color: #8be3ad; }
+.signalLabel h2 { color: #8be3ad; margin: 0; }
+.signalDot, .signalHistory { position: relative; display: inline-block; width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%; background: #6cdb96; box-shadow: 0 0 8px #6cdb9638; }
+.signalHistory { background: #829278; box-shadow: none; }
+.signalDot::after { content: ""; position: absolute; inset: -4px; border: 1px solid #6cdb9680; border-radius: 50%; animation: signalPulse 2.8s ease-out infinite; }
+.riskReminder { color: #e2d5a1; font-size: 10px; line-height: 1.7; margin: 12px 0 0; }
+.post .photo { border: 0; width: 100%; padding: 0; display: block; background: #090f10; color: inherit; text-align: left; min-height: 44px; }
+.photo img { display: block; width: 100%; height: auto; max-height: 270px; object-fit: contain; background: #080e11; }
+.photoHint { display: flex; justify-content: flex-end; align-items: center; gap: 5px; font-size: 9px; color: #b7c1ac; background: #0c1410; padding: 7px 10px; }
+.reactions { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; padding: 10px 10px 12px; border-top: 1px solid #293528; }
+.post .reaction { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; min-width: 51px; padding: 8px 10px; border: 1px solid #35442e; border-radius: 11px; background: #1a2518; color: #b5c2a9; font-size: 11px; }
+.reaction span:first-child { font-size: 15px; }
+.reaction[aria-pressed="true"] { background: #3a321b; border-color: #987640; color: #ffce76; }
+.reaction:disabled { opacity: .65; }
+.reactionHint { font-size: 9px; color: #8f9e85; padding: 0 12px 10px; margin: 0; }
+.reactionError { font-size: 10px; line-height: 1.6; color: #f0b6a4; padding: 0 12px 10px; margin: 0; overflow-wrap: anywhere; }
+.riskLink { display: flex; align-items: center; gap: 9px; padding: 12px 11px; min-height: 62px; color: #ffce76; background: #202b17; border-top: 1px solid #394b2c; text-decoration: none; }
+.riskLink > span:nth-child(2) { min-width: 0; }
+.riskLink strong { display: block; font-size: 11px; font-weight: 600; }
+.riskLink small { display: block; font-size: 9px; line-height: 1.6; color: #a9bb9a; margin-top: 3px; }
+.riskIcon { width: 29px; height: 33px; flex-shrink: 0; display: grid; place-items: center; border-radius: 9px; background: #33331c; }
+.riskLink > svg { margin-left: auto; flex-shrink: 0; }
+.viewer { position: fixed; inset: 0; width: 100%; height: 100dvh; max-width: none; max-height: none; margin: 0; border: 0; padding: max(18px, env(safe-area-inset-top)) 13px max(18px, env(safe-area-inset-bottom)); background: #080e0bf5; color: #efefe5; }
+.viewer[open] { display: flex; flex-direction: column; }
+.viewer::backdrop { background: #080e0b; }
+.viewerBar { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: #d6dfcd; font-size: 11px; }
+.viewerBar > span { min-width: 0; overflow-wrap: anywhere; }
+.viewer .viewerBar button { display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; border: 1px solid #47533b; border-radius: 12px; color: #ffce76; background: #172112; }
+.viewerImage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: auto; }
+.viewerImage img { width: 100%; height: 100%; max-height: 100%; object-fit: contain; }
+.viewer > p { font-size: 11px; text-align: center; color: #acb6a4; margin: 12px 0 0; }
+@keyframes signalPulse { 0% { transform: scale(.7); opacity: .8; } 70%, 100% { transform: scale(1.65); opacity: 0; } }
+@media (max-width: 370px) { .copy { padding: 11px 10px 9px; } .badge { font-size: 8px; } .reactions { padding: 8px 7px 10px; gap: 4px; } .post .reaction { min-width: 45px; padding: 8px; } }
+@media (prefers-reduced-motion: reduce) { .signalDot::after { animation: none; opacity: .5; } }

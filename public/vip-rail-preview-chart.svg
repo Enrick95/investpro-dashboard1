@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="620" viewBox="0 0 1000 620">
+ <rect width="1000" height="620" fill="#091310"/>
+ <g stroke="#273b30" stroke-width="1"><path d="M60 100H940M60 190H940M60 280H940M60 370H940M60 460H940M60 550H940M60 80V550M236 80V550M412 80V550M588 80V550M764 80V550M940 80V550"/></g>
+ <g font-family="Arial,sans-serif"><text x="60" y="46" fill="#dce7dd" font-size="22" font-weight="bold">XAUUSD · ANALYSE GRAPHIQUE</text><text x="940" y="46" fill="#d6b76c" font-size="16" text-anchor="end">EXEMPLE FICTIF</text><text x="60" y="594" fill="#9caf9e" font-size="15">GRAPHIQUE DE DÉMONSTRATION · INVESTPRO</text></g>
+ <rect x="60" y="326" width="880" height="66" fill="#d2ac4a" opacity=".09"/>
+ <g stroke="#e6bc65" stroke-width="2" stroke-dasharray="8 8"><path d="M60 326H940M60 392H940"/></g>
+ <g stroke="#38c295" fill="#38c295"><path d="M110 350V480M210 290V410M310 250V380M410 185V310M560 205V350M710 135V285M810 90V200"/><rect x="96" y="380" width="28" height="62"/><rect x="196" y="320" width="28" height="64"/><rect x="296" y="280" width="28" height="75"/><rect x="396" y="213" width="28" height="66"/><rect x="546" y="240" width="28" height="60"/><rect x="696" y="175" width="28" height="85"/><rect x="796" y="120" width="28" height="58"/></g>
+ <g stroke="#df786e" fill="#df786e"><path d="M160 330V440M260 260V390M360 210V330M460 205V320M510 260V370M610 220V320M660 165V285M760 125V230M860 95V200"/><rect x="146" y="356" width="28" height="60"/><rect x="246" y="300" width="28" height="59"/><rect x="346" y="247" width="28" height="66"/><rect x="446" y="230" width="28" height="65"/><rect x="496" y="290" width="28" height="45"/><rect x="596" y="247" width="28" height="43"/><rect x="646" y="198" width="28" height="61"/><rect x="746" y="156" width="28" height="50"/><rect x="846" y="124" width="28" height="51"/></g>
+ <path d="M92 470C250 410 310 340 420 300S580 355 680 260S815 205 900 145" stroke="#80b8bd" stroke-width="3" fill="none" opacity=".75"/>
+</svg>

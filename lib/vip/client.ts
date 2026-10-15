@@ -4,18 +4,8 @@ import { createClient } from "@/lib/supabase/client";
 import type { VipMembership, VipAccessResponse } from "./types";
 
 export type { VipMembership };
+export type { VipPost, VipPostCategory, VipReaction, VipPostReactions, VipMediaUpload } from "./types";
 export type VipAccess = VipAccessResponse;
-export type VipPost = {
-  id: string;
-  category: string;
-  title: string;
-  body: string;
-  symbol: string | null;
-  direction: "buy" | "sell" | null;
-  levels: { entry?: number; stopLoss?: number; takeProfit?: number; takeProfit2?: number };
-  image_url: string | null;
-  created_at: string;
-};
 export class VipApiError extends Error {
   constructor(message: string, public status: number) { super(message); }
 }
@@ -24,7 +14,7 @@ export async function vipRequest<T>(path: string, init: RequestInit = {}): Promi
   if (error || !data.session?.access_token) throw new VipApiError("Connectez-vous pour accéder à votre espace.", 401);
   const headers = new Headers(init.headers);
   headers.set("Authorization", `Bearer ${data.session.access_token}`);
-  if (init.body) headers.set("Content-Type", "application/json");
+  if (init.body && !(typeof FormData !== "undefined" && init.body instanceof FormData)) headers.set("Content-Type", "application/json");
   const response = await fetch(path, { ...init, headers, cache: "no-store" });
   const payload = await response.json().catch(() => null);
   if (!response.ok) throw new VipApiError(typeof payload?.error === "string" ? payload.error : typeof payload?.message === "string" ? payload.message : "Cette action est indisponible. Réessayez dans un instant.", response.status);
