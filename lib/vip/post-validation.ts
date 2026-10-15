@@ -3,10 +3,11 @@ import type { VipPostCategory, VipReaction } from "./types";
 export const VIP_POST_CATEGORIES: readonly VipPostCategory[] = ["analysis", "signal", "performance", "followup", "partnership"];
 export const VIP_REACTIONS: readonly VipReaction[] = ["like", "fire", "heart"];
 export const VIP_MEDIA_BUCKET = "vip-post-media";
-export const VIP_MEDIA_MAX_BYTES = 4 * 1024 * 1024;
+export const VIP_MEDIA_MAX_BYTES = 10 * 1024 * 1024;
+export const VIP_MEDIA_MULTIPART_MAX_BYTES = 4 * 1024 * 1024;
 export const VIP_MEDIA_TTL_SECONDS = 600;
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
-const IMAGE_PATH = new RegExp(`^${UUID}/${UUID}\\.(png|jpg|webp)$`, "i");
+const IMAGE_PATH = new RegExp(`^${UUID}/${UUID}\\.(png|jpg|webp|gif)$`, "i");
 
 export class VipPostInputError extends Error {
   constructor(message: string, public status = 400) { super(message); }
@@ -89,11 +90,21 @@ export function validateVipPostInput(input: Record<string, unknown>, current?: V
   return patch;
 }
 
-/** Check the actual format rather than trusting a filename or a user-supplied Content-Type. */
-export function validateVipMedia(bytes: Uint8Array, mimeType: string, filename: string): { mimeType: string; extension: "png" | "jpg" | "webp" } {
-  if (!bytes.length || bytes.length > VIP_MEDIA_MAX_BYTES) throw new VipPostInputError("L’image doit peser 4 Mo maximum.", 413);
+export type VipMediaExtension = "png" | "jpg" | "webp" | "gif";
+export function validateVipMediaMetadata(filename: unknown, mimeType: unknown, sizeBytes: unknown): { mimeType: string; sizeBytes: number; extension: VipMediaExtension } {
+  if (typeof sizeBytes !== "number" || !Number.isSafeInteger(sizeBytes) || sizeBytes < 1 || sizeBytes > VIP_MEDIA_MAX_BYTES) throw new VipPostInputError("L’image doit peser 10 Mo maximum.", 413);
+  const types: Record<string, VipMediaExtension> = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "image/gif": "gif" };
+  const mime = typeof mimeType === "string" ? mimeType.toLowerCase() : "";
+  const extension = Object.hasOwn(types, mime) ? types[mime] : undefined;
+  if (!extension || typeof filename !== "string" || filename.length > 255 || /[\u0000-\u001f\u007f]/.test(filename) || !new RegExp(`\\.${extension === "jpg" ? "jpe?g" : extension}$`, "i").test(filename)) throw new VipPostInputError("Le type et l’extension du fichier doivent correspondre à une image JPG, PNG, WebP ou GIF.", 415);
+  return { mimeType: mime, sizeBytes, extension };
+}
+
+/** Verify real file bytes; metadata and a signed upload ticket alone never establish a valid image. */
+export function validateVipMedia(bytes: Uint8Array, mimeType: string, filename: string): { mimeType: string; extension: VipMediaExtension } {
+  validateVipMediaMetadata(filename, mimeType, bytes.length);
   const text = (offset: number, length: number) => String.fromCharCode(...bytes.slice(offset, offset + length));
-  let extension: "png" | "jpg" | "webp";
+  let extension: VipMediaExtension;
   let actual: string;
   if (bytes.length >= 45 && [137,80,78,71,13,10,26,10].every((value, index) => bytes[index] === value) && text(12, 4) === "IHDR" && text(bytes.length - 8, 4) === "IEND") {
     extension = "png"; actual = "image/png";
@@ -101,8 +112,10 @@ export function validateVipMedia(bytes: Uint8Array, mimeType: string, filename: 
     extension = "jpg"; actual = "image/jpeg";
   } else if (bytes.length >= 20 && text(0, 4) === "RIFF" && text(8, 4) === "WEBP" && ["VP8 ", "VP8L", "VP8X"].includes(text(12, 4)) && new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(4, true) === bytes.length - 8) {
     extension = "webp"; actual = "image/webp";
-  } else throw new VipPostInputError("Format d’image invalide. Utilisez un fichier JPG, PNG ou WebP.", 415);
+  } else if (bytes.length >= 14 && ["GIF87a", "GIF89a"].includes(text(0, 6)) && bytes[bytes.length - 1] === 59 && (bytes[6] || bytes[7]) && (bytes[8] || bytes[9])) {
+    extension = "gif"; actual = "image/gif";
+  } else throw new VipPostInputError("Format d’image invalide. Utilisez un fichier JPG, PNG, WebP ou GIF.", 415);
   const filenamePattern = new RegExp(`\\.${extension === "jpg" ? "jpe?g" : extension}$`, "i");
-  if (mimeType.toLowerCase() !== actual || !filenamePattern.test(filename)) throw new VipPostInputError("Le type et l’extension du fichier doivent correspondre à une image JPG, PNG ou WebP.", 415);
+  if (mimeType.toLowerCase() !== actual || !filenamePattern.test(filename)) throw new VipPostInputError("Le type et l’extension du fichier doivent correspondre à une image JPG, PNG, WebP ou GIF.", 415);
   return { mimeType: actual, extension };
 }

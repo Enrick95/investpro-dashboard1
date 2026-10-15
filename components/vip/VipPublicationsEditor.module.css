@@ -18,6 +18,7 @@
   line-height: 1.6;
 }
 .editor[hidden], .fileInput { display: none; }
+.editor.embedded { flex: 1; width: 100%; max-width: none; height: 100%; min-height: 0; max-height: none; margin: 0; border: 0; border-radius: 0; }
 .editor * { box-sizing: border-box; }
 .editor button { cursor: pointer; touch-action: manipulation; }
 .editor button:disabled { opacity: .55; cursor: default; }
@@ -50,6 +51,9 @@
 .mediaActions { display: flex; gap: 8px; padding: 0 10px 10px; }
 .editor .mediaActions button { flex: 1; min-height: 44px; border: 1px solid #39472c; background: #202b19; color: #bfccb2; border-radius: 9px; font-size: 10px; }
 .mediaActions button:last-child { color: #e0b7a6; }
+.editor .titleToggle { display: flex; align-items: center; gap: 7px; width: 100%; min-height: 44px; padding: 9px 0; margin: 7px 0; border: 0; background: transparent; color: var(--ve-gold); font-size: 11px; text-align: left; }
+.titleToggle > svg:last-child { margin-left: auto; transition: transform .18s ease; }
+.titleToggle[aria-expanded="true"] > svg:last-child { transform: rotate(180deg); }
 .actions { display: flex; gap: 8px; padding: 12px 18px 16px; border-top: 1px solid var(--ve-line); background: #10190f; flex-shrink: 0; }
 .editingActions { flex-wrap: wrap; gap: 6px 8px; padding-top: 10px; padding-bottom: 9px; }
 .editor .editingActions .primary { flex: 2; font-size: 11px; line-height: 1.4; }
@@ -92,3 +96,4 @@
   .actions { padding: 11px 14px 15px; }
   .tabs { padding-inline: 10px; }
 }
+@media (prefers-reduced-motion: reduce) { .titleToggle > svg:last-child { transition: none; } }

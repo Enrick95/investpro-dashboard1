@@ -23,6 +23,14 @@ export type VipPost = {
   reactions?: VipPostReactions;
 };
 export type VipMediaUpload = { imagePath: string; imageUrl: string; mimeType: string; sizeBytes: number };
+export type VipMediaUploadPreparation = {
+  imagePath: string;
+  token: string;
+  signedUrl: string;
+  uploadTicket: string;
+  mimeType: string;
+  sizeBytes: number;
+};
 
 export type VipMembershipType = "affiliation" | "abonnement";
 export type VipMembershipStatus = "active" | "suspended";

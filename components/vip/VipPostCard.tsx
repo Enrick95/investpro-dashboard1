@@ -46,7 +46,7 @@ export default function VipPostCard({ post, preview = false, imagePreviewUrl }: 
   const created = Date.parse(post.created_at);
   const isRecentSignal = preview || (Number.isFinite(created) && now >= created && now - created < recentSignalDuration);
   const signalLabel = t(isRecentSignal ? "Nouveau signal" : "Signal");
-  const titleIsSignalLabel = post.category === "signal" && post.title === signalLabel;
+  const titleIsSignalLabel = post.category === "signal" && (post.title === signalLabel || post.title === "Nouveau signal" || post.title === "New signal");
   const edited = Boolean(post.updated_at && Date.parse(post.updated_at) > created + 1000);
   const levels = [["Entrée", post.levels?.entry], ["Stop loss", post.levels?.stopLoss], ["Objectif 1", post.levels?.takeProfit], ["Objectif 2", post.levels?.takeProfit2]] as const;
   const availableLevels = levels.filter(([, value]) => typeof value === "number" && Number.isFinite(value));
@@ -82,8 +82,8 @@ export default function VipPostCard({ post, preview = false, imagePreviewUrl }: 
         <div className={s.author}><b>InvestPro</b><small>{preview && !post.created_at ? t("À l’instant") : vipDate(post.created_at, locale)}{edited && <span className={s.edited}> · {t("Modifié")}</span>}</small></div>
         <span className={s.badge}>{t(categories[post.category] || "Publication")}</span>
       </div>
-      {post.category === "signal" && <div className={s.signalLabel}><span className={isRecentSignal ? s.signalDot : s.signalHistory} aria-hidden="true" />{titleIsSignalLabel ? <h2>{post.title}</h2> : signalLabel}</div>}
-      {post.title && !titleIsSignalLabel && <h2>{post.title}</h2>}
+      {post.category === "signal" && <div className={s.signalHeading}><span className={isRecentSignal ? s.signalDot : s.signalHistory} aria-hidden="true" /><h2>{signalLabel}</h2></div>}
+      {post.title && !titleIsSignalLabel && (post.category === "signal" ? <h3 className={s.signalSubtitle}>{post.title}</h3> : <h2>{post.title}</h2>)}
       {post.symbol && <div className={s.symbol}>{post.symbol}{post.direction && <span className={post.direction === "buy" ? s.buy : s.sell}>{post.direction === "buy" ? t("Achat") : t("Vente")}</span>}</div>}
       {post.body && <p className={s.body}>{post.body}</p>}
       {availableLevels.length > 0 && <dl className={s.levels}>{availableLevels.map(([label, value]) => <div key={label}><dt>{t(label)}</dt><dd>{value?.toLocaleString(locale === "en" ? "en-US" : "fr-FR", { maximumFractionDigits: 8 })}</dd></div>)}</dl>}
@@ -100,7 +100,7 @@ export default function VipPostCard({ post, preview = false, imagePreviewUrl }: 
         <p>{t("L’image entière, sans recadrage.")}</p>
       </dialog>
     </>}
-    {post.category === "signal" && <Link className={s.riskLink} href="/dashboard/simulateur"><span className={s.riskIcon}><Calculator size={16} aria-hidden="true" /></span><span><strong>{t("Calculer mon lot")}</strong><small>{t("Préparer mon risque avant la prise de position.")}</small></span><ArrowUpRight size={13} aria-hidden="true" /></Link>}
+    {post.category === "signal" && <Link className={s.riskLink} href="/dashboard/simulateur" aria-label={t("Calculer mon lot avec le simulateur de risque")}><span className={s.riskIcon}><Calculator size={16} aria-hidden="true" /></span><span><strong>{t("Calculer mon lot")}</strong><small>{t("Préparer mon risque avant le trade")}</small></span><ArrowUpRight size={13} aria-hidden="true" /></Link>}
     <div className={s.reactions} role="group" aria-label={t("Réactions à la publication")} aria-busy={reactionBusy}>
       {reactions.map(({ key, emoji, label }) => <button type="button" key={key} className={s.reaction} disabled={preview || reactionBusy} onClick={() => void react(key)} aria-pressed={reactionState.mine === key} aria-label={`${t(label)} · ${reactionState.counts[key]}`}><span aria-hidden="true">{emoji}</span><span>{reactionState.counts[key]}</span></button>)}
     </div>

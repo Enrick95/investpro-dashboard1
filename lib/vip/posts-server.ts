@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { VipMembership, VipPost, VipPostReactions } from "./types";
 import { isSameVipOrigin } from "./membership";
 import { VipRequestError, vipJson } from "./membership-server";
-import { emptyVipReactions, isVipReaction, VIP_MEDIA_BUCKET, VIP_MEDIA_MAX_BYTES, VIP_MEDIA_TTL_SECONDS, VipPostInputError, type VipPostFields } from "./post-validation";
+import { emptyVipReactions, isVipImagePath, isVipReaction, validateVipMedia, VIP_MEDIA_BUCKET, VIP_MEDIA_MAX_BYTES, VIP_MEDIA_MULTIPART_MAX_BYTES, VIP_MEDIA_TTL_SECONDS, VipPostInputError, type VipPostFields } from "./post-validation";
 
 export const VIP_POST_COLUMNS = "id,category,title,body,symbol,direction,levels,image_url,image_path,created_at,updated_at,published";
 export type VipStoredPost = VipPostFields & { id: string; created_at: string; updated_at: string; published: boolean };
@@ -58,14 +58,22 @@ export async function hydrateVipPosts(db: SupabaseClient, posts: VipStoredPost[]
     };
   });
 }
-export async function assertVipImageExists(db: SupabaseClient, imagePath: string) {
+export async function assertVipImageExists(db: SupabaseClient, imagePath: string): Promise<{ mimeType: string; sizeBytes: number }> {
+  if (!isVipImagePath(imagePath)) throw new VipRequestError("Pièce jointe invalide. Importez à nouveau l’image.", 400);
   const { data, error } = await db.storage.from(VIP_MEDIA_BUCKET).info(imagePath);
   const metadata = data?.metadata as Record<string, unknown> | undefined;
   const size = data?.size ?? metadata?.size;
   const mime = data?.contentType ?? metadata?.mimetype ?? metadata?.contentType;
-  if (error || !data || typeof size !== "number" || size < 1 || size > VIP_MEDIA_MAX_BYTES || !["image/jpeg", "image/png", "image/webp"].includes(String(mime))) {
+  if (error || !data || typeof size !== "number" || !Number.isSafeInteger(size) || size < 1 || size > VIP_MEDIA_MAX_BYTES || !["image/jpeg", "image/png", "image/webp", "image/gif"].includes(String(mime))) {
     throw new VipRequestError("L’image importée est introuvable ou invalide. Importez-la à nouveau.", 400);
   }
+  // This is a server-to-Storage read, never a file body sent through the Vercel route.
+  // Rechecking actual bytes here also prevents a caller from bypassing upload completion via POST/PATCH.
+  const { data: file, error: downloadError } = await db.storage.from(VIP_MEDIA_BUCKET).download(imagePath);
+  if (downloadError || !file || file.size !== size || file.size > VIP_MEDIA_MAX_BYTES) throw new VipRequestError("L’image importée est introuvable ou invalide. Importez-la à nouveau.", 400);
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const checked = validateVipMedia(bytes, String(mime), imagePath.split("/").at(-1) || "");
+  return { mimeType: checked.mimeType, sizeBytes: bytes.length };
 }
 
 /** Bound a multipart stream before parsing, including requests without Content-Length. */
@@ -73,7 +81,7 @@ export async function readVipImageUpload(request: Request): Promise<File> {
   if (!isSameVipOrigin(request)) throw new VipRequestError("Origine de la requête refusée.", 403);
   const contentType = request.headers.get("content-type") || "";
   if (!/^multipart\/form-data\s*;/i.test(contentType)) throw new VipRequestError("Un fichier image est requis.", 415);
-  const maximum = VIP_MEDIA_MAX_BYTES + 65536;
+  const maximum = VIP_MEDIA_MULTIPART_MAX_BYTES + 65536;
   const length = request.headers.get("content-length");
   if (length && (!/^\d+$/.test(length) || Number(length) > maximum)) throw new VipRequestError("L’image doit peser 4 Mo maximum.", 413);
   if (!request.body) throw new VipRequestError("Un fichier image est requis.", 400);
@@ -96,6 +104,6 @@ export async function readVipImageUpload(request: Request): Promise<File> {
   catch { throw new VipRequestError("Le fichier image n’a pas pu être lu.", 400); }
   const file = form.get("file");
   if (!file || typeof file === "string" || form.getAll("file").length !== 1 || [...form.keys()].some(key => key !== "file")) throw new VipRequestError("Importez une seule image JPG, PNG ou WebP.", 400);
-  if (!file.size || file.size > VIP_MEDIA_MAX_BYTES) throw new VipRequestError("L’image doit peser 4 Mo maximum.", 413);
+  if (!file.size || file.size > VIP_MEDIA_MULTIPART_MAX_BYTES) throw new VipRequestError("L’image doit peser 4 Mo maximum.", 413);
   return file;
 }

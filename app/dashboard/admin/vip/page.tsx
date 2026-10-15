@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowUpRight, Check, Copy, KeyRound, MessageCircle, Pencil, Plus, RefreshCw, Send, Settings, ShieldCheck, Users } from "lucide-react";
 import { vipDate, vipRequest, type VipMembership } from "@/lib/vip/client";
-import VipPublicationsEditor from "@/components/vip/VipPublicationsEditor";
 import type { VipAccessRequest, VipInvitation } from "@/lib/vip/types";
 import VipAccessRequestsAdmin from "./VipAccessRequestsAdmin";
 import { VIP_AFFILIATION_BROKERS, validateVipIdentity, vipAffiliationBrokerLabel, type VipAffiliationBroker } from "@/lib/vip/identity";
@@ -16,7 +16,7 @@ type Origin = "" | Broker | "abonnement";
 type Invitation = VipInvitation;
 type MembersPayload = { members: VipMembership[]; invitations: Invitation[]; settings: { telegramConfigured: boolean } };
 type GeneratedInvitation = { code: string; activationUrl: string; invitation: Invitation };
-type Tab = "members" | "requests" | "posts" | "settings";
+type Tab = "members" | "requests" | "settings";
 const brokers = VIP_AFFILIATION_BROKERS;
 type Identity = { first_name?: string | null; last_name?: string | null; affiliation_broker?: Broker | null; type: "affiliation" | "abonnement" };
 function memberName(identity: Identity, tr: (value: string) => string = value => value) { return [identity.first_name, identity.last_name].filter(Boolean).join(" ").trim() || tr("Nom à renseigner"); }
@@ -32,6 +32,7 @@ function accessStatus(member: VipMembership, asOf: number) {
 
 export default function VipAdminPage() {
   const { t: tr, locale } = useLocale();
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>("members");
   const [data, setData] = useState<MembersPayload | null>(null);
   const [requests, setRequests] = useState<VipAccessRequest[] | null>(null);
@@ -120,7 +121,7 @@ export default function VipAdminPage() {
     {loading ? <div className={s.empty} role="status">{tr("Chargement de l’administration VIP…")}</div> : <>
       {error && <p className={s.error} role="alert">{tr(error)}</p>}{message && <p className={s.message} role="status">{message}</p>}
       {data ? <>
-        <nav className={s.tabs} aria-label={tr("Administration VIP")}>{[{ key: "members", title: tr("Membres"), Icon: Users }, { key: "requests", title: (tr("À vérifier") + (requests ? ` · ${requests.length}` : "")), Icon: ShieldCheck }, { key: "posts", title: tr("Publications"), Icon: Send }, { key: "settings", title: tr("Paramètres"), Icon: Settings }].map(({ key, title, Icon }) => <button type="button" aria-pressed={tab === key} key={key} onClick={() => setTab(key as Tab)}><Icon size={16} />{title}</button>)}<button type="button" className={s.reload} aria-label={tr("Actualiser les accès")} onClick={() => void load()} disabled={Boolean(busy)}><RefreshCw size={16} /></button></nav>
+        <nav className={s.tabs} aria-label={tr("Administration VIP")}>{[{ key: "members", title: tr("Membres"), Icon: Users }, { key: "requests", title: (tr("À vérifier") + (requests ? ` · ${requests.length}` : "")), Icon: ShieldCheck }, { key: "posts", title: tr("Publications"), Icon: Send }, { key: "settings", title: tr("Paramètres"), Icon: Settings }].map(({ key, title, Icon }) => <button type="button" aria-pressed={tab === key} key={key} onClick={() => key === "posts" ? router.push("/dashboard/vip?mode=admin") : setTab(key as Tab)}><Icon size={16} />{title}</button>)}<button type="button" className={s.reload} aria-label={tr("Actualiser les accès")} onClick={() => void load()} disabled={Boolean(busy)}><RefreshCw size={16} /></button></nav>
         {tab === "requests" && <VipAccessRequestsAdmin requests={requests} error={requestsError} onRefresh={() => load()} />}
         {tab === "members" && <>
           <div className={s.summary}><div><span>{tr("Membres")}</span><b>{data.members.length}</b></div><div><span>{tr("À renouveler")}</span><b>{data.members.filter((member) => member.renewal_requested_at).length}</b></div><div><span>{tr("Invitations en attente")}</span><b>{data.invitations.filter((invitation) => !invitation.redeemed_at && !invitation.revoked_at && new Date(invitation.expires_at).getTime() > asOf).length}</b></div></div>
@@ -156,7 +157,6 @@ export default function VipAdminPage() {
           {data.invitations.length > 0 && <section className={s.card}><h2>{tr("Invitations")}</h2><div className={s.invitations}>{data.invitations.map((invitation) => <div className={s.invitationRow} key={invitation.id}><div><b>{memberName(invitation, tr)}</b><span className={s.memberEmail}>{invitation.email}</span><small>{originLabel(invitation, tr)} · {vipDate(invitation.created_at, locale)} · {invitation.revoked_at ? tr("Révoquée") : invitation.redeemed_at ? tr("Activée") : new Date(invitation.expires_at).getTime() <= asOf ? tr("Expirée") : tr("En attente")}</small></div>{!invitation.revoked_at && !invitation.redeemed_at && <button type="button" className={s.secondary} disabled={Boolean(busy)} onClick={() => void action("revokeInvitation", { id: invitation.id })}>{tr("Révoquer")}</button>}</div>)}</div></section>}
           <p className={s.manual}><MessageCircle size={18} /><span>{tr("Telegram reste manuel : l’équipe valide l’entrée et retire les membres du canal séparément. La fin d’accès InvestPro ne retire personne de Telegram.")}</span></p>
         </>}
-        <VipPublicationsEditor active={tab === "posts"} />
         {tab === "settings" && <section className={s.card}><div className={s.cardHeading}><Settings size={20} /><h2>{tr("Votre canal Telegram")}</h2></div><p className={s.fine}>{data.settings.telegramConfigured ? tr("Le lien privé du canal est configuré.") : tr("Le lien privé n’est pas encore configuré. Aucun faux lien n’est présenté aux membres.")}</p><form onSubmit={saveSettings} className={s.settingsForm}><label>{tr("Lien d’invitation privé")}<input type="url" value={telegramUrl} onChange={(event) => setTelegramUrl(event.target.value)} placeholder={tr("https://t.me/…")} autoComplete="off" /></label><p className={s.fine}>{tr("Ce lien est affiché uniquement aux membres VIP actifs. La validation des entrées et sorties reste manuelle sur Telegram.")}</p><button className={s.primary} disabled={Boolean(busy)}>{busy === "settings" ? tr("Enregistrement…") : tr("Enregistrer le lien privé")}</button></form></section>}
       </> : <div className={s.empty}><button type="button" className={s.secondary} onClick={() => void load(undefined, true)}>{tr("Réessayer ")}<RefreshCw size={16} /></button></div>}
     </>}

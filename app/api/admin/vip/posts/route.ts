@@ -55,7 +55,8 @@ export async function PATCH(request: Request) {
     if (!current) throw new VipRequestError("Publication introuvable.", 404);
     const fields = validateVipPostInput(input, current as VipStoredPost);
     if (!Object.keys(fields).length) throw new VipRequestError("Aucune modification à enregistrer.", 400);
-    if (fields.image_path && fields.image_path !== current.image_path) await assertVipImageExists(access.admin, fields.image_path);
+    const imagePath = Object.hasOwn(fields, "image_path") ? fields.image_path : current.image_path;
+    if (imagePath) await assertVipImageExists(access.admin, imagePath);
     let expected = current.updated_at;
     if (Object.hasOwn(input, "expectedUpdatedAt")) {
       if (typeof input.expectedUpdatedAt !== "string" || !Number.isFinite(Date.parse(input.expectedUpdatedAt))) throw new VipRequestError("Date de modification invalide.", 400);

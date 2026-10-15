@@ -6,15 +6,16 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import Link from "next/link";
 import LanguageSwitcher from "@/components/i18n/LanguageSwitcher";
 import VipPostCard from "./VipPostCard";
+import VipPublicationsEditor from "./VipPublicationsEditor";
 import "./VipPortalShell.css";
-import { Activity, ArrowRight, ArrowUpRight, Bell, BookOpen, Calculator, ChartNoAxesCombined, ChevronDown, Crown, GitBranch, GraduationCap, Handshake, LockKeyhole, MessageCircle, PenLine, Radio, RefreshCw, Send, ShieldCheck, Smartphone, UserRound } from "lucide-react";
+import { Activity, ArrowRight, ArrowUpRight, Bell, BookOpen, Calculator, ChartColumn, ChartNoAxesCombined, ChevronDown, Crown, GitBranch, GraduationCap, Handshake, LockKeyhole, MessageCircle, PenLine, Radio, RefreshCw, Send, Settings, ShieldCheck, Smartphone, UserRound } from "lucide-react";
 import { safeHttps, VipApiError, vipDate, vipRequest, type VipAccess, type VipPost } from "@/lib/vip/client";
 import s from "./VipPortal.module.css";
 
 const views = [
   { key: "analysis", label: "Analyses", Icon: ChartNoAxesCombined },
   { key: "signal", label: "Signaux", Icon: Radio },
-  { key: "performance", label: "Bilan", Icon: Activity },
+  { key: "performance", label: "Bilan", Icon: ChartColumn },
   { key: "followup", label: "Suivi", Icon: GitBranch },
   { key: "risk", label: "Simulateur", Icon: Calculator },
   { key: "training", label: "Bientôt", Icon: GraduationCap },
@@ -25,16 +26,18 @@ export type VipView = typeof views[number]["key"];
 const headings: Record<VipView, [string, string]> = {
   analysis: ["Analyses.", "Le contexte, les zones et les graphiques."],
   signal: ["Signaux.", "Les idées structurées de l’équipe."],
-  followup: ["Suivi.", "Les mises à jour des scénarios partagés."],
-  risk: ["Simulateur de risque.", "Préparez votre lot avant la prise de position."],
-  partnership: ["Vos partenariats.", "Les présentations, les conditions et les nouveautés du cercle."], performance: ["Bilan.", "Le récapitulatif partagé avec le groupe."],
-  training: ["Formation & coaching.", "Le prochain chapitre de votre progression."], telegram: ["Votre communauté Telegram.", "Retrouvez InvestPro Trading VIP ™ et l’équipe."],
+  followup: ["Suivi.", "Les mises à jour des idées partagées."],
+  risk: ["Simulateur de risque.", "Préparer son lot avant la prise de position."],
+  partnership: ["Partenariats.", "Les présentations et avantages des partenaires."], performance: ["Bilan.", "Le récapitulatif partagé avec le groupe."],
+  training: ["Formation & coaching.", "Les prochaines expériences du cercle."], telegram: ["Telegram.", "Le lien avec ton canal privé."],
 };
-export default function VipPortal() {
+export default function VipPortal({ initialAdminMode = false }: { initialAdminMode?: boolean }) {
   const { t, locale } = useLocale();
   const [access, setAccess] = useState<VipAccess | null>(null);
   const [posts, setPosts] = useState<VipPost[]>([]);
   const [view, setView] = useState<VipView>("analysis");
+  // A URL can select a view, never grant access. The API's verified admin role gates the editor.
+  const [adminMode, setAdminMode] = useState(initialAdminMode);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -121,7 +124,7 @@ export default function VipPortal() {
     {membership.type === "abonnement" && <button type="button" className={s.secondary} onClick={renewal} disabled={busy || Boolean(membership.renewal_requested_at)}>{membership.renewal_requested_at ? t("Demande transmise") : t("Demander mon renouvellement")}</button>}
   </div>;
 
-  return <VipPortalFrame view={view} onSelect={setView} admin={access?.admin} onRefresh={() => void refresh()} loading={loading}>
+  return <VipPortalFrame view={view} onSelect={setView} admin={access?.admin === true} adminMode={adminMode && access?.admin === true} onModeChange={setAdminMode} onRefresh={() => void refresh()} loading={loading} editor={access?.admin === true ? <VipPublicationsEditor active={adminMode} embedded onPublished={() => void refresh()} /> : undefined}>
         {loading ? <div className={s.empty} role="status">{t("Chargement de votre espace privé…")}</div> : <>
           {error && <div className={s.notice} role="alert">{t(error)}{!access && <Link href="/login?next=%2Fdashboard%2Fvip">{t("Me connecter")}{" "}<ArrowRight size={15} /></Link>}</div>}
           {message && <p className={s.notice} role="status">{t(message)}</p>}
@@ -151,12 +154,15 @@ type VipPortalFrameProps = {
   view: VipView;
   onSelect: (view: VipView) => void;
   admin?: boolean;
+  adminMode?: boolean;
+  onModeChange?: (admin: boolean) => void;
+  editor?: ReactNode;
   onRefresh?: () => void;
   loading?: boolean;
   children: ReactNode;
 };
 
-function VipPortalFrame({ view, onSelect, admin = false, onRefresh, loading = false, children }: VipPortalFrameProps) {
+function VipPortalFrame({ view, onSelect, admin = false, adminMode = false, onModeChange, editor, onRefresh, loading = false, children }: VipPortalFrameProps) {
   const { t } = useLocale();
   const content = useRef<HTMLDivElement>(null);
   function select(next: VipView) {
@@ -165,18 +171,24 @@ function VipPortalFrame({ view, onSelect, admin = false, onRefresh, loading = fa
   }
   return <div className={s.portal} data-investpro-vip-portal="true">
     <header className={s.portalHeader}>
-      <div className={s.portalBrand}><span className={s.brandIcon}><Crown size={19} aria-hidden="true" /></span><div><b>InvestPro <span>VIP</span></b><small>{t("Le cercle privé")}</small></div></div>
-      <div className={s.headerActions}><span className={s.privateLabel}><LockKeyhole size={12} aria-hidden="true" /><span>{t("Privé")}</span></span><LanguageSwitcher />{admin && <Link className={s.adminLink} href="/dashboard/admin/vip" aria-label={t("Gérer le VIP")}><PenLine size={18} aria-hidden="true" /><span>{t("Admin")}</span></Link>}</div>
+      <div className={s.portalBrand}><span className={s.brandIcon}><Crown size={19} aria-hidden="true" /></span><div><b>InvestPro <span>VIP</span></b><small>{t(adminMode ? "Espace de publication" : "Le cercle privé")}</small></div></div>
+      <div className={s.headerActions}><span className={s.privateLabel}><LockKeyhole size={12} aria-hidden="true" /><span>{t("Privé")}</span></span><LanguageSwitcher /></div>
     </header>
-    <div className={s.workspace}>
+    {admin && <nav className={s.modeSwitch} aria-label={t("Vue de l’espace VIP")}>
+      <button type="button" aria-pressed={!adminMode} onClick={() => onModeChange?.(false)}><UserRound size={16} aria-hidden="true" />{t("Membre")}</button>
+      <button type="button" aria-pressed={adminMode} onClick={() => onModeChange?.(true)}><PenLine size={16} aria-hidden="true" />{t("Administrateur")}</button>
+      <Link className={s.accessSettings} href="/dashboard/admin/vip" aria-label={t("Membres et réglages VIP")} title={t("Membres et réglages VIP")}><Settings size={18} aria-hidden="true" /></Link>
+    </nav>}
+    <div className={s.workspace} hidden={adminMode}>
       <nav className={s.navigation} aria-label={t("Rubriques de l’espace VIP")}>
-        {views.map(({ key, label, Icon }) => <button className={s.railButton} type="button" key={key} onClick={() => select(key)} aria-pressed={view === key} aria-label={key === "training" ? t("Formation & coaching · Bientôt") : t(label)}><Icon size={19} aria-hidden="true" /><span>{t(label)}</span></button>)}
+        {views.map(({ key, label, Icon }) => <button className={s.railButton} type="button" key={key} onClick={() => select(key)} aria-pressed={view === key} data-coming-soon={key === "training" ? "true" : undefined} aria-label={key === "training" ? t("Formation & coaching · Bientôt") : t(label)}><Icon size={19} aria-hidden="true" /><span>{t(label)}</span></button>)}
       </nav>
       <div className={s.content} ref={content}>
         <header className={s.heading}><div><span className={s.eyebrow}>{t("Le cercle privé")}</span><h1>{t(headings[view][0])}</h1><p>{t(headings[view][1])}</p></div>{onRefresh && <button className={s.refresh} type="button" onClick={onRefresh} aria-label={t("Actualiser mon accès et les publications")} disabled={loading}><RefreshCw size={17} aria-hidden="true" /></button>}</header>
         {children}
       </div>
     </div>
+    {admin && <div className={s.editorWorkspace} hidden={!adminMode}>{editor}</div>}
     <nav className={s.personalNav} aria-label={t("Mes outils InvestPro")}>
       <Link href="/dashboard/journal"><BookOpen size={18} aria-hidden="true" />{t("Journal")}</Link>
       <Link href="/dashboard/rapports"><ChartNoAxesCombined size={18} aria-hidden="true" />{t("Rapports")}</Link>
@@ -198,14 +210,15 @@ function VipViewContent({ view, posts, telegramUrl, preview = false }: { view: V
       {visible.length ? <><div className={s.feedLabel}>{t("Publications")}</div>{visible.map(post => <VipPostCard key={post.id} post={post} preview={preview} />)}<p className={s.feedNote}><ShieldCheck size={13} aria-hidden="true" />{t("Seule l’équipe publie. Les membres peuvent réagir.")}</p></> : <div className={s.empty}><MessageCircle size={25} aria-hidden="true" /><h2>{t(emptyTitles[view] || "Les publications de l’équipe seront disponibles dans cette rubrique.")}</h2><p>{t("Les publications de l’équipe seront disponibles dans cette rubrique.")}</p></div>}
     </div>}
     {view === "performance" && <Link className={s.performanceLink} href="/dashboard/performances-vip"><Activity size={16} aria-hidden="true" />{t("Voir les performances VIP")}<ArrowUpRight size={14} aria-hidden="true" /></Link>}
-    {view === "risk" && <section className={s.feature}><Calculator size={31} /><h2>{t("Préparez votre risque.")}</h2><p>{t("Choisissez votre actif, votre entrée, votre stop loss et votre risque dans le simulateur pour préparer votre volume.")}</p><Link className={s.primary} href="/dashboard/simulateur">{t("Ouvrir le simulateur")}{" "}<ArrowUpRight size={16} /></Link></section>}
-    {view === "training" && <section className={s.feature}><GraduationCap size={33} /><span className={s.soon}>{t("Bientôt")}</span><h2>{t("Formation & coaching.")}</h2><p>{t("Les formations et l’accompagnement se préparent. Le programme, les modalités d’accès et la date d’ouverture seront annoncés ici.")}</p><div className={s.topics}><span>{t("Formation")}</span><span>{t("Coaching")}</span><span>{t("Progression")}</span></div></section>}
+    {view === "risk" && <section className={s.feature}><span className={s.trainingIcon}><Calculator size={20} aria-hidden="true" /></span><h2>{t("Calculer mon lot.")}</h2><p>{t("Retrouve le simulateur InvestPro pour préparer ton risque avant de prendre position.")}</p><Link className={s.primary} href="/dashboard/simulateur"><Calculator size={15} aria-hidden="true" />{t("Ouvrir le simulateur")}{" "}<ArrowUpRight size={16} /></Link></section>}
+    {view === "training" && <section className={`${s.feature} ${s.trainingFeature}`}><span className={s.trainingIcon}><GraduationCap size={20} aria-hidden="true" /></span><span className={s.trainingSoon}>{t("Bientôt")}</span><h2>{t("Formation & coaching")}</h2><p>{t("Un nouvel espace pour apprendre et progresser avec le cercle privé.")}</p></section>}
     {view === "telegram" && <section className={s.feature}><Send size={31} /><h2>{t("Retrouvez votre communauté.")}</h2><p>{t("Votre espace InvestPro est actif. Demandez à rejoindre InvestPro Trading VIP ™ ; l’équipe vérifie et valide votre entrée manuellement.")}</p>{telegramUrl ? <a className={s.primary} href={telegramUrl} target="_blank" rel="noopener noreferrer">{t("Rejoindre Telegram")}{" "}<ArrowUpRight size={16} /></a> : <p className={s.notice}>{t("Le lien du canal sera disponible ici dès sa configuration par l’équipe.")}</p>}<small>{t("L’adhésion au canal et son renouvellement restent gérés par l’équipe sur Telegram.")}</small></section>}
   </>;
 }
 
 /** Read-only presentation for an isolated preview route. No account/API access or mutations. */
-export function VipPortalPreview({ posts, initialView = "analysis" }: { posts: VipPost[]; initialView?: VipView }) {
+export function VipPortalPreview({ posts, initialView = "analysis", adminPreview = false }: { posts: VipPost[]; initialView?: VipView; adminPreview?: boolean }) {
   const [view, setView] = useState<VipView>(initialView);
-  return <VipPortalFrame view={view} onSelect={setView}><VipViewContent view={view} posts={posts} telegramUrl={null} preview /></VipPortalFrame>;
+  const [adminMode, setAdminMode] = useState(false);
+  return <VipPortalFrame view={view} onSelect={setView} admin={adminPreview} adminMode={adminPreview && adminMode} onModeChange={setAdminMode} editor={adminPreview ? <VipPublicationsEditor active={adminMode} embedded readOnlyPreview initialPosts={posts} /> : undefined}><VipViewContent view={view} posts={posts} telegramUrl={null} preview /></VipPortalFrame>;
 }

@@ -41,6 +41,12 @@
 .privateLabel { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--v-muted); }
 .adminLink { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 44px; min-height: 44px; border: 1px solid #4d5338; border-radius: 10px; padding: 7px 10px; color: var(--v-gold); font-size: 11px; }
 .workspace { display: flex; flex: 1; min-height: 0; min-width: 0; overflow: hidden; }
+.workspace[hidden], .editorWorkspace[hidden] { display: none; }
+.editorWorkspace { display: flex; flex: 1; min-height: 0; min-width: 0; overflow: hidden; }
+.modeSwitch { display: flex; align-items: center; gap: 5px; flex-shrink: 0; padding: 5px 8px; background: #10190f; border-bottom: 1px solid var(--v-border); }
+.portal .modeSwitch button { display: flex; justify-content: center; align-items: center; gap: 8px; flex: 1; min-width: 0; min-height: 44px; border: 0; border-radius: 11px; background: transparent; color: #acb6a4; font-size: 12px; padding: 9px 5px; }
+.modeSwitch button[aria-pressed="true"] { background: var(--v-gold); color: #251e10; }
+.modeSwitch .accessSettings { display: grid; place-items: center; flex-shrink: 0; min-width: 44px; min-height: 44px; border: 1px solid #4d5338; border-radius: 11px; color: var(--v-gold); }
 .navigation {
   width: 77px;
   flex-shrink: 0;
@@ -56,8 +62,9 @@
 .portal .railButton { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; width: 100%; min-height: 66px; margin: 0 0 3px; padding: 9px 1px; border: 0; border-radius: 12px; background: transparent; color: #a8b59d; text-align: center; font-size: 10px; line-height: 1.4; }
 .railButton > svg { width: 19px; height: 19px; flex-shrink: 0; }
 .railButton > span { max-width: 100%; overflow-wrap: anywhere; }
+.portal .railButton[data-coming-soon="true"] { color: #8e9b85; }
 .railButton:hover { background: #1d2919; color: var(--v-text); }
-.railButton[aria-pressed="true"] { background: #342e1b; color: var(--v-gold); }
+.portal .railButton[aria-pressed="true"] { background: #342e1b; color: var(--v-gold); }
 .railButton[aria-pressed="true"]::before { content: ""; position: absolute; left: -5px; top: 15px; bottom: 15px; width: 3px; border-radius: 0 3px 3px 0; background: var(--v-gold); }
 .content { flex: 1; min-width: 0; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; padding: 17px 12px 20px; scrollbar-width: thin; scrollbar-color: #5b5d3d transparent; }
 .heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 18px; }
@@ -92,6 +99,9 @@
 .feature > small { display: block; font-size: 10px; line-height: 1.7; color: var(--v-muted); margin-top: 15px; }
 .soon { display: inline-block; font-size: 9px; color: var(--v-gold); border: 1px solid #6d5d3e; background: #211c14; border-radius: 6px; padding: 3px 7px; margin-bottom: 10px; }
 .topics { display: flex; flex-wrap: wrap; gap: 10px; color: var(--v-gold); font-size: 10px; margin-top: 15px; }
+.trainingIcon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 13px; border: 1px solid #605437; background: #282a1a; color: var(--v-gold); margin: 0 0 22px; }
+.trainingSoon { display: block; color: var(--v-gold); font-size: 9px; font-weight: 650; letter-spacing: 1.4px; text-transform: uppercase; margin-bottom: 3px; }
+.portal .trainingFeature h2 { font-size: 18px; margin-bottom: 8px; }
 .mobileStart { min-width: 0; padding: 11px; border: 1px solid #39472d; border-radius: 10px; background: #111b12; }
 .mobileStart > div { display: flex; align-items: flex-start; gap: 7px; min-width: 0; }
 .mobileStart > div > svg { flex-shrink: 0; color: var(--v-gold); margin-top: 3px; }

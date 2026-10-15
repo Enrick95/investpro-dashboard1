@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { VipMembership, VipAccessResponse } from "./types";
 
 export type { VipMembership };
-export type { VipPost, VipPostCategory, VipReaction, VipPostReactions, VipMediaUpload } from "./types";
+export type { VipPost, VipPostCategory, VipReaction, VipPostReactions, VipMediaUpload, VipMediaUploadPreparation } from "./types";
 export type VipAccess = VipAccessResponse;
 export class VipApiError extends Error {
   constructor(message: string, public status: number) { super(message); }

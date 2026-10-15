@@ -29,8 +29,9 @@
 .levels > div { min-width: 0; }
 .levels dt { color: #acb6a4; font-size: 9px; }
 .levels dd { color: #efefe5; font-size: 11px; margin: 3px 0 0; overflow-wrap: anywhere; }
-.signalLabel { display: flex; align-items: center; gap: 9px; margin: 0 0 8px; font-size: 10px; font-weight: 550; color: #8be3ad; }
-.signalLabel h2 { color: #8be3ad; margin: 0; }
+.signalHeading { display: flex; align-items: center; gap: 9px; margin: 0 0 8px; }
+.post .signalHeading h2 { color: #8be3ad; margin: 0; }
+.post .signalSubtitle { font-size: 12px; font-weight: 550; line-height: 1.45; margin: 0 0 8px; color: #e3ebda; overflow-wrap: anywhere; }
 .signalDot, .signalHistory { position: relative; display: inline-block; width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%; background: #6cdb96; box-shadow: 0 0 8px #6cdb9638; }
 .signalHistory { background: #829278; box-shadow: none; }
 .signalDot::after { content: ""; position: absolute; inset: -4px; border: 1px solid #6cdb9680; border-radius: 50%; animation: signalPulse 2.8s ease-out infinite; }
