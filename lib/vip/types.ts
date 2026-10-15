@@ -42,3 +42,20 @@ export type VipAccessResponse = {
 };
 
 export type VipMemberState = "none" | "active" | "suspended" | "expired" | "upcoming";
+
+export type VipAccessRequest = {
+  id: string;
+  user_id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  telegram_username: string | null;
+  type: VipMembershipType;
+  affiliation_broker: VipAffiliationBroker | null;
+  status: "pending" | "approved" | "denied";
+  created_at: string;
+  reviewed_at: string | null;
+  verified_type: VipMembershipType | null;
+  verified_affiliation_broker: VipAffiliationBroker | null;
+  verified_expires_at: string | null;
+};

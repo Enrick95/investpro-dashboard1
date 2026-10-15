@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { safeNextPath } from "../lib/auth-next-path.ts";
 
 test("authentication preserves only VIP and dashboard destinations, including invitation queries", () => {
-  for (const destination of ["/vip", "/vip?code=Abc_123-xyz", "/dashboard", "/dashboard/", "/dashboard/admin/vip", "/dashboard/comptes?tab=mt5#account"]) {
+  for (const destination of ["/vip", "/vip?code=Abc_123-xyz", "/vip/deja-membre", "/vip/deja-membre?source=telegram#form", "/dashboard", "/dashboard/", "/dashboard/admin/vip", "/dashboard/comptes?tab=mt5#account"]) {
     assert.equal(safeNextPath(destination), destination);
   }
 });
@@ -23,6 +23,8 @@ test("encoded separators, dot traversal and route-prefix lookalikes are rejected
     "/dashboard/%5cevil.example", "/dashboard/%252f%252fevil.example",
     "/dashboard/%2e%2e/vip", "/dashboard/../vip", "/dashboard/./admin",
     "/dashboard//admin", "/dashboardevil", "/vip/other", "/api/admin/vip", "/login",
+    "/vip/deja-membres", "/vip/deja-membre/other", "/vip/deja-membre/../admin",
+    "/vip/%64eja-membre", "/vip/deja-membre%2fadmin", "/vip/deja-membre//evil.example",
   ]) assert.equal(safeNextPath(destination), "/dashboard", destination);
 });
 
@@ -40,4 +42,14 @@ test("OAuth encoding round trips nested invitation query strings without turning
   callback.searchParams.set("next", safeNextPath(destination));
   assert.equal(new URL(callback.toString()).searchParams.get("next"), destination);
   assert.equal(new URL(safeNextPath(callback.searchParams.get("next")), callback.origin).origin, callback.origin);
+});
+
+test("signup and login callbacks preserve the exact former-member intake destination", () => {
+  for (const path of ["/signup", "/login"]) {
+    const entry = new URL(path, "https://investprotrading.fr");
+    entry.searchParams.set("next", "/vip/deja-membre");
+    const callback = new URL("/auth/callback", entry.origin);
+    callback.searchParams.set("next", safeNextPath(entry.searchParams.get("next"), "/dashboard/onboarding"));
+    assert.equal(safeNextPath(callback.searchParams.get("next")), "/vip/deja-membre");
+  }
 });

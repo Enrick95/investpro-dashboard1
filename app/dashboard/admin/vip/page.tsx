@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { ArrowUpRight, Check, Copy, KeyRound, MessageCircle, Pencil, Plus, RefreshCw, Send, Settings, ShieldCheck, Users } from "lucide-react";
 import { vipDate, vipRequest, type VipMembership, type VipPost } from "@/lib/vip/client";
-import type { VipInvitation } from "@/lib/vip/types";
+import type { VipAccessRequest, VipInvitation } from "@/lib/vip/types";
+import VipAccessRequestsAdmin from "./VipAccessRequestsAdmin";
 import { VIP_AFFILIATION_BROKERS, validateVipIdentity, vipAffiliationBrokerLabel, type VipAffiliationBroker } from "@/lib/vip/identity";
 import s from "./VipAdmin.module.css";
 
@@ -13,7 +14,7 @@ type Origin = "" | Broker | "abonnement";
 type Invitation = VipInvitation;
 type MembersPayload = { members: VipMembership[]; invitations: Invitation[]; settings: { telegramConfigured: boolean } };
 type GeneratedInvitation = { code: string; activationUrl: string; invitation: Invitation };
-type Tab = "members" | "posts" | "settings";
+type Tab = "members" | "requests" | "posts" | "settings";
 const blankPost = { category: "signal", title: "", body: "", symbol: "", direction: "", entry: "", stopLoss: "", takeProfit: "", takeProfit2: "", imageUrl: "" };
 const brokers = VIP_AFFILIATION_BROKERS;
 type Identity = { first_name?: string | null; last_name?: string | null; affiliation_broker?: Broker | null; type: "affiliation" | "abonnement" };
@@ -31,6 +32,8 @@ function accessStatus(member: VipMembership, asOf: number) {
 export default function VipAdminPage() {
   const [tab, setTab] = useState<Tab>("members");
   const [data, setData] = useState<MembersPayload | null>(null);
+  const [requests, setRequests] = useState<VipAccessRequest[] | null>(null);
+  const [requestsError, setRequestsError] = useState("");
   const [asOf, setAsOf] = useState(0);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
@@ -49,12 +52,14 @@ export default function VipAdminPage() {
   const [editing, setEditing] = useState<{ userId: string; firstName: string; lastName: string; affiliationBroker: Broker | "" } | null>(null);
   const load = useCallback(async (signal?: AbortSignal, includeSettings = false) => {
     try {
-      const [members, settings] = await Promise.all([
+      const [members, settings, intake] = await Promise.all([
         vipRequest<MembersPayload>("/api/admin/vip/members", { signal }),
         includeSettings ? vipRequest<{ telegramInviteUrl: string | null }>("/api/admin/vip/settings", { signal }) : Promise.resolve(null),
+        vipRequest<{ requests: VipAccessRequest[] }>("/api/admin/vip/requests", { signal }).then(value => ({ value, error: "" })).catch(cause => ({ value: null, error: cause instanceof Error ? cause.message : "Demandes indisponibles." })),
       ]);
       if (signal?.aborted) return;
       setError(""); setData(members); setAsOf(Date.now()); if (settings) setTelegramUrl(settings.telegramInviteUrl || "");
+      setRequests(intake.value?.requests || null); setRequestsError(intake.error);
     } catch (cause) { if (!signal?.aborted) { setError(cause instanceof Error ? cause.message : "Impossible de charger l’administration VIP."); setData(null); } }
     finally { if (!signal?.aborted) setLoading(false); }
   }, []);
@@ -129,7 +134,8 @@ export default function VipAdminPage() {
     {loading ? <div className={s.empty} role="status">Chargement de l’administration VIP…</div> : <>
       {error && <p className={s.error} role="alert">{error}</p>}{message && <p className={s.message} role="status">{message}</p>}
       {data ? <>
-        <nav className={s.tabs} aria-label="Administration VIP">{[{ key: "members", title: "Membres", Icon: Users }, { key: "posts", title: "Publications", Icon: Send }, { key: "settings", title: "Paramètres", Icon: Settings }].map(({ key, title, Icon }) => <button type="button" aria-pressed={tab === key} key={key} onClick={() => setTab(key as Tab)}><Icon size={16} />{title}</button>)}<button type="button" className={s.reload} aria-label="Actualiser les accès" onClick={() => void load()} disabled={Boolean(busy)}><RefreshCw size={16} /></button></nav>
+        <nav className={s.tabs} aria-label="Administration VIP">{[{ key: "members", title: "Membres", Icon: Users }, { key: "requests", title: `À vérifier${requests ? ` · ${requests.length}` : ""}`, Icon: ShieldCheck }, { key: "posts", title: "Publications", Icon: Send }, { key: "settings", title: "Paramètres", Icon: Settings }].map(({ key, title, Icon }) => <button type="button" aria-pressed={tab === key} key={key} onClick={() => setTab(key as Tab)}><Icon size={16} />{title}</button>)}<button type="button" className={s.reload} aria-label="Actualiser les accès" onClick={() => void load()} disabled={Boolean(busy)}><RefreshCw size={16} /></button></nav>
+        {tab === "requests" && <VipAccessRequestsAdmin requests={requests} error={requestsError} onRefresh={() => load()} />}
         {tab === "members" && <>
           <div className={s.summary}><div><span>Membres</span><b>{data.members.length}</b></div><div><span>À renouveler</span><b>{data.members.filter((member) => member.renewal_requested_at).length}</b></div><div><span>Invitations en attente</span><b>{data.invitations.filter((invitation) => !invitation.redeemed_at && !invitation.revoked_at && new Date(invitation.expires_at).getTime() > asOf).length}</b></div></div>
           <section className={s.card}>
