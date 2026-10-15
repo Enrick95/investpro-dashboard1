@@ -78,9 +78,19 @@
 .published h3 { font-size: 14px; line-height: 1.4; font-weight: 600; margin: 0 0 7px; overflow-wrap: anywhere; }
 .excerpt { font-size: 11px; line-height: 1.6; color: #bdc8b4; margin: 0 0 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .publishedImage { display: block; width: 100%; height: auto; max-height: 140px; object-fit: contain; background: #080e11; border-radius: 8px; margin: 8px 0 10px; }
-.publishedBottom { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
+.publishedBottom { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; justify-content: space-between; }
 .publishedBottom > span { font-size: 10px; color: var(--ve-muted); }
 .editor .publishedBottom button { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 9px 12px; border: 1px solid #5e643c; border-radius: 10px; background: #2b301b; color: var(--ve-gold); font-size: 11px; }
+.postActions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.editor .publishedBottom .deleteButton { border-color: #6b3b34; background: #2d1a17; color: #e8a394; }
+.deleteConfirmation { padding: 13px 12px; margin-top: 12px; border: 1px solid #75463c; border-radius: 11px; background: #211713; }
+.deleteConfirmation h4 { color: #f0c4b6; font-size: 12px; line-height: 1.5; margin: 0 0 7px; font-weight: 600; }
+.deleteConfirmation p { color: #bfaaa0; font-size: 11px; line-height: 1.65; margin: 0 0 11px; overflow-wrap: anywhere; }
+.deleteConfirmation .deletePostTitle { color: #efe2d7; font-weight: 550; white-space: pre-wrap; }
+.deleteConfirmation .deleteError { color: #f2b3a0; }
+.deleteActions { display: flex; flex-wrap: wrap; gap: 7px; }
+.editor .deleteActions button { flex: 1 1 100px; min-height: 44px; padding: 9px 11px; border: 1px solid #534438; border-radius: 9px; background: #29221b; color: #d7c8bb; font-size: 11px; }
+.editor .deleteActions .confirmDelete { border-color: #925344; background: #54271f; color: #f7d2c5; }
 .empty { display: grid; justify-items: center; gap: 14px; border: 1px solid #3a482d; border-radius: 14px; background: #172013; padding: 24px 14px; text-align: center; color: var(--ve-muted); font-size: 12px; }
 .empty p { margin: 0; }
 .empty > svg { color: var(--ve-gold); }

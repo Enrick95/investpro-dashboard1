@@ -20,27 +20,39 @@ function compile(file, modules = {}, globals = {}) {
 const membership = compile("lib/vip/membership.ts");
 const validation = compile("lib/vip/push-validation.ts");
 
-async function run({ count = 65, preview = false, exhaustBudget = false, failTracking = false } = {}) {
-  const queue = Array.from({ length: count }, (_, index) => ({
-    id: "notice-" + index, user_id: "user-" + index, kind: "publication", title: "Test", message: "Generic", event_key: "vip:post:" + index,
-  }));
-  let now = 0, sends = 0, inFlight = 0, peak = 0, claims = 0;
-  const completed = [];
+async function run({ count = 65, preview = false, exhaustBudget = false, failTracking = false, published = true, publicationError = false, invalidEvent = false, mismatchedRecipient = false, withdrawAfterSubscription = false, kind = "publication" } = {}) {
+  const fixtureId = (index, suffix) => `${(index + 1).toString(16).padStart(8, "0")}-0000-4000-8000-${suffix}`;
+  const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  const queue = Array.from({ length: count }, (_, index) => {
+    const user_id = fixtureId(index, "000000000001"), postId = fixtureId(index, "000000000002");
+    return { id: "notice-" + index, user_id, kind, title: "Test", message: "Generic", event_key: invalidEvent ? "invalid" : kind === "renewal" ? `vip:renewal:${user_id}:${expiry}:j3` : `vip:post:${postId}:${mismatchedRecipient ? fixtureId(index, "000000000099") : user_id}` };
+  });
+  let now = 0, sends = 0, inFlight = 0, peak = 0, claims = 0, publicationReads = 0;
+  const completed = [], subscribed = new Set(), checked = new Set();
   const db = {
     async rpc(name, args) { assert.equal(name, "vip_claim_notifications"); assert.equal(args.p_limit, 20); claims++; return { data: queue.splice(0, args.p_limit), error: null }; },
     from(table) {
+      const filters = new Map();
       const chain = {
-        select() { return chain; }, eq() { return chain; },
-        async maybeSingle() { assert.equal(table, "vip_memberships"); return { data: { type: "affiliation", status: "active", started_at: "2020-01-01T00:00:00Z", expires_at: null }, error: null }; },
-        async limit() { assert.equal(table, "vip_push_subscriptions"); return { data: [{ id: "subscription", endpoint: "https://fcm.googleapis.com/test", p256dh: "fixture", auth: "fixture" }], error: null }; },
-        update(value) { assert.equal(table, "vip_notification_outbox"); completed.push(value.status); const shouldFail = failTracking && completed.length === 1; return { eq() { return this; }, then(resolve) { resolve({ error: shouldFail ? new Error("fixture tracking failure") : null }); } }; },
+        select() { return chain; }, eq(key, value) { filters.set(key, value); return chain; },
+        async maybeSingle() {
+          if (table === "vip_posts") {
+            publicationReads++; const postId = filters.get("id"), userId = postId.replace(/000000000002$/, "000000000001");
+            assert.equal(filters.get("published"), true); assert(subscribed.has(userId), "publication visibility is rechecked after subscription lookup and immediately before push"); checked.add(postId);
+            return { data: published ? { id: postId } : null, error: publicationError ? new Error("fixture publication lookup failure") : null };
+          }
+          assert.equal(table, "vip_memberships"); return { data: { type: kind === "renewal" ? "abonnement" : "affiliation", status: "active", started_at: "2020-01-01T00:00:00Z", expires_at: kind === "renewal" ? expiry : null }, error: null };
+        },
+        async limit() { assert.equal(table, "vip_push_subscriptions"); subscribed.add(filters.get("user_id")); if (withdrawAfterSubscription) published = false; return { data: [{ id: "subscription", endpoint: "https://fcm.googleapis.com/test", p256dh: "fixture", auth: "fixture" }], error: null }; },
+        update(value) { assert.equal(table, "vip_notification_outbox"); completed.push(value); const shouldFail = failTracking && completed.length === 1; return { eq() { return this; }, then(resolve) { resolve({ error: shouldFail ? new Error("fixture tracking failure") : null }); } }; },
       };
       return chain;
     },
   };
   const worker = compile("lib/vip/notifications.ts", {
     "server-only": {}, "./membership": membership, "./push-validation": validation,
-    "web-push": { setVapidDetails() {}, async sendNotification() {
+    "web-push": { setVapidDetails() {}, async sendNotification(_subscription, payload) {
+      if (kind === "publication") { const postId = JSON.parse(payload).tag.split(":")[2]; assert(checked.has(postId)); assert(published); }
       sends++; inFlight++; peak = Math.max(peak, inFlight);
       await Promise.resolve(); inFlight--;
       if (exhaustBudget) now = 251000;
@@ -48,7 +60,7 @@ async function run({ count = 65, preview = false, exhaustBudget = false, failTra
   }, { process: { env: { VERCEL_ENV: preview ? "preview" : "production", VAPID_PUBLIC_KEY: "fixture-public", VAPID_PRIVATE_KEY: "fixture-private", VAPID_SUBJECT: "mailto:test@example.invalid" } }, performance: { now: () => now } });
   let result, error;
   try { result = await worker.deliverVipNotifications(db); } catch (caught) { error = caught; }
-  return { result, error, remainingRows: queue.length, sends, peak, claims, completed: completed.length };
+  return { result, error, remainingRows: queue.length, sends, peak, claims, completed: completed.length, finished: completed, publicationReads };
 }
 
 (async () => {
@@ -80,5 +92,19 @@ async function run({ count = 65, preview = false, exhaustBudget = false, failTra
   assert.ok(failure.error);
   assert.equal(failure.completed, 20, "tracking failure still finishes every row in the claimed batch");
   assert.equal(failure.claims, 1);
-  console.log("VIP worker tests passed: drains 65 recipients, concurrency10, budget boundary, empty queue, preview isolation and finishes claimed rows on tracking error. All providers and database access were stubbed; no outbound calls.");
+
+  for (const settings of [{ published: false }, { withdrawAfterSubscription: true }]) {
+    const withdrawn = await run(settings);
+    assert.equal(withdrawn.error, undefined); assert.equal(withdrawn.sends, 0); assert.equal(withdrawn.result.skipped, 65); assert.equal(withdrawn.completed, 65); assert.equal(withdrawn.remainingRows, 0);
+    assert(withdrawn.finished.every(row => row.status === "skipped" && row.last_error === "publication_unpublished"));
+  }
+  const unavailable = await run({ count: 3, publicationError: true });
+  assert.equal(unavailable.sends, 0); assert.equal(unavailable.result.failed, 3); assert.equal(unavailable.completed, 3); assert(unavailable.finished.every(row => row.last_error === "publication_lookup_failed"));
+  for (const settings of [{ invalidEvent: true }, { mismatchedRecipient: true }]) {
+    const invalid = await run({ count: 3, ...settings });
+    assert.equal(invalid.sends, 0); assert.equal(invalid.result.skipped, 3); assert.equal(invalid.publicationReads, 0); assert(invalid.finished.every(row => row.last_error === "invalid_publication_event"));
+  }
+  const renewal = await run({ count: 3, kind: "renewal", published: false });
+  assert.equal(renewal.sends, 3); assert.equal(renewal.result.sent, 3); assert.equal(renewal.publicationReads, 0, "renewal delivery does not depend on any publication");
+  console.log("VIP worker tests passed: drains 65, concurrency10, budget/claimed-row guarantees, preview isolation, withdrawal after claim, lookup failure, invalid event/recipient and unchanged renewal delivery. Database and providers stubbed; no outbound calls.");
 })().catch(error => { console.error(error); process.exitCode = 1; });

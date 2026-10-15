@@ -10,6 +10,10 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
+function nextPostVersion(current: string) {
+  return new Date(Math.max(Date.now(), Date.parse(current) + 1)).toISOString();
+}
+
 export async function GET(request: Request) {
   try {
     const access = await authenticateAdmin(request, "users_write");
@@ -52,7 +56,7 @@ export async function PATCH(request: Request) {
     if (!isVipPostId(input.id)) throw new VipRequestError("Publication invalide.", 400);
     const { data: current, error: readError } = await access.admin.from("vip_posts").select(VIP_POST_COLUMNS).eq("id", input.id).maybeSingle();
     if (readError) throw readError;
-    if (!current) throw new VipRequestError("Publication introuvable.", 404);
+    if (!current || current.published !== true) throw new VipRequestError("Publication introuvable.", 404);
     const fields = validateVipPostInput(input, current as VipStoredPost);
     if (!Object.keys(fields).length) throw new VipRequestError("Aucune modification à enregistrer.", 400);
     const imagePath = Object.hasOwn(fields, "image_path") ? fields.image_path : current.image_path;
@@ -62,7 +66,7 @@ export async function PATCH(request: Request) {
       if (typeof input.expectedUpdatedAt !== "string" || !Number.isFinite(Date.parse(input.expectedUpdatedAt))) throw new VipRequestError("Date de modification invalide.", 400);
       expected = input.expectedUpdatedAt;
     }
-    const { data: post, error } = await access.admin.from("vip_posts").update({ ...fields, updated_at: new Date().toISOString() }).eq("id", input.id).eq("updated_at", expected).select(VIP_POST_COLUMNS).maybeSingle();
+    const { data: post, error } = await access.admin.from("vip_posts").update({ ...fields, updated_at: nextPostVersion(current.updated_at) }).eq("id", input.id).eq("published", true).eq("updated_at", expected).select(VIP_POST_COLUMNS).maybeSingle();
     if (error) throw error;
     if (!post) throw new VipRequestError("Cette publication a été modifiée entre-temps. Actualisez-la avant de réessayer.", 409);
     let updated: VipPost | VipStoredPost = post as VipStoredPost;
@@ -71,4 +75,31 @@ export async function PATCH(request: Request) {
     // No notification, outbox insert or delivery call on an edit.
     return vipJson({ post: updated, notifications: { queued: false } });
   } catch (error) { return vipPostErrorResponse(error, "Modification impossible. Actualisez la publication pour vérifier son état."); }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const access = await authenticateAdmin(request, "users_write");
+    if ("error" in access) return vipJson({ error: access.error }, access.status);
+    assertVipMutationEnvironment();
+    const input = await readVipJson(request, 4096);
+    if (!isVipPostId(input.id)) throw new VipRequestError("Publication invalide.", 400);
+    if (typeof input.expectedUpdatedAt !== "string" || !Number.isFinite(Date.parse(input.expectedUpdatedAt))) throw new VipRequestError("Date de modification invalide.", 400);
+    const { data: current, error: readError } = await access.admin.from("vip_posts").select("id,published,updated_at").eq("id", input.id).maybeSingle();
+    if (readError) throw readError;
+    if (!current) throw new VipRequestError("Publication introuvable.", 404);
+    // Retrying an already completed withdrawal cannot remove content or change its version.
+    if (current.published === false) return vipJson({ id: input.id, deleted: true });
+    const { data: withdrawn, error } = await access.admin.from("vip_posts").update({ published: false, updated_at: nextPostVersion(current.updated_at) }).eq("id", input.id).eq("published", true).eq("updated_at", input.expectedUpdatedAt).select("id").maybeSingle();
+    if (error) throw error;
+    if (!withdrawn) {
+      // A concurrent withdrawal is an idempotent success; a concurrent edit requires review.
+      const { data: latest, error: latestError } = await access.admin.from("vip_posts").select("id,published").eq("id", input.id).maybeSingle();
+      if (latestError) throw latestError;
+      if (!latest) throw new VipRequestError("Publication introuvable.", 404);
+      if (latest.published !== false) throw new VipRequestError("Cette publication a été modifiée entre-temps. Actualisez-la avant de réessayer.", 409);
+    }
+    // Preserve the row, attachments and reactions. Only INSERT queues a publication alert.
+    return vipJson({ id: input.id, deleted: true });
+  } catch (error) { return vipPostErrorResponse(error, "Suppression impossible. Actualisez la publication pour vérifier son état."); }
 }

@@ -28,7 +28,7 @@ const membership = compile("lib/vip/membership.ts");
 class VipRequestError extends Error { constructor(message, status = 400) { super(message); this.status = status; } }
 const current = { id: postId, category: "signal", title: "Signal initial", body: "Entrée : 7701 - 7671\nTP3 : OPEN", symbol: "US500", direction: "buy", levels: { entry: 7701, stopLoss: 7622.89 }, image_path: null, image_url: "https://legacy.example/graph.png", created_at: "2026-10-01T10:00:00Z", updated_at: "2026-10-01T10:00:00Z", published: true, created_by: adminId };
 
-function fixture({ authorized = true, vip = true, preview = false, expired = false, dbError = false, posts = [current], storedBytes = PNG, storedMime = "image/png", infoSize = storedBytes.length } = {}) {
+function fixture({ authorized = true, vip = true, preview = false, expired = false, dbError = false, posts = [current], storedBytes = PNG, storedMime = "image/png", infoSize = storedBytes.length, beforeUpdate } = {}) {
   const calls = { reads: [], updates: [], inserts: [], rpcs: [], uploads: [], signed: [], uploadSigns: [], downloads: [], after: [], limits: [], permissions: [] };
   const rows = structuredClone(posts);
   const bucket = {
@@ -48,7 +48,7 @@ function fixture({ authorized = true, vip = true, preview = false, expired = fal
       const resolve = () => {
         if (dbError) return { data: null, error: new Error("Fixture DB error") };
         if (operation === "insert") { const row = { ...payload, id: postId, created_at: "2026-10-15T10:00:00Z", updated_at: "2026-10-15T10:00:00Z" }; rows.push(row); return { data: row, error: null }; }
-        if (operation === "update") { const row = matching()[0]; if (row) Object.assign(row, payload); return { data: row || null, error: null }; }
+        if (operation === "update") { beforeUpdate?.(rows, payload, filters); const row = matching()[0]; if (row) Object.assign(row, payload); return { data: row || null, error: null }; }
         return { data: matching(), error: null };
       };
       const chain = {
@@ -83,7 +83,7 @@ function fixture({ authorized = true, vip = true, preview = false, expired = fal
   const memberPosts = compile("app/api/vip/posts/route.ts", common);
   const reaction = compile("app/api/vip/posts/[id]/reaction/route.ts", common);
   const request = (body, method = "POST", origin = "https://investprotrading.fr") => new Request("https://investprotrading.fr/api/admin/vip/posts", { method, headers: { Origin: origin, "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  return { calls, db, postsServer, uploadTickets, server, request, adminPosts, adminMedia, signedMedia, memberPosts, reaction };
+  return { calls, rows, db, postsServer, uploadTickets, server, request, adminPosts, adminMedia, signedMedia, memberPosts, reaction };
 }
 
 test("PATCH changes only supplied fields and preserves legacy levels/direction/image URL", () => {
@@ -144,6 +144,69 @@ test("PATCH updates the existing row, checks the version, preserves metadata and
 });
 test("a stale edit returns 409 without overwriting the stored post", async () => {
   const f = fixture(); const response = await f.adminPosts.PATCH(f.request({ id: postId, title: "Stale", expectedUpdatedAt: "2000-01-01T00:00:00Z" }, "PATCH")); assert.equal(response.status, 409);
+});
+test("DELETE withdraws only the published flag/version, preserves content/assets and emits no alert", async () => {
+  const attached = { ...current, image_path: imagePath, image_url: null };
+  const f = fixture({ posts: [attached] });
+  const response = await f.adminPosts.DELETE(f.request({ id: postId, expectedUpdatedAt: current.updated_at, title: "Ignored", imagePath: null }, "DELETE"));
+  assert.equal(response.status, 200); assert.deepEqual(await response.json(), { id: postId, deleted: true });
+  assert.deepEqual(Object.keys(f.calls.updates[0]).sort(), ["published", "updated_at"]);
+  assert.equal(f.rows.length, 1); assert.equal(f.rows[0].published, false);
+  assert(Date.parse(f.rows[0].updated_at) > Date.parse(current.updated_at));
+  for (const key of Object.keys(attached).filter(key => !["published", "updated_at"].includes(key))) assert.deepEqual(f.rows[0][key], attached[key]);
+  assert.deepEqual(f.calls.permissions, ["users_write"]);
+  assert.equal(f.calls.inserts.length + f.calls.after.length + f.calls.rpcs.length + f.calls.downloads.length + f.calls.uploads.length + f.calls.signed.length, 0);
+  const adminResponse = await f.adminPosts.GET(new Request("https://investprotrading.fr/api/admin/vip/posts"));
+  const memberResponse = await f.memberPosts.GET(new Request("https://investprotrading.fr/api/vip/posts"));
+  assert.equal((await adminResponse.json()).posts.length, 0); assert.equal((await memberResponse.json()).posts.length, 0); assert.equal(f.calls.signed.length, 0);
+});
+test("DELETE requires a UUID and explicit valid version, and absent posts return 404", async () => {
+  for (const body of [{ id: "invalid", expectedUpdatedAt: current.updated_at }, { id: postId }, { id: postId, expectedUpdatedAt: 123 }, { id: postId, expectedUpdatedAt: "invalid" }]) {
+    const f = fixture(); assert.equal((await f.adminPosts.DELETE(f.request(body, "DELETE"))).status, 400); assert.equal(f.calls.updates.length, 0);
+  }
+  const absent = fixture({ posts: [] }); assert.equal((await absent.adminPosts.DELETE(absent.request({ id: postId, expectedUpdatedAt: current.updated_at }, "DELETE"))).status, 404); assert.equal(absent.calls.updates.length, 0);
+});
+test("DELETE is admin-only, same-origin, production-only and bounded before mutation", async () => {
+  for (const [settings, status] of [[{ authorized: false }, 401], [{ preview: true }, 403]]) {
+    const f = fixture(settings); assert.equal((await f.adminPosts.DELETE(f.request({ id: postId, expectedUpdatedAt: current.updated_at }, "DELETE"))).status, status); assert.equal(f.calls.updates.length + f.calls.inserts.length + f.calls.after.length, 0);
+  }
+  const foreign = fixture(); assert.equal((await foreign.adminPosts.DELETE(foreign.request({ id: postId, expectedUpdatedAt: current.updated_at }, "DELETE", "https://evil.example"))).status, 403); assert.equal(foreign.calls.updates.length, 0);
+  const large = fixture(); assert.equal((await large.adminPosts.DELETE(large.request({ id: postId, expectedUpdatedAt: current.updated_at, filler: "x".repeat(4096) }, "DELETE"))).status, 413); assert.equal(large.calls.updates.length, 0);
+});
+test("stale DELETE cannot withdraw a publication that was edited after the confirmation opened", async () => {
+  const f = fixture(); const response = await f.adminPosts.DELETE(f.request({ id: postId, expectedUpdatedAt: "2000-01-01T00:00:00Z" }, "DELETE"));
+  assert.equal(response.status, 409); assert.deepEqual(f.rows[0], current); assert.equal(f.calls.after.length, 0);
+});
+test("a concurrent PATCH wins over a stale DELETE without losing the edited content", async () => {
+  const later = "2099-10-15T10:00:00.001Z";
+  const f = fixture({ beforeUpdate(rows) { rows[0].title = "Concurrent edit"; rows[0].updated_at = later; } });
+  const response = await f.adminPosts.DELETE(f.request({ id: postId, expectedUpdatedAt: current.updated_at }, "DELETE"));
+  assert.equal(response.status, 409); assert.equal(f.rows[0].published, true); assert.equal(f.rows[0].title, "Concurrent edit"); assert.equal(f.rows[0].updated_at, later);
+});
+test("a concurrent DELETE prevents an already-read PATCH from overwriting the withdrawn row", async () => {
+  const withdrawnVersion = "2099-10-15T10:00:00.001Z";
+  const f = fixture({ beforeUpdate(rows) { rows[0].published = false; rows[0].updated_at = withdrawnVersion; } });
+  const response = await f.adminPosts.PATCH(f.request({ id: postId, title: "Stale edit", expectedUpdatedAt: current.updated_at }, "PATCH"));
+  assert.equal(response.status, 409); assert.equal(f.rows[0].published, false); assert.equal(f.rows[0].title, current.title); assert.equal(f.rows[0].updated_at, withdrawnVersion);
+});
+test("DELETE retries and concurrent withdrawals succeed without a second write or lost content", async () => {
+  const body = { id: postId, expectedUpdatedAt: current.updated_at };
+  const f = fixture(); assert.equal((await f.adminPosts.DELETE(f.request(body, "DELETE"))).status, 200);
+  const version = f.rows[0].updated_at; assert.equal((await f.adminPosts.DELETE(f.request(body, "DELETE"))).status, 200);
+  assert.equal(f.calls.updates.length, 1); assert.equal(f.rows[0].updated_at, version);
+  assert.equal((await f.adminPosts.PATCH(f.request({ id: postId, title: "Cannot restore", expectedUpdatedAt: version }, "PATCH"))).status, 404); assert.equal(f.calls.updates.length, 1); assert.equal(f.rows[0].published, false);
+  const racing = fixture({ beforeUpdate(rows) { rows[0].published = false; rows[0].updated_at = "2099-10-15T10:00:00.001Z"; } });
+  assert.equal((await racing.adminPosts.DELETE(racing.request(body, "DELETE"))).status, 200); assert.equal(racing.rows[0].body, current.body); assert.equal(racing.calls.after.length, 0);
+});
+test("post versions advance even when the stored timestamp is ahead of the application clock", async () => {
+  const ahead = { ...current, updated_at: "2099-10-15T10:00:00.000Z" };
+  for (const method of ["PATCH", "DELETE"]) {
+    const f = fixture({ posts: [ahead] }); const response = await f.adminPosts[method](f.request({ id: postId, expectedUpdatedAt: ahead.updated_at, title: "Edited" }, method));
+    assert.equal(response.status, 200); assert.equal(f.rows[0].updated_at, "2099-10-15T10:00:00.001Z");
+  }
+});
+test("DELETE database failures fail closed and do not enqueue anything", async () => {
+  const f = fixture({ dbError: true }); assert.equal((await f.adminPosts.DELETE(f.request({ id: postId, expectedUpdatedAt: current.updated_at }, "DELETE"))).status, 503); assert.equal(f.calls.updates.length + f.calls.after.length, 0); assert.equal(f.rows[0].published, true);
 });
 test("preview blocks publication, editing, image upload and reaction before any mutation", async () => {
   const f = fixture({ preview: true });

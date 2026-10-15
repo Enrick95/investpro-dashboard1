@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import Image from "next/image";
-import { ArrowLeft, ChevronDown, Eye, ImagePlus, Image as ImageIcon, Info, Layers, Pencil, RefreshCw, Save, Send, X } from "lucide-react";
+import { ArrowLeft, ChevronDown, Eye, ImagePlus, Image as ImageIcon, Info, Layers, Pencil, RefreshCw, Save, Send, Trash2, X } from "lucide-react";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { createClient } from "@/lib/supabase/client";
 import { safeHttps, vipDate, vipRequest, type VipMediaUpload, type VipMediaUploadPreparation, type VipPost, type VipPostCategory } from "@/lib/vip/client";
@@ -74,6 +74,9 @@ export default function VipPublicationsEditor({ active, readOnlyPreview = false,
   const [loading, setLoading] = useState(!readOnlyPreview);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<VipPost | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState("");
   const [pendingImage, setPendingImage] = useState<{ url: string; name: string } | null>(null);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -81,6 +84,11 @@ export default function VipPublicationsEditor({ active, readOnlyPreview = false,
   const titleInput = useRef<HTMLInputElement>(null);
   const editor = useRef<HTMLElement>(null);
   const scrollArea = useRef<HTMLDivElement>(null);
+  const publishedHeading = useRef<HTMLHeadingElement>(null);
+  const deleteHeading = useRef<HTMLHeadingElement>(null);
+  const deleteConfirmation = useRef<HTMLElement>(null);
+  const deleteTrigger = useRef<HTMLButtonElement | null>(null);
+  const mutationInFlight = useRef(false);
   const originalCreation = useRef<Draft | null>(null);
   const categoryDrafts = useRef<Partial<Record<VipPostCategory, Pick<Draft, "title" | "titleExpanded" | "body">>>>({});
   const uploadController = useRef<AbortController | null>(null);
@@ -93,7 +101,7 @@ export default function VipPublicationsEditor({ active, readOnlyPreview = false,
     const version = ++readVersion.current;
     try {
       const result = await vipRequest<{ posts: VipPost[] }>("/api/admin/vip/posts", { signal });
-      if (!signal?.aborted && version === readVersion.current) { setPosts(result.posts || []); setError(""); }
+      if (!signal?.aborted && version === readVersion.current) { setPosts(result.posts || []); setError(""); setDeleteTarget(null); setDeleteError(""); }
     } catch (cause) {
       if (!signal?.aborted && version === readVersion.current) setError(cause instanceof Error ? cause.message : "Impossible de charger les publications.");
     } finally { if (!signal?.aborted && version === readVersion.current) setLoading(false); }
@@ -136,7 +144,7 @@ export default function VipPublicationsEditor({ active, readOnlyPreview = false,
   }
 
   async function selectImage(event: ChangeEvent<HTMLInputElement>) {
-    if (readOnlyPreview) return;
+    if (readOnlyPreview || mutationInFlight.current || saving || deleting) return;
     const file = event.target.files?.[0];
     if (!file) return;
     if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type)) {
@@ -203,21 +211,22 @@ export default function VipPublicationsEditor({ active, readOnlyPreview = false,
   function resetScroll() { requestAnimationFrame(() => scrollArea.current?.scrollTo({ top: 0 })); }
 
   function startEditing(post: VipPost) {
-    if (saving || uploading) return;
+    if (mutationInFlight.current || saving || uploading || deleting) return;
     if (!editing) originalCreation.current = draft;
     clearPendingUpload();
-    setDraft(draftFromPost(post)); setEditing(post); setPreview(false); setTab("compose"); setError(""); setMessage("");
+    setDraft(draftFromPost(post)); setEditing(post); setPreview(false); setTab("compose"); setError(""); setMessage(""); setDeleteTarget(null); setDeleteError("");
     requestAnimationFrame(() => { scrollArea.current?.scrollTo({ top: 0 }); titleInput.current?.focus({ preventScroll: true }); });
   }
 
   function cancelEditing() {
+    if (mutationInFlight.current || deleting) return;
     clearPendingUpload(); restoreCreation(); setTab("compose"); setError(""); setMessage(""); resetScroll();
   }
 
   function changeTab(next: "compose" | "published") {
-    if (saving || uploading) return;
+    if (mutationInFlight.current || saving || uploading || deleting) return;
     if (editing) restoreCreation();
-    setTab(next); setPreview(false); setError(""); resetScroll();
+    setTab(next); setPreview(false); setError(""); setDeleteTarget(null); setDeleteError(""); resetScroll();
   }
 
   function validDraft() {
@@ -227,12 +236,13 @@ export default function VipPublicationsEditor({ active, readOnlyPreview = false,
   }
 
   function showPreview() {
-    if (!uploading && validDraft()) { setPreview(true); resetScroll(); }
+    if (!mutationInFlight.current && !deleting && !uploading && validDraft()) { setPreview(true); resetScroll(); }
   }
 
   async function save(event: FormEvent) {
     event.preventDefault();
-    if (readOnlyPreview || saving || uploading || !validDraft()) return;
+    if (readOnlyPreview || mutationInFlight.current || uploadController.current || saving || uploading || deleting || !validDraft()) return;
+    mutationInFlight.current = true;
     setSaving(true); setMessage("");
     try {
       const payload: { category: VipPostCategory; title: string; body: string; id?: string; expectedUpdatedAt?: string; imagePath?: string | null } = {
@@ -258,7 +268,44 @@ export default function VipPublicationsEditor({ active, readOnlyPreview = false,
       // A failed feed refresh must not turn a completed save into a failed publication.
       try { void Promise.resolve(onPublished?.()).catch(() => {}); } catch { /* The saved post remains available in this list. */ }
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Impossible d’enregistrer la publication. Votre brouillon est conservé."); }
-    finally { setSaving(false); }
+    finally { mutationInFlight.current = false; setSaving(false); }
+  }
+
+  function beginDelete(post: VipPost, trigger: HTMLButtonElement) {
+    if (mutationInFlight.current || saving || uploading || deleting) return;
+    deleteTrigger.current = trigger;
+    setDeleteTarget(post); setDeleteError(""); setError(""); setMessage("");
+    requestAnimationFrame(() => { deleteConfirmation.current?.scrollIntoView({ block: "nearest", behavior: "auto" }); deleteHeading.current?.focus({ preventScroll: true }); });
+  }
+
+  function cancelDelete() {
+    if (mutationInFlight.current || deleting) return;
+    setDeleteTarget(null); setDeleteError("");
+    requestAnimationFrame(() => { deleteTrigger.current?.scrollIntoView({ block: "nearest", behavior: "auto" }); deleteTrigger.current?.focus({ preventScroll: true }); });
+  }
+
+  async function removePost(post: VipPost) {
+    if (readOnlyPreview || mutationInFlight.current || uploadController.current || saving || uploading || deleting || deleteTarget?.id !== post.id) return;
+    if (!deleteTarget.updated_at || !Number.isFinite(Date.parse(deleteTarget.updated_at))) {
+      setDeleteError("Actualisez les publications avant de confirmer ce retrait."); return;
+    }
+    mutationInFlight.current = true;
+    setDeleting(post.id); setDeleteError(""); setMessage("");
+    readVersion.current++; setLoading(false);
+    try {
+      const result = await vipRequest<{ id: string; deleted: boolean }>("/api/admin/vip/posts", {
+        method: "DELETE", body: JSON.stringify({ id: post.id, expectedUpdatedAt: deleteTarget.updated_at }),
+      });
+      if (result.id !== post.id || result.deleted !== true) throw new Error("Le retrait n’a pas pu être confirmé. Actualisez les publications avant de réessayer.");
+      readVersion.current++; setLoading(false);
+      setPosts(current => current.filter(item => item.id !== post.id));
+      setDeleteTarget(null); setDeleteError("");
+      setMessage("La publication a été retirée du canal VIP. Aucune nouvelle alerte n’a été envoyée.");
+      try { void Promise.resolve(onPublished?.()).catch(() => {}); } catch { /* The confirmed removal remains reflected in this list. */ }
+      requestAnimationFrame(() => publishedHeading.current?.focus({ preventScroll: true }));
+    } catch (cause) {
+      setDeleteError(cause instanceof Error ? cause.message : "Impossible de retirer cette publication. Actualisez la liste avant de réessayer.");
+    } finally { mutationInFlight.current = false; setDeleting(null); }
   }
 
   const image = pendingImage?.url || draft.imageUrl;
@@ -267,7 +314,7 @@ export default function VipPublicationsEditor({ active, readOnlyPreview = false,
     category: draft.category, title: draft.title.trim() ? draft.title : t(categories.find(item => item.value === draft.category)?.title || "Nouvelle publication"), body: draft.body, image_url: safeHttps(draft.imageUrl), image_path: draft.imagePath,
   };
   const categoryLabel = categories.find(item => item.value === draft.category)?.label || "Publication";
-  const busy = saving || uploading;
+  const busy = saving || uploading || deleting !== null;
 
   return <section ref={editor} className={`${s.editor}${embedded ? ` ${s.embedded}` : ""}`} hidden={!active} aria-label={t("Gestion des publications VIP")}>
     <nav className={s.tabs} aria-label={t("Gestion des publications")}>
@@ -280,14 +327,21 @@ export default function VipPublicationsEditor({ active, readOnlyPreview = false,
         {readOnlyPreview && <p className={s.previewNotice} role="note"><Info size={14} aria-hidden="true" />{t("Aperçu de présentation : aucune publication, modification ou importation n’est envoyée.")}</p>}
         {message && <p className={s.success} role="status">{t(message)}</p>}
         {tab === "published" ? <>
-          <div className={s.listHeading}><div><span className={s.kicker}>{t("Admin VIP · Publications")}</span><h2>{t("Posts publiés.")}</h2></div><button type="button" className={s.reload} onClick={() => { if (!readOnlyPreview) { setLoading(true); void loadPosts(); } }} disabled={readOnlyPreview || loading} aria-label={t("Actualiser les publications")}><RefreshCw size={17} aria-hidden="true" /></button></div>
+          <div className={s.listHeading}><div><span className={s.kicker}>{t("Admin VIP · Publications")}</span><h2 ref={publishedHeading} tabIndex={-1}>{t("Posts publiés.")}</h2></div><button type="button" className={s.reload} onClick={() => { if (!readOnlyPreview && !busy && !mutationInFlight.current) { setLoading(true); void loadPosts(); } }} disabled={readOnlyPreview || loading || busy} aria-label={t("Actualiser les publications")}><RefreshCw size={17} aria-hidden="true" /></button></div>
           <p className={s.lead}>{t("Retrouvez et modifiez vos publications.")}</p>
           {error && <p className={s.error} role="alert">{t(error)}</p>}
           {loading ? <p className={s.empty} role="status">{t("Chargement des publications…")}</p> : posts.length ? posts.map(post => <article className={s.published} key={post.id}>
             <div className={s.publishedMeta}><span className={s.badge}>{t(categories.find(item => item.value === post.category)?.label || "Publication")}</span><span>{vipDate(post.created_at, locale)}</span>{post.updated_at && post.updated_at !== post.created_at && <span className={s.edited}>{t("Modifié")}</span>}</div>
             <h3>{post.title}</h3>{post.body && <p className={s.excerpt}>{post.body.length > 170 ? `${post.body.slice(0, 170)}…` : post.body}</p>}
             {safeHttps(post.image_url) && <Image className={s.publishedImage} src={safeHttps(post.image_url)!} alt={`${t("Graphique de la publication :")} ${post.title}`} width={960} height={580} unoptimized loading="lazy" referrerPolicy="no-referrer" />}
-            <div className={s.publishedBottom}><span>{Object.values(post.reactions?.counts || {}).reduce((sum, count) => sum + count, 0)} {t("réactions")}</span><button type="button" onClick={() => startEditing(post)} aria-label={`${t("Modifier la publication :")} ${post.title}`}><Pencil size={14} aria-hidden="true" />{t("Modifier")}</button></div>
+            <div className={s.publishedBottom}><span>{Object.values(post.reactions?.counts || {}).reduce((sum, count) => sum + count, 0)} {t("réactions")}</span><div className={s.postActions}><button type="button" onClick={() => startEditing(post)} disabled={busy} aria-label={`${t("Modifier la publication :")} ${post.title}`}><Pencil size={14} aria-hidden="true" />{t("Modifier")}</button><button type="button" className={s.deleteButton} onClick={event => beginDelete(post, event.currentTarget)} disabled={busy} aria-label={`${t("Supprimer la publication :")} ${post.title}`} aria-expanded={deleteTarget?.id === post.id} aria-controls={`vip-delete-${post.id}`}><Trash2 size={14} aria-hidden="true" />{t("Supprimer")}</button></div></div>
+            {deleteTarget?.id === post.id && <section ref={deleteConfirmation} id={`vip-delete-${post.id}`} className={s.deleteConfirmation} role="group" aria-labelledby={`vip-delete-title-${post.id}`}>
+              <h4 ref={deleteHeading} tabIndex={-1} id={`vip-delete-title-${post.id}`}>{t("Supprimer cette publication ?")}</h4>
+              <p className={s.deletePostTitle}>{post.title}</p>
+              <p>{t("Cette publication sera retirée du canal VIP. Aucune nouvelle alerte ne sera envoyée.")}</p>
+              {deleteError && <p className={s.deleteError} role="alert">{t(deleteError)}</p>}
+              <div className={s.deleteActions}><button type="button" className={s.confirmDelete} onClick={() => void removePost(post)} disabled={readOnlyPreview || busy}>{deleting === post.id ? t("Suppression…") : t("Supprimer le post")}</button><button type="button" onClick={cancelDelete} disabled={busy}>{t("Annuler")}</button></div>
+            </section>}
           </article>) : <div className={s.empty}><Layers size={25} aria-hidden="true" /><p>{t("Aucune publication pour le moment.")}</p><button type="button" className={s.secondary} onClick={() => changeTab("compose")}>{t("Créer ma première publication")}</button></div>}
         </> : preview ? <>
           <button type="button" className={s.back} onClick={() => { setPreview(false); resetScroll(); }} disabled={saving}><ArrowLeft size={14} aria-hidden="true" />{t("Revenir à la rédaction")}</button>
