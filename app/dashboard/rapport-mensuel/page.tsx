@@ -1,6 +1,7 @@
 "use client";
 
 import { planAllowsAsset } from "@/lib/trading-plan-assets";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -106,8 +107,8 @@ function previousMonth(date: Date) {
   return new Date(date.getFullYear(), date.getMonth() - 1, 1);
 }
 
-function monthLabel(date: Date) {
-  return date.toLocaleDateString("fr-FR", {
+function monthLabel(date: Date, locale: "fr" | "en" = "fr") {
+  return date.toLocaleDateString((locale === "en" ? "en-US" : "fr-FR"), {
     month: "long",
     year: "numeric",
   });
@@ -331,6 +332,7 @@ function computeReport(
 }
 
 export default function MonthlyReportPage() {
+  const { t: tr, locale } = useLocale();
   const supabase = useMemo(() => createClient(), []);
   const [loading, setLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState(
@@ -481,65 +483,65 @@ export default function MonthlyReportPage() {
 
   const summary = useMemo(() => {
     if (!report.trades.length) {
-      return "Aucun trade clôturé sur cette période. Ton bilan apparaîtra automatiquement dès que des trades seront disponibles.";
+      return tr("Aucun trade clôturé sur cette période. Ton bilan apparaîtra automatiquement dès que des trades seront disponibles.");
     }
 
     const parts: string[] = [];
 
     if (report.pnl > 0) {
       parts.push(
-        `Tu termines ${monthLabel(selectedMonth)} avec un P&L positif de ${money(
+        (tr("Tu termines ") + (monthLabel(selectedMonth, locale)) + tr(" avec un P&L positif de ") + (money(
           report.pnl
-        )}.`
+        )) + ".")
       );
     } else if (report.pnl < 0) {
       parts.push(
-        `Tu termines ${monthLabel(selectedMonth)} avec un P&L de ${money(
+        (tr("Tu termines ") + (monthLabel(selectedMonth, locale)) + tr(" avec un P&L de ") + (money(
           report.pnl
-        )}.`
+        )) + ".")
       );
     } else {
-      parts.push(`Ton P&L est à l’équilibre sur ${monthLabel(selectedMonth)}.`);
+      parts.push((tr("Ton P&L est à l’équilibre sur ") + (monthLabel(selectedMonth, locale)) + "."));
     }
 
     if (report.bestAsset) {
       parts.push(
-        `${report.bestAsset.label} est ton actif le plus rentable avec ${money(
+        ((report.bestAsset.label) + tr(" est ton actif le plus rentable avec ") + (money(
           report.bestAsset.pnl
-        )}.`
+        )) + ".")
       );
     }
 
     if (report.profitFactor != null) {
       if (report.profitFactor >= 2) {
         parts.push(
-          `Ton Profit Factor de ${report.profitFactor.toFixed(
+          (tr("Ton Profit Factor de ") + (report.profitFactor.toFixed(
             2
-          )} montre une très bonne efficacité des gains face aux pertes.`
+          )) + tr(" montre une très bonne efficacité des gains face aux pertes."))
         );
       } else if (report.profitFactor >= 1) {
         parts.push(
-          `Ton Profit Factor est de ${report.profitFactor.toFixed(
+          (tr("Ton Profit Factor est de ") + (report.profitFactor.toFixed(
             2
-          )}; la performance reste positive mais peut encore être renforcée.`
+          )) + tr("; la performance reste positive mais peut encore être renforcée."))
         );
       } else {
         parts.push(
-          `Ton Profit Factor de ${report.profitFactor.toFixed(
+          (tr("Ton Profit Factor de ") + (report.profitFactor.toFixed(
             2
-          )} montre que les pertes pèsent encore trop lourd.`
+          )) + tr(" montre que les pertes pèsent encore trop lourd."))
         );
       }
     }
 
     if (report.disciplineScore != null) {
       parts.push(
-        `Ton score de discipline est de ${report.disciplineScore}/100.`
+        (tr("Ton score de discipline est de ") + (report.disciplineScore) + "/100.")
       );
     }
 
     return parts.join(" ");
-  }, [report, selectedMonth]);
+  }, [report, selectedMonth, tr, locale]);
 
   if (loading) {
     return (
@@ -554,16 +556,11 @@ export default function MonthlyReportPage() {
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gold)]">
-            <FileText size={12} />
-            Bilan InvestPro
-          </div>
+            <FileText size={12} />{tr("Bilan InvestPro")}</div>
 
-          <h1 className="mt-3 text-2xl font-semibold text-white">
-            Rapport <span className="text-[color:var(--gold)]">mensuel</span>
+          <h1 className="mt-3 text-2xl font-semibold text-white">{locale === "en" ? <>{tr("mensuel")} <span className="text-[color:var(--gold)]">{tr("Rapport")}</span></> : <>{tr("Rapport ")}<span className="text-[color:var(--gold)]">{tr("mensuel")}</span></>}
           </h1>
-          <p className="mt-1 text-sm text-[color:var(--muted)]">
-            Ton mois résumé automatiquement à partir de ton Journal et de ton Plan de trading.
-          </p>
+          <p className="mt-1 text-sm text-[color:var(--muted)]">{tr("Ton mois résumé automatiquement à partir de ton Journal et de ton Plan de trading.")}</p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -576,7 +573,7 @@ export default function MonthlyReportPage() {
           </button>
 
           <div className="min-w-[180px] rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 py-2.5 text-center text-xs font-semibold capitalize text-[color:var(--gold)]">
-            {monthLabel(selectedMonth)}
+            {monthLabel(selectedMonth, locale)}
           </div>
 
           <button
@@ -592,19 +589,15 @@ export default function MonthlyReportPage() {
       <section className="rounded-[24px] border border-[color:var(--gold-border)] bg-gradient-to-br from-[color:var(--gold-soft)] to-transparent p-5 md:p-6">
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
           <div className="xl:col-span-8">
-            <div className="text-[9px] uppercase tracking-[0.12em] text-white/35">
-              Résumé automatique
-            </div>
-            <h2 className="mt-2 text-xl font-semibold text-white">
-              Ton mois en un coup d’œil
-            </h2>
+            <div className="text-[9px] uppercase tracking-[0.12em] text-white/35">{tr("Résumé automatique")}</div>
+            <h2 className="mt-2 text-xl font-semibold text-white">{tr("Ton mois en un coup d’œil")}</h2>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-white/60">
               {summary}
             </p>
           </div>
 
           <div className="rounded-2xl border border-white/[0.07] bg-black/20 p-4 xl:col-span-4">
-            <div className="text-[9px] text-white/35">Évolution vs mois précédent</div>
+            <div className="text-[9px] text-white/35">{tr("Évolution vs mois précédent")}</div>
             <div
               className={[
                 "mt-2 flex items-center gap-2 text-2xl font-semibold",
@@ -623,47 +616,42 @@ export default function MonthlyReportPage() {
               {pnlChange > 0 ? "+" : ""}
               {pnlChange.toFixed(1)}%
             </div>
-            <div className="mt-2 text-[10px] text-white/30">
-              Mois précédent : {money(previousReport.pnl)}
+            <div className="mt-2 text-[10px] text-white/30">{tr("Mois précédent : ")}{money(previousReport.pnl)}
             </div>
           </div>
         </div>
       </section>
 
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-8">
-        <Metric label="P&L" value={money(report.pnl)} tone={report.pnl} icon={<TrendingUp size={15} />} />
-        <Metric label="Winrate" value={`${report.winrate.toFixed(1)}%`} icon={<Target size={15} />} />
-        <Metric label="Profit Factor" value={report.profitFactor == null ? "—" : report.profitFactor.toFixed(2)} icon={<Gauge size={15} />} />
-        <Metric label="Drawdown max" value={`${report.maxDrawdown.toLocaleString("fr-FR", { maximumFractionDigits: 0 })} $`} tone={report.maxDrawdown} icon={<TrendingDown size={15} />} />
-        <Metric label="Trades" value={String(report.trades.length)} icon={<BarChart3 size={15} />} />
-        <Metric label="R moyen" value={report.avgR == null ? "—" : `${report.avgR.toFixed(2)}R`} icon={<LineChart size={15} />} />
-        <Metric label="Gain moyen" value={money(report.avgWin)} tone={report.avgWin} icon={<ArrowUpRight size={15} />} />
-        <Metric label="Perte moyenne" value={report.avgLoss ? `-${report.avgLoss.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} $US` : "—"} tone={report.avgLoss ? -report.avgLoss : 0} icon={<ArrowDownRight size={15} />} />
+        <Metric label={tr("P&L")} value={money(report.pnl)} tone={report.pnl} icon={<TrendingUp size={15} />} />
+        <Metric label={tr("Winrate")} value={`${report.winrate.toFixed(1)}%`} icon={<Target size={15} />} />
+        <Metric label={tr("Profit Factor")} value={report.profitFactor == null ? "—" : report.profitFactor.toFixed(2)} icon={<Gauge size={15} />} />
+        <Metric label={tr("Drawdown max")} value={`${report.maxDrawdown.toLocaleString((locale === "en" ? "en-US" : "fr-FR"), { maximumFractionDigits: 0 })} $`} tone={report.maxDrawdown} icon={<TrendingDown size={15} />} />
+        <Metric label={tr("Trades")} value={String(report.trades.length)} icon={<BarChart3 size={15} />} />
+        <Metric label={tr("R moyen")} value={report.avgR == null ? "—" : `${report.avgR.toFixed(2)}R`} icon={<LineChart size={15} />} />
+        <Metric label={tr("Gain moyen")} value={money(report.avgWin)} tone={report.avgWin} icon={<ArrowUpRight size={15} />} />
+        <Metric label={tr("Perte moyenne")} value={report.avgLoss ? `-${report.avgLoss.toLocaleString((locale === "en" ? "en-US" : "fr-FR"), { maximumFractionDigits: 2 })} $US` : "—"} tone={report.avgLoss ? -report.avgLoss : 0} icon={<ArrowDownRight size={15} />} />
       </section>
 
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
         <div className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 xl:col-span-8">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <div className="text-sm font-semibold text-white">Courbe du mois</div>
-              <div className="mt-1 text-[9px] text-[color:var(--muted)]">
-                P&L cumulé sur les trades clôturés
-              </div>
+              <div className="text-sm font-semibold text-white">{tr("Courbe du mois")}</div>
+              <div className="mt-1 text-[9px] text-[color:var(--muted)]">{tr("P&L cumulé sur les trades clôturés")}</div>
             </div>
-            <Link href="/dashboard/rapports" className="text-[10px] font-semibold text-[color:var(--gold)]">
-              Rapports complets →
-            </Link>
+            <Link href="/dashboard/rapports" className="text-[10px] font-semibold text-[color:var(--gold)]">{tr("Rapports complets →")}</Link>
           </div>
 
           <EquityChart values={report.equity} />
         </div>
 
         <div className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 xl:col-span-4">
-          <div className="text-sm font-semibold text-white">Résultats</div>
+          <div className="text-sm font-semibold text-white">{tr("Résultats")}</div>
           <div className="mt-5 space-y-4">
-            <ResultBar label="Wins" value={report.wins} total={report.trades.length} tone="green" />
-            <ResultBar label="Losses" value={report.losses} total={report.trades.length} tone="red" />
-            <ResultBar label="Break-even" value={report.breakeven} total={report.trades.length} tone="gold" />
+            <ResultBar label={tr("Wins")} value={report.wins} total={report.trades.length} tone="green" />
+            <ResultBar label={tr("Losses")} value={report.losses} total={report.trades.length} tone="red" />
+            <ResultBar label={tr("Break-even")} value={report.breakeven} total={report.trades.length} tone="gold" />
           </div>
         </div>
       </section>
@@ -671,59 +659,57 @@ export default function MonthlyReportPage() {
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Highlight
           icon={<Trophy size={17} />}
-          title="Meilleur trade"
+          title={tr("Meilleur trade")}
           label={report.bestTrade?.symbol || "—"}
           value={report.bestTrade ? money(Number(report.bestTrade.result_amount || 0)) : "—"}
         />
         <Highlight
           icon={<TrendingDown size={17} />}
-          title="Pire trade"
+          title={tr("Pire trade")}
           label={report.worstTrade?.symbol || "—"}
           value={report.worstTrade ? money(Number(report.worstTrade.result_amount || 0)) : "—"}
         />
         <Highlight
           icon={<Medal size={17} />}
-          title="Meilleur actif"
+          title={tr("Meilleur actif")}
           label={report.bestAsset?.label || "—"}
           value={report.bestAsset ? money(report.bestAsset.pnl) : "—"}
         />
         <Highlight
           icon={<CalendarDays size={17} />}
-          title="Meilleur jour"
-          label={report.bestWeekday?.label || "—"}
+          title={tr("Meilleur jour")}
+          label={report.bestWeekday ? tr(report.bestWeekday.label) : "—"}
           value={report.bestWeekday ? money(report.bestWeekday.pnl) : "—"}
         />
       </section>
 
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
         <div className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 xl:col-span-7">
-          <div className="text-sm font-semibold text-white">Ce qui fonctionne le mieux</div>
+          <div className="text-sm font-semibold text-white">{tr("Ce qui fonctionne le mieux")}</div>
 
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
             <BestBlock
-              label="Session"
-              value={report.bestSession?.label || "Données insuffisantes"}
+              label={tr("Session")}
+              value={report.bestSession?.label || tr("Données insuffisantes")}
               pnl={report.bestSession?.pnl ?? null}
             />
             <BestBlock
-              label="Setup"
-              value={report.bestSetup?.label || "Données insuffisantes"}
+              label={tr("Setup")}
+              value={report.bestSetup?.label || tr("Données insuffisantes")}
               pnl={report.bestSetup?.pnl ?? null}
             />
             <BestBlock
-              label="Actif"
-              value={report.bestAsset?.label || "Données insuffisantes"}
+              label={tr("Actif")}
+              value={report.bestAsset?.label || tr("Données insuffisantes")}
               pnl={report.bestAsset?.pnl ?? null}
             />
           </div>
 
           {report.worstAsset && report.worstAsset.pnl < 0 ? (
             <div className="mt-4 rounded-xl border border-red-500/15 bg-red-500/[0.04] p-4">
-              <div className="text-[9px] uppercase tracking-[0.08em] text-red-300/60">
-                Point de vigilance
-              </div>
+              <div className="text-[9px] uppercase tracking-[0.08em] text-red-300/60">{tr("Point de vigilance")}</div>
               <div className="mt-1 text-xs text-white/65">
-                {report.worstAsset.label} est ton actif le moins performant du mois avec{" "}
+                {report.worstAsset.label}{tr(" est ton actif le moins performant du mois avec")}{" "}
                 <span className="font-semibold text-red-400">
                   {money(report.worstAsset.pnl)}
                 </span>.
@@ -735,7 +721,7 @@ export default function MonthlyReportPage() {
         <div className="rounded-[22px] border border-[color:var(--gold-border)] bg-[color:var(--panel)] p-5 xl:col-span-5">
           <div className="flex items-center gap-2">
             <ShieldCheck size={17} className="text-[color:var(--gold)]" />
-            <div className="text-sm font-semibold text-white">Discipline</div>
+            <div className="text-sm font-semibold text-white">{tr("Discipline")}</div>
           </div>
 
           <div className="mt-5 flex items-center gap-5">
@@ -747,15 +733,15 @@ export default function MonthlyReportPage() {
                     <span className="text-xs text-white/35">/100</span>
                   ) : null}
                 </div>
-                <div className="mt-1 text-[8px] text-[color:var(--gold)]">Score</div>
+                <div className="mt-1 text-[8px] text-[color:var(--gold)]">{tr("Score")}</div>
               </div>
             </div>
 
             <div className="flex-1 space-y-3">
-              <SmallRow label="Trades conformes" value={String(report.compliant)} good />
-              <SmallRow label="Trades à vérifier" value={String(report.nonCompliant)} />
+              <SmallRow label={tr("Trades conformes")} value={String(report.compliant)} good />
+              <SmallRow label={tr("Trades à vérifier")} value={String(report.nonCompliant)} />
               <SmallRow
-                label="Checklists complètes"
+                label={tr("Checklists complètes")}
                 value={
                   checklists.length
                     ? `${checklists.filter((item) => item.is_completed).length}/${checklists.length}`
@@ -769,8 +755,7 @@ export default function MonthlyReportPage() {
           <Link
             href="/dashboard/plan"
             className="mt-5 inline-flex items-center gap-2 text-[10px] font-semibold text-[color:var(--gold)]"
-          >
-            Voir ma discipline <ArrowRight size={12} />
+          >{tr("Voir ma discipline ")}<ArrowRight size={12} />
           </Link>
         </div>
       </section>
@@ -778,24 +763,19 @@ export default function MonthlyReportPage() {
       <section className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <div className="text-sm font-semibold text-white">Continuer l’analyse</div>
-            <p className="mt-1 text-[10px] text-[color:var(--muted)]">
-              Le rapport mensuel te donne le résumé ; Rapports V2 te permet d’aller dans le détail.
-            </p>
+            <div className="text-sm font-semibold text-white">{tr("Continuer l’analyse")}</div>
+            <p className="mt-1 text-[10px] text-[color:var(--muted)]">{tr("Le rapport mensuel te donne le résumé ; Rapports V2 te permet d’aller dans le détail.")}</p>
           </div>
 
           <div className="flex flex-wrap gap-2">
             <Link
               href="/dashboard/journal"
               className="inline-flex h-10 items-center gap-2 rounded-xl border border-[color:var(--border)] bg-black/20 px-4 text-xs font-semibold text-white"
-            >
-              Journal
-            </Link>
+            >{tr("Journal")}</Link>
             <Link
               href="/dashboard/rapports"
               className="inline-flex h-10 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-4 text-xs font-semibold text-black"
-            >
-              Rapports complets <ArrowRight size={13} />
+            >{tr("Rapports complets ")}<ArrowRight size={13} />
             </Link>
           </div>
         </div>
@@ -836,11 +816,10 @@ function Metric({
 }
 
 function EquityChart({ values }: { values: number[] }) {
+  const { t: tr } = useLocale();
   if (!values.length) {
     return (
-      <div className="mt-5 flex h-[180px] items-center justify-center rounded-xl border border-dashed border-white/[0.07] text-xs text-white/25">
-        Aucun trade clôturé sur ce mois.
-      </div>
+      <div className="mt-5 flex h-[180px] items-center justify-center rounded-xl border border-dashed border-white/[0.07] text-xs text-white/25">{tr("Aucun trade clôturé sur ce mois.")}</div>
     );
   }
 

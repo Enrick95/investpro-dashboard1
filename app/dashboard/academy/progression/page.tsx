@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import {
   useEffect,
   useMemo,
@@ -127,6 +128,8 @@ function planLabel(plan: string) {
 ========================================================= */
 
 export default function AcademyProgressionPage() {
+  const { t: translate } = useLocale();
+
   const supabase = useMemo(() => createClient(), []);
 
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -305,8 +308,7 @@ export default function AcademyProgressionPage() {
   if (loading) {
     return (
       <div className="flex min-h-[70vh] items-center justify-center text-sm text-[color:var(--muted)]">
-        Chargement de ta progression…
-      </div>
+        {translate("Chargement de ta progression…")}</div>
     );
   }
 
@@ -328,16 +330,13 @@ export default function AcademyProgressionPage() {
           "
         >
           <GraduationCap size={12} />
-          Progression InvestPro
-        </div>
+          {translate("Progression InvestPro")}</div>
 
         <h1 className="text-2xl font-semibold text-white">
-          Ma progression
-        </h1>
+          {translate("Ma progression")}</h1>
 
         <p className="mt-1 max-w-2xl text-sm leading-6 text-[color:var(--muted)]">
-          Suis ton niveau, tes XP, tes challenges et ta progression Academy au même endroit.
-        </p>
+          {translate("Suis ton niveau, tes XP, tes challenges et ta progression Academy au même endroit.")}</p>
       </div>
 
       {/* =====================================================
@@ -378,12 +377,11 @@ export default function AcademyProgressionPage() {
 
               <div>
                 <div className="text-[10px] uppercase tracking-[0.12em] text-white/35">
-                  Niveau actuel
-                </div>
+                  {translate("Niveau actuel")}</div>
 
                 <div className="mt-1 flex flex-wrap items-center gap-3">
                   <h2 className="text-2xl font-semibold text-white">
-                    Niveau {levelInfo.level}
+                    {translate("Niveau")}{" "}{levelInfo.level}
                   </h2>
 
                   <span
@@ -394,14 +392,14 @@ export default function AcademyProgressionPage() {
                       text-[color:var(--gold)]
                     "
                   >
-                    {levelInfo.title}
+                    {translate(levelInfo.title)}
                   </span>
                 </div>
 
                 <div className="mt-2 text-sm text-[color:var(--muted)]">
-                  {profile?.username || "Trader"} • Plan{" "}
+                  {profile?.username || translate("Trader")} {" "}{translate("• Plan")}{" "}
                   <span className="font-semibold text-[color:var(--gold)]">
-                    {planLabel(profile?.plan || "free")}
+                    {translate(planLabel(profile?.plan || "free"))}
                   </span>
                 </div>
               </div>
@@ -410,12 +408,10 @@ export default function AcademyProgressionPage() {
             <div className="mt-7">
               <div className="flex items-center justify-between gap-3">
                 <div className="text-xs text-[color:var(--muted)]">
-                  Progression vers le niveau suivant
-                </div>
+                  {translate("Progression vers le niveau suivant")}</div>
 
                 <div className="text-xs font-semibold text-[color:var(--gold)]">
-                  {Number(profile?.xp || 0)} XP
-                </div>
+                  {Number(profile?.xp || 0)} {" "}{translate("XP")}</div>
               </div>
 
               <div className="mt-3 h-3 overflow-hidden rounded-full bg-white/[0.05]">
@@ -429,18 +425,16 @@ export default function AcademyProgressionPage() {
 
               <div className="mt-2 flex items-center justify-between text-[9px] text-white/30">
                 <span>
-                  {levelInfo.currentLevelStartXp} XP
-                </span>
+                  {levelInfo.currentLevelStartXp} {" "}{translate("XP")}</span>
 
                 <span>
                   {levelInfo.xpNeededForLevel > 0
-                    ? `${levelInfo.xpNeededForLevel} XP restants`
-                    : "Niveau maximum atteint"}
+                    ? ("" + (levelInfo.xpNeededForLevel) + translate(" XP restants"))
+                    : translate("Niveau maximum atteint")}
                 </span>
 
                 <span>
-                  {levelInfo.nextLevelXp} XP
-                </span>
+                  {levelInfo.nextLevelXp} {" "}{translate("XP")}</span>
               </div>
             </div>
           </div>
@@ -448,25 +442,25 @@ export default function AcademyProgressionPage() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:col-span-5 lg:grid-cols-2">
             <HeroStat
               icon={<Sparkles size={16} />}
-              label="XP total"
+              label={translate("XP total")}
               value={String(profile?.xp || 0)}
             />
 
             <HeroStat
               icon={<Award size={16} />}
-              label="Challenges terminés"
+              label={translate("Challenges terminés")}
               value={String(challengeStats.completed)}
             />
 
             <HeroStat
               icon={<BookOpen size={16} />}
-              label="Leçons terminées"
+              label={translate("Leçons terminées")}
               value={`${academyStats.completedLessons}/${lessonCount}`}
             />
 
             <HeroStat
               icon={<TrendingUp size={16} />}
-              label="Academy"
+              label={translate("Academy")}
               value={`${academyStats.percent.toFixed(0)}%`}
             />
           </div>
@@ -482,8 +476,8 @@ export default function AcademyProgressionPage() {
 
         <ProgressCard
           icon={<BookOpen size={18} />}
-          title="Progression Academy"
-          subtitle={`${courseCount} formation${courseCount !== 1 ? "s" : ""} • ${lessonCount} leçon${lessonCount !== 1 ? "s" : ""}`}
+          title={translate("Progression Academy")}
+          subtitle={("" + (courseCount) + translate(" formation") + (courseCount !== 1 ? translate("s") : "") + " • " + (lessonCount) + translate(" leçon") + (lessonCount !== 1 ? translate("s") : "") + "")}
         >
           <div className="mt-5 flex items-end justify-between">
             <div>
@@ -492,8 +486,7 @@ export default function AcademyProgressionPage() {
               </div>
 
               <div className="mt-1 text-[10px] text-[color:var(--muted)]">
-                progression globale
-              </div>
+                {translate("progression globale")}</div>
             </div>
 
             <div className="text-right text-xs text-[color:var(--gold)]">
@@ -504,31 +497,30 @@ export default function AcademyProgressionPage() {
           <ProgressBar percent={academyStats.percent} />
 
           <div className="mt-4 text-[10px] leading-5 text-[color:var(--muted)]">
-            Termine tes leçons pour faire progresser ta formation.
-          </div>
+            {translate("Termine tes leçons pour faire progresser ta formation.")}</div>
         </ProgressCard>
 
         {/* CHALLENGES */}
 
         <ProgressCard
           icon={<Flame size={18} />}
-          title="Challenges"
-          subtitle="Objectifs de régularité et discipline"
+          title={translate("Challenges")}
+          subtitle={translate("Objectifs de régularité et discipline")}
         >
           <div className="mt-5 grid grid-cols-3 gap-2">
             <SmallStat
-              label="Rejoints"
+              label={translate("Rejoints")}
               value={String(challengeStats.joined)}
             />
 
             <SmallStat
-              label="Terminés"
+              label={translate("Terminés")}
               value={String(challengeStats.completed)}
               gold
             />
 
             <SmallStat
-              label="XP crédités"
+              label={translate("XP crédités")}
               value={String(challengeStats.rewarded)}
             />
           </div>
@@ -538,16 +530,15 @@ export default function AcademyProgressionPage() {
               size={13}
               className="text-emerald-400"
             />
-            Les récompenses terminées sont créditées automatiquement.
-          </div>
+            {translate("Les récompenses terminées sont créditées automatiquement.")}</div>
         </ProgressCard>
 
         {/* NEXT LEVEL */}
 
         <ProgressCard
           icon={<Target size={18} />}
-          title="Prochain objectif"
-          subtitle="Continue à progresser régulièrement"
+          title={translate("Prochain objectif")}
+          subtitle={translate("Continue à progresser régulièrement")}
         >
           {nextMilestone ? (
             <>
@@ -565,19 +556,18 @@ export default function AcademyProgressionPage() {
 
                 <div>
                   <div className="text-sm font-semibold text-white">
-                    Niveau {nextMilestone.level}
+                    {translate("Niveau")}{" "}{nextMilestone.level}
                   </div>
 
                   <div className="mt-1 text-[10px] text-[color:var(--muted)]">
-                    {nextMilestone.title}
+                    {translate(nextMilestone.title)}
                   </div>
                 </div>
               </div>
 
               <div className="mt-5 rounded-xl border border-white/[0.06] bg-black/20 p-4">
                 <div className="text-[9px] text-[color:var(--muted)]">
-                  XP nécessaires
-                </div>
+                  {translate("XP nécessaires")}</div>
 
                 <div className="mt-1 text-xl font-semibold text-[color:var(--gold)]">
                   {Math.max(
@@ -585,16 +575,14 @@ export default function AcademyProgressionPage() {
                     nextMilestone.xp -
                       Number(profile?.xp || 0)
                   )}{" "}
-                  XP
-                </div>
+                  {translate("XP")}</div>
               </div>
             </>
           ) : (
             <div className="mt-5 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.05] p-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-emerald-400">
                 <CheckCircle2 size={16} />
-                Niveau maximum atteint
-              </div>
+                {translate("Niveau maximum atteint")}</div>
             </div>
           )}
         </ProgressCard>
@@ -615,12 +603,10 @@ export default function AcademyProgressionPage() {
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="text-sm font-semibold text-white">
-              Parcours InvestPro
-            </h2>
+              {translate("Parcours InvestPro")}</h2>
 
             <p className="mt-1 text-xs text-[color:var(--muted)]">
-              Les niveaux se débloquent automatiquement avec tes XP.
-            </p>
+              {translate("Les niveaux se débloquent automatiquement avec tes XP.")}</p>
           </div>
 
           <Star
@@ -668,22 +654,20 @@ export default function AcademyProgressionPage() {
                   </div>
 
                   <span className="text-[9px] font-semibold text-white/35">
-                    {item.xp} XP
-                  </span>
+                    {item.xp} {" "}{translate("XP")}</span>
                 </div>
 
                 <div className="mt-4 text-[9px] uppercase tracking-[0.08em] text-white/30">
-                  Niveau {item.level}
+                  {translate("Niveau")}{" "}{item.level}
                 </div>
 
                 <div className="mt-1 text-xs font-semibold text-white">
-                  {item.title}
+                  {translate(item.title)}
                 </div>
 
                 {current ? (
                   <div className="mt-3 text-[8px] font-bold uppercase text-[color:var(--gold)]">
-                    Niveau actuel
-                  </div>
+                    {translate("Niveau actuel")}</div>
                 ) : null}
               </div>
             );
@@ -716,13 +700,10 @@ export default function AcademyProgressionPage() {
 
         <div>
           <div className="text-xs font-semibold text-white">
-            Comment gagner des XP ?
-          </div>
+            {translate("Comment gagner des XP ?")}</div>
 
           <p className="mt-1 max-w-3xl text-[10px] leading-5 text-[color:var(--muted)]">
-            Pour l'instant, les XP proviennent principalement des challenges InvestPro.
-            On pourra ensuite ajouter des XP pour la progression Academy, les badges et d'autres actions utiles.
-          </p>
+            {translate("Pour l'instant, les XP proviennent principalement des challenges InvestPro. On pourra ensuite ajouter des XP pour la progression Academy, les badges et d'autres actions utiles.")}</p>
         </div>
       </section>
     </div>
@@ -742,13 +723,15 @@ function HeroStat({
   label: string;
   value: string;
 }) {
+  const { t: translate } = useLocale();
+
   return (
     <div className="rounded-xl border border-white/[0.07] bg-black/20 p-4">
       <div className="flex items-center gap-2 text-[color:var(--gold)]">
         {icon}
 
         <span className="text-[9px] text-[color:var(--muted)]">
-          {label}
+          {translate(label)}
         </span>
       </div>
 
@@ -770,6 +753,8 @@ function ProgressCard({
   subtitle: string;
   children: React.ReactNode;
 }) {
+  const { t: translate } = useLocale();
+
   return (
     <article
       className="
@@ -794,7 +779,7 @@ function ProgressCard({
 
         <div>
           <div className="text-sm font-semibold text-white">
-            {title}
+            {translate(title)}
           </div>
 
           <div className="mt-1 text-[10px] text-[color:var(--muted)]">
@@ -837,10 +822,12 @@ function SmallStat({
   value: string;
   gold?: boolean;
 }) {
+  const { t: translate } = useLocale();
+
   return (
     <div className="rounded-xl border border-white/[0.06] bg-black/20 px-3 py-3">
       <div className="text-[8px] text-[color:var(--muted)]">
-        {label}
+        {translate(label)}
       </div>
 
       <div

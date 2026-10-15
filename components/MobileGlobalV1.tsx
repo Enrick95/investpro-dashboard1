@@ -1,4 +1,6 @@
 "use client";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -60,6 +62,7 @@ function BottomTab({
   icon: ReactNode;
   active: boolean;
 }) {
+  const { t } = useLocale();
   return (
     <Link
       href={href}
@@ -70,7 +73,7 @@ function BottomTab({
       ].join(" ")}
     >
       {icon}
-      <span>{label}</span>
+      <span>{t(label)}</span>
     </Link>
   );
 }
@@ -88,27 +91,31 @@ function MenuTile({
   soon?: boolean;
   onClick: () => void;
 }) {
+  const { t } = useLocale();
   return (
     <Link href={href} onClick={onClick} className="ip-more-tile">
       <span className="ip-more-tile-icon">{icon}</span>
-      <span>{label}{soon ? <small className="ip-soon-badge">Bientôt</small> : null}</span>
+      <span>{t(label)}{soon ? <small className="ip-soon-badge">{t("Bientôt")}</small> : null}</span>
     </Link>
   );
 }
 
 
 function InstallMenuTile({ onClick }: { onClick: (event: MouseEvent<HTMLButtonElement>) => void }) {
+  const { t } = useLocale();
   return (
     <button type="button" onClick={onClick} className="ip-more-tile">
       <span className="ip-more-tile-icon">
         <Smartphone size={20} />
       </span>
-      <span>Installer l’app</span>
+      <span>{t("Installer l’app")}</span>
     </button>
   );
 }
 
 export default function MobileGlobalV1() {
+  const { t } = useLocale();
+
   const pathname = usePathname();
   const vipVisible=useVipNavigation(pathname);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -192,9 +199,11 @@ export default function MobileGlobalV1() {
   }, [pathname]);
 
   useEffect(() => {
+    const matchesText = (actual: string | undefined, source: string) => actual?.trim() === source || actual?.trim() === t(source);
+    const containsText = (actual: string, source: string) => actual.toLowerCase().includes(source.toLowerCase()) || actual.toLowerCase().includes(t(source).toLowerCase());
     function exactText(text: string) {
       return Array.from(document.querySelectorAll("h1,h2,h3,div,span,p")).find(
-        (node) => node.textContent?.trim() === text
+        (node) => matchesText(node.textContent ?? undefined, text)
       ) as HTMLElement | undefined;
     }
 
@@ -208,7 +217,7 @@ export default function MobileGlobalV1() {
         const metricCards = metricLabels
           .map((label) => {
             const node = Array.from(quickSection.querySelectorAll("div,span")).find(
-              (el) => el.textContent?.trim() === label
+              (el) => matchesText(el.textContent ?? undefined, label)
             ) as HTMLElement | undefined;
             return node?.closest("div.rounded-2xl") as HTMLElement | null;
           })
@@ -237,7 +246,7 @@ export default function MobileGlobalV1() {
     if (pathname.startsWith("/dashboard/journal")) {
       const sections = Array.from(document.querySelectorAll("section")) as HTMLElement[];
       const calendar = sections.find((section) =>
-        /Calendrier de performance/i.test(section.innerText || "")
+        containsText(section.innerText || "", "Calendrier de performance")
       );
       if (calendar) {
         calendar.dataset.ipJournalCalendar = "true";
@@ -248,8 +257,8 @@ export default function MobileGlobalV1() {
           return (
             style.display === "grid" &&
             element.children.length >= 8 &&
-            text.includes("Lun") &&
-            text.includes("Dim")
+            (text.includes("Lun") || text.includes("Mon")) &&
+            (text.includes("Dim") || text.includes("Sun"))
           );
         }) as HTMLElement[];
 
@@ -258,7 +267,7 @@ export default function MobileGlobalV1() {
       }
 
       const history = sections.find(
-        (section) => section.querySelector("h2")?.textContent?.trim().toLowerCase() === "historique"
+        (section) => matchesText(section.querySelector("h2")?.textContent ?? undefined, "Historique")
       );
       if (history) history.dataset.ipJournalHistory = "true";
     }
@@ -267,13 +276,13 @@ export default function MobileGlobalV1() {
       const sections = Array.from(document.querySelectorAll("section")) as HTMLElement[];
       sections.forEach((section) => {
         const text = section.innerText || "";
-        if (/Suivi transparent des performances/i.test(text)) {
+        if (containsText(text, "Suivi transparent des performances")) {
           section.dataset.ipVipHero = "true";
         }
-        if (/Connexion du canal Telegram/i.test(text)) {
+        if (containsText(text, "Connexion du canal Telegram")) {
           section.dataset.ipVipTelegram = "true";
         }
-        if (/Évolution de la performance/i.test(text)) {
+        if (containsText(text, "Évolution de la performance")) {
           section.dataset.ipVipChart = "true";
         }
       });
@@ -374,7 +383,7 @@ export default function MobileGlobalV1() {
         if (wrap) wrap.dataset.ipMonthlyGraph = "true";
       }
     }
-  }, [pathname]);
+  }, [pathname, t]);
 
   useEffect(() => {
     if (!moreOpen) return;
@@ -452,7 +461,7 @@ export default function MobileGlobalV1() {
     <>
       <nav
         className="ip-mobile-global-nav"
-        aria-label="Navigation mobile"
+        aria-label={t("Navigation mobile")}
         style={{ gridTemplateColumns: `repeat(${bottomTabs.length + 1}, minmax(0, 1fr))` }}
       >
         {bottomTabs.map((item) => (
@@ -468,7 +477,7 @@ export default function MobileGlobalV1() {
           className={["ip-mobile-tab", moreOpen ? "ip-mobile-tab-active" : ""].join(" ")}
         >
           <Menu size={21} />
-          <span>Plus</span>
+          <span>{t("Plus")}</span>
         </button>
       </nav>
 
@@ -476,43 +485,43 @@ export default function MobileGlobalV1() {
         <div className="ip-more-overlay">
           <button
             type="button"
-            aria-label="Fermer le menu"
+            aria-label={t("Fermer le menu")}
             className="ip-more-backdrop"
             onClick={() => setMoreOpen(false)}
           />
 
-          <div id="investpro-more-menu" className="ip-more-sheet" role="region" aria-label="Menu des fonctionnalités">
+          <div id="investpro-more-menu" className="ip-more-sheet" role="region" aria-label={t("Menu des fonctionnalités")}>
             <div className="ip-more-head">
               <div>
-                <div className="ip-more-title">Plus</div>
-                <div className="ip-more-subtitle">Toutes les fonctionnalités InvestPro</div>
+                <div className="ip-more-title">{t("Plus")}</div>
+                <div className="ip-more-subtitle">{t("Toutes les fonctionnalités InvestPro")}</div>
               </div>
 
               <button
                 type="button"
                 className="ip-more-close"
                 onClick={() => setMoreOpen(false)}
-                aria-label="Fermer"
+                aria-label={t("Fermer")}
               >
                 <X size={20} />
               </button>
             </div>
 
             <div className="ip-more-scroll">
-              {tradingTiles.length ? <MenuGroup title="Trading">
+              {tradingTiles.length ? <MenuGroup title={t("Trading")}>
                 {tradingTiles.map((item) => (
                   <MenuTile key={item.href} {...item} onClick={() => setMoreOpen(false)} />
                 ))}
               </MenuGroup> : null}
 
-              {marketTiles.length ? <MenuGroup title="Marchés & analyse">
+              {marketTiles.length ? <MenuGroup title={t("Marchés & analyse")}>
                 {marketTiles.map((item) => (
                   <MenuTile key={item.href} {...item} onClick={() => setMoreOpen(false)} />
                 ))}
               </MenuGroup> : null}
 
               {communityTiles.length ? (
-                <MenuGroup title="Communauté">
+                <MenuGroup title={t("Communauté")}>
                   {communityTiles.map((item) => (
                     <MenuTile key={item.href} {...item} onClick={() => setMoreOpen(false)} />
                   ))}
@@ -520,26 +529,26 @@ export default function MobileGlobalV1() {
               ) : null}
 
               {ecosystemTiles.length ? (
-                <MenuGroup title="Écosystème">
+                <MenuGroup title={t("Écosystème")}>
                   {ecosystemTiles.map((item) => (
                     <MenuTile key={item.href} {...item} onClick={() => setMoreOpen(false)} />
                   ))}
                 </MenuGroup>
               ) : null}
 
-              {academyTiles.length ? <MenuGroup title="Academy">
+              {academyTiles.length ? <MenuGroup title={t("Academy")}>
                 {academyTiles.map((item) => (
                   <MenuTile key={item.href} {...item} onClick={() => setMoreOpen(false)} />
                 ))}
               </MenuGroup> : null}
 
-              {accountTiles.length ? <MenuGroup title="Compte">
+              {accountTiles.length ? <MenuGroup title={t("Compte")}>
                 {accountTiles.map((item) => (
                   <MenuTile key={item.href} {...item} onClick={() => setMoreOpen(false)} />
                 ))}
               </MenuGroup> : null}
 
-              <MenuGroup title="Application">
+              <MenuGroup title={t("Application")}>
                 <InstallMenuTile onClick={openInstallGuide} />
               </MenuGroup>
             </div>

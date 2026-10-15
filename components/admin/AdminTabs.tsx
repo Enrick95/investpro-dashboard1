@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 const tabs = [
   { key: "overview", label: "Overview", href: "/dashboard/admin" },
@@ -12,6 +13,7 @@ const tabs = [
 ] as const;
 
 export default function AdminTabs({ active }: { active: (typeof tabs)[number]["key"] }) {
+ const { t: tr } = useLocale();
   return (
     <div className="flex flex-wrap items-center gap-2">
       {tabs.map((t) => (
@@ -26,7 +28,7 @@ export default function AdminTabs({ active }: { active: (typeof tabs)[number]["k
           ].join(" ")}
           type="button"
         >
-          {t.label}
+          {tr(t.label)}
         </button>
       ))}
     </div>

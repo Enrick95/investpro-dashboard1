@@ -5,6 +5,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 import {
   Activity,
@@ -102,12 +103,12 @@ type ChallengeProgress = {
 ========================================================= */
 
 function formatDate(
-  value: string
+  value: string, locale: "fr" | "en" = "fr"
 ) {
   return new Date(
     value
   ).toLocaleDateString(
-    "fr-FR",
+    (locale === "en" ? "en-US" : "fr-FR"),
     {
       day: "2-digit",
       month: "short",
@@ -158,6 +159,7 @@ function categoryIcon(
 ========================================================= */
 
 export default function ChallengesPage() {
+  const { t: tr } = useLocale();
   const supabase =
     useMemo(
       () =>
@@ -655,7 +657,7 @@ export default function ChallengesPage() {
 
       alert(
         error?.message ||
-          "Impossible de rejoindre ce challenge."
+          tr("Impossible de rejoindre ce challenge.")
       );
     } finally {
       setJoiningId(
@@ -773,9 +775,7 @@ export default function ChallengesPage() {
     loading
   ) {
     return (
-      <div className="flex min-h-[70vh] items-center justify-center text-sm text-[color:var(--muted)]">
-        Chargement des challenges…
-      </div>
+      <div className="flex min-h-[70vh] items-center justify-center text-sm text-[color:var(--muted)]">{tr("Chargement des challenges…")}</div>
     );
   }
 
@@ -807,18 +807,11 @@ export default function ChallengesPage() {
         >
           <Trophy
             size={12}
-          />
+          />{tr("Challenges InvestPro")}</div>
 
-          Challenges InvestPro
-        </div>
+        <h1 className="text-2xl font-semibold text-white">{tr("Challenges")}</h1>
 
-        <h1 className="text-2xl font-semibold text-white">
-          Challenges
-        </h1>
-
-        <p className="mt-1 max-w-2xl text-sm leading-6 text-[color:var(--muted)]">
-          Relève des objectifs basés sur ta discipline, ton journal et ta régularité.
-        </p>
+        <p className="mt-1 max-w-2xl text-sm leading-6 text-[color:var(--muted)]">{tr("Relève des objectifs basés sur ta discipline, ton journal et ta régularité.")}</p>
       </div>
 
       {/* =====================================================
@@ -854,36 +847,30 @@ export default function ChallengesPage() {
 
         <div className="relative z-10 grid grid-cols-1 gap-5 lg:grid-cols-12 lg:items-center">
           <div className="lg:col-span-7">
-            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--gold)]">
-              Cette semaine
-            </div>
+            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--gold)]">{tr("Cette semaine")}</div>
 
-            <h2 className="mt-2 text-xl font-semibold text-white lg:text-2xl">
-              Progresse avec des objectifs concrets
-            </h2>
+            <h2 className="mt-2 text-xl font-semibold text-white lg:text-2xl">{tr("Progresse avec des objectifs concrets")}</h2>
 
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-[color:var(--muted)]">
-              Les challenges se mettent à jour automatiquement à partir de ton Journal et de ton Plan de trading.
-            </p>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[color:var(--muted)]">{tr("Les challenges se mettent à jour automatiquement à partir de ton Journal et de ton Plan de trading.")}</p>
           </div>
 
           <div className="grid grid-cols-3 gap-3 lg:col-span-5">
             <MiniStat
-              label="Disponibles"
+              label={tr("Disponibles")}
               value={String(
                 activeChallenges.length
               )}
             />
 
             <MiniStat
-              label="Rejoints"
+              label={tr("Rejoints")}
               value={String(
                 joinedChallenges.length
               )}
             />
 
             <MiniStat
-              label="Terminés"
+              label={tr("Terminés")}
               value={String(
                 completedCount
               )}
@@ -914,13 +901,9 @@ export default function ChallengesPage() {
             className="mx-auto text-white/15"
           />
 
-          <div className="mt-4 text-sm font-semibold text-white">
-            Aucun challenge actif
-          </div>
+          <div className="mt-4 text-sm font-semibold text-white">{tr("Aucun challenge actif")}</div>
 
-          <p className="mt-1 text-xs text-[color:var(--muted)]">
-            De nouveaux challenges seront ajoutés prochainement.
-          </p>
+          <p className="mt-1 text-xs text-[color:var(--muted)]">{tr("De nouveaux challenges seront ajoutés prochainement.")}</p>
         </section>
       ) : (
         <section
@@ -1027,13 +1010,9 @@ export default function ChallengesPage() {
           </div>
 
           <div>
-            <div className="text-xs font-semibold text-white">
-              Récompenses XP
-            </div>
+            <div className="text-xs font-semibold text-white">{tr("Récompenses XP")}</div>
 
-            <p className="mt-1 max-w-3xl text-[10px] leading-5 text-[color:var(--muted)]">
-              Dès qu’un challenge est réellement terminé, les XP sont crédités automatiquement sur ton profil une seule fois.
-            </p>
+            <p className="mt-1 max-w-3xl text-[10px] leading-5 text-[color:var(--muted)]">{tr("Dès qu’un challenge est réellement terminé, les XP sont crédités automatiquement sur ton profil une seule fois.")}</p>
           </div>
         </div>
       </section>
@@ -1071,6 +1050,7 @@ function ChallengeCard({
   onJoin:
     () => void;
 }) {
+  const { t: tr, locale } = useLocale();
   return (
     <article
       className={[
@@ -1122,8 +1102,7 @@ function ChallengeCard({
           >
             +{
               challenge.xp_reward
-            } XP
-          </span>
+            }{tr(" XP")}</span>
 
           {completed ? (
             <span
@@ -1144,10 +1123,7 @@ function ChallengeCard({
             >
               <CheckCircle2
                 size={9}
-              />
-
-              TERMINÉ
-            </span>
+              />{tr("TERMINÉ")}</span>
           ) : joined ? (
             <span
               className="
@@ -1161,9 +1137,7 @@ function ChallengeCard({
                 font-bold
                 text-[color:var(--gold)]
               "
-            >
-              EN COURS
-            </span>
+            >{tr("EN COURS")}</span>
           ) : null}
         </div>
       </div>
@@ -1194,11 +1168,11 @@ function ChallengeCard({
         />
 
         {formatDate(
-          challenge.start_date
+          challenge.start_date, locale
         )}{" "}
         →{" "}
         {formatDate(
-          challenge.end_date
+          challenge.end_date, locale
         )}
       </div>
 
@@ -1216,9 +1190,7 @@ function ChallengeCard({
                 }
               </div>
 
-              <div className="mt-1 text-[9px] text-[color:var(--muted)]">
-                progression
-              </div>
+              <div className="mt-1 text-[9px] text-[color:var(--muted)]">{tr("progression")}</div>
             </div>
 
             <div className="text-xs font-bold text-[color:var(--gold)]">
@@ -1274,8 +1246,8 @@ function ChallengeCard({
           />
 
           {joining
-            ? "Inscription..."
-            : "Rejoindre le challenge"}
+            ? tr("Inscription...")
+            : tr("Rejoindre le challenge")}
         </button>
       )}
     </article>

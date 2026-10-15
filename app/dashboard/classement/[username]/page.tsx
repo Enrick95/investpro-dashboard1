@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { useParams } from "next/navigation";
 
 import { Card, CardBody, CardSubCard } from "../../../../components/ui/Card";
@@ -129,15 +130,15 @@ function safeId(prefix = "id") {
   return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 
-function fmtAgo(ts: number) {
+function fmtAgo(ts: number, locale: "fr" | "en" = "fr") {
   const s = Math.floor((Date.now() - ts) / 1000);
-  if (s < 60) return `il y a ${s}s`;
+  if (s < 60) return locale === "en" ? `${s}s ago` : `il y a ${s}s`;
   const m = Math.floor(s / 60);
-  if (m < 60) return `il y a ${m}m`;
+  if (m < 60) return locale === "en" ? `${m}m ago` : `il y a ${m}m`;
   const h = Math.floor(m / 60);
-  if (h < 24) return `il y a ${h}h`;
+  if (h < 24) return locale === "en" ? `${h}h ago` : `il y a ${h}h`;
   const d = Math.floor(h / 24);
-  return `il y a ${d}j`;
+  return locale === "en" ? `${d}d ago` : `il y a ${d}j`;
 }
 
 /** ✅ même clé que la page profil -> synchro */
@@ -216,12 +217,11 @@ function readFileAsDataUrl(file: File): Promise<string> {
   });
 }
 
-function renderAttachment(a: Att) {
+function Attachment({ attachment: a }: { attachment: Att }) {
+  const { t: tr } = useLocale();
   if (!a.dataUrl) {
     return (
-      <div className="text-xs text-white/50">
-        Fichier non conservé après refresh (stockage local).
-      </div>
+      <div className="text-xs text-white/50">{tr("Fichier non conservé après refresh (stockage local).")}</div>
     );
   }
 
@@ -258,6 +258,7 @@ const EMOJIS = [
 ];
 
 function EmojiPicker(props: { open: boolean; onPick: (e: string) => void }) {
+  const { t: tr } = useLocale();
   const { open, onPick } = props;
   const [q, setQ] = useState("");
 
@@ -277,7 +278,7 @@ function EmojiPicker(props: { open: boolean; onPick: (e: string) => void }) {
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search"
+            placeholder={tr("Search")}
             className="w-full bg-transparent outline-none text-sm text-white/80 placeholder:text-white/30"
           />
         </div>
@@ -304,30 +305,29 @@ function EmojiPicker(props: { open: boolean; onPick: (e: string) => void }) {
 
 /* ------------------- ✅ Private overlay (style profil) ------------------- */
 function PrivateTradesOverlay(props: { title?: string; subtitle?: string }) {
-  const title = props.title ?? "Privé";
-  const subtitle = props.subtitle ?? "Historique masqué";
+  const { t: tr } = useLocale();
+  const title = props.title ?? tr("Privé");
+  const subtitle = props.subtitle ?? tr("Historique masqué");
 
   return (
     <div className="mt-2 rounded-2xl border border-white/10 bg-black/15 overflow-hidden relative">
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
         <div>
-          <div className="text-white font-semibold">Historique trades</div>
-          <div className="text-xs text-white/40">Pour voir plus → journal.</div>
+          <div className="text-white font-semibold">{tr("Historique trades")}</div>
+          <div className="text-xs text-white/40">{tr("Pour voir plus → journal.")}</div>
         </div>
 
         <span className="inline-flex items-center gap-2 px-3 py-1 rounded-xl border border-white/10 bg-black/20 text-xs text-white/80">
-          <EyeOff className="w-4 h-4 text-white/60" />
-          Privé
-        </span>
+          <EyeOff className="w-4 h-4 text-white/60" />{tr("Privé")}</span>
       </div>
 
       <div className="p-4">
         <div className="rounded-2xl border border-white/10 bg-black/20 overflow-hidden">
           <div className="grid grid-cols-4 gap-0 border-b border-white/10 text-xs text-white/50">
-            <div className="px-4 py-3">Date</div>
-            <div className="px-4 py-3">Symbol</div>
-            <div className="px-4 py-3">PNL</div>
-            <div className="px-4 py-3">Result</div>
+            <div className="px-4 py-3">{tr("Date")}</div>
+            <div className="px-4 py-3">{tr("Symbol")}</div>
+            <div className="px-4 py-3">{tr("PNL")}</div>
+            <div className="px-4 py-3">{tr("Result")}</div>
           </div>
 
           {Array.from({ length: 12 }).map((_, i) => (
@@ -348,9 +348,7 @@ function PrivateTradesOverlay(props: { title?: string; subtitle?: string }) {
           ))}
         </div>
 
-        <div className="mt-3 text-[11px] text-white/40">
-          🔒 Historique privé : invisible depuis le classement.
-        </div>
+        <div className="mt-3 text-[11px] text-white/40">{tr("🔒 Historique privé : invisible depuis le classement.")}</div>
       </div>
 
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -369,24 +367,24 @@ function PrivateTradesOverlay(props: { title?: string; subtitle?: string }) {
 }
 
 function PrivateStatsCard() {
+  const { t: tr } = useLocale();
   return (
     <CardSubCard className="p-4">
-      <div className="text-xs text-white/50">Stats</div>
+      <div className="text-xs text-white/50">{tr("Stats")}</div>
       <div className="mt-2 rounded-2xl border border-white/10 bg-black/20 p-4 flex items-center gap-3">
         <EyeOff className="w-5 h-5 text-white/60" />
         <div className="text-sm">
-          <div className="text-white font-semibold">Privé</div>
-          <div className="text-white/50 text-xs">Statistiques masquées</div>
+          <div className="text-white font-semibold">{tr("Privé")}</div>
+          <div className="text-white/50 text-xs">{tr("Statistiques masquées")}</div>
         </div>
       </div>
-      <div className="mt-3 text-xs text-white/40">
-        Cet utilisateur a choisi de ne pas afficher ses statistiques publiquement.
-      </div>
+      <div className="mt-3 text-xs text-white/40">{tr("Cet utilisateur a choisi de ne pas afficher ses statistiques publiquement.")}</div>
     </CardSubCard>
   );
 }
 
 export default function ClassementUserPage() {
+  const { t: tr, locale } = useLocale();
   const params = useParams<{ username: string }>();
   const usernameParam = decodeURIComponent(String(params?.username || ""));
   const me = getCurrentAccount();
@@ -723,8 +721,8 @@ export default function ClassementUserPage() {
       if (!k) {
         pushNotif({
           kind: "warning",
-          title: "Fichier refusé",
-          message: "Formats acceptés: GIF, MP4, MP3.",
+          title: tr("Fichier refusé"),
+          message: tr("Formats acceptés: GIF, MP4, MP3."),
           ttlMs: 9000,
         });
         continue;
@@ -733,7 +731,7 @@ export default function ClassementUserPage() {
       if (f.size > 6 * 1024 * 1024) {
         pushNotif({
           kind: "warning",
-          title: "Trop lourd",
+          title: tr("Trop lourd"),
           message: `${f.name} > 6MB.`,
           ttlMs: 9000,
         });
@@ -781,7 +779,7 @@ export default function ClassementUserPage() {
     setCommentsPage(1);
     setTimeout(() => commentsTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
 
-    pushNotif({ kind: "success", title: "Commentaire", message: "Commentaire publié.", ttlMs: 6000 });
+    pushNotif({ kind: "success", title: "Commentaire", message: tr("Commentaire publié."), ttlMs: 6000 });
   }
 
   function togglePin(id: string) {
@@ -790,12 +788,12 @@ export default function ClassementUserPage() {
 
   function report(id: string) {
     persist(comments.map((c) => (c.id === id ? { ...c, reported: true } : c)));
-    pushNotif({ kind: "warning", title: "Signalement", message: "Commentaire signalé.", ttlMs: 9000 });
+    pushNotif({ kind: "warning", title: "Signalement", message: tr("Commentaire signalé."), ttlMs: 9000 });
   }
 
   function del(id: string) {
     persist(comments.filter((c) => c.id !== id));
-    pushNotif({ kind: "info", title: "Commentaire", message: "Commentaire supprimé.", ttlMs: 6000 });
+    pushNotif({ kind: "info", title: "Commentaire", message: tr("Commentaire supprimé."), ttlMs: 6000 });
   }
 
   function toggleReaction(commentId: string, emoji: string) {
@@ -824,15 +822,12 @@ export default function ClassementUserPage() {
     return (
       <div className="space-y-4">
         <Button variant="secondary" onClick={() => window.history.back()}>
-          <ArrowLeft className="w-4 h-4" /> Retour
-        </Button>
+          <ArrowLeft className="w-4 h-4" />{tr(" Retour")}</Button>
 
         <Card>
           <CardBody>
-            <div className="text-white font-semibold">Profil introuvable</div>
-            <div className="text-sm text-[color:var(--muted)] mt-1">
-              Cet utilisateur n’est pas (ou plus) public dans le classement.
-            </div>
+            <div className="text-white font-semibold">{tr("Profil introuvable")}</div>
+            <div className="text-sm text-[color:var(--muted)] mt-1">{tr("Cet utilisateur n’est pas (ou plus) public dans le classement.")}</div>
           </CardBody>
         </Card>
       </div>
@@ -844,9 +839,8 @@ export default function ClassementUserPage() {
       {/* Top actions */}
       <div className="flex items-center justify-between gap-3">
         <Button variant="secondary" onClick={() => window.history.back()}>
-          <ArrowLeft className="w-4 h-4" /> Retour
-        </Button>
-        <div className="text-xs text-white/40">Profil public (depuis le classement)</div>
+          <ArrowLeft className="w-4 h-4" />{tr(" Retour")}</Button>
+        <div className="text-xs text-white/40">{tr("Profil public (depuis le classement)")}</div>
       </div>
 
       {/* Header profil public */}
@@ -860,7 +854,7 @@ export default function ClassementUserPage() {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={bannerUrl}
-                    alt="banner"
+                    alt={tr("banner")}
                     className="absolute left-1/2 top-1/2 max-w-none"
                     style={{
                       transform: `translate(-50%, -50%) translate(${bannerTranslateX}, ${bannerTranslateY}) scale(${bannerT.zoom})`,
@@ -891,7 +885,7 @@ export default function ClassementUserPage() {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={avatarUrl}
-                      alt="avatar"
+                      alt={tr("avatar")}
                       className="absolute left-1/2 top-1/2 max-w-none"
                       style={{
                         transform: `translate(-50%, -50%) translate(${avatarTranslateX}, ${avatarTranslateY}) scale(${avatarT.zoom})`,
@@ -920,12 +914,10 @@ export default function ClassementUserPage() {
                                    border border-[color:var(--gold-border)]
                                    bg-[color:var(--gold-soft)]
                                    text-[color:var(--gold)]"
-                      >
-                        TOP 10
-                      </span>
+                      >{tr("TOP 10")}</span>
                     ) : null}
                   </div>
-                  <div className="text-sm text-white/60">Profil public</div>
+                  <div className="text-sm text-white/60">{tr("Profil public")}</div>
                 </div>
               </div>
             </div>
@@ -938,26 +930,26 @@ export default function ClassementUserPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               {/* Bio + Trades */}
               <div className="lg:col-span-2">
-                <div className="text-sm text-white/70">Bio</div>
+                <div className="text-sm text-white/70">{tr("Bio")}</div>
                 <div className="mt-2 rounded-2xl border border-[color:var(--border)] bg-black/20 p-4 text-sm text-white/85">
                   {bioText ? bioText : <span className="text-white/40">—</span>}
                 </div>
 
                 {/* Historique trades */}
                 <div className="mt-4">
-                  <div className="text-sm text-white/70">Historique trades</div>
+                  <div className="text-sm text-white/70">{tr("Historique trades")}</div>
 
                   {tradesPrivate ? (
-                    <PrivateTradesOverlay title="Privé" subtitle="Historique masqué" />
+                    <PrivateTradesOverlay title={tr("Privé")} subtitle={tr("Historique masqué")} />
                   ) : publicTrades.length ? (
                     <div className="mt-2 rounded-2xl border border-white/10 bg-black/15 p-4 overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead className="text-white/70">
                           <tr className="border-b border-white/10">
-                            <th className="text-left py-2">Date</th>
-                            <th className="text-left py-2">Symbol</th>
-                            <th className="text-left py-2">PNL</th>
-                            <th className="text-left py-2">Result</th>
+                            <th className="text-left py-2">{tr("Date")}</th>
+                            <th className="text-left py-2">{tr("Symbol")}</th>
+                            <th className="text-left py-2">{tr("PNL")}</th>
+                            <th className="text-left py-2">{tr("Result")}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -980,15 +972,11 @@ export default function ClassementUserPage() {
                         </tbody>
                       </table>
 
-                      <div className="mt-2 text-[11px] text-white/40">
-                        Affichage: {PUBLIC_TRADES_PER_PAGE} trades par page.
-                      </div>
+                      <div className="mt-2 text-[11px] text-white/40">{tr("Affichage: ")}{PUBLIC_TRADES_PER_PAGE}{tr(" trades par page.")}</div>
 
                       {publicTrades.length > PUBLIC_TRADES_PER_PAGE ? (
                         <div className="mt-3 flex items-center justify-between">
-                          <div className="text-xs text-white/40">
-                            Page {publicTradesPage} / {totalPublicTradePages} • {publicTrades.length} trades publics
-                          </div>
+                          <div className="text-xs text-white/40">{tr("Page ")}{publicTradesPage} / {totalPublicTradePages} • {publicTrades.length}{tr(" trades publics")}</div>
 
                           <div className="flex items-center gap-2">
                             <button
@@ -1001,9 +989,7 @@ export default function ClassementUserPage() {
                                   ? "border-white/10 bg-black/20 text-white/30 cursor-not-allowed"
                                   : "border-white/10 bg-black/20 text-white/80 hover:bg-white/5",
                               ].join(" ")}
-                            >
-                              Précédent
-                            </button>
+                            >{tr("Précédent")}</button>
 
                             <button
                               type="button"
@@ -1017,15 +1003,13 @@ export default function ClassementUserPage() {
                                   ? "border-white/10 bg-black/20 text-white/30 cursor-not-allowed"
                                   : "border-white/10 bg-black/20 text-white/80 hover:bg-white/5",
                               ].join(" ")}
-                            >
-                              Suivant
-                            </button>
+                            >{tr("Suivant")}</button>
                           </div>
                         </div>
                       ) : null}
                     </div>
                   ) : (
-                    <PrivateTradesOverlay title="Privé" subtitle="Aucun trade public" />
+                    <PrivateTradesOverlay title={tr("Privé")} subtitle={tr("Aucun trade public")} />
                   )}
                 </div>
               </div>
@@ -1036,64 +1020,55 @@ export default function ClassementUserPage() {
                   <PrivateStatsCard />
                 ) : (
                   <CardSubCard className="p-4">
-                    <div className="text-xs text-white/50">Stats</div>
+                    <div className="text-xs text-white/50">{tr("Stats")}</div>
 
                     <div className="mt-2 space-y-2 text-sm">
                       <div className="flex items-center justify-between">
                         <span className="text-white/60 inline-flex items-center gap-2">
-                          <Medal className="w-4 h-4" /> Rang
-                        </span>
+                          <Medal className="w-4 h-4" />{tr(" Rang")}</span>
                         <span className="text-white font-semibold">{rank ? `#${rank}` : "—"}</span>
                       </div>
 
                       <div className="flex items-center justify-between">
                         <span className="text-white/60 inline-flex items-center gap-2">
-                          <DollarSign className="w-4 h-4" /> Profit
-                        </span>
+                          <DollarSign className="w-4 h-4" />{tr(" Profit")}</span>
                         <span className={cx("font-semibold", profitClass)}>{money(profit)}</span>
                       </div>
 
                       <div className="flex items-center justify-between">
                         <span className="text-white/60 inline-flex items-center gap-2">
-                          <Trophy className="w-4 h-4" /> Trades
-                        </span>
+                          <Trophy className="w-4 h-4" />{tr(" Trades")}</span>
                         <span className="text-white font-semibold">{tradesTotal ?? "—"}</span>
                       </div>
 
                       <div className="flex items-center justify-between">
-                        <span className="text-white/60">Winrate</span>
+                        <span className="text-white/60">{tr("Winrate")}</span>
                         <span className="text-white font-semibold">
                           {winrate === null ? "—" : `${winrate.toFixed(1)}%`}
                         </span>
                       </div>
 
                       <div className="flex items-center justify-between">
-                        <span className="text-white/60">RR moyen</span>
+                        <span className="text-white/60">{tr("RR moyen")}</span>
                         <span className="text-white font-semibold">
                           {rrAvg === null ? "—" : rrAvg.toFixed(2)}
                         </span>
                       </div>
                     </div>
 
-                    <div className="mt-3 text-xs text-white/40">
-                      Données: bio/trades/stats depuis le profil (si dispo) sinon fallback classement.
-                    </div>
+                    <div className="mt-3 text-xs text-white/40">{tr("Données: bio/trades/stats depuis le profil (si dispo) sinon fallback classement.")}</div>
                   </CardSubCard>
                 )}
 
                 <Button
                   variant="secondary"
                   onClick={() => (window.location.href = "/dashboard/classement")}
-                >
-                  Retour au classement
-                </Button>
+                >{tr("Retour au classement")}</Button>
               </div>
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-black/15 p-4 text-xs text-white/50 flex items-center gap-2">
-              <EyeOff className="w-4 h-4" />
-              Les infos privées & détails sensibles ne sont pas accessibles depuis le classement.
-            </div>
+              <EyeOff className="w-4 h-4" />{tr("Les infos privées & détails sensibles ne sont pas accessibles depuis le classement.")}</div>
           </div>
         </CardBody>
       </Card>
@@ -1102,7 +1077,7 @@ export default function ClassementUserPage() {
       <Card>
         <CardBody className="space-y-4">
           <div className="flex items-center justify-between">
-            <div className="text-lg font-semibold text-white">Commentaires</div>
+            <div className="text-lg font-semibold text-white">{tr("Commentaires")}</div>
             <div className="text-xs text-white/40">{comments.length}/120</div>
           </div>
 
@@ -1112,7 +1087,7 @@ export default function ClassementUserPage() {
               <div className="w-9 h-9 rounded-full border border-white/10 bg-black/20 flex items-center justify-center shrink-0 mt-1 overflow-hidden">
                 {myAvatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={myAvatarUrl} alt="me" className="w-full h-full object-cover" />
+                  <img src={myAvatarUrl} alt={tr("me")} className="w-full h-full object-cover" />
                 ) : (
                   <span className="text-xs text-white/70">{initialsOf(me?.username || "IP")}</span>
                 )}
@@ -1126,7 +1101,7 @@ export default function ClassementUserPage() {
                   className="w-full p-3 rounded-xl bg-black/15 border border-white/10 text-white outline-none
                              focus:border-[color:var(--gold-border)] focus:ring-2 focus:ring-[color:var(--gold-soft)] transition
                              placeholder:text-white/30"
-                  placeholder="Écrire un commentaire…"
+                  placeholder={tr("Écrire un commentaire…")}
                 />
 
                 {atts.length ? (
@@ -1159,7 +1134,7 @@ export default function ClassementUserPage() {
                   <button
                     type="button"
                     className="h-9 w-9 rounded-xl border border-white/10 bg-black/20 hover:bg-white/5 transition inline-flex items-center justify-center text-white/70"
-                    title="Ajouter un fichier (GIF / MP4 / MP3)"
+                    title={tr("Ajouter un fichier (GIF / MP4 / MP3)")}
                     onClick={() => document.getElementById("comment-attach")?.click()}
                   >
                     <Paperclip className="w-4 h-4" />
@@ -1169,7 +1144,7 @@ export default function ClassementUserPage() {
                     <button
                       type="button"
                       className="h-9 w-9 rounded-xl border border-white/10 bg-black/20 hover:bg-white/5 transition inline-flex items-center justify-center text-white/70"
-                      title="Emoji"
+                      title={tr("Emoji")}
                       onClick={() => setEmojiOpen((v) => !v)}
                     >
                       <Smile className="w-4 h-4" />
@@ -1185,15 +1160,11 @@ export default function ClassementUserPage() {
                   </div>
 
                   <div className="ml-auto">
-                    <Button onClick={postComment} disabled={!text.trim() && atts.length === 0}>
-                      Publier
-                    </Button>
+                    <Button onClick={postComment} disabled={!text.trim() && atts.length === 0}>{tr("Publier")}</Button>
                   </div>
                 </div>
 
-                <div className="mt-2 text-[11px] text-white/40">
-                  Les commentaires sont synchronisés avec la page profil (même navigateur).
-                </div>
+                <div className="mt-2 text-[11px] text-white/40">{tr("Les commentaires sont synchronisés avec la page profil (même navigateur).")}</div>
               </div>
             </div>
           </div>
@@ -1203,7 +1174,7 @@ export default function ClassementUserPage() {
             <div ref={commentsTopRef} />
 
             {comments.length === 0 ? (
-              <div className="text-sm text-[color:var(--muted)]">Aucun commentaire.</div>
+              <div className="text-sm text-[color:var(--muted)]">{tr("Aucun commentaire.")}</div>
             ) : (
               pagedComments.map((c) => (
                 <div
@@ -1222,7 +1193,7 @@ export default function ClassementUserPage() {
                             : (c.author.avatarDataUrl || "");
                         return src ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={src} alt="avatar" className="w-full h-full object-cover" />
+                          <img src={src} alt={tr("avatar")} className="w-full h-full object-cover" />
                         ) : (
                           <span className="text-xs text-white/70">
                             {initialsOf(c.author.username)}
@@ -1242,22 +1213,20 @@ export default function ClassementUserPage() {
                               <span className="text-xs text-white/40">{c.author.tag}</span>
                             ) : null}
                             {c.pinned ? (
-                              <span className="text-[11px] text-[color:var(--gold)]">
-                                Épinglé
-                              </span>
+                              <span className="text-[11px] text-[color:var(--gold)]">{tr("Épinglé")}</span>
                             ) : null}
                             {c.reported ? (
-                              <span className="text-[11px] text-red-200/80">Signalé</span>
+                              <span className="text-[11px] text-red-200/80">{tr("Signalé")}</span>
                             ) : null}
                           </div>
-                          <div className="text-[11px] text-white/40">{fmtAgo(c.createdAt)}</div>
+                          <div className="text-[11px] text-white/40">{fmtAgo(c.createdAt, locale)}</div>
                         </div>
 
                         <div className="relative" data-comment-menu>
                           <button
                             type="button"
                             className="h-8 w-8 rounded-xl border border-white/10 bg-black/20 hover:bg-white/5 transition inline-flex items-center justify-center text-white/70"
-                            title="Actions"
+                            title={tr("Actions")}
                             onClick={() => setMenuOpenId((prev) => (prev === c.id ? null : c.id))}
                           >
                             <MoreHorizontal className="w-4 h-4" />
@@ -1274,7 +1243,7 @@ export default function ClassementUserPage() {
                                 }}
                               >
                                 <Pin className="w-4 h-4" />
-                                {c.pinned ? "Désépingler" : "Épingler"}
+                                {c.pinned ? tr("Désépingler") : tr("Épingler")}
                               </button>
 
                               <button
@@ -1289,9 +1258,7 @@ export default function ClassementUserPage() {
                                   setMenuOpenId(null);
                                 }}
                               >
-                                <Flag className="w-4 h-4" />
-                                Signaler
-                              </button>
+                                <Flag className="w-4 h-4" />{tr("Signaler")}</button>
 
                               {canDelete(c) ? (
                                 <button
@@ -1302,9 +1269,7 @@ export default function ClassementUserPage() {
                                     setMenuOpenId(null);
                                   }}
                                 >
-                                  <Trash2 className="w-4 h-4" />
-                                  Supprimer
-                                </button>
+                                  <Trash2 className="w-4 h-4" />{tr("Supprimer")}</button>
                               ) : null}
                             </div>
                           ) : null}
@@ -1321,7 +1286,7 @@ export default function ClassementUserPage() {
                         <div className="mt-3 space-y-2">
                           {c.attachments.map((a) => (
                             <div key={a.id} className="rounded-xl border border-white/10 bg-black/20 p-2">
-                              {renderAttachment(a)}
+                              {<Attachment attachment={a} />}
                               <div className="mt-1 text-xs text-white/40 truncate">{a.name}</div>
                             </div>
                           ))}
@@ -1348,7 +1313,7 @@ export default function ClassementUserPage() {
                           <button
                             type="button"
                             className="h-8 w-8 rounded-full border border-white/10 bg-black/20 hover:bg-white/5 transition inline-flex items-center justify-center text-white/70"
-                            title="Ajouter une réaction"
+                            title={tr("Ajouter une réaction")}
                             onClick={() => setReactOpenId((v) => (v === c.id ? null : c.id))}
                           >
                             +
@@ -1375,9 +1340,7 @@ export default function ClassementUserPage() {
 
             {comments.length > COMMENTS_PER_PAGE ? (
               <div className="flex items-center justify-between pt-2">
-                <div className="text-xs text-white/40">
-                  Page {commentsPage} / {totalCommentPages} • {comments.length} commentaires
-                </div>
+                <div className="text-xs text-white/40">{tr("Page ")}{commentsPage} / {totalCommentPages} • {comments.length}{tr(" commentaires")}</div>
 
                 <div className="flex items-center gap-2">
                   <button
@@ -1393,9 +1356,7 @@ export default function ClassementUserPage() {
                         ? "border-white/10 bg-black/20 text-white/30 cursor-not-allowed"
                         : "border-white/10 bg-black/20 text-white/80 hover:bg-white/5",
                     ].join(" ")}
-                  >
-                    Précédent
-                  </button>
+                  >{tr("Précédent")}</button>
 
                   <button
                     type="button"
@@ -1410,9 +1371,7 @@ export default function ClassementUserPage() {
                         ? "border-white/10 bg-black/20 text-white/30 cursor-not-allowed"
                         : "border-white/10 bg-black/20 text-white/80 hover:bg-white/5",
                     ].join(" ")}
-                  >
-                    Suivant
-                  </button>
+                  >{tr("Suivant")}</button>
                 </div>
               </div>
             ) : null}

@@ -1,4 +1,6 @@
 "use client";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -22,6 +24,8 @@ type Step = {
 };
 
 export default function AdaptiveNextSteps() {
+  const { t } = useLocale();
+
   const supabase = useMemo(() => createClient(), []);
   const [steps, setSteps] = useState<Step[]>([]);
   const [ready, setReady] = useState(false);
@@ -166,34 +170,32 @@ export default function AdaptiveNextSteps() {
 
         <div>
           <div className="text-sm font-semibold text-white">
-            Prochaines étapes recommandées
-          </div>
+            {t("Prochaines étapes recommandées")}</div>
           <div className="mt-1 text-[9px] text-white/30">
-            InvestPro adapte les suggestions à ton espace actuel.
-          </div>
+            {t("InvestPro adapte les suggestions à ton espace actuel.")}</div>
         </div>
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
         {steps.map((step, index) => (
           <div
-            key={`${step.title}-${index}`}
+            key={`${t(step.title)}-${index}`}
             className="rounded-2xl border border-white/[0.06] bg-black/20 p-4"
           >
             <div className="text-[9px] font-semibold uppercase tracking-[0.1em] text-[color:var(--gold)]">
-              Étape {index + 1}
+              {t("Étape ")}{index + 1}
             </div>
             <div className="mt-2 text-xs font-semibold text-white">
-              {step.title}
+              {t(step.title)}
             </div>
             <p className="mt-1 min-h-[40px] text-[9px] leading-4 text-white/35">
-              {step.text}
+              {t(step.text)}
             </p>
             <Link
               href={step.href}
               className="mt-3 inline-flex items-center gap-1.5 text-[9px] font-semibold text-[color:var(--gold)] no-underline"
             >
-              {step.cta}
+              {t(step.cta)}
               <ArrowRight size={11} />
             </Link>
           </div>

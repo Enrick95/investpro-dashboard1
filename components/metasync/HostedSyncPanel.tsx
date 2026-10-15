@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
@@ -41,6 +42,8 @@ type Connection = {
 };
 
 export default function HostedSyncPanel({ initialPlatform = "MT5" }: { initialPlatform?: "MT4" | "MT5" }) {
+  const { t: translate, locale } = useLocale();
+
   const [enabled, setEnabled] = useState(false);
   const [brokers, setBrokers] = useState<Broker[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
@@ -145,22 +148,19 @@ export default function HostedSyncPanel({ initialPlatform = "MT5" }: { initialPl
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/15 bg-emerald-500/[0.05] px-3 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-400">
               <Wifi size={11} />
-              Connexion hébergée
-            </div>
+              {translate("Connexion hébergée")}</div>
 
             <h2 className="mt-3 text-xl font-semibold text-white">
-              Connecter un compte <span className="text-[color:var(--gold)]">MT4 / MT5</span>
+              {translate("Connecter un compte")}{" "}<span className="text-[color:var(--gold)]">{translate("MT4 / MT5")}</span>
             </h2>
 
             <p className="mt-2 max-w-2xl text-[11px] leading-5 text-white/40">
-              Rien à installer sur ton ordinateur. InvestPro conserve les identifiants chiffrés
-              et synchronise les données du compte côté serveur.
-            </p>
+              {translate("Rien à installer sur ton ordinateur. InvestPro conserve les identifiants chiffrés et synchronise les données du compte côté serveur.")}</p>
           </div>
 
           <div className="grid grid-cols-2 gap-2 sm:flex">
-            <Pill icon={<ShieldCheck size={11} />} text="Lecture seule InvestPro" />
-            <Pill icon={<LockKeyhole size={11} />} text="Chiffrement serveur" />
+            <Pill icon={<ShieldCheck size={11} />} text={translate("Lecture seule InvestPro")} />
+            <Pill icon={<LockKeyhole size={11} />} text={translate("Chiffrement serveur")} />
           </div>
         </div>
       </div>
@@ -174,7 +174,7 @@ export default function HostedSyncPanel({ initialPlatform = "MT5" }: { initialPl
           className="bg-[color:var(--panel)] p-5 md:p-6"
         >
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Plateforme">
+            <Field label={translate("Plateforme")}>
               <select
                 className="ip-connection-input"
                 value={platform}
@@ -183,19 +183,19 @@ export default function HostedSyncPanel({ initialPlatform = "MT5" }: { initialPl
                   setBroker("");
                 }}
               >
-                <option value="MT5">MetaTrader 5</option>
-                <option value="MT4">MetaTrader 4</option>
+                <option value="MT5">{translate("MetaTrader 5")}</option>
+                <option value="MT4">{translate("MetaTrader 4")}</option>
               </select>
             </Field>
 
-            <Field label="Broker / serveur">
+            <Field label={translate("Broker / serveur")}>
               <select
                 required
                 className="ip-connection-input"
                 value={broker}
                 onChange={(event) => setBroker(event.target.value)}
               >
-                <option value="">Choisir un serveur</option>
+                <option value="">{translate("Choisir un serveur")}</option>
                 {platformBrokers.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.label} · {item.server}
@@ -204,7 +204,7 @@ export default function HostedSyncPanel({ initialPlatform = "MT5" }: { initialPl
               </select>
             </Field>
 
-            <Field label="Numéro du compte">
+            <Field label={translate("Numéro du compte")}>
               <input
                 required
                 inputMode="numeric"
@@ -213,11 +213,11 @@ export default function HostedSyncPanel({ initialPlatform = "MT5" }: { initialPl
                 className="ip-connection-input"
                 value={login}
                 onChange={(event) => setLogin(event.target.value.trim())}
-                placeholder="Ex. 12345678"
+                placeholder={translate("Ex. 12345678")}
               />
             </Field>
 
-            <Field label="Mot de passe MetaTrader">
+            <Field label={translate("Mot de passe MetaTrader")}>
               <input
                 required
                 type="password"
@@ -226,59 +226,55 @@ export default function HostedSyncPanel({ initialPlatform = "MT5" }: { initialPl
                 className="ip-connection-input"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                placeholder="Mot de passe du compte"
+                placeholder={translate("Mot de passe du compte")}
               />
             </Field>
 
-            <Field label="Devise">
+            <Field label={translate("Devise")}>
               <select
                 required
                 className="ip-connection-input"
                 value={currency}
                 onChange={(event) => setCurrency(event.target.value)}
               >
-                <option value="" disabled>Choisir votre devise</option>
-                <option value="USD">USD — Dollar américain</option>
-                <option value="EUR">EUR — Euro</option>
-                <option value="CHF">CHF — Franc suisse</option>
-                <option value="GBP">GBP — Livre sterling</option>
-                <option value="CAD">CAD — Dollar canadien</option>
-                <option value="AUD">AUD — Dollar australien</option>
-                <option value="JPY">JPY — Yen japonais</option>
-                <option value="NZD">NZD — Dollar néo-zélandais</option>
-                <option value="SGD">SGD — Dollar de Singapour</option>
-                <option value="HKD">HKD — Dollar de Hong Kong</option>
-                <option value="ZAR">ZAR — Rand sud-africain</option>
-                <option value="USC">USC — Centime de dollar américain (compte cent)</option>
+                <option value="" disabled>{translate("Choisir votre devise")}</option>
+                <option value="USD">{translate("USD — Dollar américain")}</option>
+                <option value="EUR">{translate("EUR — Euro")}</option>
+                <option value="CHF">{translate("CHF — Franc suisse")}</option>
+                <option value="GBP">{translate("GBP — Livre sterling")}</option>
+                <option value="CAD">{translate("CAD — Dollar canadien")}</option>
+                <option value="AUD">{translate("AUD — Dollar australien")}</option>
+                <option value="JPY">{translate("JPY — Yen japonais")}</option>
+                <option value="NZD">{translate("NZD — Dollar néo-zélandais")}</option>
+                <option value="SGD">{translate("SGD — Dollar de Singapour")}</option>
+                <option value="HKD">{translate("HKD — Dollar de Hong Kong")}</option>
+                <option value="ZAR">{translate("ZAR — Rand sud-africain")}</option>
+                <option value="USC">{translate("USC — Centime de dollar américain (compte cent)")}</option>
               </select>
               <span className="mt-2 block text-[10px] leading-4 text-white/40">
-                Choisissez la devise affichée dans MetaTrader, même si vous habitez dans un autre pays.
-              </span>
+                {translate("Choisissez la devise affichée dans MetaTrader, même si vous habitez dans un autre pays.")}</span>
             </Field>
 
-            <Field label="Type de compte">
+            <Field label={translate("Type de compte")}>
               <select
                 required
                 className="ip-connection-input"
                 value={type}
                 onChange={(event) => setType(event.target.value)}
               >
-                <option value="" disabled>Choisir le type de compte</option>
-                <option value="real">Réel</option>
-                <option value="demo">Démo</option>
-                <option value="prop">Prop firm</option>
+                <option value="" disabled>{translate("Choisir le type de compte")}</option>
+                <option value="real">{translate("Réel")}</option>
+                <option value="demo">{translate("Démo")}</option>
+                <option value="prop">{translate("Prop firm")}</option>
               </select>
               <span className="mt-2 block text-[10px] leading-4 text-white/40">
-                Réel : vos fonds. Démo : fonds virtuels. Prop firm : challenge ou compte financé.
-              </span>
+                {translate("Réel : vos fonds. Démo : fonds virtuels. Prop firm : challenge ou compte financé.")}</span>
             </Field>
           </div>
 
           {platformBrokers.length === 0 ? (
             <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/[0.05] p-3 text-[10px] leading-5 text-amber-200">
-              Aucun serveur {platform} n’est encore enregistré côté InvestPro.
-              Utilise l’installation locale pilote ou contacte le support pour ajouter le serveur.
-            </div>
+              {translate("Aucun serveur")}{" "}{platform} {" "}{translate("n’est encore enregistré côté InvestPro. Utilise l’installation locale pilote ou contacte le support pour ajouter le serveur.")}</div>
           ) : null}
 
           <label className="mt-5 flex items-start gap-3 rounded-xl border border-white/[0.06] bg-black/20 p-3 text-[10px] leading-5 text-white/45">
@@ -290,9 +286,7 @@ export default function HostedSyncPanel({ initialPlatform = "MT5" }: { initialPl
               className="mt-1"
             />
             <span>
-              Je suis autorisé à connecter ce compte et j’autorise InvestPro à conserver
-              mes identifiants chiffrés afin de synchroniser les données du compte.
-            </span>
+              {translate("Je suis autorisé à connecter ce compte et j’autorise InvestPro à conserver mes identifiants chiffrés afin de synchroniser les données du compte.")}</span>
           </label>
 
           <button
@@ -304,20 +298,20 @@ export default function HostedSyncPanel({ initialPlatform = "MT5" }: { initialPl
             ) : (
               <PlugZap size={14} />
             )}
-            {busy ? "Connexion en cours…" : "Connecter mon compte"}
+            {busy ? translate("Connexion en cours…") : translate("Connecter mon compte")}
           </button>
 
           {error ? (
             <div className="mt-4 flex items-start gap-2 rounded-xl border border-red-500/20 bg-red-500/[0.05] p-3 text-[10px] text-red-300">
               <AlertTriangle size={13} className="mt-0.5 shrink-0" />
-              {error}
+              {translate(error)}
             </div>
           ) : null}
 
           {notice ? (
             <div className="mt-4 flex items-start gap-2 rounded-xl border border-emerald-500/15 bg-emerald-500/[0.05] p-3 text-[10px] text-emerald-300">
               <CheckCircle2 size={13} className="mt-0.5 shrink-0" />
-              {notice}
+              {translate(notice)}
             </div>
           ) : null}
         </form>
@@ -326,10 +320,9 @@ export default function HostedSyncPanel({ initialPlatform = "MT5" }: { initialPl
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-sm font-semibold text-white">
-                Connexions MetaTrader
-              </div>
+                {translate("Connexions MetaTrader")}</div>
               <div className="mt-1 text-[9px] text-white/30">
-                {connections.length} connexion{connections.length !== 1 ? "s" : ""} enregistrée{connections.length !== 1 ? "s" : ""}
+                {connections.length} {" "}{translate("connexion")}{connections.length !== 1 ? translate("s") : ""} {" "}{translate("enregistrée")}{connections.length !== 1 ? translate("s") : ""}
               </div>
             </div>
 
@@ -350,7 +343,7 @@ export default function HostedSyncPanel({ initialPlatform = "MT5" }: { initialPl
                   connection.active &&
                   connection.status === "syncing" &&
                   old
-                    ? "Synchronisation interrompue"
+                    ? translate("Synchronisation interrompue")
                     : labels[connection.status] || "En attente";
 
                 const healthy =
@@ -380,12 +373,12 @@ export default function HostedSyncPanel({ initialPlatform = "MT5" }: { initialPl
                                   : "border-white/[0.07] bg-white/[0.03] text-white/35",
                             ].join(" ")}
                           >
-                            {statusText}
+                            {translate(statusText)}
                           </span>
                         </div>
 
                         <div className="mt-1 text-[9px] text-white/30">
-                          {mt.server || "Serveur MetaTrader"} · {mt.currency}
+                          {mt.server || translate("Serveur MetaTrader")} · {mt.currency}
                         </div>
                       </div>
 
@@ -403,20 +396,20 @@ export default function HostedSyncPanel({ initialPlatform = "MT5" }: { initialPl
 
                     <div className="mt-3 grid grid-cols-2 gap-2">
                       <Metric
-                        label="Dernière réception"
+                        label={translate("Dernière réception")}
                         value={
                           mt.last_sync
-                            ? new Date(mt.last_sync).toLocaleString("fr-FR", {
+                            ? new Date(mt.last_sync).toLocaleString(locale === "en" ? "en-GB" : "fr-FR", {
                                 day: "2-digit",
                                 month: "2-digit",
                                 hour: "2-digit",
                                 minute: "2-digit",
                               })
-                            : "En attente"
+                            : translate("En attente")
                         }
                       />
                       <Metric
-                        label="Capital référence"
+                        label={translate("Capital référence")}
                         value={
                           Number(connection.capital_reference) > 0
                             ? `${Number(connection.capital_reference).toLocaleString("fr-FR")} ${mt.currency}`
@@ -442,8 +435,7 @@ export default function HostedSyncPanel({ initialPlatform = "MT5" }: { initialPl
                         className="mt-3 inline-flex items-center gap-2 text-[9px] font-semibold text-red-300/75 hover:text-red-300"
                       >
                         <Unplug size={11} />
-                        Déconnecter
-                      </button>
+                        {translate("Déconnecter")}</button>
                     ) : null}
                   </div>
                 );
@@ -452,11 +444,9 @@ export default function HostedSyncPanel({ initialPlatform = "MT5" }: { initialPl
               <div className="rounded-2xl border border-dashed border-white/[0.08] bg-black/15 p-8 text-center">
                 <Server size={20} className="mx-auto text-white/20" />
                 <div className="mt-3 text-xs font-semibold text-white/45">
-                  Aucun compte hébergé
-                </div>
+                  {translate("Aucun compte hébergé")}</div>
                 <p className="mt-1 text-[9px] leading-4 text-white/25">
-                  Le premier compte connecté apparaîtra ici avec son statut de synchronisation.
-                </p>
+                  {translate("Le premier compte connecté apparaîtra ici avec son statut de synchronisation.")}</p>
               </div>
             )}
           </div>
@@ -492,9 +482,11 @@ function Field({
   label: string;
   children: React.ReactNode;
 }) {
+  const { t: translate } = useLocale();
+
   return (
     <label className="block">
-      <span className="text-[10px] font-medium text-white/45">{label}</span>
+      <span className="text-[10px] font-medium text-white/45">{translate(label)}</span>
       {children}
     </label>
   );
@@ -507,19 +499,23 @@ function Pill({
   icon: React.ReactNode;
   text: string;
 }) {
+  const { t: translate } = useLocale();
+
   return (
     <span className="inline-flex items-center gap-2 rounded-full border border-white/[0.07] bg-black/20 px-3 py-1.5 text-[8px] text-white/40">
       <span className="text-[color:var(--gold)]">{icon}</span>
-      {text}
+      {translate(text)}
     </span>
   );
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
+  const { t: translate } = useLocale();
+
   return (
     <div className="rounded-xl border border-white/[0.05] bg-black/20 p-3">
       <div className="text-[8px] uppercase tracking-[0.08em] text-white/22">
-        {label}
+        {translate(label)}
       </div>
       <div className="mt-1 truncate text-[10px] font-semibold text-white/60">
         {value}

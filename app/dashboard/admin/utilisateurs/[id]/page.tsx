@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -59,9 +60,9 @@ type ConfirmAction =
   | { kind: "plan"; plan: "free" | "pro" | "elite" }
   | null;
 
-function dateLabel(value: string | null) {
+function dateLabel(value: string | null, locale: "fr" | "en" = "fr") {
   if (!value) return "—";
-  return new Date(value).toLocaleString("fr-FR", {
+  return new Date(value).toLocaleString((locale === "en" ? "en-US" : "fr-FR"), {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -78,6 +79,7 @@ function logLabel(action: string) {
 }
 
 export default function AdminMemberPage() {
+  const { t: tr, locale } = useLocale();
   const params = useParams<{ id: string }>();
   const supabase = useMemo(() => createClient(), []);
 
@@ -119,11 +121,11 @@ export default function AdminMemberPage() {
       });
 
       const json = await response.json();
-      if (!response.ok) throw new Error(json?.error || "Impossible de charger ce membre.");
+      if (!response.ok) throw new Error(json?.error || tr("Impossible de charger ce membre."));
 
       setData(json);
     } catch (e: any) {
-      setError(e?.message || "Impossible de charger ce membre.");
+      setError(e?.message || tr("Impossible de charger ce membre."));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -158,14 +160,14 @@ export default function AdminMemberPage() {
       const json = await response.json();
 
       if (!response.ok) {
-        throw new Error(json?.error || "Action impossible.");
+        throw new Error(json?.error || tr("Action impossible."));
       }
 
-      setActionSuccess(json?.message || "Action effectuée.");
+      setActionSuccess(json?.message || tr("Action effectuée."));
       setConfirmAction(null);
       await load(true);
     } catch (e: any) {
-      setActionError(e?.message || "Action impossible.");
+      setActionError(e?.message || tr("Action impossible."));
     } finally {
       setActionLoading(false);
     }
@@ -178,9 +180,7 @@ export default function AdminMemberPage() {
 
   if (loading) {
     return (
-      <div className="py-16 text-center text-sm text-[color:var(--muted)]">
-        Chargement de la fiche membre…
-      </div>
+      <div className="py-16 text-center text-sm text-[color:var(--muted)]">{tr("Chargement de la fiche membre…")}</div>
     );
   }
 
@@ -191,9 +191,7 @@ export default function AdminMemberPage() {
           href="/dashboard/admin/utilisateurs"
           className="inline-flex items-center gap-2 text-sm text-[color:var(--muted)] no-underline hover:text-white"
         >
-          <ArrowLeft size={14} />
-          Retour aux utilisateurs
-        </Link>
+          <ArrowLeft size={14} />{tr("Retour aux utilisateurs")}</Link>
 
         <button
           type="button"
@@ -206,14 +204,12 @@ export default function AdminMemberPage() {
             color: "var(--gold)",
           }}
         >
-          <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
-          Actualiser
-        </button>
+          <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />{tr("Actualiser")}</button>
       </div>
 
       {error ? (
         <div className="rounded-2xl border border-red-500/20 bg-red-500/[0.05] p-4 text-sm text-red-200">
-          {error}
+          {tr(error)}
         </div>
       ) : null}
 
@@ -249,13 +245,9 @@ export default function AdminMemberPage() {
                     </span>
 
                     {data.member.banned_until ? (
-                      <span className="rounded-full border border-red-500/20 bg-red-500/[0.06] px-2 py-1 text-[9px] font-semibold text-red-300">
-                        Suspendu
-                      </span>
+                      <span className="rounded-full border border-red-500/20 bg-red-500/[0.06] px-2 py-1 text-[9px] font-semibold text-red-300">{tr("Suspendu")}</span>
                     ) : (
-                      <span className="rounded-full border border-emerald-500/15 bg-emerald-500/[0.06] px-2 py-1 text-[9px] font-semibold text-emerald-400">
-                        Actif
-                      </span>
+                      <span className="rounded-full border border-emerald-500/15 bg-emerald-500/[0.06] px-2 py-1 text-[9px] font-semibold text-emerald-400">{tr("Activé")}</span>
                     )}
                   </div>
 
@@ -266,22 +258,18 @@ export default function AdminMemberPage() {
                     </span>
 
                     <span className="inline-flex items-center gap-1.5">
-                      <CalendarDays size={11} />
-                      Inscrit le {dateLabel(data.member.created_at)}
+                      <CalendarDays size={11} />{tr("Inscrit le ")}{dateLabel(data.member.created_at, locale)}
                     </span>
 
                     <span className="inline-flex items-center gap-1.5">
-                      <Activity size={11} />
-                      Dernière connexion {dateLabel(data.member.last_sign_in_at)}
+                      <Activity size={11} />{tr("Dernière connexion ")}{dateLabel(data.member.last_sign_in_at, locale)}
                     </span>
                   </div>
                 </div>
               </div>
 
               <div className="rounded-2xl border border-white/[0.06] bg-black/20 px-4 py-3">
-                <div className="text-[9px] uppercase tracking-[0.12em] text-white/25">
-                  Identifiant membre
-                </div>
+                <div className="text-[9px] uppercase tracking-[0.12em] text-white/25">{tr("Identifiant membre")}</div>
                 <div className="mt-1 max-w-[320px] break-all font-mono text-[10px] text-white/55">
                   {data.member.id}
                 </div>
@@ -290,28 +278,22 @@ export default function AdminMemberPage() {
           </section>
 
           <section className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-            <Stat icon={<WalletCards size={16} />} label="Comptes" value={data.metrics.accounts_count} />
-            <Stat icon={<Database size={16} />} label="Auto-sync" value={data.metrics.automatic_accounts_count} />
-            <Stat icon={<BarChart3 size={16} />} label="Trades" value={data.metrics.trades_count} />
-            <Stat icon={<CheckCircle2 size={16} />} label="Trades clôturés" value={data.metrics.closed_trades_count} />
-            <Stat icon={<Activity size={16} />} label="Winrate" value={`${data.metrics.winrate}%`} />
-            <Stat icon={<CircleDollarSign size={16} />} label="Résultat" value={`${data.metrics.total_r > 0 ? "+" : ""}${data.metrics.total_r}R`} />
+            <Stat icon={<WalletCards size={16} />} label={tr("Comptes")} value={data.metrics.accounts_count} />
+            <Stat icon={<Database size={16} />} label={tr("Auto-sync")} value={data.metrics.automatic_accounts_count} />
+            <Stat icon={<BarChart3 size={16} />} label={tr("Trades")} value={data.metrics.trades_count} />
+            <Stat icon={<CheckCircle2 size={16} />} label={tr("Trades clôturés")} value={data.metrics.closed_trades_count} />
+            <Stat icon={<Activity size={16} />} label={tr("Winrate")} value={`${data.metrics.winrate}%`} />
+            <Stat icon={<CircleDollarSign size={16} />} label={tr("Résultat")} value={`${data.metrics.total_r > 0 ? "+" : ""}${data.metrics.total_r}R`} />
           </section>
 
           <section className="mt-4 rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4">
             <div className="flex items-center gap-2 text-sm font-semibold text-[color:var(--gold)]">
-              <ShieldCheck size={15} />
-              Actions administrateur
-            </div>
+              <ShieldCheck size={15} />{tr("Actions administrateur")}</div>
 
             <div className="mt-4 grid grid-cols-1 gap-3 xl:grid-cols-[1fr_1fr]">
               <div className="rounded-xl border border-white/[0.07] bg-black/20 p-4">
-                <div className="text-xs font-semibold text-white">
-                  Statut du membre
-                </div>
-                <p className="mt-1 text-[10px] leading-5 text-white/35">
-                  Suspendre bloque la connexion du membre. L’action est réversible.
-                </p>
+                <div className="text-xs font-semibold text-white">{tr("Statut du membre")}</div>
+                <p className="mt-1 text-[10px] leading-5 text-white/35">{tr("Suspendre bloque la connexion du membre. L’action est réversible.")}</p>
 
                 <div className="mt-4">
                   {data.member.banned_until ? (
@@ -320,29 +302,21 @@ export default function AdminMemberPage() {
                       onClick={() => setConfirmAction({ kind: "reactivate" })}
                       className="inline-flex h-10 items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.07] px-4 text-xs font-semibold text-emerald-300"
                     >
-                      <UserCheck size={14} />
-                      Réactiver le membre
-                    </button>
+                      <UserCheck size={14} />{tr("Réactiver le membre")}</button>
                   ) : (
                     <button
                       type="button"
                       onClick={() => setConfirmAction({ kind: "suspend" })}
                       className="inline-flex h-10 items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/[0.07] px-4 text-xs font-semibold text-red-300"
                     >
-                      <UserX size={14} />
-                      Suspendre le membre
-                    </button>
+                      <UserX size={14} />{tr("Suspendre le membre")}</button>
                   )}
                 </div>
               </div>
 
               <div className="rounded-xl border border-white/[0.07] bg-black/20 p-4">
-                <div className="text-xs font-semibold text-white">
-                  Plan administratif
-                </div>
-                <p className="mt-1 text-[10px] leading-5 text-white/35">
-                  Pour l’instant tout InvestPro reste gratuit : ce champ ne verrouille aucun accès.
-                </p>
+                <div className="text-xs font-semibold text-white">{tr("Plan administratif")}</div>
+                <p className="mt-1 text-[10px] leading-5 text-white/35">{tr("Pour l’instant tout InvestPro reste gratuit : ce champ ne verrouille aucun accès.")}</p>
 
                 <div className="mt-4 flex flex-wrap gap-2">
                   {(["free", "pro", "elite"] as const).map((plan) => (
@@ -367,30 +341,30 @@ export default function AdminMemberPage() {
           </section>
 
           <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
-            <Panel title="Informations du compte">
-              <Info label="E-mail confirmé" value={data.member.email_confirmed_at ? "Oui" : "Non"} />
-              <Info label="Connexion" value={data.member.provider || "email"} />
-              <Info label="XP" value={String(data.member.xp)} />
-              <Info label="Téléphone" value={data.member.phone || "Non renseigné"} />
-              <Info label="Langue" value={data.preferences?.language || "—"} />
-              <Info label="Fuseau horaire" value={data.preferences?.timezone || "—"} />
+            <Panel title={tr("Informations du compte")}>
+              <Info label={tr("E-mail confirmé")} value={data.member.email_confirmed_at ? "Oui" : "Non"} />
+              <Info label={tr("Connexion")} value={data.member.provider || "email"} />
+              <Info label={tr("XP")} value={String(data.member.xp)} />
+              <Info label={tr("Téléphone")} value={data.member.phone || tr("Non renseigné")} />
+              <Info label={tr("Langue")} value={data.preferences?.language || "—"} />
+              <Info label={tr("Fuseau horaire")} value={data.preferences?.timezone || "—"} />
             </Panel>
 
-            <Panel title="Profil trading">
-              <Info label="Style" value={data.preferences?.trading_style || "—"} />
-              <Info label="Expérience" value={data.preferences?.experience_level || "—"} />
-              <Info label="Session favorite" value={data.preferences?.favorite_session || "—"} />
-              <Info label="Actif favori" value={data.preferences?.favorite_asset || "—"} />
-              <Info label="Risque max" value={data.trading_plan?.max_risk_percent != null ? `${data.trading_plan.max_risk_percent}%` : "—"} />
-              <Info label="Trades max / jour" value={data.trading_plan?.max_trades_per_day != null ? String(data.trading_plan.max_trades_per_day) : "—"} />
+            <Panel title={tr("Profil trading")}>
+              <Info label={tr("Style")} value={data.preferences?.trading_style || "—"} />
+              <Info label={tr("Expérience")} value={data.preferences?.experience_level || "—"} />
+              <Info label={tr("Session favorite")} value={data.preferences?.favorite_session || "—"} />
+              <Info label={tr("Actif favori")} value={data.preferences?.favorite_asset || "—"} />
+              <Info label={tr("Risque max")} value={data.trading_plan?.max_risk_percent != null ? `${data.trading_plan.max_risk_percent}%` : "—"} />
+              <Info label={tr("Trades max / jour")} value={data.trading_plan?.max_trades_per_day != null ? String(data.trading_plan.max_trades_per_day) : "—"} />
             </Panel>
           </div>
 
           <section className="mt-4 overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.02]">
             <div className="border-b border-white/[0.06] p-4">
-              <div className="font-semibold text-white">Comptes de trading</div>
+              <div className="font-semibold text-white">{tr("Comptes de trading")}</div>
               <div className="mt-1 text-[10px] text-white/30">
-                {data.accounts.length} compte{data.accounts.length !== 1 ? "s" : ""} détecté{data.accounts.length !== 1 ? "s" : ""}.
+                {data.accounts.length}{tr(" compte")}{data.accounts.length !== 1 ? "s" : ""}{tr(" détecté")}{data.accounts.length !== 1 ? "s" : ""}.
               </div>
             </div>
 
@@ -398,38 +372,34 @@ export default function AdminMemberPage() {
               {data.accounts.length ? (
                 data.accounts.map((account) => (
                   <div key={account.id} className="grid grid-cols-1 gap-3 p-4 md:grid-cols-4">
-                    <Info label="Nom" value={account.name || account.label || account.account_name || "Compte"} />
-                    <Info label="Broker / Prop firm" value={account.broker || account.prop_firm || account.server || "—"} />
-                    <Info label="Type" value={account.platform || account.account_type || "—"} />
-                    <Info label="Connexion" value={account.connection_type || "manual"} />
+                    <Info label={tr("Nom")} value={account.name || account.label || account.account_name || tr("Compte")} />
+                    <Info label={tr("Broker / Prop firm")} value={account.broker || account.prop_firm || account.server || "—"} />
+                    <Info label={tr("Type")} value={account.platform || account.account_type || "—"} />
+                    <Info label={tr("Connexion")} value={account.connection_type || "manual"} />
                   </div>
                 ))
               ) : (
-                <div className="p-8 text-center text-sm text-white/25">
-                  Aucun compte de trading.
-                </div>
+                <div className="p-8 text-center text-sm text-white/25">{tr("Aucun compte de trading.")}</div>
               )}
             </div>
           </section>
 
           <section className="mt-4 overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.02]">
             <div className="border-b border-white/[0.06] p-4">
-              <div className="font-semibold text-white">Activité trading récente</div>
-              <div className="mt-1 text-[10px] text-white/30">
-                Jusqu’aux 25 derniers trades.
-              </div>
+              <div className="font-semibold text-white">{tr("Activité trading récente")}</div>
+              <div className="mt-1 text-[10px] text-white/30">{tr("Jusqu’aux 25 derniers trades.")}</div>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full min-w-[760px] border-collapse text-left">
                 <thead>
                   <tr className="border-b border-white/[0.05] text-[9px] uppercase tracking-[0.11em] text-white/25">
-                    <th className="px-4 py-3 font-semibold">Date</th>
-                    <th className="px-4 py-3 font-semibold">Actif</th>
-                    <th className="px-4 py-3 font-semibold">Statut</th>
-                    <th className="px-4 py-3 font-semibold">R</th>
-                    <th className="px-4 py-3 font-semibold">Résultat</th>
-                    <th className="px-4 py-3 font-semibold">Risque</th>
+                    <th className="px-4 py-3 font-semibold">{tr("Date")}</th>
+                    <th className="px-4 py-3 font-semibold">{tr("Actif")}</th>
+                    <th className="px-4 py-3 font-semibold">{tr("Statut")}</th>
+                    <th className="px-4 py-3 font-semibold">{tr("R")}</th>
+                    <th className="px-4 py-3 font-semibold">{tr("Résultat")}</th>
+                    <th className="px-4 py-3 font-semibold">{tr("Risque")}</th>
                   </tr>
                 </thead>
 
@@ -438,7 +408,7 @@ export default function AdminMemberPage() {
                     data.trades.map((trade) => (
                       <tr key={trade.id} className="border-b border-white/[0.045] last:border-0">
                         <td className="px-4 py-3 text-[10px] text-white/45">
-                          {dateLabel(trade.trade_date)}
+                          {dateLabel(trade.trade_date, locale)}
                         </td>
                         <td className="px-4 py-3 text-[11px] font-semibold text-white">
                           {trade.symbol || "—"}
@@ -459,9 +429,7 @@ export default function AdminMemberPage() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={6} className="px-4 py-10 text-center text-sm text-white/25">
-                        Aucun trade enregistré.
-                      </td>
+                      <td colSpan={6} className="px-4 py-10 text-center text-sm text-white/25">{tr("Aucun trade enregistré.")}</td>
                     </tr>
                   )}
                 </tbody>
@@ -471,10 +439,8 @@ export default function AdminMemberPage() {
 
           <section className="mt-4 overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.02]">
             <div className="border-b border-white/[0.06] p-4">
-              <div className="font-semibold text-white">Journal administrateur</div>
-              <div className="mt-1 text-[10px] text-white/30">
-                Les 20 dernières actions concernant ce membre.
-              </div>
+              <div className="font-semibold text-white">{tr("Journal administrateur")}</div>
+              <div className="mt-1 text-[10px] text-white/30">{tr("Les 20 dernières actions concernant ce membre.")}</div>
             </div>
 
             <div className="divide-y divide-white/[0.05]">
@@ -483,22 +449,19 @@ export default function AdminMemberPage() {
                   <div key={log.id} className="flex flex-col gap-2 p-4 md:flex-row md:items-center md:justify-between">
                     <div>
                       <div className="text-[11px] font-semibold text-white">
-                        {logLabel(log.action)}
+                        {tr(logLabel(log.action))}
                       </div>
-                      <div className="mt-1 text-[9px] text-white/30">
-                        Admin : {log.admin_user_id}
+                      <div className="mt-1 text-[9px] text-white/30">{tr("Admin : ")}{log.admin_user_id}
                       </div>
                     </div>
 
                     <div className="text-[9px] text-white/30">
-                      {dateLabel(log.created_at)}
+                      {dateLabel(log.created_at, locale)}
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="p-8 text-center text-sm text-white/25">
-                  Aucune action administrateur enregistrée.
-                </div>
+                <div className="p-8 text-center text-sm text-white/25">{tr("Aucune action administrateur enregistrée.")}</div>
               )}
             </div>
           </section>
@@ -508,7 +471,7 @@ export default function AdminMemberPage() {
       {confirmAction ? (
         <ConfirmModal
           action={confirmAction}
-          username={data?.member.username || "ce membre"}
+          username={data?.member.username || tr("ce membre")}
           loading={actionLoading}
           onCancel={() => !actionLoading && setConfirmAction(null)}
           onConfirm={runAction}
@@ -531,21 +494,22 @@ function ConfirmModal({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const { t: tr } = useLocale();
   const dangerous = action.kind === "suspend";
 
   const title =
     action.kind === "suspend"
-      ? "Suspendre ce membre ?"
+      ? tr("Suspendre ce membre ?")
       : action.kind === "reactivate"
-        ? "Réactiver ce membre ?"
-        : `Changer le plan vers ${action.plan.toUpperCase()} ?`;
+        ? tr("Réactiver ce membre ?")
+        : (tr("Changer le plan vers ") + (action.plan.toUpperCase()) + " ?");
 
   const text =
     action.kind === "suspend"
-      ? `${username} ne pourra plus se connecter à InvestPro jusqu’à sa réactivation.`
+      ? ((username) + tr(" ne pourra plus se connecter à InvestPro jusqu’à sa réactivation."))
       : action.kind === "reactivate"
-        ? `${username} pourra à nouveau se connecter à InvestPro.`
-        : `Le plan administratif de ${username} sera modifié. Pour l’instant cela ne change aucun accès puisque tout InvestPro est gratuit.`;
+        ? ((username) + tr(" pourra à nouveau se connecter à InvestPro."))
+        : (tr("Le plan administratif de ") + (username) + tr(" sera modifié. Pour l’instant cela ne change aucun accès puisque tout InvestPro est gratuit."));
 
   return (
     <div className="fixed inset-0 z-[100] grid place-items-center bg-black/70 p-4 backdrop-blur-sm">
@@ -572,9 +536,7 @@ function ConfirmModal({
             onClick={onCancel}
             disabled={loading}
             className="h-11 flex-1 rounded-xl border border-white/[0.08] bg-black/20 text-xs font-semibold text-white/55"
-          >
-            Annuler
-          </button>
+          >{tr("Annuler")}</button>
 
           <button
             type="button"
@@ -587,7 +549,7 @@ function ConfirmModal({
                 : "border-[color:var(--gold-border)] bg-[color:var(--gold)] text-black",
             ].join(" ")}
           >
-            {loading ? "Traitement…" : "Confirmer"}
+            {loading ? "Traitement…" : tr("Confirmer")}
           </button>
         </div>
       </div>

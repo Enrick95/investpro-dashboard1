@@ -1,5 +1,8 @@
 "use client";
 
+import LanguageSwitcher from "@/components/i18n/LanguageSwitcher";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+
 import Link from "next/link";
 import {
   Activity,
@@ -25,6 +28,7 @@ export default function AuthExperienceShell({
   children: ReactNode;
   mode: "login" | "register" | "reset";
 }) {
+  const { t } = useLocale();
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#050605] text-white">
       <div className="pointer-events-none absolute inset-0 opacity-70">
@@ -45,21 +49,19 @@ export default function AuthExperienceShell({
                 <LiveCommunity />
 
                 <h1 className="mt-6 text-[46px] font-semibold leading-[1.02] tracking-[-0.045em] xl:text-[58px]">
-                  Ton trading mérite plus qu&apos;un simple historique.
-                </h1>
+                  {t("Ton trading mérite plus qu'un simple historique.")}</h1>
 
                 <p className="mt-5 max-w-[620px] text-[15px] leading-7 text-white/48">
-                  Centralise tes comptes CFD & Futures, ton journal, ton plan et tes rapports, puis réplique tes trades sur plusieurs comptes depuis un seul espace.
-                </p>
+                  {t("Centralise tes comptes CFD & Futures, ton journal, ton plan et tes rapports, puis réplique tes trades sur plusieurs comptes depuis un seul espace.")}</p>
 
                 <div className="mt-7 grid max-w-[650px] grid-cols-2 gap-2.5 xl:grid-cols-3">
-                  <Benefit icon={<Activity size={15} />} text="Journal intelligent" />
-                  <Benefit icon={<BarChart3 size={15} />} text="Rapports avancés" />
-                  <Benefit icon={<ShieldCheck size={15} />} text="Discipline & risque" />
-                  <Benefit icon={<WalletCards size={15} />} text="CFD & Futures" />
-                  <Benefit icon={<Repeat2 size={15} />} text="Copy multi-comptes" />
-                  <Benefit icon={<TrendingUp size={15} />} text="Classement & défis" />
-                  <Benefit icon={<MonitorSmartphone size={15} />} text="App mobile" />
+                  <Benefit icon={<Activity size={15} />} text={t("Journal intelligent")} />
+                  <Benefit icon={<BarChart3 size={15} />} text={t("Rapports avancés")} />
+                  <Benefit icon={<ShieldCheck size={15} />} text={t("Discipline & risque")} />
+                  <Benefit icon={<WalletCards size={15} />} text={t("CFD & Futures")} />
+                  <Benefit icon={<Repeat2 size={15} />} text={t("Copy multi-comptes")} />
+                  <Benefit icon={<TrendingUp size={15} />} text={t("Classement & défis")} />
+                  <Benefit icon={<MonitorSmartphone size={15} />} text={t("App mobile")} />
                 </div>
               </div>
             </div>
@@ -70,13 +72,13 @@ export default function AuthExperienceShell({
               <div className="space-y-3">
                 <TrustCard
                   icon={<LockKeyhole size={17} />}
-                  title="Connexion sécurisée"
-                  text="E-mail / mot de passe ou connexion Google."
+                  title={t("Connexion sécurisée")}
+                  text={t("E-mail / mot de passe ou connexion Google.")}
                 />
                 <TrustCard
                   icon={<MonitorSmartphone size={17} />}
-                  title="Comme une vraie app"
-                  text="Ajoute InvestPro sur iPhone ou Android en quelques secondes."
+                  title={t("Comme une vraie app")}
+                  text={t("Ajoute InvestPro sur iPhone ou Android en quelques secondes.")}
                 />
               </div>
             </div>
@@ -84,6 +86,7 @@ export default function AuthExperienceShell({
 
           <section className="relative flex min-h-[calc(100vh-24px)] items-center justify-center p-4 sm:p-7 lg:min-h-0 lg:p-10 xl:p-14">
             <div className="w-full max-w-[500px]">
+              <div className="mb-5 flex justify-end"><LanguageSwitcher /></div>
               <div className="mb-7 lg:hidden">
                 <Brand />
                 <div className="mt-5">
@@ -94,23 +97,22 @@ export default function AuthExperienceShell({
               {children}
 
               <div className="mt-6 grid grid-cols-3 gap-2 text-center lg:hidden">
-                <MobileTrust icon={<ShieldCheck size={13} />} text="Sécurisé" />
-                <MobileTrust icon={<BarChart3 size={13} />} text="Analytics" />
-                <MobileTrust icon={<MonitorSmartphone size={13} />} text="App mobile" />
+                <MobileTrust icon={<ShieldCheck size={13} />} text={t("Sécurisé")} />
+                <MobileTrust icon={<BarChart3 size={13} />} text={t("Analytics")} />
+                <MobileTrust icon={<MonitorSmartphone size={13} />} text={t("App mobile")} />
               </div>
 
               <div className="mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[9px] text-white/28">
-                <span>© InvestPro Trading</span>
+                <span>{t("© InvestPro Trading")}</span>
                 <span>•</span>
-                <span>Données privées</span>
+                <span>{t("Données privées")}</span>
                 <span>•</span>
-                <span>Aucun ordre envoyé</span>
+                <span>{t("Aucun ordre envoyé")}</span>
               </div>
 
               {mode !== "reset" ? (
                 <div className="mt-4 text-center text-[9px] text-white/22">
-                  Le trading comporte un risque de perte en capital.
-                </div>
+                  {t("Le trading comporte un risque de perte en capital.")}</div>
               ) : null}
             </div>
           </section>
@@ -121,6 +123,7 @@ export default function AuthExperienceShell({
 }
 
 function Brand() {
+  const { t } = useLocale();
   return (
     <Link href="/" className="inline-flex items-center gap-3 no-underline">
       <div className="flex h-11 w-11 items-center justify-center rounded-[14px] border border-[#d9ac43]/25 bg-[#d9ac43]/[0.08] shadow-[0_0_30px_rgba(217,172,67,.07)]">
@@ -128,17 +131,17 @@ function Brand() {
       </div>
       <div className="leading-none">
         <div className="text-[21px] font-bold tracking-[-0.03em] text-white">
-          invest<span className="text-[#e5b94d]">pro</span>
+          {t("invest")}<span className="text-[#e5b94d]">{t("pro")}</span>
         </div>
         <div className="mt-1.5 text-[8px] font-semibold tracking-[0.34em] text-white/45">
-          TRADING
-        </div>
+          {t("TRADING")}</div>
       </div>
     </Link>
   );
 }
 
 function LiveCommunity({ compact = false }: { compact?: boolean }) {
+  const { t } = useLocale();
   return (
     <div className={compact
       ? "inline-flex items-center gap-2.5 rounded-full border border-emerald-400/20 bg-emerald-400/[0.06] px-3 py-2"
@@ -148,45 +151,44 @@ function LiveCommunity({ compact = false }: { compact?: boolean }) {
         <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_13px_rgba(52,211,153,.75)]" />
       </span>
       <span className="text-[10px] font-semibold text-emerald-200">
-        Plus de 427 membres actifs
-      </span>
+        {t("Plus de 427 membres actifs")}</span>
     </div>
   );
 }
 
 function Benefit({ icon, text }: { icon: ReactNode; text: string }) {
+  const { t } = useLocale();
   return (
     <div className="flex items-center gap-2 rounded-xl border border-white/[0.055] bg-white/[0.025] px-3 py-2.5 text-[10px] font-medium text-white/64">
       <span className="text-[#d9ac43]">{icon}</span>
-      {text}
+      {t(text)}
     </div>
   );
 }
 
 function DashboardPreview() {
+  const { t } = useLocale();
   return (
     <div className="relative overflow-hidden rounded-[22px] border border-[#d9ac43]/17 bg-[#0d100d] p-4 shadow-[0_30px_80px_rgba(0,0,0,.24)]">
       <div className="flex items-center justify-between gap-3">
         <div>
           <div className="text-[8px] font-semibold uppercase tracking-[0.14em] text-[#d9ac43]">
-            Aperçu illustratif
-          </div>
-          <div className="mt-1 text-[12px] font-semibold text-white">Vue d&apos;ensemble</div>
+            {t("Aperçu illustratif")}</div>
+          <div className="mt-1 text-[12px] font-semibold text-white">{t("Vue d'ensemble")}</div>
         </div>
         <span className="rounded-full border border-[#d9ac43]/20 bg-[#d9ac43]/[0.06] px-2 py-1 text-[7px] font-bold uppercase text-[#e5b94d]">
-          Exemple fictif
-        </span>
+          {t("Exemple fictif")}</span>
       </div>
 
       <div className="mt-4 grid grid-cols-3 gap-2">
-        <PreviewMetric label="Trades" value="24" />
-        <PreviewMetric label="Winrate" value="67%" />
-        <PreviewMetric label="Discipline" value="86%" />
+        <PreviewMetric label={t("Trades")} value="24" />
+        <PreviewMetric label={t("Winrate")} value="67%" />
+        <PreviewMetric label={t("Discipline")} value="86%" />
       </div>
 
       <div className="mt-3 rounded-xl border border-white/[0.05] bg-black/25 p-3">
         <div className="flex items-center justify-between">
-          <span className="text-[8px] text-white/32">Évolution</span>
+          <span className="text-[8px] text-white/32">{t("Évolution")}</span>
           <span className="text-[8px] font-semibold text-emerald-400">+5.8R</span>
         </div>
         <div className="mt-3 flex h-12 items-end gap-1">
@@ -204,29 +206,32 @@ function DashboardPreview() {
 }
 
 function PreviewMetric({ label, value }: { label: string; value: string }) {
+  const { t } = useLocale();
   return (
     <div className="rounded-xl border border-white/[0.05] bg-black/20 p-2.5">
-      <div className="text-[7px] text-white/26">{label}</div>
+      <div className="text-[7px] text-white/26">{t(label)}</div>
       <div className="mt-1 text-[12px] font-semibold text-white">{value}</div>
     </div>
   );
 }
 
 function TrustCard({ icon, title, text }: { icon: ReactNode; title: string; text: string }) {
+  const { t } = useLocale();
   return (
     <div className="rounded-[18px] border border-white/[0.055] bg-white/[0.025] p-4">
       <div className="text-[#d9ac43]">{icon}</div>
-      <div className="mt-3 text-[10px] font-semibold text-white">{title}</div>
-      <div className="mt-1 text-[8px] leading-4 text-white/34">{text}</div>
+      <div className="mt-3 text-[10px] font-semibold text-white">{t(title)}</div>
+      <div className="mt-1 text-[8px] leading-4 text-white/34">{t(text)}</div>
     </div>
   );
 }
 
 function MobileTrust({ icon, text }: { icon: ReactNode; text: string }) {
+  const { t } = useLocale();
   return (
     <div className="flex items-center justify-center gap-1.5 rounded-xl border border-white/[0.05] bg-white/[0.025] px-2 py-2.5 text-[8px] font-medium text-white/42">
       <span className="text-[#d9ac43]">{icon}</span>
-      {text}
+      {t(text)}
     </div>
   );
 }
@@ -242,16 +247,17 @@ export function AuthCardHeader({
   highlight: string;
   description: string;
 }) {
+  const { t } = useLocale();
   return (
     <div>
       <div className="inline-flex items-center gap-2 rounded-full border border-[#d9ac43]/20 bg-[#d9ac43]/[0.055] px-3 py-1.5 text-[8px] font-bold uppercase tracking-[0.12em] text-[#d9ac43]">
         <Sparkles size={11} />
-        {badge}
+        {t(badge)}
       </div>
       <h2 className="mt-4 text-[28px] font-semibold leading-[1.08] tracking-[-0.035em] text-white sm:text-[33px]">
-        {title} <span className="text-[#e4b94e]">{highlight}</span>
+        {t(title)} <span className="text-[#e4b94e]">{t(highlight)}</span>
       </h2>
-      <p className="mt-2.5 text-[11px] leading-5 text-white/42">{description}</p>
+      <p className="mt-2.5 text-[11px] leading-5 text-white/42">{t(description)}</p>
     </div>
   );
 }
@@ -265,6 +271,7 @@ export function GoogleButton({
   busy: boolean;
   label: string;
 }) {
+  const { t } = useLocale();
   return (
     <button
       type="button"
@@ -280,23 +287,25 @@ export function GoogleButton({
           <path fill="#EA4335" d="M12.175 5.65c1.493 0 2.83.513 3.885 1.52l2.91-2.91C17.23 2.64 14.92 1.6 12.175 1.6A10.197 10.197 0 0 0 3.07 7.215l3.395 2.64c.805-2.41 3.054-4.205 5.71-4.205Z"/>
         </svg>
       </span>
-      <span>{busy ? "Connexion à Google..." : label}</span>
+      <span>{busy ? t("Connexion à Google...") : t(label)}</span>
     </button>
   );
 }
 
 
 export function Divider() {
+  const { t } = useLocale();
   return (
     <div className="my-5 flex items-center gap-3">
       <span className="h-px flex-1 bg-white/[0.07]" />
-      <span className="text-[8px] uppercase tracking-[0.16em] text-white/25">ou</span>
+      <span className="text-[8px] uppercase tracking-[0.16em] text-white/25">{t("ou")}</span>
       <span className="h-px flex-1 bg-white/[0.07]" />
     </div>
   );
 }
 
 export function AuthMessage({ kind, text }: { kind: "success" | "error" | "info"; text: string }) {
+  const { t } = useLocale();
   const cls =
     kind === "success"
       ? "border-emerald-500/20 bg-emerald-500/[0.055] text-emerald-300"
@@ -304,33 +313,35 @@ export function AuthMessage({ kind, text }: { kind: "success" | "error" | "info"
       ? "border-red-500/20 bg-red-500/[0.055] text-red-300"
       : "border-[#d9ac43]/20 bg-[#d9ac43]/[0.055] text-[#e4b94e]";
 
-  return <div className={`rounded-xl border px-3.5 py-3 text-[10px] leading-5 ${cls}`}>{text}</div>;
+  return <div className={`rounded-xl border px-3.5 py-3 text-[10px] leading-5 ${cls}`}>{t(text)}</div>;
 }
 
 export function AuthFeatureStrip() {
+  const { t } = useLocale();
   return (
     <div className="mt-5 grid grid-cols-3 gap-2">
-      <SmallFeature icon={<Target size={12} />} text="Discipline" />
-      <SmallFeature icon={<BarChart3 size={12} />} text="Analytics" />
-      <SmallFeature icon={<UsersRound size={12} />} text="Communauté" />
+      <SmallFeature icon={<Target size={12} />} text={t("Discipline")} />
+      <SmallFeature icon={<BarChart3 size={12} />} text={t("Analytics")} />
+      <SmallFeature icon={<UsersRound size={12} />} text={t("Communauté")} />
     </div>
   );
 }
 
 function SmallFeature({ icon, text }: { icon: ReactNode; text: string }) {
+  const { t } = useLocale();
   return (
     <div className="flex items-center justify-center gap-1.5 rounded-xl border border-white/[0.05] bg-white/[0.02] px-2 py-2.5 text-[8px] font-medium text-white/38">
       <span className="text-[#d9ac43]">{icon}</span>
-      {text}
+      {t(text)}
     </div>
   );
 }
 
 export function SecurityNote() {
+  const { t } = useLocale();
   return (
     <div className="mt-4 flex items-start gap-2 rounded-xl border border-emerald-500/10 bg-emerald-500/[0.03] px-3 py-2.5 text-[8px] leading-4 text-white/32">
       <Check size={12} className="mt-0.5 shrink-0 text-emerald-400" />
-      Connexion sécurisée. Tes identifiants de brokers et prop firms ne sont jamais demandés ici.
-    </div>
+      {t("Connexion sécurisée. Tes identifiants de brokers et prop firms ne sont jamais demandés ici.")}</div>
   );
 }

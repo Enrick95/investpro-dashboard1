@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
+
 import { useMemo, useState } from "react";
 import {
   CheckCircle2,
@@ -39,6 +41,7 @@ function csvEscape(value: unknown) {
 }
 
 export default function BackupPage() {
+  const { t: translate } = useLocale();
   const supabase = useMemo(() => createClient(), []);
   const [busy, setBusy] = useState<"json" | "csv" | null>(null);
   const [message, setMessage] = useState("");
@@ -186,31 +189,28 @@ export default function BackupPage() {
         <div className="relative">
           <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gold)]">
             <DatabaseBackup size={12} />
-            Sauvegarde & export
-          </div>
+            {translate("Sauvegarde & export")}</div>
 
           <h1 className="mt-3 text-2xl font-semibold text-white md:text-3xl">
-            Garde une copie de <span className="text-[color:var(--gold)]">tes données</span>
+            {translate("Garde une copie de")}{" "}<span className="text-[color:var(--gold)]">{translate("tes données")}</span>
           </h1>
 
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[color:var(--muted)]">
-            Exporte ton espace InvestPro ou simplement ton Journal. Aucun mot de passe,
-            token ou secret de connexion n’est inclus.
-          </p>
+            {translate("Exporte ton espace InvestPro ou simplement ton Journal. Aucun mot de passe, token ou secret de connexion n’est inclus.")}</p>
         </div>
       </section>
 
       {message ? (
         <div className="rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-3 text-xs text-[color:var(--gold)]">
-          {message}
+          {translate(message)}
         </div>
       ) : null}
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <ExportCard
           icon={<FileJson size={20} />}
-          title="Sauvegarde complète JSON"
-          text="Profil, préférences, plan, comptes, Journal, connexions Futures sans credentials et historique support."
+          title={translate("Sauvegarde complète JSON")}
+          text={translate("Profil, préférences, plan, comptes, Journal, connexions Futures sans credentials et historique support.")}
           button="Télécharger la sauvegarde"
           busy={busy === "json"}
           onClick={exportJson}
@@ -218,8 +218,8 @@ export default function BackupPage() {
 
         <ExportCard
           icon={<FileSpreadsheet size={20} />}
-          title="Journal CSV"
-          text="Export de tous les trades dans un fichier lisible dans Excel, Numbers ou Google Sheets."
+          title={translate("Journal CSV")}
+          text={translate("Export de tous les trades dans un fichier lisible dans Excel, Numbers ou Google Sheets.")}
           button="Télécharger le CSV"
           busy={busy === "csv"}
           onClick={exportTradesCsv}
@@ -234,12 +234,9 @@ export default function BackupPage() {
 
           <div>
             <div className="text-sm font-semibold text-white">
-              Export sécurisé
-            </div>
+              {translate("Export sécurisé")}</div>
             <p className="mt-1 text-[10px] leading-5 text-white/40">
-              Les mots de passe MetaTrader, clés API, tokens ProjectX et secrets serveur
-              ne sont jamais inclus dans ces fichiers.
-            </p>
+              {translate("Les mots de passe MetaTrader, clés API, tokens ProjectX et secrets serveur ne sont jamais inclus dans ces fichiers.")}</p>
           </div>
         </div>
       </section>
@@ -262,15 +259,16 @@ function ExportCard({
   busy: boolean;
   onClick: () => void;
 }) {
+  const { t: translate } = useLocale();
   return (
     <section className="rounded-[22px] border border-white/[0.07] bg-white/[0.02] p-5">
       <div className="grid h-11 w-11 place-items-center rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]">
         {icon}
       </div>
 
-      <div className="mt-4 text-base font-semibold text-white">{title}</div>
+      <div className="mt-4 text-base font-semibold text-white">{translate(title)}</div>
       <p className="mt-2 min-h-[60px] text-[10px] leading-5 text-white/40">
-        {text}
+        {translate(text)}
       </p>
 
       <button
@@ -284,7 +282,7 @@ function ExportCard({
         ) : (
           <Download size={14} />
         )}
-        {button}
+        {translate(button)}
       </button>
     </section>
   );

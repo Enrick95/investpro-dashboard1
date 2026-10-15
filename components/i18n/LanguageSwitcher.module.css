@@ -1,0 +1,7 @@
+.switcher { display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0; min-height: 44px; padding: 0 7px; color: #f3ca7d; background: #151a13; border: 1px solid #75613b70; border-radius: 10px; }
+.switcher > svg { flex-shrink: 0; }
+.switcher select { min-height: 42px; min-width: 43px; max-width: 55px; padding: 0 2px; border: 0; background: transparent; color: inherit; font: 500 12px/1.4 Inter, system-ui, sans-serif; cursor: pointer; }
+.switcher select:focus-visible { outline: 2px solid #87b9bd; outline-offset: 3px; border-radius: 4px; }
+.switcher option { color: #f3ca7d; background: #151a13; }
+@media (max-width: 600px) { .switcher select { font-size: 16px; } }
+@media (max-width: 400px) { .switcher { padding-inline: 5px; gap: 1px; } .switcher > svg { width: 13px; } .switcher select { min-width: 39px; } }

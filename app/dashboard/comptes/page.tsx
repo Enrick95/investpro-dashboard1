@@ -1,4 +1,6 @@
 "use client";
+
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import MetaSyncPanel from "@/components/metasync/MetaSyncPanel";
 import Link from "next/link";
 
@@ -189,6 +191,7 @@ function accountTypeLabel(
 ========================================================= */
 
 export default function ComptesPage() {
+  const { t: translate } = useLocale();
   const { rates, rateDate, rateLoading } = useCurrencyRates();
   const { displayCurrency } = useDisplayCurrency();
   const deletingRef = useRef(false);
@@ -703,11 +706,11 @@ export default function ComptesPage() {
   async function deleteAccount(account: TradingAccount) {
     if (deletingRef.current) return;
     const confirmed = window.confirm(
-      `Supprimer le compte "${account.name}" du site ?\n\n` +
-      "Sa connexion et tous les trades de son journal sur InvestPro seront supprimés, y compris leurs notes. " +
-      "Ton compte chez le broker ne sera pas supprimé.\n\n" +
-      "En le reconnectant, l’historique encore disponible chez le broker pourra être réimporté. " +
-      "Les notes et saisies manuelles ne seront pas récupérées."
+      `${translate("Supprimer le compte")} "${account.name}" ${translate("du site ?")}\n\n` +
+      translate("Sa connexion et tous les trades de son journal sur InvestPro seront supprimés, y compris leurs notes. ") +
+      translate("Ton compte chez le broker ne sera pas supprimé.\n\n") +
+      translate("En le reconnectant, l’historique encore disponible chez le broker pourra être réimporté. ") +
+      translate("Les notes et saisies manuelles ne seront pas récupérées.")
     );
     if (!confirmed) return;
     deletingRef.current = true;
@@ -752,9 +755,7 @@ export default function ComptesPage() {
   if (loading) {
     return (
       <div className="min-h-[70vh] flex items-center justify-center text-sm text-[color:var(--muted)]">
-        Chargement de tes
-        comptes…
-      </div>
+        {translate("Chargement de tes comptes…")}</div>
     );
   }
 
@@ -769,21 +770,13 @@ export default function ComptesPage() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-white">
-              Mes{" "}
+              {translate("Mes")}{" "}
               <span className="text-[color:var(--gold)]">
-                comptes
-              </span>
+                {translate("comptes")}</span>
             </h1>
 
             <p className="mt-1 text-sm text-[color:var(--muted)]">
-              Ajoute tes
-              comptes de
-              trading pour
-              centraliser ton
-              capital et
-              alimenter ton
-              journal.
-            </p>
+              {translate("Ajoute tes comptes de trading pour centraliser ton capital et alimenter ton journal.")}</p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -813,8 +806,7 @@ export default function ComptesPage() {
                 size={16}
               />
 
-              Ajouter un compte
-            </button>
+              {translate("Ajouter un compte")}</button>
           </div>
         </div>
 
@@ -829,15 +821,15 @@ export default function ComptesPage() {
                 size={18}
               />
             }
-            label="Mes comptes"
+            label={translate("Mes comptes")}
             value={String(
               stats.total
             )}
             sub={
               stats.total ===
               0
-                ? "Aucun compte"
-                : `${stats.realAccounts} réel • ${stats.propAccounts} prop firm`
+                ? translate("Aucun compte")
+                : `${stats.realAccounts} ${translate("réel")} • ${stats.propAccounts} prop firm`
             }
           />
 
@@ -847,18 +839,18 @@ export default function ComptesPage() {
                 size={18}
               />
             }
-            label="Capital total"
+            label={translate("Capital total")}
             value={
               stats.total === 0
                 ? formatDisplayCurrency(0, displayCurrency)
                 : capitalTotal === null
-                  ? rateLoading ? "Chargement…" : "—"
+                  ? rateLoading ? translate("Chargement…") : "—"
                   : formatDisplayCurrency(capitalTotal, displayCurrency)
             }
             sub={stats.total === 0
-              ? "Capital actuel déclaré"
+              ? translate("Capital actuel déclaré")
               : capitalTotal === null
-                ? rateLoading ? "Récupération du taux de change" : `Conversion ${displayCurrency} indisponible pour une devise`
+                ? rateLoading ? translate("Récupération du taux de change") : `${translate("Conversion")} ${displayCurrency} ${translate("indisponible pour une devise")}`
                 : rateDateLabel(rateDate, displayCurrency)}
           />
 
@@ -868,9 +860,9 @@ export default function ComptesPage() {
                 size={18}
               />
             }
-            label="Synchronisation"
-            value={stats.automaticAccounts > 0 ? `${stats.automaticAccounts} auto` : "Manuelle"}
-            sub={stats.automaticAccounts > 0 ? `${stats.automaticAccounts} compte${stats.automaticAccounts > 1 ? "s" : ""} synchronisé${stats.automaticAccounts > 1 ? "s" : ""}` : "Connecte ProjectX ou MetaTrader"}
+            label={translate("Synchronisation")}
+            value={stats.automaticAccounts > 0 ? `${stats.automaticAccounts} auto` : translate("Manuelle")}
+            sub={stats.automaticAccounts > 0 ? `${stats.automaticAccounts} ${translate(stats.automaticAccounts > 1 ? "comptes synchronisés" : "compte synchronisé")}` : translate("Connecte ProjectX ou MetaTrader")}
           />
         </section>
 
@@ -898,17 +890,10 @@ export default function ComptesPage() {
           >
             <div>
               <h2 className="text-sm font-semibold text-white">
-                Comptes de
-                trading
-              </h2>
+                {translate("Comptes de trading")}</h2>
 
               <p className="mt-1 text-[10px] text-[color:var(--muted)]">
-                Ces comptes
-                peuvent être
-                sélectionnés
-                dans ton
-                journal.
-              </p>
+                {translate("Ces comptes peuvent être sélectionnés dans ton journal.")}</p>
             </div>
 
             <span
@@ -923,10 +908,9 @@ export default function ComptesPage() {
               "
             >
               {stats.total}{" "}
-              COMPTE
-              {stats.total !==
+              {translate("COMPTE")}{stats.total !==
               1
-                ? "S"
+                ? translate("S")
                 : ""}
             </span>
           </div>
@@ -967,21 +951,10 @@ export default function ComptesPage() {
               </div>
 
               <div className="mt-4 text-sm font-semibold text-white">
-                Aucun compte
-                ajouté
-              </div>
+                {translate("Aucun compte ajouté")}</div>
 
               <p className="mt-2 max-w-md text-xs leading-5 text-[color:var(--muted)]">
-                Ajoute ton
-                compte une
-                seule fois.
-                Son capital
-                pourra ensuite
-                être utilisé
-                automatiquement
-                dans ton
-                journal.
-              </p>
+                {translate("Ajoute ton compte une seule fois. Son capital pourra ensuite être utilisé automatiquement dans ton journal.")}</p>
 
               <button
                 type="button"
@@ -1009,9 +982,7 @@ export default function ComptesPage() {
                   size={14}
                 />
 
-                Ajouter mon
-                premier compte
-              </button>
+                {translate("Ajouter mon premier compte")}</button>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4 p-5 lg:grid-cols-2">
@@ -1096,18 +1067,18 @@ export default function ComptesPage() {
                   size={12}
                 />
 
-                {stats.automaticAccounts > 0 ? "CONNEXIONS ACTIVES" : "TES PLATEFORMES"}
+                {stats.automaticAccounts > 0 ? translate("CONNEXIONS ACTIVES") : translate("TES PLATEFORMES")}
               </div>
 
               <h2 className="mt-4 text-xl font-semibold text-white lg:text-2xl">
-                Gère tes{" "}
-                <span className="text-[color:var(--gold)]">connexions</span>
+                {translate("Gère tes")}{" "}
+                <span className="text-[color:var(--gold)]">{translate("connexions")}</span>
               </h2>
 
               <p className="mt-3 max-w-2xl text-sm leading-6 text-[color:var(--muted)]">
                 {stats.automaticAccounts > 0
-                  ? `Tu as ${stats.automaticAccounts} compte${stats.automaticAccounts > 1 ? "s" : ""} synchronisé${stats.automaticAccounts > 1 ? "s" : ""}. Consulte tes connecteurs et leur état dans l’espace Connexions. Les comptes manuels restent gérés ici.`
-                    : "Ajoute et gère tes comptes manuellement ici, ou ouvre Connexions pour relier une plateforme compatible et suivre sa synchronisation."}
+                  ? `${translate("Tu as")} ${stats.automaticAccounts} ${translate(stats.automaticAccounts > 1 ? "comptes synchronisés" : "compte synchronisé")}. ${translate("Consulte tes connecteurs et leur état dans l’espace Connexions. Les comptes manuels restent gérés ici.")}`
+                    : translate("Ajoute et gère tes comptes manuellement ici, ou ouvre Connexions pour relier une plateforme compatible et suivre sa synchronisation.")}
               </p>
 
               <Link
@@ -1115,8 +1086,7 @@ export default function ComptesPage() {
                 className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 py-2 text-sm font-semibold text-[color:var(--gold)] no-underline transition hover:bg-[color:var(--gold)]/15"
               >
                 <Link2 size={16} />
-                Gérer mes connexions
-              </Link>
+                {translate("Gérer mes connexions")}</Link>
             </div>
 
             <div className="lg:col-span-4">
@@ -1150,14 +1120,14 @@ export default function ComptesPage() {
                 <div className="mt-4 text-center">
                   <div className="text-sm font-semibold text-white">
                     {stats.automaticAccounts > 0
-                      ? "Synchronisation active"
-                      : "Plateformes compatibles"}
+                      ? translate("Synchronisation active")
+                      : translate("Plateformes compatibles")}
                   </div>
 
                   <div className="mt-1 text-[11px] text-[color:var(--muted)]">
                     {stats.automaticAccounts > 0
-                      ? `${stats.automaticAccounts} compte${stats.automaticAccounts > 1 ? "s" : ""} synchronisé${stats.automaticAccounts > 1 ? "s" : ""}`
-                      : "Consulte les connecteurs disponibles"}
+                      ? `${stats.automaticAccounts} ${translate(stats.automaticAccounts > 1 ? "comptes synchronisés" : "compte synchronisé")}`
+                      : translate("Consulte les connecteurs disponibles")}
                   </div>
                 </div>
               </div>
@@ -1241,14 +1211,12 @@ export default function ComptesPage() {
                 <div>
                   <div className="text-base font-semibold text-white">
                     {editingAccount
-                      ? "Modifier le compte"
-                      : "Ajouter un compte"}
+                      ? translate("Modifier le compte")
+                      : translate("Ajouter un compte")}
                   </div>
 
                   <div className="mt-1 text-[10px] text-[color:var(--muted)]">
-                    Connexion
-                    manuelle
-                  </div>
+                    {translate("Connexion manuelle")}</div>
                 </div>
 
                 <button
@@ -1301,28 +1269,17 @@ export default function ComptesPage() {
 
                   <div>
                     <div className="text-xs font-semibold text-white">
-                      Compte manuel
-                    </div>
+                      {translate("Compte manuel")}</div>
 
                     <p className="mt-1 text-[10px] leading-5 text-[color:var(--muted)]">
-                      Aucun mot de
-                      passe MT4 ou
-                      MT5 n’est
-                      nécessaire.
-                      Tu renseignes
-                      simplement
-                      les
-                      informations
-                      de ton
-                      compte.
-                    </p>
+                      {translate("Aucun mot de passe MT4 ou MT5 n’est nécessaire. Tu renseignes simplement les informations de ton compte.")}</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                   <InputField
-                    label="Nom du compte"
-                    placeholder="Compte principal"
+                    label={translate("Nom du compte")}
+                    placeholder={translate("Compte principal")}
                     value={
                       form.name
                     }
@@ -1339,7 +1296,7 @@ export default function ComptesPage() {
                   />
 
                   <SelectField
-                    label="Type de compte"
+                    label={translate("Type de compte")}
                     value={
                       form.account_type
                     }
@@ -1381,7 +1338,7 @@ export default function ComptesPage() {
                   />
 
                   <SelectField
-                    label="Plateforme"
+                    label={translate("Plateforme")}
                     value={
                       form.platform
                     }
@@ -1423,8 +1380,8 @@ export default function ComptesPage() {
                   />
 
                   <InputField
-                    label="Broker / Prop Firm"
-                    placeholder="RaiseFX, FTMO, Tradeify..."
+                    label={translate("Broker / Prop Firm")}
+                    placeholder={translate("RaiseFX, FTMO, Tradeify...")}
                     value={
                       form.broker
                     }
@@ -1441,7 +1398,7 @@ export default function ComptesPage() {
                   />
 
                   <SelectField
-                    label="Devise"
+                    label={translate("Devise")}
                     value={
                       form.currency
                     }
@@ -1491,7 +1448,7 @@ export default function ComptesPage() {
                   />
 
                   <InputField
-                    label="Capital initial"
+                    label={translate("Capital initial")}
                     placeholder="10000"
                     value={
                       form.initial_balance
@@ -1515,7 +1472,7 @@ export default function ComptesPage() {
 
                   <div className="lg:col-span-2">
                     <InputField
-                      label="Capital actuel"
+                      label={translate("Capital actuel")}
                       placeholder="10000"
                       value={
                         form.current_balance
@@ -1533,18 +1490,7 @@ export default function ComptesPage() {
                     />
 
                     <p className="mt-2 text-[9px] leading-4 text-[color:var(--muted)]">
-                      Tu pourras
-                      modifier ce
-                      montant plus
-                      tard. Quand
-                      la connexion
-                      MetaTrader
-                      sera prête,
-                      cette valeur
-                      pourra être
-                      synchronisée
-                      automatiquement.
-                    </p>
+                      {translate("Tu pourras modifier ce montant plus tard. Quand la connexion MetaTrader sera prête, cette valeur pourra être synchronisée automatiquement.")}</p>
                   </div>
                 </div>
 
@@ -1579,8 +1525,7 @@ export default function ComptesPage() {
                       text-white/70
                     "
                   >
-                    Annuler
-                  </button>
+                    {translate("Annuler")}</button>
 
                   <button
                     type="button"
@@ -1604,10 +1549,10 @@ export default function ComptesPage() {
                     "
                   >
                     {saving
-                      ? "Enregistrement..."
+                      ? translate("Enregistrement...")
                       : editingAccount
-                      ? "Enregistrer les modifications"
-                      : "Ajouter le compte"}
+                      ? translate("Enregistrer les modifications")
+                      : translate("Ajouter le compte")}
                   </button>
                 </div>
               </div>
@@ -1644,6 +1589,7 @@ function AccountCard({
   onDelete:
     () => void;
 }) {
+  const { t: translate } = useLocale();
   return (
     <div
       className="
@@ -1699,12 +1645,12 @@ function AccountCard({
               </div>
 
               <div className="mt-1 text-[9px] uppercase tracking-[0.08em] text-[color:var(--muted)]">
-                {accountTypeLabel(
+                {translate(accountTypeLabel(
                   account.account_type
-                )}
+                ))}
                 {" • "}
                 {account.platform ||
-                  "AUTRE"}
+                  translate("AUTRE")}
               </div>
             </div>
           </div>
@@ -1722,8 +1668,8 @@ function AccountCard({
             "
           >
             {copierOrigin
-              ? copierOrigin === "Copieur" ? "Copieur" : `Copieur · ${copierOrigin}`
-              : account.connection_type === "automatic" ? "Auto-sync" : "Manuel"}
+              ? copierOrigin === "Copieur" ? translate("Copieur") : `${translate("Copieur")} · ${copierOrigin}`
+              : account.connection_type === "automatic" ? translate("Auto-sync") : translate("Manuel")}
           </span>
         </div>
 
@@ -1737,8 +1683,7 @@ function AccountCard({
             "
           >
             <div className="text-[9px] text-[color:var(--muted)]">
-              Capital actuel
-            </div>
+              {translate("Capital actuel")}</div>
 
             <div className="mt-1 text-base font-semibold text-white">
               {formatMoney(
@@ -1760,8 +1705,7 @@ function AccountCard({
             "
           >
             <div className="text-[9px] text-[color:var(--muted)]">
-              Capital initial
-            </div>
+              {translate("Capital initial")}</div>
 
             <div className="mt-1 text-base font-semibold text-white">
               {formatMoney(
@@ -1788,13 +1732,11 @@ function AccountCard({
         >
           <div>
             <div className="text-[9px] text-[color:var(--muted)]">
-              Broker /
-              Prop Firm
-            </div>
+              {translate("Broker / Prop Firm")}</div>
 
             <div className="mt-1 text-xs text-white">
               {account.broker ||
-                "Non renseigné"}
+                translate("Non renseigné")}
             </div>
           </div>
 
@@ -1817,7 +1759,7 @@ function AccountCard({
                 transition
                 hover:text-[color:var(--gold)]
               "
-              title="Modifier"
+              title={translate("Modifier")}
             >
               <Edit3
                 size={14}
@@ -1845,7 +1787,7 @@ function AccountCard({
               "
               disabled={deleteDisabled}
               aria-busy={deleting}
-              title={deleting ? "Suppression en cours…" : "Supprimer"}
+              title={deleting ? translate("Suppression en cours…") : translate("Supprimer")}
             >
               <Trash2
                 size={14}
@@ -1880,6 +1822,7 @@ function StatCard({
   sub:
     string;
 }) {
+  const { t: translate } = useLocale();
   return (
     <div
       className="
@@ -1910,7 +1853,7 @@ function StatCard({
 
         <div>
           <div className="text-[10px] text-[color:var(--muted)]">
-            {label}
+            {translate(label)}
           </div>
 
           <div className="mt-1 text-lg font-semibold text-white">
@@ -1918,7 +1861,7 @@ function StatCard({
           </div>
 
           <div className="mt-1 text-[9px] text-white/35">
-            {sub}
+            {translate(sub)}
           </div>
         </div>
       </div>
@@ -1950,10 +1893,11 @@ function InputField({
   placeholder?:
     string;
 }) {
+  const { t: translate } = useLocale();
   return (
     <label className="block">
       <div className="mb-2 text-xs text-white/60">
-        {label}
+        {translate(label)}
       </div>
 
       <input
@@ -2016,10 +1960,11 @@ function SelectField({
       string;
   }[];
 }) {
+  const { t: translate } = useLocale();
   return (
     <label className="block">
       <div className="mb-2 text-xs text-white/60">
-        {label}
+        {translate(label)}
       </div>
 
       <select
@@ -2059,7 +2004,7 @@ function SelectField({
               }
             >
               {
-                option.label
+                translate(option.label)
               }
             </option>
           )

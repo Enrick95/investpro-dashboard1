@@ -1,9 +1,13 @@
 "use client";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+
 
 import { useEffect, useState } from "react";
 import { ArrowUp, CheckCircle2, WifiOff } from "lucide-react";
 
 export default function InvestProGlobalUX() {
+  const { t } = useLocale();
+
   const [online, setOnline] = useState(true);
   const [showTop, setShowTop] = useState(false);
   const [restored, setRestored] = useState(false);
@@ -36,15 +40,13 @@ export default function InvestProGlobalUX() {
       {!online ? (
         <div className="ip-network-banner is-offline">
           <WifiOff size={14} />
-          Connexion internet interrompue — tes données ne peuvent pas être synchronisées pour le moment.
-        </div>
+          {t("Connexion internet interrompue — tes données ne peuvent pas être synchronisées pour le moment.")}</div>
       ) : null}
 
       {restored ? (
         <div className="ip-network-banner is-restored">
           <CheckCircle2 size={14} />
-          Connexion rétablie.
-        </div>
+          {t("Connexion rétablie.")}</div>
       ) : null}
 
       {showTop ? (
@@ -52,8 +54,8 @@ export default function InvestProGlobalUX() {
           type="button"
           className="ip-scroll-top"
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          aria-label="Retour en haut"
-          title="Retour en haut"
+          aria-label={t("Retour en haut")}
+          title={t("Retour en haut")}
         >
           <ArrowUp size={16} />
         </button>

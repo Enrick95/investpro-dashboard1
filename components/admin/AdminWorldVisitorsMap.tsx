@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 type CountryStat = {
   name?: string;
@@ -43,14 +44,15 @@ function fmt(n: number) {
 }
 
 export default function AdminWorldVisitorsMap({
-  title = "Répartition visiteurs",
-  subtitle = "Carte monde (drag + zoom)",
+  title,
+  subtitle,
   pageViews,
   highlights,
   stats,
   geoJsonUrl = "/maps/countries.geojson",
   height = 420,
 }: Props) {
+  const { t: tr } = useLocale();
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
   const [geo, setGeo] = useState<GeoJSON | null>(null);
@@ -236,11 +238,11 @@ export default function AdminWorldVisitorsMap({
     >
       <div className="absolute left-4 top-4 z-20 max-w-[65%]">
         <div className="text-sm font-semibold text-white">
-          {title}
+          {title ?? tr("Répartition visiteurs")}
         </div>
 
         <div className="mt-1 text-xs text-white/50">
-          {subtitle}
+          {subtitle ?? tr("Carte monde (drag + zoom)")}
         </div>
       </div>
 
@@ -249,24 +251,22 @@ export default function AdminWorldVisitorsMap({
         <button
           onClick={zoomIn}
           className="h-9 w-9 rounded-xl border border-white/10 bg-white/5 text-white hover:bg-white/10"
-          title="Zoom +"
+          title={tr("Zoom +")}
         >
           +
         </button>
         <button
           onClick={zoomOut}
           className="h-9 w-9 rounded-xl border border-white/10 bg-white/5 text-white hover:bg-white/10"
-          title="Zoom -"
+          title={tr("Zoom -")}
         >
           −
         </button>
         <button
           onClick={reset}
           className="h-9 px-3 rounded-xl border border-white/10 bg-white/5 text-white hover:bg-white/10"
-          title="Reset"
-        >
-          Reset
-        </button>
+          title={tr("Reset")}
+        >{tr("Reset")}</button>
       </div>
 
       {/* Tooltip */}
@@ -277,11 +277,11 @@ export default function AdminWorldVisitorsMap({
         >
           <div className="mb-2 font-semibold">{hover.name}</div>
           <div className="flex justify-between gap-6 text-white/80">
-            <span>Visiteurs</span>
+            <span>{tr("Visiteurs")}</span>
             <span className="font-semibold text-[#d6b25e]">{fmt(hover.visitors)}</span>
           </div>
           <div className="mt-1 flex justify-between gap-6 text-white/80">
-            <span>Page views</span>
+            <span>{tr("Page views")}</span>
             <span className="font-semibold text-[#d6b25e]">{fmt(hover.pageViews ?? 0)}</span>
           </div>
         </div>
@@ -300,17 +300,13 @@ export default function AdminWorldVisitorsMap({
         onWheel={onWheel}
       >
         {!geo && !error && (
-          <div className="flex h-full items-center justify-center text-white/60">
-            Chargement de la carte…
-          </div>
+          <div className="flex h-full items-center justify-center text-white/60">{tr("Chargement de la carte…")}</div>
         )}
 
         {error && (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-white/70">
-            <div className="text-white">Map error: {error}</div>
-            <div className="text-xs text-white/60">
-              Vérifie que <span className="text-white">/public{geoJsonUrl}</span> existe.
-            </div>
+            <div className="text-white">{tr("Map error: ")}{tr(error)}</div>
+            <div className="text-xs text-white/60">{tr("Vérifie que ")}<span className="text-white">{tr("/public")}{geoJsonUrl}</span>{tr(" existe.")}</div>
           </div>
         )}
 
@@ -385,9 +381,7 @@ export default function AdminWorldVisitorsMap({
       </div>
 
       {/* Hint */}
-      <div className="pointer-events-none absolute bottom-3 left-4 text-xs text-white/50">
-        Zoom molette • Drag pour déplacer • Tooltip uniquement sur pays dorés
-      </div>
+      <div className="pointer-events-none absolute bottom-3 left-4 text-xs text-white/50">{tr("Zoom molette • Drag pour déplacer • Tooltip uniquement sur pays dorés")}</div>
     </div>
   );
 }

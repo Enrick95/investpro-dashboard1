@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -85,6 +86,8 @@ function planClass(plan: string) {
 ========================================================= */
 
 export default function MembresPage() {
+  const { t: translate } = useLocale();
+
   const supabase =
     useMemo(
       () =>
@@ -430,8 +433,7 @@ export default function MembresPage() {
   if (loading) {
     return (
       <div className="flex min-h-[70vh] items-center justify-center text-sm text-[color:var(--muted)]">
-        Chargement des membres InvestPro…
-      </div>
+        {translate("Chargement des membres InvestPro…")}</div>
     );
   }
 
@@ -465,16 +467,13 @@ export default function MembresPage() {
             size={12}
           />
 
-          Communauté InvestPro
-        </div>
+          {translate("Communauté InvestPro")}</div>
 
         <h1 className="text-2xl font-semibold text-white">
-          Membres
-        </h1>
+          {translate("Membres")}</h1>
 
         <p className="mt-1 max-w-2xl text-sm leading-6 text-[color:var(--muted)]">
-          Découvre les membres de la communauté InvestPro et retrouve les profils qui participent au classement.
-        </p>
+          {translate("Découvre les membres de la communauté InvestPro et retrouve les profils qui participent au classement.")}</p>
       </div>
 
       {/* =====================================================
@@ -511,42 +510,39 @@ export default function MembresPage() {
         <div className="relative z-10 grid grid-cols-1 gap-5 lg:grid-cols-12 lg:items-center">
           <div className="lg:col-span-7">
             <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--gold)]">
-              Espace communauté
-            </div>
+              {translate("Espace communauté")}</div>
 
             <h2 className="mt-2 text-xl font-semibold text-white lg:text-2xl">
-              Une communauté tournée vers la progression
-            </h2>
+              {translate("Une communauté tournée vers la progression")}</h2>
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-[color:var(--muted)]">
-              Retrouvez les membres InvestPro, leur niveau et leur participation au classement hebdomadaire.
-            </p>
+              {translate("Retrouvez les membres InvestPro, leur niveau et leur participation au classement hebdomadaire.")}</p>
           </div>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:col-span-5">
             <MiniStat
-              label="Membres"
+              label={translate("Membres")}
               value={String(
                 stats.total
               )}
             />
 
             <MiniStat
-              label="Publics"
+              label={translate("Publics")}
               value={String(
                 stats.publicCount
               )}
             />
 
             <MiniStat
-              label="PRO"
+              label={translate("PRO")}
               value={String(
                 stats.proCount
               )}
             />
 
             <MiniStat
-              label="ELITE"
+              label={translate("ELITE")}
               value={String(
                 stats.eliteCount
               )}
@@ -592,7 +588,7 @@ export default function MembresPage() {
                   event.target.value
                 )
               }
-              placeholder="Rechercher un membre, tag..."
+              placeholder={translate("Rechercher un membre, tag...")}
               className="
                 h-11
                 w-full
@@ -640,20 +636,16 @@ export default function MembresPage() {
             "
           >
             <option value="all">
-              Tous les plans
-            </option>
+              {translate("Tous les plans")}</option>
 
             <option value="free">
-              FREE
-            </option>
+              {translate("FREE")}</option>
 
             <option value="pro">
-              PRO
-            </option>
+              {translate("PRO")}</option>
 
             <option value="elite">
-              ELITE
-            </option>
+              {translate("ELITE")}</option>
           </select>
 
           <select
@@ -684,16 +676,13 @@ export default function MembresPage() {
             "
           >
             <option value="all">
-              Tous les profils
-            </option>
+              {translate("Tous les profils")}</option>
 
             <option value="public">
-              Classement public
-            </option>
+              {translate("Classement public")}</option>
 
             <option value="private">
-              Classement privé
-            </option>
+              {translate("Classement privé")}</option>
           </select>
         </div>
       </section>
@@ -706,22 +695,19 @@ export default function MembresPage() {
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <h2 className="text-sm font-semibold text-white">
-              Tous les membres
-            </h2>
+              {translate("Tous les membres")}</h2>
 
             <p className="mt-1 text-xs text-[color:var(--muted)]">
               {
                 filteredMembers.length
               }{" "}
-              membre
-              {filteredMembers.length !==
+              {translate("membre")}{filteredMembers.length !==
               1
-                ? "s"
+                ? translate("s")
                 : ""}{" "}
-              affiché
-              {filteredMembers.length !==
+              {translate("affiché")}{filteredMembers.length !==
               1
-                ? "s"
+                ? translate("s")
                 : ""}
             </p>
           </div>
@@ -751,12 +737,10 @@ export default function MembresPage() {
             />
 
             <div className="mt-4 text-sm font-semibold text-white">
-              Aucun membre trouvé
-            </div>
+              {translate("Aucun membre trouvé")}</div>
 
             <p className="mt-1 text-xs text-[color:var(--muted)]">
-              Modifie ta recherche ou tes filtres.
-            </p>
+              {translate("Modifie ta recherche ou tes filtres.")}</p>
           </div>
         ) : (
           <div
@@ -851,12 +835,10 @@ export default function MembresPage() {
 
           <div>
             <div className="text-xs font-semibold text-white">
-              Respect de la confidentialité
-            </div>
+              {translate("Respect de la confidentialité")}</div>
 
             <p className="mt-1 max-w-3xl text-[10px] leading-5 text-[color:var(--muted)]">
-              La page Membres n'affiche pas le capital, le P&L en argent ni les trades privés des utilisateurs.
-            </p>
+              {translate("La page Membres n'affiche pas le capital, le P&L en argent ni les trades privés des utilisateurs.")}</p>
           </div>
         </div>
       </section>
@@ -886,6 +868,8 @@ function MemberCard({
   rank:
     number | null;
 }) {
+  const { t: translate } = useLocale();
+
   return (
     <article
       className="
@@ -951,14 +935,13 @@ function MemberCard({
                     text-[color:var(--gold)]
                   "
                 >
-                  TOI
-                </span>
+                  {translate("TOI")}</span>
               ) : null}
             </div>
 
             <div className="mt-1 truncate text-[10px] text-[color:var(--muted)]">
               {member.tag ||
-                "Membre InvestPro"}
+                translate("Membre InvestPro")}
             </div>
           </div>
         </div>
@@ -973,15 +956,15 @@ function MemberCard({
             " "
           )}
         >
-          {planLabel(
+          {translate(planLabel(
             member.plan
-          )}
+          ))}
         </span>
       </div>
 
       <div className="relative mt-5 grid grid-cols-3 gap-2">
         <SmallStat
-          label="XP"
+          label={translate("XP")}
           value={String(
             Number(
               member.xp ||
@@ -991,7 +974,7 @@ function MemberCard({
         />
 
         <SmallStat
-          label="Score"
+          label={translate("Score")}
           value={
             score !==
             null
@@ -1007,7 +990,7 @@ function MemberCard({
         />
 
         <SmallStat
-          label="Rang"
+          label={translate("Rang")}
           value={
             rank
               ? `#${rank}`
@@ -1038,8 +1021,7 @@ function MemberCard({
               />
 
               <span className="text-[9px] font-medium text-emerald-400">
-                Classement public
-              </span>
+                {translate("Classement public")}</span>
             </>
           ) : (
             <>
@@ -1049,8 +1031,7 @@ function MemberCard({
               />
 
               <span className="text-[9px] text-white/30">
-                Classement privé
-              </span>
+                {translate("Classement privé")}</span>
             </>
           )}
         </div>
@@ -1077,8 +1058,7 @@ function MemberCard({
               size={9}
             />
 
-            TOP 10
-          </div>
+            {translate("TOP 10")}</div>
         ) : null}
       </div>
 
@@ -1160,6 +1140,8 @@ function MiniStat({
   value:
     string;
 }) {
+  const { t: translate } = useLocale();
+
   return (
     <div
       className="
@@ -1172,7 +1154,7 @@ function MiniStat({
       "
     >
       <div className="text-[9px] text-[color:var(--muted)]">
-        {label}
+        {translate(label)}
       </div>
 
       <div className="mt-1 text-sm font-semibold text-white">
@@ -1196,6 +1178,8 @@ function SmallStat({
   gold?:
     boolean;
 }) {
+  const { t: translate } = useLocale();
+
   return (
     <div
       className="
@@ -1208,7 +1192,7 @@ function SmallStat({
       "
     >
       <div className="text-[8px] text-[color:var(--muted)]">
-        {label}
+        {translate(label)}
       </div>
 
       <div

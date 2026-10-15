@@ -1,4 +1,7 @@
 "use client";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import LanguageSwitcher from "@/components/i18n/LanguageSwitcher";
+
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -96,6 +99,8 @@ function applyTheme(mode: ThemeMode) {
 }
 
 export default function Header() {
+  const { t, locale } = useLocale();
+
   const supabase = useMemo(() => createClient(), []);
 
   const [acc, setAcc] = useState<AccountProfile | null>(null);
@@ -673,7 +678,7 @@ export default function Header() {
           type="button"
           onClick={() => go("/dashboard")}
           className="lg:hidden flex items-center gap-2 min-w-0"
-          title="Accueil InvestPro"
+          title={t("Accueil InvestPro")}
         >
           <span
             className="
@@ -685,12 +690,11 @@ export default function Header() {
               shrink-0
             "
           >
-            IP
-          </span>
+            {t("IP")}</span>
 
           <span className="text-[17px] font-semibold tracking-tight truncate">
-            <span className="text-[color:var(--text)]">Invest</span>
-            <span className="text-[color:var(--gold)]">Pro</span>
+            <span className="text-[color:var(--text)]">{t("Invest")}</span>
+            <span className="text-[color:var(--gold)]">{t("Pro")}</span>
           </span>
         </button>
 
@@ -711,7 +715,7 @@ export default function Header() {
                 hover:bg-red-500/20
                 transition
               "
-              title="Enrick est en live"
+              title={t("Enrick est en live")}
             >
               <span className="relative inline-flex">
                 <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
@@ -719,12 +723,10 @@ export default function Header() {
               </span>
 
               <span className="text-xs font-semibold text-red-600 dark:text-red-200">
-                LIVE
-              </span>
+                {t("LIVE")}</span>
 
               <span className="text-xs text-red-700/80 dark:text-red-100/80 hidden xl:inline">
-                Enrick est en live
-              </span>
+                {t("Enrick est en live")}</span>
             </a>
           ) : null}
 
@@ -743,7 +745,7 @@ export default function Header() {
               hover:bg-[color:var(--panel)]
               transition flex items-center justify-center
             "
-            title="Notifications"
+            title={t("Notifications")}
             type="button"
           >
             <Bell
@@ -771,12 +773,12 @@ export default function Header() {
           {/* UTILISATEUR CONNECTÉ */}
           {!authLoading && !acc ? (
             <Button
+              className="hidden min-[430px]:inline-flex"
               onClick={() => {
                 window.location.href = "/login";
               }}
             >
-              Se connecter
-            </Button>
+              {t("Se connecter")}</Button>
           ) : null}
 
           {!authLoading && acc ? (
@@ -818,15 +820,13 @@ export default function Header() {
                     mt-0.5
                   "
                 >
-                  Plan {planLabel}
+                  {t("Plan ")}{planLabel}
                 </div>
               </div>
             </button>
           ) : null}
 
-          <div className="hidden sm:block text-xs text-[color:var(--muted)]">
-            FR
-          </div>
+          <LanguageSwitcher />
 
           {/* Avatar */}
           <button
@@ -850,18 +850,18 @@ export default function Header() {
               hover:bg-[color:var(--panel)]
               transition
             "
-            title={
+            title={t(
               acc
                 ? "Menu utilisateur"
                 : "Se connecter"
-            }
+            )}
             type="button"
           >
             {avatarSrc ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={avatarSrc}
-                alt="Avatar"
+                alt={t("Avatar")}
                 className="w-full h-full object-cover"
               />
             ) : (
@@ -918,8 +918,7 @@ export default function Header() {
                 >
                   <div>
                     <div className="text-sm font-semibold text-[color:var(--text)]">
-                      Notifications
-                    </div>
+                      {t("Notifications")}</div>
 
                     <div className="text-xs text-[color:var(--muted)] mt-0.5">
                       {safeUnread > 0
@@ -938,7 +937,7 @@ export default function Header() {
                       flex items-center justify-center
                     "
                     onClick={closeNotifSmooth}
-                    title="Fermer"
+                    title={t("Fermer")}
                     type="button"
                   >
                     <X
@@ -973,8 +972,7 @@ export default function Header() {
                     />
 
                     <span className="text-[color:var(--text)]">
-                      Tout lu
-                    </span>
+                      {t("Tout lu")}</span>
                   </button>
 
                   <button
@@ -995,8 +993,7 @@ export default function Header() {
                     />
 
                     <span className="text-[color:var(--text)]">
-                      Vider
-                    </span>
+                      {t("Vider")}</span>
                   </button>
 
                   <button
@@ -1028,12 +1025,10 @@ export default function Header() {
                 <div className="h-[420px] overflow-auto">
                   {!mounted ? (
                     <div className="p-6 text-sm text-[color:var(--muted)]">
-                      Chargement…
-                    </div>
+                      {t("Chargement…")}</div>
                   ) : safeInbox.length === 0 ? (
                     <div className="p-6 text-sm text-[color:var(--muted)]">
-                      Aucune notification.
-                    </div>
+                      {t("Aucune notification.")}</div>
                   ) : (
                     safeInbox
                       .slice(0, 30)
@@ -1085,7 +1080,7 @@ export default function Header() {
                                 {new Date(
                                   n.createdAt
                                 ).toLocaleString(
-                                  "fr-FR"
+                                  locale === "en" ? "en-US" : "fr-FR"
                                 )}
                               </div>
                             </div>
@@ -1103,8 +1098,7 @@ export default function Header() {
                 </div>
 
                 <div className="px-4 py-3 text-[11px] text-[color:var(--muted)] border-t border-[color:var(--border)]">
-                  Clique dehors ou appuie sur ESC pour fermer.
-                </div>
+                  {t("Clique dehors ou appuie sur ESC pour fermer.")}</div>
               </div>
 
               <style>{`
@@ -1186,7 +1180,7 @@ export default function Header() {
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={avatarSrc}
-                        alt="Avatar"
+                        alt={t("Avatar")}
                         className="w-full h-full object-cover"
                       />
                     ) : (
@@ -1215,8 +1209,7 @@ export default function Header() {
                         "
                       >
                         <ShieldCheck size={12} />
-                        Connecté
-                      </span>
+                        {t("Connecté", "auth")}</span>
                     </div>
 
                     <div className="text-xs text-[color:var(--muted)] mt-0.5 truncate">
@@ -1224,7 +1217,7 @@ export default function Header() {
                     </div>
 
                     <div className="text-xs text-[color:var(--muted)] mt-1">
-                      Plan :{" "}
+                      {t("Plan :")}{" "}
                       <span className="text-[color:var(--gold)] font-semibold">
                         {planLabel}
                       </span>
@@ -1257,8 +1250,8 @@ export default function Header() {
                         className={iconMuted}
                       />
                     }
-                    label="Mon profil"
-                    sub="Infos et préférences"
+                    label={t("Mon profil")}
+                    sub={t("Infos et préférences")}
                     onClick={() => {
                       closeUserSmooth();
                       go("/dashboard/profil");
@@ -1272,8 +1265,8 @@ export default function Header() {
                         className="text-[color:var(--gold)]"
                       />
                     }
-                    label="Mon abonnement"
-                    sub="Plan actuel + upgrade"
+                    label={t("Mon abonnement")}
+                    sub={t("Plan actuel + upgrade")}
                     onClick={() => {
                       closeUserSmooth();
                       go(
@@ -1304,8 +1297,8 @@ export default function Header() {
                         className={iconMuted}
                       />
                     }
-                    label="Facturation"
-                    sub="Historique d’achat + factures"
+                    label={t("Facturation")}
+                    sub={t("Historique d’achat + factures")}
                     onClick={() => {
                       closeUserSmooth();
                       go(
@@ -1321,8 +1314,8 @@ export default function Header() {
                         className={iconMuted}
                       />
                     }
-                    label="Historique"
-                    sub="Connexions et activités"
+                    label={t("Historique")}
+                    sub={t("Connexions et activités")}
                     onClick={() => {
                       closeUserSmooth();
                       go(
@@ -1338,8 +1331,8 @@ export default function Header() {
                         className={iconMuted}
                       />
                     }
-                    label="Paramètres"
-                    sub="Notifications et préférences"
+                    label={t("Paramètres")}
+                    sub={t("Notifications et préférences")}
                     onClick={() => {
                       closeUserSmooth();
                       go(
@@ -1379,12 +1372,10 @@ export default function Header() {
 
                       <div className="flex-1">
                         <div className="text-sm font-semibold text-[color:var(--text)]">
-                          Thème
-                        </div>
+                          {t("Thème")}</div>
 
                         <div className="text-xs text-[color:var(--muted)] mt-0.5">
-                          Clair / Foncé / Système
-                        </div>
+                          {t("Clair / Foncé / Système")}</div>
                       </div>
 
                       <div className="flex items-center gap-1">
@@ -1402,8 +1393,7 @@ export default function Header() {
                           ].join(" ")}
                           type="button"
                         >
-                          Clair
-                        </button>
+                          {t("Clair")}</button>
 
                         <button
                           onClick={() =>
@@ -1419,8 +1409,7 @@ export default function Header() {
                           ].join(" ")}
                           type="button"
                         >
-                          Foncé
-                        </button>
+                          {t("Foncé")}</button>
 
                         <button
                           onClick={() =>
@@ -1436,8 +1425,7 @@ export default function Header() {
                           ].join(" ")}
                           type="button"
                         >
-                          Auto
-                        </button>
+                          {t("Auto")}</button>
                       </div>
                     </div>
                   </div>
@@ -1464,11 +1452,10 @@ export default function Header() {
                       type="button"
                     >
                       <LogOut size={16} />
-                      Déconnexion
-                    </button>
+                      {t("Déconnexion")}</button>
 
                     <div className="mt-3 text-[11px] text-[color:var(--muted)] text-center">
-                      XP : {acc?.xp ?? 0}
+                      {t("XP : ")}{acc?.xp ?? 0}
                     </div>
                   </div>
                 </div>

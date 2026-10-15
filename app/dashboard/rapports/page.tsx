@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import Link from "next/link";
 import {
   Activity,
@@ -110,12 +111,12 @@ function periodStart(period: Period) {
   return start;
 }
 
-function monthLabel(date: Date) {
-  return date.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+function monthLabel(date: Date, locale: "fr" | "en" = "fr") {
+  return date.toLocaleDateString((locale === "en" ? "en-US" : "fr-FR"), { month: "long", year: "numeric" });
 }
 
-function shortDay(date: Date) {
-  return date.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
+function shortDay(date: Date, locale: "fr" | "en" = "fr") {
+  return date.toLocaleDateString((locale === "en" ? "en-US" : "fr-FR"), { day: "2-digit", month: "short" });
 }
 
 function normalizeSession(v: string | null) {
@@ -132,6 +133,7 @@ function safePct(num: number, den: number) {
 }
 
 export default function RapportsPage() {
+  const { t: tr, locale } = useLocale();
   const supabase = useMemo(() => createClient(), []);
   const [accounts, setAccounts] = useState<TradingAccount[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
@@ -315,7 +317,7 @@ export default function RapportsPage() {
       })).sort((a, b) => b.pnl - a.pnl);
     }
 
-    const weekdays = aggregate((t) => new Date(t.trade_date).toLocaleDateString("fr-FR", { weekday: "long" }));
+    const weekdays = aggregate((t) => new Date(t.trade_date).toLocaleDateString((locale === "en" ? "en-US" : "fr-FR"), { weekday: "long" }));
     const hours = aggregate((t) => `${String(new Date(t.trade_date).getHours()).padStart(2, "0")}h`);
     return {
       symbols: aggregate((t) => t.symbol || "Données manquantes"),
@@ -325,7 +327,7 @@ export default function RapportsPage() {
       weekdays,
       hours,
     };
-  }, [filteredTrades]);
+  }, [filteredTrades, locale]);
 
   const intelligence = useMemo(() => {
     const reportedSessions = breakdowns.sessions.filter((row) => row.label !== "Données manquantes");
@@ -345,61 +347,57 @@ export default function RapportsPage() {
     if (stats.maxLossStreak >= 3) {
       messages.push({
         tone: "warn",
-        title: "Série de pertes à surveiller",
-        text: `Ta plus longue série est de ${stats.maxLossStreak} pertes consécutives. Réduire la fréquence après 2 pertes peut protéger la session.`,
+        title: tr("Série de pertes à surveiller"),
+        text: (tr("Ta plus longue série est de ") + (stats.maxLossStreak) + tr(" pertes consécutives. Réduire la fréquence après 2 pertes peut protéger la session.")),
       });
     }
 
     if (bestSession && bestSession.pnl > 0) {
       messages.push({
         tone: "good",
-        title: `Avantage sur ${bestSession.label}`,
-        text: `${bestSession.count} trade(s) · ${pct(bestSession.winrate)} de winrate. C’est actuellement ta session la plus rentable sur la sélection.`,
+        title: (tr("Avantage sur ") + (bestSession.label)),
+        text: ((bestSession.count) + tr(" trade(s) · ") + (pct(bestSession.winrate)) + tr(" de winrate. C’est actuellement ta session la plus rentable sur la sélection.")),
       });
     }
 
     if (worstSession && worstSession.pnl < 0) {
       messages.push({
         tone: "warn",
-        title: `${worstSession.label} te coûte le plus`,
-        text: `${worstSession.count} trade(s) · ${pct(worstSession.winrate)} de winrate. Compare la qualité de tes setups sur cette session.`,
+        title: ((worstSession.label) + tr(" te coûte le plus")),
+        text: ((worstSession.count) + tr(" trade(s) · ") + (pct(worstSession.winrate)) + tr(" de winrate. Compare la qualité de tes setups sur cette session.")),
       });
     }
 
     if (bestSetup && bestSetup.pnl > 0) {
       messages.push({
         tone: "good",
-        title: `Setup fort : ${bestSetup.label}`,
-        text: `${bestSetup.count} occurrence(s) · ${pct(bestSetup.winrate)} de winrate.`,
+        title: (tr("Setup fort : ") + (bestSetup.label)),
+        text: ((bestSetup.count) + tr(" occurrence(s) · ") + (pct(bestSetup.winrate)) + tr(" de winrate.")),
       });
     }
 
     if (stats.expectancy > 0) {
       messages.push({
         tone: "good",
-        title: "Espérance positive",
-        text: `Chaque trade clôturé produit en moyenne ${
-          mixedCurrencies
+        title: tr("Espérance positive"),
+        text: (tr("Chaque trade clôturé produit en moyenne ") + (mixedCurrencies
             ? nfmt(stats.expectancy)
-            : signedMoney(stats.expectancy, currency)
-        } sur la période.`,
+            : signedMoney(stats.expectancy, currency)) + tr(" sur la période.")),
       });
     } else if (stats.count >= 5 && stats.expectancy < 0) {
       messages.push({
         tone: "warn",
-        title: "Espérance négative",
-        text: `Chaque trade clôturé coûte en moyenne ${
-          mixedCurrencies
+        title: tr("Espérance négative"),
+        text: (tr("Chaque trade clôturé coûte en moyenne ") + (mixedCurrencies
             ? nfmt(Math.abs(stats.expectancy))
-            : money(Math.abs(stats.expectancy), currency)
-        } sur la période.`,
+            : money(Math.abs(stats.expectancy), currency)) + tr(" sur la période.")),
       });
     }
 
     return {
       messages: messages.slice(0, 4),
     };
-  }, [breakdowns, stats, mixedCurrencies, currency]);
+  }, [breakdowns, stats, mixedCurrencies, currency, tr]);
 
   const calendar = useMemo(() => {
     const first = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
@@ -429,7 +427,7 @@ export default function RapportsPage() {
   }, [selectedAccount, mixedCurrencies, accounts]);
 
   if (loading) {
-    return <div className="flex min-h-[70vh] items-center justify-center text-sm text-[color:var(--muted)]">Chargement des rapports…</div>;
+    return <div className="flex min-h-[70vh] items-center justify-center text-sm text-[color:var(--muted)]">{tr("Chargement des rapports…")}</div>;
   }
 
   return (
@@ -437,68 +435,67 @@ export default function RapportsPage() {
       <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[.13em] text-[color:var(--gold)]">
-            <BarChart3 size={12} /> Analytics InvestPro
-          </div>
-          <h1 className="text-2xl font-semibold text-white">Rapports & Analytics</h1>
-          <p className="mt-1 text-sm text-[color:var(--muted)]">Comprends ce qui te fait gagner, ce qui te coûte et où améliorer ta discipline.</p>
+            <BarChart3 size={12} />{tr(" Analytics InvestPro")}</div>
+          <h1 className="text-2xl font-semibold text-white">{tr("Rapports & Analytics")}</h1>
+          <p className="mt-1 text-sm text-[color:var(--muted)]">{tr("Comprends ce qui te fait gagner, ce qui te coûte et où améliorer ta discipline.")}</p>
         </div>
-        <Link href="/dashboard/journal" className="inline-flex h-10 items-center justify-center rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 text-xs font-semibold text-[color:var(--gold)] no-underline">Ouvrir le Journal →</Link>
+        <Link href="/dashboard/journal" className="inline-flex h-10 items-center justify-center rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 text-xs font-semibold text-[color:var(--gold)] no-underline">{tr("Ouvrir le Journal →")}</Link>
       </header>
 
       <section className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4">
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-12">
           <select value={selectedAccountId} onChange={(e) => setSelectedAccountId(e.target.value === "all" ? "all" : Number(e.target.value))} className={`${inputClass} xl:col-span-3`}>
-            <option value="all">Tous les comptes</option>
+            <option value="all">{tr("Tous les comptes")}</option>
             {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}{a.broker ? ` • ${a.broker}` : ""}</option>)}
           </select>
           <div className="grid grid-cols-5 gap-2 xl:col-span-6">
-            {([ ["7d","7 jours"], ["30d","30 jours"], ["90d","3 mois"], ["year","Année"], ["all","Tout"] ] as [Period,string][]).map(([key,label]) => (
+            {([ ["7d",tr("7 jours")], ["30d",tr("30 jours")], ["90d",tr("3 mois")], ["year",tr("Année")], ["all",tr("Tout")] ] as [Period,string][]).map(([key,label]) => (
               <button key={key} onClick={() => setPeriod(key)} className={`h-11 rounded-xl border px-2 text-[10px] font-semibold ${period === key ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]" : "border-white/10 bg-black/20 text-white/45"}`}>{label}</button>
             ))}
           </div>
           <div className="relative xl:col-span-3">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Actif, setup, session…" className={`${inputClass} pl-9`} />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={tr("Actif, setup, session…")} className={`${inputClass} pl-9`} />
           </div>
         </div>
-        {mixedCurrencies ? <div className="mt-3 rounded-xl border border-amber-500/15 bg-amber-500/[.04] px-3 py-2 text-[10px] text-amber-200/70">Plusieurs devises détectées : sélectionne un compte pour des montants exacts.</div> : null}
+        {mixedCurrencies ? <div className="mt-3 rounded-xl border border-amber-500/15 bg-amber-500/[.04] px-3 py-2 text-[10px] text-amber-200/70">{tr("Plusieurs devises détectées : sélectionne un compte pour des montants exacts.")}</div> : null}
       </section>
 
       <section className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <Kpi icon={<CircleDollarSign size={16}/>} label="P&L net" value={mixedCurrencies ? "Multi-devises" : signedMoney(stats.pnl, currency)} tone={stats.pnl > 0 ? "success" : stats.pnl < 0 ? "danger" : "neutral"}/>
-        <Kpi icon={<Target size={16}/>} label="Winrate" value={pct(stats.winrate)} sub={`${stats.wins}W / ${stats.losses}L`}/>
-        <Kpi icon={<Gauge size={16}/>} label="Profit Factor" value={stats.profitFactor === Infinity ? "∞" : nfmt(stats.profitFactor)} tone="gold"/>
-        <Kpi icon={<Activity size={16}/>} label="Trades" value={String(stats.count)} sub={`${stats.bes} BE`}/>
-        <Kpi icon={<TrendingUp size={16}/>} label="R moyen" value={stats.avgR == null ? "—" : `${stats.avgR > 0 ? "+" : ""}${nfmt(stats.avgR)}R`}/>
-        <Kpi icon={<ShieldAlert size={16}/>} label="Drawdown max" value={mixedCurrencies ? "—" : `-${money(stats.maxDrawdown, currency)}`} tone="danger"/>
+        <Kpi icon={<CircleDollarSign size={16}/>} label={tr("P&L net")} value={mixedCurrencies ? tr("Multi-devises") : signedMoney(stats.pnl, currency)} tone={stats.pnl > 0 ? "success" : stats.pnl < 0 ? "danger" : "neutral"}/>
+        <Kpi icon={<Target size={16}/>} label={tr("Winrate")} value={pct(stats.winrate)} sub={`${stats.wins}W / ${stats.losses}L`}/>
+        <Kpi icon={<Gauge size={16}/>} label={tr("Profit Factor")} value={stats.profitFactor === Infinity ? "∞" : nfmt(stats.profitFactor)} tone="gold"/>
+        <Kpi icon={<Activity size={16}/>} label={tr("Trades")} value={String(stats.count)} sub={`${stats.bes} BE`}/>
+        <Kpi icon={<TrendingUp size={16}/>} label={tr("R moyen")} value={stats.avgR == null ? "—" : `${stats.avgR > 0 ? "+" : ""}${nfmt(stats.avgR)}R`}/>
+        <Kpi icon={<ShieldAlert size={16}/>} label={tr("Drawdown max")} value={mixedCurrencies ? "—" : `-${money(stats.maxDrawdown, currency)}`} tone="danger"/>
       </section>
 
       <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Kpi
           icon={<Scale size={16}/>}
-          label="Espérance / trade"
+          label={tr("Espérance / trade")}
           value={mixedCurrencies ? nfmt(stats.expectancy) : signedMoney(stats.expectancy, currency)}
           tone={stats.expectancy > 0 ? "success" : stats.expectancy < 0 ? "danger" : "neutral"}
         />
         <Kpi
           icon={<Target size={16}/>}
-          label="Payoff ratio"
+          label={tr("Payoff ratio")}
           value={stats.payoffRatio === Infinity ? "∞" : `${nfmt(stats.payoffRatio)}x`}
-          sub="Gain moyen / perte moyenne"
+          sub={tr("Gain moyen / perte moyenne")}
           tone="gold"
         />
         <Kpi
           icon={<Flame size={16}/>}
-          label="Meilleure série"
+          label={tr("Meilleure série")}
           value={`${stats.maxWinStreak}W`}
-          sub="Wins consécutifs"
+          sub={tr("Wins consécutifs")}
           tone="success"
         />
         <Kpi
           icon={<ShieldAlert size={16}/>}
-          label="Pire série"
+          label={tr("Pire série")}
           value={`${stats.maxLossStreak}L`}
-          sub="Losses consécutives"
+          sub={tr("Losses consécutives")}
           tone={stats.maxLossStreak >= 3 ? "danger" : "neutral"}
         />
       </section>
@@ -510,12 +507,8 @@ export default function RapportsPage() {
           </div>
 
           <div>
-            <div className="text-sm font-semibold text-white">
-              Lecture intelligente de la période
-            </div>
-            <div className="mt-1 text-[9px] text-white/30">
-              InvestPro transforme tes statistiques en points d’attention concrets.
-            </div>
+            <div className="text-sm font-semibold text-white">{tr("Lecture intelligente de la période")}</div>
+            <div className="mt-1 text-[9px] text-white/30">{tr("InvestPro transforme tes statistiques en points d’attention concrets.")}</div>
           </div>
         </div>
 
@@ -550,9 +543,7 @@ export default function RapportsPage() {
               </div>
             ))
           ) : (
-            <div className="rounded-2xl border border-dashed border-white/[.07] bg-black/20 p-5 text-[10px] text-white/30 md:col-span-2">
-              Ajoute davantage de trades clôturés pour obtenir des conclusions fiables.
-            </div>
+            <div className="rounded-2xl border border-dashed border-white/[.07] bg-black/20 p-5 text-[10px] text-white/30 md:col-span-2">{tr("Ajoute davantage de trades clôturés pour obtenir des conclusions fiables.")}</div>
           )}
         </div>
       </section>
@@ -560,7 +551,7 @@ export default function RapportsPage() {
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
         <div className="rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 xl:col-span-8">
           <div className="flex items-start justify-between gap-3">
-            <div><h2 className="text-sm font-semibold text-white">Courbe d’equity réalisée</h2><p className="mt-1 text-[10px] text-[color:var(--muted)]">P&L cumulé sur les trades clôturés de la sélection.</p></div>
+            <div><h2 className="text-sm font-semibold text-white">{tr("Courbe d’equity réalisée")}</h2><p className="mt-1 text-[10px] text-[color:var(--muted)]">{tr("P&L cumulé sur les trades clôturés de la sélection.")}</p></div>
             <div className={`text-lg font-semibold ${stats.pnl > 0 ? "text-emerald-400" : stats.pnl < 0 ? "text-red-400" : "text-white"}`}>{mixedCurrencies ? "—" : signedMoney(stats.pnl, currency)}</div>
           </div>
           <div className="mt-5 h-[300px] overflow-hidden rounded-2xl border border-white/[.06] bg-black/20">
@@ -571,41 +562,41 @@ export default function RapportsPage() {
                 <path d={curve.area} fill="url(#eqFill)" />
                 <path d={curve.path} fill="none" stroke="rgba(232,194,102,.98)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-            ) : <div className="flex h-full items-center justify-center text-xs text-[color:var(--muted)]">Pas encore assez de trades clôturés.</div>}
+            ) : <div className="flex h-full items-center justify-center text-xs text-[color:var(--muted)]">{tr("Pas encore assez de trades clôturés.")}</div>}
           </div>
         </div>
         <div className="space-y-4 xl:col-span-4">
           <div className="rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5">
-            <div className="flex items-center gap-3"><WalletCards size={17} className="text-[color:var(--gold)]"/><div><div className="text-sm font-semibold text-white">Capital</div><div className="text-[9px] text-[color:var(--muted)]">{selectedAccount?.name || "Vue globale"}</div></div></div>
-            <div className="mt-5 text-3xl font-semibold text-white">{mixedCurrencies ? "Multi-devises" : money(capital.current, currency)}</div>
-            <div className="mt-4 grid grid-cols-2 gap-3"><Mini label="Initial" value={mixedCurrencies ? "—" : money(capital.initial,currency)}/><Mini label="Écart" value={mixedCurrencies ? "—" : signedMoney(capital.current-capital.initial,currency)} gold/></div>
+            <div className="flex items-center gap-3"><WalletCards size={17} className="text-[color:var(--gold)]"/><div><div className="text-sm font-semibold text-white">{tr("Capital")}</div><div className="text-[9px] text-[color:var(--muted)]">{selectedAccount?.name || tr("Vue globale")}</div></div></div>
+            <div className="mt-5 text-3xl font-semibold text-white">{mixedCurrencies ? tr("Multi-devises") : money(capital.current, currency)}</div>
+            <div className="mt-4 grid grid-cols-2 gap-3"><Mini label={tr("Initial")} value={mixedCurrencies ? "—" : money(capital.initial,currency)}/><Mini label={tr("Écart")} value={mixedCurrencies ? "—" : signedMoney(capital.current-capital.initial,currency)} gold/></div>
           </div>
           <ResultDonut wins={stats.wins} losses={stats.losses} bes={stats.bes} />
         </div>
       </section>
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Advanced title="Gain moyen" value={mixedCurrencies ? "—" : `+${money(stats.avgWin,currency)}`} subtitle="Moyenne des trades gagnants" tone="success" icon={<ArrowUpRight size={17}/>}/>
-        <Advanced title="Perte moyenne" value={mixedCurrencies ? "—" : `-${money(stats.avgLoss,currency)}`} subtitle="Moyenne des trades perdants" tone="danger" icon={<ArrowDownRight size={17}/>}/>
-        <Advanced title="Meilleur trade" value={stats.bestTrade ? (mixedCurrencies ? stats.bestTrade.symbol : signedMoney(Number(stats.bestTrade.result_amount||0),currency)) : "—"} subtitle={stats.bestTrade ? `${stats.bestTrade.symbol} • ${shortDay(new Date(stats.bestTrade.trade_date))}` : "Pas assez de données"} tone="success" icon={<TrendingUp size={17}/>}/>
-        <Advanced title="Pire trade" value={stats.worstTrade ? (mixedCurrencies ? stats.worstTrade.symbol : signedMoney(Number(stats.worstTrade.result_amount||0),currency)) : "—"} subtitle={stats.worstTrade ? `${stats.worstTrade.symbol} • ${shortDay(new Date(stats.worstTrade.trade_date))}` : "Pas assez de données"} tone="danger" icon={<TrendingDown size={17}/>}/>
+        <Advanced title={tr("Gain moyen")} value={mixedCurrencies ? "—" : `+${money(stats.avgWin,currency)}`} subtitle={tr("Moyenne des trades gagnants")} tone="success" icon={<ArrowUpRight size={17}/>}/>
+        <Advanced title={tr("Perte moyenne")} value={mixedCurrencies ? "—" : `-${money(stats.avgLoss,currency)}`} subtitle={tr("Moyenne des trades perdants")} tone="danger" icon={<ArrowDownRight size={17}/>}/>
+        <Advanced title={tr("Meilleur trade")} value={stats.bestTrade ? (mixedCurrencies ? stats.bestTrade.symbol : signedMoney(Number(stats.bestTrade.result_amount||0),currency)) : "—"} subtitle={stats.bestTrade ? `${stats.bestTrade.symbol} • ${shortDay(new Date(stats.bestTrade.trade_date), locale)}` : tr("Pas assez de données")} tone="success" icon={<TrendingUp size={17}/>}/>
+        <Advanced title={tr("Pire trade")} value={stats.worstTrade ? (mixedCurrencies ? stats.worstTrade.symbol : signedMoney(Number(stats.worstTrade.result_amount||0),currency)) : "—"} subtitle={stats.worstTrade ? `${stats.worstTrade.symbol} • ${shortDay(new Date(stats.worstTrade.trade_date), locale)}` : tr("Pas assez de données")} tone="danger" icon={<TrendingDown size={17}/>}/>
       </section>
 
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <Breakdown title="Performance par actif" rows={breakdowns.symbols} currency={currency} moneyDisabled={mixedCurrencies}/>
-        <Breakdown title="Performance par session" rows={breakdowns.sessions} currency={currency} moneyDisabled={mixedCurrencies}/>
-        <Breakdown title="Performance par setup" rows={breakdowns.setups} currency={currency} moneyDisabled={mixedCurrencies}/>
-        <Breakdown title="Performance par timeframe" rows={breakdowns.timeframes} currency={currency} moneyDisabled={mixedCurrencies}/>
-        <Breakdown title="Jours de la semaine" rows={breakdowns.weekdays} currency={currency} moneyDisabled={mixedCurrencies}/>
-        <Breakdown title="Horaires les plus rentables" rows={breakdowns.hours} currency={currency} moneyDisabled={mixedCurrencies}/>
+        <Breakdown title={tr("Performance par actif")} rows={breakdowns.symbols} currency={currency} moneyDisabled={mixedCurrencies}/>
+        <Breakdown title={tr("Performance par session")} rows={breakdowns.sessions} currency={currency} moneyDisabled={mixedCurrencies}/>
+        <Breakdown title={tr("Performance par setup")} rows={breakdowns.setups} currency={currency} moneyDisabled={mixedCurrencies}/>
+        <Breakdown title={tr("Performance par timeframe")} rows={breakdowns.timeframes} currency={currency} moneyDisabled={mixedCurrencies}/>
+        <Breakdown title={tr("Jours de la semaine")} rows={breakdowns.weekdays} currency={currency} moneyDisabled={mixedCurrencies}/>
+        <Breakdown title={tr("Horaires les plus rentables")} rows={breakdowns.hours} currency={currency} moneyDisabled={mixedCurrencies}/>
       </section>
 
       <section className="rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4 md:p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div><h2 className="text-sm font-semibold text-white">Calendrier / Heatmap</h2><p className="mt-1 text-[10px] text-[color:var(--muted)]">P&L réalisé par journée sur la sélection.</p></div>
-          <div className="flex items-center gap-2"><button onClick={() => setViewDate(new Date(viewDate.getFullYear(),viewDate.getMonth()-1,1))} className="calBtn"><ChevronLeft size={15}/></button><div className="min-w-[145px] text-center text-xs font-semibold capitalize text-[color:var(--gold)]">{monthLabel(viewDate)}</div><button onClick={() => setViewDate(new Date(viewDate.getFullYear(),viewDate.getMonth()+1,1))} className="calBtn"><ChevronRight size={15}/></button></div>
+          <div><h2 className="text-sm font-semibold text-white">{tr("Calendrier / Heatmap")}</h2><p className="mt-1 text-[10px] text-[color:var(--muted)]">{tr("P&L réalisé par journée sur la sélection.")}</p></div>
+          <div className="flex items-center gap-2"><button onClick={() => setViewDate(new Date(viewDate.getFullYear(),viewDate.getMonth()-1,1))} className="calBtn"><ChevronLeft size={15}/></button><div className="min-w-[145px] text-center text-xs font-semibold capitalize text-[color:var(--gold)]">{monthLabel(viewDate, locale)}</div><button onClick={() => setViewDate(new Date(viewDate.getFullYear(),viewDate.getMonth()+1,1))} className="calBtn"><ChevronRight size={15}/></button></div>
         </div>
-        <div className="mt-5 overflow-x-auto pb-1"><div className="min-w-[680px]"><div className="grid grid-cols-7 gap-2 text-center text-[9px] uppercase text-white/25">{["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"].map((x)=><div key={x}>{x}</div>)}</div><div className="mt-2 space-y-2">{weeks.map((week,wi)=><div key={wi} className="grid grid-cols-7 gap-2">{week.map((day)=>{const inMonth=day.date.getMonth()===viewDate.getMonth();return <div key={day.key} className={`min-h-[82px] rounded-xl border p-2 ${day.pnl>0?"border-emerald-500/15 bg-emerald-500/[.07]":day.pnl<0?"border-red-500/15 bg-red-500/[.07]":"border-white/[.05] bg-black/20"} ${inMonth?"":"opacity-25"}`}><div className="text-[9px] text-white/40">{day.date.getDate()}</div>{day.count>0?<><div className={`mt-3 text-[11px] font-semibold ${day.pnl>0?"text-emerald-400":day.pnl<0?"text-red-400":"text-white"}`}>{mixedCurrencies?`${day.count} trades`:signedMoney(day.pnl,currency)}</div><div className="mt-1 text-[8px] text-white/25">{day.count} trade{day.count>1?"s":""}</div></>:null}</div>})}</div>)}</div></div></div>
+        <div className="mt-5 overflow-x-auto pb-1"><div className="min-w-[680px]"><div className="grid grid-cols-7 gap-2 text-center text-[9px] uppercase text-white/25">{[tr("Lun"),tr("Mar"),tr("Mer"),tr("Jeu"),tr("Ven"),tr("Sam"),tr("Dim")].map((x)=><div key={x}>{x}</div>)}</div><div className="mt-2 space-y-2">{weeks.map((week,wi)=><div key={wi} className="grid grid-cols-7 gap-2">{week.map((day)=>{const inMonth=day.date.getMonth()===viewDate.getMonth();return <div key={day.key} className={`min-h-[82px] rounded-xl border p-2 ${day.pnl>0?"border-emerald-500/15 bg-emerald-500/[.07]":day.pnl<0?"border-red-500/15 bg-red-500/[.07]":"border-white/[.05] bg-black/20"} ${inMonth?"":"opacity-25"}`}><div className="text-[9px] text-white/40">{day.date.getDate()}</div>{day.count>0?<><div className={`mt-3 text-[11px] font-semibold ${day.pnl>0?"text-emerald-400":day.pnl<0?"text-red-400":"text-white"}`}>{mixedCurrencies?`${day.count} trades`:signedMoney(day.pnl,currency)}</div><div className="mt-1 text-[8px] text-white/25">{day.count}{tr(" trade")}{day.count>1?"s":""}</div></>:null}</div>})}</div>)}</div></div></div>
       </section>
     </div>
   );
@@ -626,11 +617,13 @@ function Advanced({title,value,subtitle,tone,icon}:{title:string;value:string;su
 }
 
 function ResultDonut({wins,losses,bes}:{wins:number;losses:number;bes:number}) {
+  const { t: tr } = useLocale();
  const total=wins+losses+bes; const winPct=total?safePct(wins,total):0; const lossPct=total?safePct(losses,total):0;
- return <div className="rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5"><div className="text-sm font-semibold text-white">Répartition des résultats</div><div className="mt-4 flex items-center gap-5"><div className="relative h-28 w-28 shrink-0 rounded-full" style={{background:`conic-gradient(rgb(52 211 153) 0 ${winPct}%, rgb(248 113 113) ${winPct}% ${winPct+lossPct}%, rgba(255,255,255,.16) ${winPct+lossPct}% 100%)`}}><div className="absolute inset-[11px] flex flex-col items-center justify-center rounded-full bg-[#0d0d10]"><div className="text-lg font-semibold text-white">{total}</div><div className="text-[8px] text-white/30">trades</div></div></div><div className="space-y-2 text-[10px]"><div className="text-emerald-400">● {wins} gagnants</div><div className="text-red-400">● {losses} perdants</div><div className="text-white/40">● {bes} break-even</div></div></div></div>;
+ return <div className="rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5"><div className="text-sm font-semibold text-white">{tr("Répartition des résultats")}</div><div className="mt-4 flex items-center gap-5"><div className="relative h-28 w-28 shrink-0 rounded-full" style={{background:`conic-gradient(rgb(52 211 153) 0 ${winPct}%, rgb(248 113 113) ${winPct}% ${winPct+lossPct}%, rgba(255,255,255,.16) ${winPct+lossPct}% 100%)`}}><div className="absolute inset-[11px] flex flex-col items-center justify-center rounded-full bg-[#0d0d10]"><div className="text-lg font-semibold text-white">{total}</div><div className="text-[8px] text-white/30">{tr("trades")}</div></div></div><div className="space-y-2 text-[10px]"><div className="text-emerald-400">● {wins}{tr(" gagnants")}</div><div className="text-red-400">● {losses}{tr(" perdants")}</div><div className="text-white/40">● {bes}{tr(" break-even")}</div></div></div></div>;
 }
 
 function Breakdown({title,rows,currency,moneyDisabled}:{title:string;rows:BreakdownRow[];currency:string;moneyDisabled:boolean}) {
+  const { t: tr } = useLocale();
  const maxAbs=Math.max(1,...rows.map(r=>Math.abs(r.pnl)));
- return <div className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5"><div className="text-sm font-semibold text-white">{title}</div><div className="mt-4 space-y-2">{rows.length===0?<div className="rounded-xl border border-dashed border-white/[.07] bg-black/20 p-5 text-center text-[10px] text-[color:var(--muted)]">Pas assez de données.</div>:rows.slice(0,8).map(row=><div key={row.label} className="rounded-xl border border-white/[.05] bg-black/20 px-3 py-3"><div className="flex items-center justify-between gap-3"><div className="min-w-0"><div className="truncate text-[10px] font-semibold capitalize text-white">{row.label}</div><div className="mt-1 text-[8px] text-white/25">{row.count} trade{row.count>1?"s":""} • {pct(row.winrate)} WR</div></div><div className={`text-[10px] font-semibold ${row.pnl>0?"text-emerald-400":row.pnl<0?"text-red-400":"text-white/40"}`}>{moneyDisabled?`${row.pnl>0?"+":""}${nfmt(row.pnl)}`:signedMoney(row.pnl,currency)}</div></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/5"><div className={`h-full rounded-full ${row.pnl>=0?"bg-emerald-400/70":"bg-red-400/70"}`} style={{width:`${Math.max(3,Math.abs(row.pnl)/maxAbs*100)}%`}}/></div></div>)}</div></div>;
+ return <div className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5"><div className="text-sm font-semibold text-white">{title}</div><div className="mt-4 space-y-2">{rows.length===0?<div className="rounded-xl border border-dashed border-white/[.07] bg-black/20 p-5 text-center text-[10px] text-[color:var(--muted)]">{tr("Pas assez de données.")}</div>:rows.slice(0,8).map(row=><div key={row.label} className="rounded-xl border border-white/[.05] bg-black/20 px-3 py-3"><div className="flex items-center justify-between gap-3"><div className="min-w-0"><div className="truncate text-[10px] font-semibold capitalize text-white">{row.label === "Données manquantes" ? tr("Données manquantes") : row.label}</div><div className="mt-1 text-[8px] text-white/25">{row.count}{tr(" trade")}{row.count>1?"s":""} • {pct(row.winrate)}{tr(" WR")}</div></div><div className={`text-[10px] font-semibold ${row.pnl>0?"text-emerald-400":row.pnl<0?"text-red-400":"text-white/40"}`}>{moneyDisabled?`${row.pnl>0?"+":""}${nfmt(row.pnl)}`:signedMoney(row.pnl,currency)}</div></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/5"><div className={`h-full rounded-full ${row.pnl>=0?"bg-emerald-400/70":"bg-red-400/70"}`} style={{width:`${Math.max(3,Math.abs(row.pnl)/maxAbs*100)}%`}}/></div></div>)}</div></div>;
 }

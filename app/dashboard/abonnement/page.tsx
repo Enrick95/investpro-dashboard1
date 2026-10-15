@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
+
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
@@ -88,12 +90,12 @@ const planData: Record<
   },
 };
 
-function formatDate(value?: string | null) {
+function formatDate(value?: string | null, locale: "fr" | "en" = "fr") {
   if (!value) return "—";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
 
-  return date.toLocaleDateString("fr-FR", {
+  return date.toLocaleDateString(locale === "en" ? "en-US" : "fr-FR", {
     day: "2-digit",
     month: "long",
     year: "numeric",
@@ -113,6 +115,7 @@ function subscriptionStatusLabel(status?: string | null) {
 }
 
 export default function SubscriptionAccessPage() {
+  const { t: translate, locale } = useLocale();
   const supabase = useMemo(() => createClient(), []);
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -194,21 +197,19 @@ export default function SubscriptionAccessPage() {
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gold)]">
               <Crown size={12} />
-              Abonnement & accès
-            </div>
+              {translate("Abonnement & accès")}</div>
 
             <h1 className="mt-3 text-2xl font-semibold text-white md:text-3xl">
-              Ton accès <span className="text-[color:var(--gold)]">InvestPro</span>
+              {translate("Ton accès")}{" "}<span className="text-[color:var(--gold)]">{translate("InvestPro")}</span>
             </h1>
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-[color:var(--muted)]">
-              Pendant la bêta, toutes les fonctionnalités InvestPro sont accessibles gratuitement à tous les membres inscrits.
-            </p>
+              {translate("Pendant la bêta, toutes les fonctionnalités InvestPro sont accessibles gratuitement à tous les membres inscrits.")}</p>
           </div>
 
           <div className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-[10px] font-semibold ${statusClass}`}>
             <span className={`h-2 w-2 rounded-full ${statusClass.includes("emerald") ? "bg-emerald-400" : "bg-amber-300"}`} />
-            {currentStatus}
+              {translate(currentStatus === "Actif" ? "Abonnement actif" : currentStatus)}
           </div>
         </div>
       </section>
@@ -216,41 +217,40 @@ export default function SubscriptionAccessPage() {
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat
           icon={<Gem size={17} />}
-          label="Plan actuel"
+          label={translate("Plan actuel")}
           value={currentPlan}
-          sub={planData[currentPlan].tagline}
+          sub={translate(planData[currentPlan].tagline)}
           accent
         />
         <Stat
           icon={<BadgeCheck size={17} />}
-          label="Statut"
-          value={currentStatus}
-          sub={subscription?.provider ? `Via ${subscription.provider}` : "Aucun paiement pendant la bêta"}
+          label={translate("Statut")}
+          value={translate(currentStatus)}
+          sub={subscription?.provider ? `Via ${subscription.provider}` : translate("Aucun paiement pendant la bêta")}
         />
         <Stat
           icon={<Clock3 size={17} />}
-          label="Fin de période"
-          value={formatDate(subscription?.current_period_end)}
+          label={translate("Fin de période")}
+          value={formatDate(subscription?.current_period_end, locale)}
           sub={
             subscription?.cancel_at_period_end
-              ? "Résiliation prévue"
+              ? translate("Résiliation prévue")
               : subscription
-                ? "Renouvellement non configuré"
-                : "Pas de renouvellement pendant la bêta"
+                ? translate("Renouvellement non configuré")
+                : translate("Pas de renouvellement pendant la bêta")
           }
         />
         <Stat
           icon={<WalletCards size={17} />}
-          label="Paiements"
+          label={translate("Paiements")}
           value={subscription?.provider ? "Activés" : "Non activés"}
-          sub="Aucun paiement n’est demandé pendant la bêta"
+          sub={translate("Aucun paiement n’est demandé pendant la bêta")}
         />
       </section>
 
       {!billingTableAvailable ? (
         <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.05] px-4 py-3 text-xs text-amber-300">
-          Les informations détaillées de facturation ne sont pas disponibles pour le moment. Ton accès à la bêta reste inchangé.
-        </div>
+          {translate("Les informations détaillées de facturation ne sont pas disponibles pour le moment. Ton accès à la bêta reste inchangé.")}</div>
       ) : null}
 
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
@@ -264,19 +264,18 @@ export default function SubscriptionAccessPage() {
 
                 <div>
                   <div className="text-[9px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gold)]">
-                    Plan actuel
-                  </div>
+                    {translate("Plan actuel")}</div>
                   <div className="mt-1 text-xl font-semibold text-white">
-                    InvestPro {planData[currentPlan].name}
+                    {translate("InvestPro")}{" "}{planData[currentPlan].name}
                   </div>
                   <p className="mt-2 max-w-xl text-[10px] leading-5 text-white/45">
-                    {planData[currentPlan].tagline}
+                    {translate(planData[currentPlan].tagline)}
                   </p>
                 </div>
               </div>
 
               <span className={`rounded-full border px-3 py-1 text-[9px] font-bold uppercase ${statusClass}`}>
-                {currentStatus}
+                    {translate(currentStatus === "Actif" ? "Abonnement actif" : currentStatus)}
               </span>
             </div>
 
@@ -291,8 +290,7 @@ export default function SubscriptionAccessPage() {
             <div className="flex items-center gap-2">
               <Sparkles size={17} className="text-[color:var(--gold)]" />
               <h2 className="text-sm font-semibold text-white">
-                Comparer les accès
-              </h2>
+                {translate("Comparer les accès")}</h2>
             </div>
 
             <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -320,8 +318,7 @@ export default function SubscriptionAccessPage() {
 
                       {active ? (
                         <span className="rounded-full border border-[color:var(--gold-border)] bg-black/10 px-2 py-0.5 text-[8px] font-bold uppercase text-[color:var(--gold)]">
-                          Actuel
-                        </span>
+                          {translate("Actuel")}</span>
                       ) : null}
                     </div>
 
@@ -330,7 +327,7 @@ export default function SubscriptionAccessPage() {
                     </div>
 
                     <p className="mt-2 min-h-[48px] text-[9px] leading-4 text-white/35">
-                      {planData[plan].tagline}
+                      {translate(planData[plan].tagline)}
                     </p>
 
                     <div className="mt-4 space-y-2">
@@ -351,24 +348,24 @@ export default function SubscriptionAccessPage() {
         <div className="space-y-4 xl:col-span-4">
           <SideCard
             icon={<ReceiptText size={17} />}
-            title="Facturation"
-            subtitle="Aucun paiement n’est demandé pendant la bêta. La facturation sera activée plus tard."
+            title={translate("Facturation")}
+            subtitle={translate("Aucun paiement n’est demandé pendant la bêta. La facturation sera activée plus tard.")}
           >
             <div className="space-y-3">
               <Info
-                label="Provider"
-                value={subscription?.provider || "Non connecté"}
+                label={translate("Provider")}
+                value={subscription?.provider || translate("Non connecté")}
               />
               <Info
-                label="Période actuelle"
-                value={formatDate(subscription?.current_period_end)}
+                label={translate("Période actuelle")}
+                value={formatDate(subscription?.current_period_end, locale)}
               />
               <Info
-                label="Résiliation"
+                label={translate("Résiliation")}
                 value={
                   subscription?.cancel_at_period_end
-                    ? "Prévue en fin de période"
-                    : "Aucune"
+                    ? translate("Prévue en fin de période")
+                    : translate("Aucune")
                 }
               />
             </div>
@@ -379,32 +376,30 @@ export default function SubscriptionAccessPage() {
               className="mt-4 inline-flex h-10 w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] text-xs font-semibold text-white/30"
             >
               <CircleDollarSign size={14} />
-              Bêta gratuite actuellement
-            </button>
+              {translate("Bêta gratuite actuellement")}</button>
           </SideCard>
 
           <SideCard
             icon={<ShieldCheck size={17} />}
-            title="Accès pendant la bêta"
-            subtitle="Tous les membres inscrits profitent actuellement des fonctionnalités InvestPro sans paiement."
+            title={translate("Accès pendant la bêta")}
+            subtitle={translate("Tous les membres inscrits profitent actuellement des fonctionnalités InvestPro sans paiement.")}
           >
             <div className="space-y-3">
-              <SecurityRow text="Aucune carte bancaire n’est nécessaire pendant la bêta." />
-              <SecurityRow text="Les fonctions et les conditions des offres seront indiquées ici lorsque la facturation sera activée." />
+              <SecurityRow text={translate("Aucune carte bancaire n’est nécessaire pendant la bêta.")} />
+              <SecurityRow text={translate("Les fonctions et les conditions des offres seront indiquées ici lorsque la facturation sera activée.")} />
             </div>
           </SideCard>
 
           <SideCard
             icon={<LockKeyhole size={17} />}
-            title="Compte & sécurité"
-            subtitle="Mot de passe, sessions et actions sensibles."
+            title={translate("Compte & sécurité")}
+            subtitle={translate("Mot de passe, sessions et actions sensibles.")}
           >
             <Link
               href="/dashboard/compte"
               className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-xs font-semibold text-[color:var(--gold)]"
             >
-              Ouvrir la sécurité
-              <ArrowRight size={13} />
+              {translate("Ouvrir la sécurité")}<ArrowRight size={13} />
             </Link>
           </SideCard>
         </div>
@@ -426,21 +421,23 @@ function Stat({
   sub: string;
   accent?: boolean;
 }) {
+  const { t: translate } = useLocale();
   return (
     <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--panel)] p-4">
       <div className={accent ? "text-[color:var(--gold)]" : "text-white/35"}>
         {icon}
       </div>
-      <div className="mt-3 text-[9px] text-white/35">{label}</div>
+      <div className="mt-3 text-[9px] text-white/35">{translate(label)}</div>
       <div className={accent ? "mt-1 truncate text-base font-semibold text-[color:var(--gold)]" : "mt-1 truncate text-base font-semibold text-white"}>
         {value}
       </div>
-      <div className="mt-1 line-clamp-2 text-[8px] leading-4 text-white/25">{sub}</div>
+      <div className="mt-1 line-clamp-2 text-[8px] leading-4 text-white/25">{translate(sub)}</div>
     </div>
   );
 }
 
 function Feature({ text, active }: { text: string; active: boolean }) {
+  const { t: translate } = useLocale();
   return (
     <div className="flex items-center gap-2 rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2.5">
       <span
@@ -453,16 +450,17 @@ function Feature({ text, active }: { text: string; active: boolean }) {
       >
         {active ? <Check size={12} /> : <X size={12} />}
       </span>
-      <span className="text-[10px] text-white/60">{text}</span>
+      <span className="text-[10px] text-white/60">{translate(text)}</span>
     </div>
   );
 }
 
 function MiniFeature({ text }: { text: string }) {
+  const { t: translate } = useLocale();
   return (
     <div className="flex items-center gap-2 text-[9px] text-white/45">
       <Check size={11} className="shrink-0 text-emerald-400" />
-      {text}
+      {translate(text)}
     </div>
   );
 }
@@ -478,6 +476,7 @@ function SideCard({
   subtitle: string;
   children: React.ReactNode;
 }) {
+  const { t: translate } = useLocale();
   return (
     <section className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5">
       <div className="flex items-start gap-3">
@@ -486,8 +485,8 @@ function SideCard({
         </div>
 
         <div>
-          <h2 className="text-sm font-semibold text-white">{title}</h2>
-          <p className="mt-1 text-[9px] leading-4 text-white/35">{subtitle}</p>
+          <h2 className="text-sm font-semibold text-white">{translate(title)}</h2>
+          <p className="mt-1 text-[9px] leading-4 text-white/35">{translate(subtitle)}</p>
         </div>
       </div>
 
@@ -497,9 +496,10 @@ function SideCard({
 }
 
 function Info({ label, value }: { label: string; value: string }) {
+  const { t: translate } = useLocale();
   return (
     <div className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2.5">
-      <span className="text-[9px] text-white/35">{label}</span>
+      <span className="text-[9px] text-white/35">{translate(label)}</span>
       <span className="text-right text-[9px] font-semibold text-white/65">
         {value}
       </span>
@@ -508,10 +508,11 @@ function Info({ label, value }: { label: string; value: string }) {
 }
 
 function SecurityRow({ text }: { text: string }) {
+  const { t: translate } = useLocale();
   return (
     <div className="flex items-start gap-2 text-[10px] leading-5 text-white/55">
       <Check size={14} className="mt-0.5 shrink-0 text-emerald-400" />
-      {text}
+      {translate(text)}
     </div>
   );
 }

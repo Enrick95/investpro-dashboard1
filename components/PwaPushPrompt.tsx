@@ -1,4 +1,6 @@
 "use client";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+
 
 import { useEffect, useState } from "react";
 import { Bell, Check, X } from "lucide-react";
@@ -17,6 +19,8 @@ function base64UrlToBytes(value: string) {
 }
 
 export default function PwaPushPrompt() {
+  const { t } = useLocale();
+
   const [visible, setVisible] = useState(false);
   const [publicKey, setPublicKey] = useState("");
   const [busy, setBusy] = useState(false);
@@ -99,19 +103,19 @@ export default function PwaPushPrompt() {
   if (!visible) return null;
 
   return (
-    <aside role="dialog" aria-label="Notifications InvestPro" className="fixed inset-x-3 bottom-24 z-[70] mx-auto max-w-md rounded-2xl border border-[color:var(--gold-border)] bg-[#11130f] p-4 shadow-2xl shadow-black/50 sm:inset-x-auto sm:bottom-6 sm:right-6">
+    <aside role="dialog" aria-label={t("Notifications InvestPro")} className="fixed inset-x-3 bottom-24 z-[70] mx-auto max-w-md rounded-2xl border border-[color:var(--gold-border)] bg-[#11130f] p-4 shadow-2xl shadow-black/50 sm:inset-x-auto sm:bottom-6 sm:right-6">
       <div className="flex items-start gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]"><Bell size={18} /></span>
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-semibold text-white">Reste informé avec InvestPro</div>
-          <p className="mt-1 text-xs leading-5 text-white/55">Reçois les notifications importantes sur tes demandes de compte et tes réglages Copier. Tu peux changer d’avis dans les réglages de ton appareil.</p>
+          <div className="text-sm font-semibold text-white">{t("Reste informé avec InvestPro")}</div>
+          <p className="mt-1 text-xs leading-5 text-white/55">{t("Reçois les notifications importantes sur tes demandes de compte et tes réglages Copier. Tu peux changer d’avis dans les réglages de ton appareil.")}</p>
         </div>
-        <button type="button" onClick={dismiss} aria-label="Plus tard" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/45 hover:bg-white/[0.06]"><X size={16} /></button>
+        <button type="button" onClick={dismiss} aria-label={t("Plus tard")} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/45 hover:bg-white/[0.06]"><X size={16} /></button>
       </div>
-      {error ? <p role="status" className="mt-3 text-xs leading-5 text-amber-200">{error}</p> : null}
+      {error ? <p role="status" className="mt-3 text-xs leading-5 text-amber-200">{t(error)}</p> : null}
       <div className="mt-4 flex gap-2">
-        <button type="button" onClick={dismiss} className="min-h-10 flex-1 rounded-xl border border-white/[0.08] px-3 text-xs font-semibold text-white/65">Plus tard</button>
-        <button type="button" onClick={() => void enableNotifications()} disabled={busy} className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-[color:var(--gold)] px-3 text-xs font-bold text-black disabled:opacity-60">{busy ? "Activation…" : <><Check size={14} /> Activer les notifications</>}</button>
+        <button type="button" onClick={dismiss} className="min-h-10 flex-1 rounded-xl border border-white/[0.08] px-3 text-xs font-semibold text-white/65">{t("Plus tard")}</button>
+        <button type="button" onClick={() => void enableNotifications()} disabled={busy} className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-[color:var(--gold)] px-3 text-xs font-bold text-black disabled:opacity-60">{busy ? t("Activation…") : <><Check size={14} /> {t(" Activer les notifications")}</>}</button>
       </div>
     </aside>
   );

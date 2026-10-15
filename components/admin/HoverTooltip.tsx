@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 export default function HoverTooltip(props: {
   show: boolean;
@@ -9,6 +10,7 @@ export default function HoverTooltip(props: {
   title: string;
   rows: { label: string; value: string }[];
 }) {
+ const { t: tr } = useLocale();
   if (!props.show) return null;
 
   return (
@@ -33,7 +35,7 @@ export default function HoverTooltip(props: {
       <div className="px-4 py-3 space-y-2">
         {props.rows.map((r, idx) => (
           <div key={idx} className="flex items-center justify-between gap-4">
-            <div className="text-xs text-[color:var(--muted)]">{r.label}</div>
+            <div className="text-xs text-[color:var(--muted)]">{tr(r.label)}</div>
             <div className="text-xs font-semibold text-[color:var(--gold)]">
               {r.value}
             </div>

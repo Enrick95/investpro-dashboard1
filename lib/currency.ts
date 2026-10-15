@@ -108,8 +108,8 @@ export function convertCurrency(
   return (amount / rates[from]) * rates[toCurrency];
 }
 
-export function formatDisplayCurrency(value: number, currency: DisplayCurrency) {
-  return new Intl.NumberFormat("fr-FR", {
+export function formatDisplayCurrency(value: number, currency: DisplayCurrency, locale: "fr" | "en" = "fr") {
+  return new Intl.NumberFormat(locale === "en" ? "en-US" : "fr-FR", {
     style: "currency",
     currency,
     minimumFractionDigits: 2,
@@ -117,13 +117,18 @@ export function formatDisplayCurrency(value: number, currency: DisplayCurrency) 
   }).format(value);
 }
 
-export function rateDateLabel(date: string | null, currency: DisplayCurrency) {
+export function rateDateLabel(date: string | null, currency: DisplayCurrency, locale: "fr" | "en" = "fr") {
   const currencyName: Record<DisplayCurrency, string> = {
     EUR: "euro",
     USD: "dollar US",
     CHF: "franc suisse",
   };
-  if (!date) return `Montants affichés en ${currencyName[currency]}`;
+  if (!date) {
+    const englishNames: Record<DisplayCurrency, string> = { EUR: "euros", USD: "US dollars", CHF: "Swiss francs" };
+    return locale === "en" ? `Amounts displayed in ${englishNames[currency]}` : `Montants affichés en ${currencyName[currency]}`;
+  }
   const parsed = new Date(`${date}T12:00:00Z`);
-  return `Converti en ${currency} · taux de référence du ${parsed.toLocaleDateString("fr-FR")}`;
+  return locale === "en"
+    ? `Converted to ${currency} · reference rate dated ${parsed.toLocaleDateString("en-US")}`
+    : `Converti en ${currency} · taux de référence du ${parsed.toLocaleDateString("fr-FR")}`;
 }

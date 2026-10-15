@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
+
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Card, CardBody, CardSubCard } from "@/components/ui/Card";
@@ -186,6 +188,7 @@ const ALL_KINDS: { k: NotifKind; label: string; hint: string }[] = [
 ];
 
 export default function ParametresPage() {
+  const { t: translate, locale, setLocale } = useLocale();
   const { notif, ui, profile, rules, lock } = usePrefs();
   const [nowMs, setNowMs] = useState(Date.now());
 
@@ -235,6 +238,7 @@ export default function ParametresPage() {
   }
 
   function setLanguage(lang: Language) {
+    setLocale(lang);
     patchPrefs({ ui: { ...ui, language: lang } });
     pushNotif({
       kind: "success",
@@ -382,21 +386,18 @@ export default function ParametresPage() {
       <Card>
         <CardBody className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
-            <div className="text-2xl font-semibold">⚙️ Paramètres</div>
+            <div className="text-2xl font-semibold">{translate("⚙️ Paramètres")}</div>
             <div className="text-sm text-muted mt-1">
-              Langue, profil, règles de trading, sons & notifications, thème, UI.
-            </div>
+              {translate("Langue, profil, règles de trading, sons & notifications, thème, UI.")}</div>
           </div>
 
           <div className="flex flex-wrap gap-2">
             <Button variant="ghost" onClick={testNotif}>
-              Tester une notif
-            </Button>
+              {translate("Tester une notif")}</Button>
             <Link href="/dashboard/historique">
               <Button variant="ghost">
                 <History size={16} className="mr-2" />
-                Historique connexions
-              </Button>
+                {translate("Historique connexions")}</Button>
             </Link>
           </div>
         </CardBody>
@@ -412,14 +413,13 @@ export default function ParametresPage() {
               </div>
               <div>
                 <div className="text-sm font-semibold text-[color:var(--text)]">
-                  Trading bloqué
-                </div>
+                  {translate("Trading bloqué")}</div>
                 <div className="text-xs text-muted mt-1">
-                  Raison :{" "}
+                  {translate("Raison :")}{" "}
                   <span className="text-[color:var(--text)] font-semibold">
                     {lock.reason || "—"}
                   </span>{" "}
-                  • Temps restant :{" "}
+                  {translate("• Temps restant :")}{" "}
                   <span className="text-[color:var(--text)] font-semibold">
                     {fmtCountdown(lock.untilMs - nowMs)}
                   </span>
@@ -428,8 +428,7 @@ export default function ParametresPage() {
             </div>
 
             <Button variant="danger" onClick={() => unlockTrading()}>
-              Débloquer maintenant
-            </Button>
+              {translate("Débloquer maintenant")}</Button>
           </CardBody>
         </Card>
       ) : null}
@@ -439,33 +438,29 @@ export default function ParametresPage() {
         <CardBody className="space-y-3">
           <div className="flex items-center gap-2">
             <Globe size={18} className="text-[color:var(--muted)]" />
-            <div className="text-lg font-semibold">Langue</div>
+            <div className="text-lg font-semibold">{translate("Langue")}</div>
           </div>
 
           <CardSubCard>
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
               <div>
                 <div className="text-sm font-semibold text-[color:var(--text)]">
-                  Langue de l’interface
-                </div>
+                  {translate("Langue de l’interface")}</div>
                 <div className="text-xs text-muted mt-1">
-                  EN peut être activé plus tard (traductions).
-                </div>
+                  {translate("Choisis la langue de ton interface.")}</div>
               </div>
 
               <div className="flex items-center gap-2">
                 <Button
-                  variant={ui.language === "fr" ? "primary" : "ghost"}
+                  variant={locale === "fr" ? "primary" : "ghost"}
                   onClick={() => setLanguage("fr")}
                 >
-                  FR
-                </Button>
+                  {translate("FR")}</Button>
                 <Button
-                  variant={ui.language === "en" ? "primary" : "ghost"}
+                  variant={locale === "en" ? "primary" : "ghost"}
                   onClick={() => setLanguage("en")}
                 >
-                  EN
-                </Button>
+                  {translate("EN")}</Button>
               </div>
             </div>
           </CardSubCard>
@@ -477,14 +472,14 @@ export default function ParametresPage() {
         <CardBody className="space-y-3">
           <div className="flex items-center gap-2">
             <User size={18} className="text-[color:var(--muted)]" />
-            <div className="text-lg font-semibold">Profil public</div>
+            <div className="text-lg font-semibold">{translate("Profil public")}</div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <ToggleCard
               icon={<User size={18} className="text-[color:var(--muted)]" />}
-              title="Profil public"
-              desc="Visible dans le classement."
+              title={translate("Profil public")}
+              desc={translate("Visible dans le classement.")}
               value={profile.profilePublic}
               onToggle={() => {
                 const next = {
@@ -514,8 +509,8 @@ export default function ParametresPage() {
               icon={
                 <CheckCircle2 size={18} className="text-[color:var(--muted)]" />
               }
-              title="Afficher stats"
-              desc="Winrate, RR, performance…"
+              title={translate("Afficher stats")}
+              desc={translate("Winrate, RR, performance…")}
               value={profile.showStats}
               disabled={!profile.profilePublic}
               onToggle={() => {
@@ -530,8 +525,8 @@ export default function ParametresPage() {
             />
             <ToggleCard
               icon={<Sparkles size={18} className="text-[color:var(--muted)]" />}
-              title="Afficher trades"
-              desc="Historique visible publiquement."
+              title={translate("Afficher trades")}
+              desc={translate("Historique visible publiquement.")}
               value={profile.showTrades}
               disabled={!profile.profilePublic}
               onToggle={() => {
@@ -547,8 +542,7 @@ export default function ParametresPage() {
           </div>
 
           <div className="text-[11px] text-muted">
-            ✅ Profil public OFF = invisible dans le classement.
-          </div>
+            {translate("✅ Profil public OFF = invisible dans le classement.")}</div>
         </CardBody>
       </Card>
 
@@ -557,21 +551,18 @@ export default function ParametresPage() {
         <CardBody className="space-y-4">
           <div className="flex items-center gap-2">
             <Bell size={18} className="text-[color:var(--muted)]" />
-            <div className="text-lg font-semibold">Sons & notifications</div>
+            <div className="text-lg font-semibold">{translate("Sons & notifications")}</div>
             <div className="text-xs text-muted">
-              {enabledCount}/{ALL_KINDS.length} activées
-            </div>
+              {enabledCount}/{ALL_KINDS.length} {translate("activées")}</div>
           </div>
 
           <CardSubCard>
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
               <div>
                 <div className="text-sm font-semibold text-[color:var(--text)]">
-                  Son global
-                </div>
+                  {translate("Son global")}</div>
                 <div className="text-xs text-muted mt-1">
-                  Coupe / active tous les sons (sans désactiver les types).
-                </div>
+                  {translate("Coupe / active tous les sons (sans désactiver les types).")}</div>
               </div>
 
               <Button
@@ -582,19 +573,17 @@ export default function ParametresPage() {
               >
                 {notif.muted ? (
                   <span className="inline-flex items-center gap-2">
-                    <VolumeX size={16} /> Muet
-                  </span>
+                    <VolumeX size={16} /> {translate("Muet")}</span>
                 ) : (
                   <span className="inline-flex items-center gap-2">
-                    <Volume2 size={16} /> Actif
-                  </span>
+                    <Volume2 size={16} /> {translate("Activé")}</span>
                 )}
               </Button>
             </div>
 
             <div className="mt-4">
               <div className="flex items-center justify-between">
-                <div className="text-xs text-muted">Volume</div>
+                <div className="text-xs text-muted">{translate("Volume")}</div>
                 <div className="text-xs text-muted">
                   {Math.round(clamp(Number(notif.volume ?? 0), 0, 1) * 100)}%
                 </div>
@@ -619,14 +608,11 @@ export default function ParametresPage() {
 
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button variant="ghost" onClick={enableAllKinds}>
-                  Tout activer
-                </Button>
+                  {translate("Tout activer")}</Button>
                 <Button variant="ghost" onClick={disableAllKinds}>
-                  Tout désactiver
-                </Button>
+                  {translate("Tout désactiver")}</Button>
                 <Button variant="ghost" onClick={testNotif}>
-                  Tester
-                </Button>
+                  {translate("Tester")}</Button>
               </div>
             </div>
           </CardSubCard>
@@ -635,7 +621,7 @@ export default function ParametresPage() {
             {ALL_KINDS.map((x) => (
               <CheckToggle
                 key={x.k}
-                label={`${x.label} — ${x.hint}`}
+                label={`${translate(x.label)} — ${translate(x.hint)}`}
                 value={!!notif.enabled[x.k]}
                 onToggle={() => toggleKind(x.k)}
               />
@@ -643,8 +629,7 @@ export default function ParametresPage() {
           </div>
 
           <div className="text-[11px] text-muted">
-            💡 Même si un type est activé, si tu es en “Muet”, aucun son ne sortira.
-          </div>
+            {translate("💡 Même si un type est activé, si tu es en “Muet”, aucun son ne sortira.")}</div>
         </CardBody>
       </Card>
 
@@ -653,19 +638,17 @@ export default function ParametresPage() {
         <CardBody className="space-y-4">
           <div className="flex items-center gap-2">
             <Gauge size={18} className="text-[color:var(--muted)]" />
-            <div className="text-lg font-semibold">Règles de trading</div>
-            <div className="text-xs text-muted">Discipline & contrôle</div>
+            <div className="text-lg font-semibold">{translate("Règles de trading")}</div>
+            <div className="text-xs text-muted">{translate("Discipline & contrôle")}</div>
           </div>
 
           <CardSubCard>
             <div className="flex items-center justify-between gap-3">
               <div>
                 <div className="text-sm font-semibold text-[color:var(--text)]">
-                  Activer les règles
-                </div>
+                  {translate("Activer les règles")}</div>
                 <div className="text-xs text-muted mt-1">
-                  Utilisées par le Terminal (limites, auto-remplissage, blocage).
-                </div>
+                  {translate("Utilisées par le Terminal (limites, auto-remplissage, blocage).")}</div>
               </div>
               <Button
                 variant={rules.enabled ? "primary" : "danger"}
@@ -673,7 +656,7 @@ export default function ParametresPage() {
                   patchPrefs({ rules: { ...rules, enabled: !rules.enabled } })
                 }
               >
-                {rules.enabled ? "ON" : "OFF"}
+                {rules.enabled ? translate("ON") : translate("OFF")}
               </Button>
             </div>
           </CardSubCard>
@@ -682,19 +665,18 @@ export default function ParametresPage() {
             <div className="flex items-center gap-2 mb-3">
               <AlertTriangle size={16} className="text-[color:var(--muted)]" />
               <div className="text-sm font-semibold text-[color:var(--text)]">
-                Limites journalières
-              </div>
+                {translate("Limites journalières")}</div>
             </div>
 
             {/* ✅ Trades max/jour + SL max/jour SUPPRIMÉS */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <FieldNumber
-                label="Perte max / jour (€)"
+                label={translate("Perte max / jour (€)")}
                 value={rules.dailyLossMax}
                 min={0}
                 max={1_000_000}
                 disabled={!rules.enabled}
-                placeholder="0 = OFF"
+                placeholder={translate("0 = OFF")}
                 onChange={(v) =>
                   patchPrefs({
                     rules: { ...rules, dailyLossMax: Math.max(0, v) },
@@ -702,12 +684,12 @@ export default function ParametresPage() {
                 }
               />
               <FieldNumber
-                label="Objectif / jour (€)"
+                label={translate("Objectif / jour (€)")}
                 value={rules.dailyProfitTarget}
                 min={0}
                 max={1_000_000}
                 disabled={!rules.enabled}
-                placeholder="0 = OFF"
+                placeholder={translate("0 = OFF")}
                 onChange={(v) =>
                   patchPrefs({
                     rules: { ...rules, dailyProfitTarget: Math.max(0, v) },
@@ -718,8 +700,7 @@ export default function ParametresPage() {
 
             <div className="mt-3 text-[11px] text-muted flex items-center gap-2">
               <Ban size={14} className="text-rose-400" />
-              Si une limite est atteinte, le Terminal pourra auto-bloquer selon tes réglages.
-            </div>
+              {translate("Si une limite est atteinte, le Terminal pourra auto-bloquer selon tes réglages.")}</div>
           </CardSubCard>
 
           {/* Réglages par trade (prévisu) */}
@@ -727,8 +708,7 @@ export default function ParametresPage() {
             <div className="flex items-center gap-2 mb-3">
               <Timer size={16} className="text-[color:var(--muted)]" />
               <div className="text-sm font-semibold text-[color:var(--text)]">
-                Réglages par trade (prévisu)
-              </div>
+                {translate("Réglages par trade (prévisu)")}</div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -737,11 +717,9 @@ export default function ParametresPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="text-sm font-semibold text-[color:var(--text)]">
-                      Taille du compte (USD)
-                    </div>
+                      {translate("Taille du compte (USD)")}</div>
                     <div className="text-xs text-muted mt-1">
-                      MT5 = auto (equity/balance) • Manuel = saisie libre
-                    </div>
+                      {translate("MT5 = auto (equity/balance) • Manuel = saisie libre")}</div>
                   </div>
 
                   <div className="flex gap-2">
@@ -754,8 +732,7 @@ export default function ParametresPage() {
                       }
                       disabled={!rules.enabled}
                     >
-                      MT5
-                    </Button>
+                      {translate("MT5")}</Button>
                     <Button
                       variant={accountUsdMode === "manual" ? "primary" : "ghost"}
                       onClick={() =>
@@ -765,8 +742,7 @@ export default function ParametresPage() {
                       }
                       disabled={!rules.enabled}
                     >
-                      Manuel
-                    </Button>
+                      {translate("Manuel")}</Button>
                   </div>
                 </div>
 
@@ -774,13 +750,13 @@ export default function ParametresPage() {
                   {accountUsdMode === "mt5" ? (
                     <>
                       <div className="flex items-center justify-between gap-2 mb-2">
-                        <div className="text-xs text-muted">Compte MT5</div>
+                        <div className="text-xs text-muted">{translate("Compte MT5")}</div>
                         <Button
                           variant="ghost"
                           onClick={syncMt5}
                           disabled={!rules.enabled || mt5Loading}
                         >
-                          {mt5Loading ? "Sync..." : "Sync MT5"}
+                          {mt5Loading ? translate("Sync...") : translate("Sync MT5")}
                         </Button>
                       </div>
 
@@ -816,17 +792,17 @@ export default function ParametresPage() {
                           }}
                           placeholder={
                             mt5Loading
-                              ? "Chargement..."
+                              ? translate("Chargement...")
                               : mt5Options.length
-                              ? "Sélectionner un compte"
-                              : "Aucun compte MT5"
+                              ? translate("Sélectionner un compte")
+                              : translate("Aucun compte MT5")
                           }
                           options={mt5Options}
                         />
                       </div>
 
                       <div className="mt-2 text-[11px] text-muted">
-                        Valeur utilisée :{" "}
+                        {translate("Valeur utilisée :")}{" "}
                         <span className="text-[color:var(--text)] font-semibold">
                           {fmtUsd(accountUsd)}
                         </span>
@@ -834,16 +810,13 @@ export default function ParametresPage() {
 
                       {accountUsd <= 0 ? (
                         <div className="mt-2 text-[11px] text-rose-400">
-                          MT5 ne renvoie pas balance/equity (valeur = 0). Il faut
-                          que loadMt5Accounts() fournisse ces champs.
-                        </div>
+                          {translate("MT5 ne renvoie pas balance/equity (valeur = 0). Il faut que loadMt5Accounts() fournisse ces champs.")}</div>
                       ) : null}
                     </>
                   ) : (
                     <>
                       <div className="text-xs text-muted mb-1">
-                        Entrer manuellement
-                      </div>
+                        {translate("Entrer manuellement")}</div>
                       <input
                         type="number"
                         value={manualAccountUsd}
@@ -862,7 +835,7 @@ export default function ParametresPage() {
                           })
                         }
                         className="w-full rounded-xl border border-gold-soft bg-panel px-3 py-2 outline-none disabled:opacity-60"
-                        placeholder="Ex: 50000"
+                        placeholder={translate("Ex: 50000")}
                       />
                     </>
                   )}
@@ -872,11 +845,9 @@ export default function ParametresPage() {
               {/* Risque % + prévisualisation USD */}
               <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--panel)] p-4">
                 <div className="text-sm font-semibold text-[color:var(--text)]">
-                  Risque par trade (%)
-                </div>
+                  {translate("Risque par trade (%)")}</div>
                 <div className="text-xs text-muted mt-1">
-                  Décimales autorisées (0.9 / 0.01 / etc.)
-                </div>
+                  {translate("Décimales autorisées (0.9 / 0.01 / etc.)")}</div>
 
                 <div className="mt-3">
                   <input
@@ -900,26 +871,24 @@ export default function ParametresPage() {
                       })
                     }
                     className="w-full rounded-xl border border-gold-soft bg-panel px-3 py-2 outline-none disabled:opacity-60"
-                    placeholder="Ex: 0.5"
+                    placeholder={translate("Ex: 0.5")}
                   />
 
                   <div className="mt-3 text-[11px] text-muted">
-                    Prévisualisation :{" "}
+                    {translate("Prévisualisation :")}{" "}
                     <span className="text-[color:var(--text)] font-semibold">
                       {fmtUsd(riskUsdPreview)}
                     </span>
                   </div>
 
                   <div className="mt-2 text-[11px] text-muted">
-                    (Calcul : compte USD × risque %)
-                  </div>
+                    {translate("(Calcul : compte USD × risque %)")}</div>
                 </div>
               </div>
             </div>
 
             <div className="mt-3 text-[11px] text-muted">
-              Le Terminal peut utiliser ces valeurs pour pré-remplir le risque automatiquement.
-            </div>
+              {translate("Le Terminal peut utiliser ces valeurs pour pré-remplir le risque automatiquement.")}</div>
           </CardSubCard>
 
           {/* Blocage du trading */}
@@ -927,66 +896,55 @@ export default function ParametresPage() {
             <div className="flex items-center gap-2 mb-3">
               <Lock size={16} className="text-[color:var(--muted)]" />
               <div className="text-sm font-semibold text-[color:var(--text)]">
-                Blocage du trading
-              </div>
-              <div className="text-xs text-muted">Volontaire + automatique</div>
+                {translate("Blocage du trading")}</div>
+              <div className="text-xs text-muted">{translate("Volontaire + automatique")}</div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--panel)] p-4">
                 <div className="text-sm font-semibold text-[color:var(--text)]">
-                  Blocage manuel
-                </div>
-                <div className="text-xs text-muted mt-1">Anti revenge-trade.</div>
+                  {translate("Blocage manuel")}</div>
+                <div className="text-xs text-muted mt-1">{translate("Anti revenge-trade.")}</div>
 
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Button
                     variant="ghost"
                     onClick={() => lockTrading("15m", "Blocage manuel")}
                   >
-                    15 min
-                  </Button>
+                    {translate("15 min")}</Button>
                   <Button
                     variant="ghost"
                     onClick={() => lockTrading("30m", "Blocage manuel")}
                   >
-                    30 min
-                  </Button>
+                    {translate("30 min")}</Button>
                   <Button
                     variant="ghost"
                     onClick={() => lockTrading("1h", "Blocage manuel")}
                   >
-                    1h
-                  </Button>
+                    {translate("1h")}</Button>
                   <Button
                     variant="ghost"
                     onClick={() => lockTrading("eod", "Blocage manuel")}
-                    title="Jusqu’à demain 00:00 (FR)"
+                    title={translate("Jusqu’à demain 00:00 (FR)")}
                   >
-                    Fin de journée
-                  </Button>
+                    {translate("Fin de journée")}</Button>
                   <Button variant="danger" onClick={() => unlockTrading()}>
-                    Débloquer
-                  </Button>
+                    {translate("Débloquer")}</Button>
                 </div>
 
                 <div className="mt-3 text-[11px] text-muted">
-                  “Fin de journée” = jusqu’à 00:00 heure française.
-                </div>
+                  {translate("“Fin de journée” = jusqu’à 00:00 heure française.")}</div>
               </div>
 
               <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--panel)] p-4">
                 <div className="text-sm font-semibold text-[color:var(--text)]">
-                  Blocage automatique
-                </div>
+                  {translate("Blocage automatique")}</div>
                 <div className="text-xs text-muted mt-1">
-                  Déclenché par le Terminal/MT5.
-                </div>
+                  {translate("Déclenché par le Terminal/MT5.")}</div>
 
                 <div className="mt-3 flex items-center justify-between gap-3">
                   <div className="text-sm text-[color:var(--text)] font-semibold">
-                    Activer
-                  </div>
+                    {translate("Activer")}</div>
                   <Button
                     variant={rules.autoBlockEnabled ? "primary" : "danger"}
                     onClick={() =>
@@ -999,13 +957,13 @@ export default function ParametresPage() {
                     }
                     disabled={!rules.enabled}
                   >
-                    {rules.autoBlockEnabled ? "ON" : "OFF"}
+                    {rules.autoBlockEnabled ? translate("ON") : translate("OFF")}
                   </Button>
                 </div>
 
                 <div className="mt-3 grid grid-cols-1 gap-2">
                   <CheckToggle
-                    label="Après perte max atteinte"
+                    label={translate("Après perte max atteinte")}
                     value={rules.autoBlockOnDailyLoss}
                     disabled={!rules.enabled || !rules.autoBlockEnabled}
                     onToggle={() =>
@@ -1018,7 +976,7 @@ export default function ParametresPage() {
                     }
                   />
                   <CheckToggle
-                    label="Après objectif atteint"
+                    label={translate("Après objectif atteint")}
                     value={rules.autoBlockOnProfitTarget}
                     disabled={!rules.enabled || !rules.autoBlockEnabled}
                     onToggle={() =>
@@ -1033,7 +991,7 @@ export default function ParametresPage() {
                 </div>
 
                 <div className="mt-3">
-                  <div className="text-xs text-muted mb-1">Durée</div>
+                  <div className="text-xs text-muted mb-1">{translate("Durée")}</div>
                   <select
                     value={rules.autoBlockDuration}
                     onChange={(e) =>
@@ -1047,15 +1005,14 @@ export default function ParametresPage() {
                     disabled={!rules.enabled || !rules.autoBlockEnabled}
                     className="w-full rounded-xl border border-gold-soft bg-panel px-3 py-2 outline-none"
                   >
-                    <option value="15m">15 minutes</option>
-                    <option value="30m">30 minutes</option>
-                    <option value="1h">1 heure</option>
-                    <option value="eod">Fin de journée (00:00 FR)</option>
+                    <option value="15m">{translate("15 minutes")}</option>
+                    <option value="30m">{translate("30 minutes")}</option>
+                    <option value="1h">{translate("1 heure")}</option>
+                    <option value="eod">{translate("Fin de journée (00:00 FR)")}</option>
                   </select>
 
                   <div className="mt-2 text-[11px] text-muted">
-                    Le Terminal appliquera ce blocage quand il détecte la limite atteinte.
-                  </div>
+                    {translate("Le Terminal appliquera ce blocage quand il détecte la limite atteinte.")}</div>
                 </div>
               </div>
             </div>
@@ -1068,18 +1025,16 @@ export default function ParametresPage() {
         <CardBody className="space-y-3">
           <div className="flex items-center gap-2">
             <Palette size={18} className="text-[color:var(--muted)]" />
-            <div className="text-lg font-semibold">Thème</div>
+            <div className="text-lg font-semibold">{translate("Thème")}</div>
           </div>
 
           <CardSubCard>
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
               <div>
                 <div className="text-sm font-semibold text-[color:var(--text)]">
-                  Mode
-                </div>
+                  {translate("Mode")}</div>
                 <div className="text-xs text-muted mt-1">
-                  Dark / Light / Système
-                </div>
+                  {translate("Dark / Light / Système")}</div>
               </div>
 
               <div className="flex flex-wrap gap-2">
@@ -1087,20 +1042,17 @@ export default function ParametresPage() {
                   variant={ui.theme === "dark" ? "primary" : "ghost"}
                   onClick={() => setTheme("dark")}
                 >
-                  Dark
-                </Button>
+                  {translate("Dark")}</Button>
                 <Button
                   variant={ui.theme === "light" ? "primary" : "ghost"}
                   onClick={() => setTheme("light")}
                 >
-                  Light
-                </Button>
+                  {translate("Light")}</Button>
                 <Button
                   variant={ui.theme === "system" ? "primary" : "ghost"}
                   onClick={() => setTheme("system")}
                 >
-                  Système
-                </Button>
+                  {translate("Système")}</Button>
               </div>
             </div>
           </CardSubCard>
@@ -1112,23 +1064,20 @@ export default function ParametresPage() {
         <CardBody className="space-y-3">
           <div className="flex items-center gap-2">
             <RotateCcw size={18} className="text-[color:var(--muted)]" />
-            <div className="text-lg font-semibold">Réinitialisation</div>
+            <div className="text-lg font-semibold">{translate("Réinitialisation")}</div>
           </div>
 
           <CardSubCard>
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
               <div>
                 <div className="text-sm font-semibold text-[color:var(--text)]">
-                  Reset paramètres
-                </div>
+                  {translate("Reset paramètres")}</div>
                 <div className="text-xs text-muted mt-1">
-                  Supprime ip_prefs_v1 + préférences publiques de profil.
-                </div>
+                  {translate("Supprime ip_prefs_v1 + préférences publiques de profil.")}</div>
               </div>
 
               <Button variant="danger" onClick={resetAllPrefs}>
-                Tout reset
-              </Button>
+                {translate("Tout reset")}</Button>
             </div>
           </CardSubCard>
         </CardBody>
@@ -1146,6 +1095,7 @@ function ToggleCard(props: {
   onToggle: () => void;
   disabled?: boolean;
 }) {
+  const { t: translate } = useLocale();
   const disabled = !!props.disabled;
   return (
     <CardSubCard>
@@ -1168,7 +1118,7 @@ function ToggleCard(props: {
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-3">
               <div className="text-sm font-semibold text-[color:var(--text)]">
-                {props.title}
+                {translate(props.title)}
               </div>
               <span
                 className={[
@@ -1178,10 +1128,10 @@ function ToggleCard(props: {
                     : "border-rose-500/25 bg-rose-500/10 text-rose-600 dark:text-rose-200",
                 ].join(" ")}
               >
-                {props.value ? "ON" : "OFF"}
+                {props.value ? translate("ON") : translate("OFF")}
               </span>
             </div>
-            <div className="text-xs text-muted mt-1">{props.desc}</div>
+            <div className="text-xs text-muted mt-1">{translate(props.desc)}</div>
           </div>
         </div>
       </button>
@@ -1199,9 +1149,10 @@ function FieldNumber(props: {
   disabled?: boolean;
   onChange: (v: number) => void;
 }) {
+  const { t: translate } = useLocale();
   return (
     <div>
-      <div className="text-xs text-muted mb-1">{props.label}</div>
+      <div className="text-xs text-muted mb-1">{translate(props.label)}</div>
       <input
         type="number"
         value={props.value}
@@ -1223,6 +1174,7 @@ function CheckToggle(props: {
   disabled?: boolean;
   onToggle: () => void;
 }) {
+  const { t: translate } = useLocale();
   const disabled = !!props.disabled;
   return (
     <button
@@ -1243,7 +1195,7 @@ function CheckToggle(props: {
           : "",
       ].join(" ")}
     >
-      <span className="text-sm text-[color:var(--text)]">{props.label}</span>
+      <span className="text-sm text-[color:var(--text)]">{translate(props.label)}</span>
       <span
         className={[
           "text-[10px] px-2 py-0.5 rounded-full font-bold border",
@@ -1252,7 +1204,7 @@ function CheckToggle(props: {
             : "border-rose-500/25 bg-rose-500/10 text-rose-600 dark:text-rose-200",
         ].join(" ")}
       >
-        {props.value ? "ON" : "OFF"}
+        {props.value ? translate("ON") : translate("OFF")}
       </span>
     </button>
   );

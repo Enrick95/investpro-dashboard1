@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { grantAdminSession, verifyAdminCode } from "../../lib/adminClient";
 import { pushNotif } from "../../lib/notifyStore";
 
@@ -11,6 +12,7 @@ export default function AdminCodeModal({
   open: boolean;
   onClose: () => void;
 }) {
+  const { t: tr } = useLocale();
   const [code, setCode] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -26,8 +28,8 @@ export default function AdminCodeModal({
     if (!verifyAdminCode(code)) {
       pushNotif({
         kind: "error",
-        title: "Code incorrect",
-        message: "Le code admin est invalide.",
+        title: tr("Code incorrect"),
+        message: tr("Le code admin est invalide."),
         ttlMs: 6000,
       });
       return;
@@ -35,8 +37,8 @@ export default function AdminCodeModal({
     grantAdminSession("Admin");
     pushNotif({
       kind: "success",
-      title: "Accès admin activé",
-      message: "Session admin locale active.",
+      title: tr("Accès admin activé"),
+      message: tr("Session admin locale active."),
       ttlMs: 6000,
     });
     onClose();
@@ -57,19 +59,15 @@ export default function AdminCodeModal({
         }}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="text-lg font-semibold" style={{ color: "var(--text)" }}>
-          Code Admin
-        </div>
-        <div className="text-sm mt-1" style={{ color: "var(--muted)" }}>
-          Entre ton code pour activer la session admin (local).
-        </div>
+        <div className="text-lg font-semibold" style={{ color: "var(--text)" }}>{tr("Code Admin")}</div>
+        <div className="text-sm mt-1" style={{ color: "var(--muted)" }}>{tr("Entre ton code pour activer la session admin (local).")}</div>
 
         <input
           ref={inputRef}
           value={code}
           onChange={(e) => setCode(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && submit()}
-          placeholder="••••••"
+          placeholder={tr("••••••")}
           className="mt-4 w-full rounded-xl border px-3 py-2 outline-none"
           style={{
             borderColor: "rgba(255,255,255,.10)",
@@ -83,9 +81,7 @@ export default function AdminCodeModal({
             className="px-4 py-2 rounded-xl border text-sm"
             style={{ borderColor: "rgba(255,255,255,.10)", color: "var(--text)" }}
             onClick={onClose}
-          >
-            Annuler
-          </button>
+          >{tr("Annuler")}</button>
           <button
             className="px-4 py-2 rounded-xl border text-sm"
             style={{
@@ -94,9 +90,7 @@ export default function AdminCodeModal({
               color: "var(--gold)",
             }}
             onClick={submit}
-          >
-            Valider
-          </button>
+          >{tr("Valider")}</button>
         </div>
       </div>
     </div>

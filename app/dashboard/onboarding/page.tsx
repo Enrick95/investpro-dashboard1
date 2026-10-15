@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
+
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -45,6 +47,7 @@ const initialState: State = {
 };
 
 export default function OnboardingPage() {
+  const { t: translate } = useLocale();
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
@@ -148,16 +151,14 @@ export default function OnboardingPage() {
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gold)]">
               <ShieldCheck size={11} />
-              Bienvenue
-            </div>
+              {translate("Bienvenue")}</div>
 
             <h1 className="mt-4 text-2xl font-semibold text-white md:text-3xl">
-              Bienvenue sur <span className="text-[color:var(--gold)]">InvestPro Trading</span> 👋
+              {translate("Bienvenue sur")}{" "}<span className="text-[color:var(--gold)]">{translate("InvestPro Trading")}</span> 👋
             </h1>
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-[color:var(--muted)]">
-              Suis ces étapes pour configurer ton espace et commencer à analyser tes performances.
-            </p>
+              {translate("Suis ces étapes pour configurer ton espace et commencer à analyser tes performances.")}</p>
 
             <div className="mt-4 flex flex-wrap gap-2">
               <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/15 bg-emerald-500/[0.045] px-3 py-1.5 text-[9px] font-semibold text-emerald-300">
@@ -165,16 +166,13 @@ export default function OnboardingPage() {
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-45" />
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
                 </span>
-                +400 traders dans la communauté InvestPro
-              </span>
+                {translate("+400 traders dans la communauté InvestPro")}</span>
               <span className="inline-flex items-center gap-2 rounded-full border border-white/[0.07] bg-white/[0.025] px-3 py-1.5 text-[9px] text-white/45">
                 <Clock3 size={11} />
-                Configuration guidée · quelques minutes
-              </span>
+                {translate("Configuration guidée · quelques minutes")}</span>
               <span className="inline-flex items-center gap-2 rounded-full border border-white/[0.07] bg-white/[0.025] px-3 py-1.5 text-[9px] text-white/45">
                 <Smartphone size={11} />
-                Installation mobile incluse
-              </span>
+                {translate("Installation mobile incluse")}</span>
             </div>
           </div>
 
@@ -183,17 +181,16 @@ export default function OnboardingPage() {
             onClick={skipOnboarding}
             className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 text-xs font-semibold text-[color:var(--gold)]"
           >
-            Passer l’onboarding
-            <ArrowRight size={13} />
+            {translate("Passer l’onboarding")}<ArrowRight size={13} />
           </button>
         </div>
 
         <div className="relative z-10 mt-7 grid grid-cols-1 gap-2 md:grid-cols-5">
-          <StepTop number={1} label="Ajouter un compte" done={state.accountDone} active={currentStep === 1} />
-          <StepTop number={2} label="Configurer votre plan" done={state.planDone} active={currentStep === 2} />
-          <StepTop number={3} label="Importer un trade" done={state.tradeDone} active={currentStep === 3} />
-          <StepTop number={4} label="Voir vos rapports" done={currentStep === 5} active={currentStep === 4} />
-          <StepTop number={5} label="Installer l’app" done={false} active={currentStep === 5} />
+          <StepTop number={1} label={translate("Ajouter un compte")} done={state.accountDone} active={currentStep === 1} />
+          <StepTop number={2} label={translate("Configurer votre plan")} done={state.planDone} active={currentStep === 2} />
+          <StepTop number={3} label={translate("Importer un trade")} done={state.tradeDone} active={currentStep === 3} />
+          <StepTop number={4} label={translate("Voir vos rapports")} done={currentStep === 5} active={currentStep === 4} />
+          <StepTop number={5} label={translate("Installer l’app")} done={false} active={currentStep === 5} />
         </div>
       </section>
 
@@ -214,32 +211,32 @@ export default function OnboardingPage() {
       <section className="grid grid-cols-1 gap-3 md:grid-cols-5">
         <StepCard
           number={1}
-          title="Ajouter un compte"
-          text="Connecte ou ajoute ton compte trading."
+          title={translate("Ajouter un compte")}
+          text={translate("Connecte ou ajoute ton compte trading.")}
           done={state.accountDone}
           active={currentStep === 1}
           href="/dashboard/comptes"
         />
         <StepCard
           number={2}
-          title="Configurer ton plan"
-          text="Définis tes règles et ta gestion du risque."
+          title={translate("Configurer ton plan")}
+          text={translate("Définis tes règles et ta gestion du risque.")}
           done={state.planDone}
           active={currentStep === 2}
           href="/dashboard/plan"
         />
         <StepCard
           number={3}
-          title="Importer un trade"
-          text="Ajoute ou importe ton premier trade."
+          title={translate("Importer un trade")}
+          text={translate("Ajoute ou importe ton premier trade.")}
           done={state.tradeDone}
           active={currentStep === 3}
           href="/dashboard/journal"
         />
         <StepCard
           number={4}
-          title="Voir tes rapports"
-          text="Analyse tes performances en détail."
+          title={translate("Voir tes rapports")}
+          text={translate("Analyse tes performances en détail.")}
           done={false}
           active={currentStep === 4}
           href="/dashboard/rapports"
@@ -269,10 +266,9 @@ export default function OnboardingPage() {
               5
             </span>
             <div>
-              <div className="text-xs font-semibold text-white">Installer InvestPro</div>
+              <div className="text-xs font-semibold text-white">{translate("Installer InvestPro")}</div>
               <div className="mt-1 text-[9px] leading-4 text-[color:var(--muted)]">
-                Ajoute InvestPro à ton écran d’accueil.
-              </div>
+                {translate("Ajoute InvestPro à ton écran d’accueil.")}</div>
             </div>
           </div>
         </button>
@@ -282,109 +278,105 @@ export default function OnboardingPage() {
 }
 
 function StepAccount({ state }: { state: State }) {
+  const { t: translate } = useLocale();
   return (
     <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
       <div className="xl:col-span-7">
-        <div className="text-[10px] text-[color:var(--muted)]">Étape 1 sur 5</div>
+        <div className="text-[10px] text-[color:var(--muted)]">{translate("Étape 1 sur 5")}</div>
         <h2 className="mt-2 text-xl font-semibold text-white md:text-2xl">
-          Ajouter votre premier compte
-        </h2>
+          {translate("Ajouter votre premier compte")}</h2>
         <p className="mt-2 max-w-xl text-sm leading-6 text-[color:var(--muted)]">
-          Connecte ton compte MetaTrader ou ajoute-le manuellement pour suivre automatiquement tes trades.
-        </p>
+          {translate("Connecte ton compte MetaTrader ou ajoute-le manuellement pour suivre automatiquement tes trades.")}</p>
 
         <div className="mt-5 space-y-3">
-          <Bullet>Synchronisation automatique MT4 / MT5</Bullet>
-          <Bullet>Ajout manuel disponible</Bullet>
-          <Bullet>Toutes tes statistiques au même endroit</Bullet>
-          <Bullet>Plusieurs comptes comparables</Bullet>
+          <Bullet>{translate("Synchronisation automatique MT4 / MT5")}</Bullet>
+          <Bullet>{translate("Ajout manuel disponible")}</Bullet>
+          <Bullet>{translate("Toutes tes statistiques au même endroit")}</Bullet>
+          <Bullet>{translate("Plusieurs comptes comparables")}</Bullet>
         </div>
 
         <div className="mt-6 flex flex-wrap gap-3">
           <Link href="/dashboard/comptes" className="inline-flex h-11 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-sm font-semibold text-black">
-            Ajouter un compte <ArrowRight size={14} />
+            {translate("Ajouter un compte")}{" "}<ArrowRight size={14} />
           </Link>
           <Link href="/dashboard" className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-5 text-sm font-semibold text-white">
-            Voir plus tard
-          </Link>
+            {translate("Voir plus tard")}</Link>
         </div>
       </div>
 
       <PreviewCard
-        title={state.accountName || "Ton compte apparaîtra ici"}
+        title={state.accountName || translate("Ton compte apparaîtra ici")}
         top="Compte synchronisé"
         value={
           state.accountDone
             ? `${state.accountBalance.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} ${state.accountCurrency}`
             : "—"
         }
-        sub="Solde"
+        sub={translate("Solde")}
       />
     </div>
   );
 }
 
 function StepPlan() {
+  const { t: translate } = useLocale();
   return (
     <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
       <div className="xl:col-span-7">
-        <div className="text-[10px] text-[color:var(--muted)]">Étape 2 sur 5</div>
+        <div className="text-[10px] text-[color:var(--muted)]">{translate("Étape 2 sur 5")}</div>
         <h2 className="mt-2 text-xl font-semibold text-white md:text-2xl">
-          Configurer votre plan de trading
-        </h2>
+          {translate("Configurer votre plan de trading")}</h2>
         <p className="mt-2 max-w-xl text-sm leading-6 text-[color:var(--muted)]">
-          Définis tes limites de risque, ton RR minimum, tes sessions et tes setups autorisés.
-        </p>
+          {translate("Définis tes limites de risque, ton RR minimum, tes sessions et tes setups autorisés.")}</p>
 
         <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <MiniRule label="Risque max" value="1%" />
-          <MiniRule label="Trades / jour" value="2" />
-          <MiniRule label="RR minimum" value="1:1" />
+          <MiniRule label={translate("Risque max")} value="1%" />
+          <MiniRule label={translate("Trades / jour")} value="2" />
+          <MiniRule label={translate("RR minimum")} value="1:1" />
         </div>
 
         <Link href="/dashboard/plan" className="mt-6 inline-flex h-11 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-sm font-semibold text-black">
-          Configurer mon plan <ArrowRight size={14} />
+          {translate("Configurer mon plan")}{" "}<ArrowRight size={14} />
         </Link>
       </div>
 
       <PreviewCard
-        title="Discipline InvestPro"
+        title={translate("Discipline InvestPro")}
         top="Ton plan"
         value="Score / 100"
-        sub="Il sera calculé avec tes trades."
+        sub={translate("Il sera calculé avec tes trades.")}
       />
     </div>
   );
 }
 
 function StepTrade() {
+  const { t: translate } = useLocale();
   return (
     <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
       <div className="xl:col-span-7">
-        <div className="text-[10px] text-[color:var(--muted)]">Étape 3 sur 5</div>
+        <div className="text-[10px] text-[color:var(--muted)]">{translate("Étape 3 sur 5")}</div>
         <h2 className="mt-2 text-xl font-semibold text-white md:text-2xl">
-          Importer votre premier trade
-        </h2>
+          {translate("Importer votre premier trade")}</h2>
         <p className="mt-2 max-w-xl text-sm leading-6 text-[color:var(--muted)]">
-          Ajoute un trade manuellement ou laisse MetaTrader l’importer automatiquement.
-        </p>
+          {translate("Ajoute un trade manuellement ou laisse MetaTrader l’importer automatiquement.")}</p>
 
         <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <MiniRule label="Actif" value="XAUUSD" />
-          <MiniRule label="Résultat" value="+57 $" />
-          <MiniRule label="RR" value="2.3R" />
+          <MiniRule label={translate("Actif")} value="XAUUSD" />
+          <MiniRule label={translate("Résultat")} value="+57 $" />
+          <MiniRule label={translate("RR")} value="2.3R" />
         </div>
 
         <Link href="/dashboard/journal" className="mt-6 inline-flex h-11 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-sm font-semibold text-black">
-          Aller au journal <ArrowRight size={14} />
+          {translate("Aller au journal")}{" "}<ArrowRight size={14} />
         </Link>
       </div>
 
       <PreviewCard
-        title="Trade ajouté !"
+        title={translate("Trade ajouté !")}
         top="Journal"
         value="WIN / LOSS / BE"
-        sub="Tes statistiques se calculent automatiquement."
+        sub={translate("Tes statistiques se calculent automatiquement.")}
       />
     </div>
   );
@@ -397,22 +389,21 @@ function StepReports({
   state: State;
   onFinish: () => void;
 }) {
+  const { t: translate } = useLocale();
   return (
     <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
       <div className="xl:col-span-7">
-        <div className="text-[10px] text-[color:var(--muted)]">Étape 4 sur 5</div>
+        <div className="text-[10px] text-[color:var(--muted)]">{translate("Étape 4 sur 5")}</div>
         <h2 className="mt-2 text-xl font-semibold text-white md:text-2xl">
-          Découvrez vos rapports
-        </h2>
+          {translate("Découvrez vos rapports")}</h2>
         <p className="mt-2 max-w-xl text-sm leading-6 text-[color:var(--muted)]">
-          Tout est prêt. Analyse maintenant ta performance, ton Profit Factor, ton drawdown et ta discipline.
-        </p>
+          {translate("Tout est prêt. Analyse maintenant ta performance, ton Profit Factor, ton drawdown et ta discipline.")}</p>
 
         <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <MiniRule label="Trades" value={String(state.tradesCount)} />
-          <MiniRule label="P&L" value={`${state.pnl > 0 ? "+" : ""}${state.pnl.toLocaleString("fr-FR", { maximumFractionDigits: 0 })}$`} />
-          <MiniRule label="Journal" value="Actif" />
-          <MiniRule label="Rapports" value="Prêts" />
+          <MiniRule label={translate("Trades")} value={String(state.tradesCount)} />
+          <MiniRule label={translate("P&L")} value={`${state.pnl > 0 ? "+" : ""}${state.pnl.toLocaleString("fr-FR", { maximumFractionDigits: 0 })}$`} />
+          <MiniRule label={translate("Journal")} value={translate("Activé")} />
+          <MiniRule label={translate("Rapports")} value={translate("Prêts")} />
         </div>
 
         <button
@@ -420,7 +411,7 @@ function StepReports({
           onClick={onFinish}
           className="mt-6 inline-flex h-11 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-sm font-semibold text-black"
         >
-          Dernière étape <ArrowRight size={14} />
+          {translate("Dernière étape")}{" "}<ArrowRight size={14} />
         </button>
       </div>
 
@@ -431,15 +422,13 @@ function StepReports({
               <CheckCircle2 size={20} />
             </div>
             <div className="mt-4 text-lg font-semibold text-white">
-              Ton espace est configuré
-            </div>
+              {translate("Ton espace est configuré")}</div>
             <p className="mt-2 text-xs leading-5 text-[color:var(--muted)]">
-              Il ne reste plus qu’à découvrir comment l’ajouter à ton téléphone.
-            </p>
+              {translate("Il ne reste plus qu’à découvrir comment l’ajouter à ton téléphone.")}</p>
           </div>
 
           <Link href="/dashboard" className="mt-6 inline-flex items-center gap-2 text-xs font-semibold text-[color:var(--gold)]">
-            Retour au dashboard <ArrowRight size={13} />
+            {translate("Retour au dashboard")}{" "}<ArrowRight size={13} />
           </Link>
         </div>
       </div>
@@ -449,6 +438,7 @@ function StepReports({
 
 
 function StepInstall({ onFinish }: { onFinish: () => void }) {
+  const { t: translate } = useLocale();
   function openGuide() {
     window.dispatchEvent(new Event("investpro:open-install-guide"));
   }
@@ -456,25 +446,22 @@ function StepInstall({ onFinish }: { onFinish: () => void }) {
   return (
     <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
       <div className="xl:col-span-7">
-        <div className="text-[10px] text-[color:var(--muted)]">Étape 5 sur 5</div>
+        <div className="text-[10px] text-[color:var(--muted)]">{translate("Étape 5 sur 5")}</div>
 
         <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gold)]">
           <Smartphone size={12} />
-          InvestPro Mobile
-        </div>
+          {translate("InvestPro Mobile")}</div>
 
         <h2 className="mt-4 text-xl font-semibold text-white md:text-2xl">
-          Mets InvestPro sur ton écran d’accueil
-        </h2>
+          {translate("Mets InvestPro sur ton écran d’accueil")}</h2>
 
         <p className="mt-2 max-w-xl text-sm leading-6 text-[color:var(--muted)]">
-          Utilise ton espace comme une application : Journal, comptes, rapports et plan accessibles en un seul clic.
-        </p>
+          {translate("Utilise ton espace comme une application : Journal, comptes, rapports et plan accessibles en un seul clic.")}</p>
 
         <div className="mt-5 space-y-3">
-          <Bullet>Compatible iPhone et Android</Bullet>
-          <Bullet>Pas besoin de passer par l’App Store</Bullet>
-          <Bullet>Accès direct depuis ton écran d’accueil</Bullet>
+          <Bullet>{translate("Compatible iPhone et Android")}</Bullet>
+          <Bullet>{translate("Pas besoin de passer par l’App Store")}</Bullet>
+          <Bullet>{translate("Accès direct depuis ton écran d’accueil")}</Bullet>
         </div>
 
         <div className="mt-6 flex flex-wrap gap-3">
@@ -484,16 +471,14 @@ function StepInstall({ onFinish }: { onFinish: () => void }) {
             className="inline-flex h-11 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-sm font-semibold text-black"
           >
             <Smartphone size={15} />
-            Installer InvestPro
-          </button>
+            {translate("Installer InvestPro")}</button>
 
           <button
             type="button"
             onClick={onFinish}
             className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-5 text-sm font-semibold text-white"
           >
-            Continuer vers le dashboard
-            <ArrowRight size={14} />
+            {translate("Continuer vers le dashboard")}<ArrowRight size={14} />
           </button>
         </div>
       </div>
@@ -506,12 +491,10 @@ function StepInstall({ onFinish }: { onFinish: () => void }) {
             </div>
 
             <div className="mt-4 text-lg font-semibold text-white">
-              InvestPro partout avec toi
-            </div>
+              {translate("InvestPro partout avec toi")}</div>
 
             <p className="mt-2 text-xs leading-5 text-[color:var(--muted)]">
-              Une fois ajouté, InvestPro s’ouvre depuis ton téléphone comme une application dédiée.
-            </p>
+              {translate("Une fois ajouté, InvestPro s’ouvre depuis ton téléphone comme une application dédiée.")}</p>
           </div>
 
           <button
@@ -519,8 +502,7 @@ function StepInstall({ onFinish }: { onFinish: () => void }) {
             onClick={openGuide}
             className="mt-6 inline-flex items-center gap-2 text-xs font-semibold text-[color:var(--gold)]"
           >
-            Voir le guide iPhone / Android
-            <ArrowRight size={13} />
+            {translate("Voir le guide iPhone / Android")}<ArrowRight size={13} />
           </button>
         </div>
       </div>
@@ -540,6 +522,7 @@ function StepTop({
   done: boolean;
   active: boolean;
 }) {
+  const { t: translate } = useLocale();
   return (
     <div
       className={[
@@ -562,7 +545,7 @@ function StepTop({
         {done ? <Check size={13} /> : number}
       </span>
       <span className={active ? "text-xs font-semibold text-white" : "text-xs text-white/45"}>
-        {label}
+        {translate(label)}
       </span>
     </div>
   );
@@ -583,6 +566,7 @@ function StepCard({
   active: boolean;
   href: string;
 }) {
+  const { t: translate } = useLocale();
   return (
     <Link
       href={href}
@@ -607,8 +591,8 @@ function StepCard({
           {done ? <Check size={14} /> : number}
         </span>
         <div>
-          <div className="text-xs font-semibold text-white">{title}</div>
-          <div className="mt-1 text-[9px] leading-4 text-[color:var(--muted)]">{text}</div>
+          <div className="text-xs font-semibold text-white">{translate(title)}</div>
+          <div className="mt-1 text-[9px] leading-4 text-[color:var(--muted)]">{translate(text)}</div>
         </div>
       </div>
     </Link>
@@ -627,9 +611,10 @@ function Bullet({ children }: { children: React.ReactNode }) {
 }
 
 function MiniRule({ label, value }: { label: string; value: string }) {
+  const { t: translate } = useLocale();
   return (
     <div className="rounded-xl border border-white/[0.06] bg-black/20 p-3">
-      <div className="text-[9px] text-white/30">{label}</div>
+      <div className="text-[9px] text-white/30">{translate(label)}</div>
       <div className="mt-1 text-sm font-semibold text-white">{value}</div>
     </div>
   );
@@ -646,6 +631,7 @@ function PreviewCard({
   value: string;
   sub: string;
 }) {
+  const { t: translate } = useLocale();
   return (
     <div className="rounded-[22px] border border-[color:var(--border)] bg-black/20 p-5 xl:col-span-5">
       <div className="flex items-center gap-2 text-[9px] font-semibold text-emerald-400">
@@ -653,10 +639,10 @@ function PreviewCard({
         {top}
       </div>
 
-      <div className="mt-5 text-base font-semibold text-white">{title}</div>
+      <div className="mt-5 text-base font-semibold text-white">{translate(title)}</div>
 
       <div className="mt-5 rounded-xl border border-white/[0.06] bg-black/20 p-4">
-        <div className="text-[9px] text-white/30">{sub}</div>
+        <div className="text-[9px] text-white/30">{translate(sub)}</div>
         <div className="mt-2 text-xl font-semibold text-[color:var(--gold)]">{value}</div>
 
         <div className="mt-4 h-12 overflow-hidden">

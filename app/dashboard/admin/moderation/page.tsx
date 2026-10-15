@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import Link from "next/link";
 import {
   Activity,
@@ -20,9 +21,9 @@ type Payload = {
   audit: any[];
 };
 
-function dateLabel(value?: string | null) {
+function dateLabel(value?: string | null, locale: "fr" | "en" = "fr") {
   if (!value) return "—";
-  return new Date(value).toLocaleString("fr-FR", {
+  return new Date(value).toLocaleString((locale === "en" ? "en-US" : "fr-FR"), {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -32,6 +33,7 @@ function dateLabel(value?: string | null) {
 }
 
 export default function AdminModerationPage() {
+  const { t: tr, locale } = useLocale();
   const supabase = useMemo(() => createClient(), []);
   const [data, setData] = useState<Payload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,10 +58,10 @@ export default function AdminModerationPage() {
       });
 
       const json = await response.json();
-      if (!response.ok) throw new Error(json?.error || "Modération indisponible.");
+      if (!response.ok) throw new Error(json?.error || tr("Modération indisponible."));
       setData(json);
     } catch (e: any) {
-      setError(e?.message || "Modération indisponible.");
+      setError(e?.message || tr("Modération indisponible."));
     } finally {
       setLoading(false);
     }
@@ -71,29 +73,24 @@ export default function AdminModerationPage() {
   }, []);
 
   if (loading) {
-    return <div className="py-16 text-center text-sm text-white/35">Chargement de la modération…</div>;
+    return <div className="py-16 text-center text-sm text-white/35">{tr("Chargement de la modération…")}</div>;
   }
 
   return (
     <div className="w-full pb-10">
       {error ? (
         <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/[0.05] p-3 text-xs text-red-300">
-          {error}
+          {tr(error)}
         </div>
       ) : null}
 
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gold)]">
-            <ShieldCheck size={11} />
-            Sécurité membres
-          </div>
-          <h1 className="mt-3 text-2xl font-semibold text-white">
-            Modération & <span className="text-[color:var(--gold)]">Contrôle</span>
+            <ShieldCheck size={11} />{tr("Sécurité membres")}</div>
+          <h1 className="mt-3 text-2xl font-semibold text-white">{tr("Modération & ")}<span className="text-[color:var(--gold)]">{tr("Contrôle")}</span>
           </h1>
-          <p className="mt-1 text-sm text-[color:var(--muted)]">
-            Comptes suspendus, suppressions en attente et journal des actions admin.
-          </p>
+          <p className="mt-1 text-sm text-[color:var(--muted)]">{tr("Comptes suspendus, suppressions en attente et journal des actions admin.")}</p>
         </div>
 
         <button
@@ -101,21 +98,19 @@ export default function AdminModerationPage() {
           onClick={load}
           className="inline-flex h-10 items-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 text-xs font-semibold text-[color:var(--gold)]"
         >
-          <RefreshCw size={14} />
-          Actualiser
-        </button>
+          <RefreshCw size={14} />{tr("Actualiser")}</button>
       </div>
 
       {data ? (
         <>
           <section className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-            <Stat icon={<Ban size={16} />} label="Comptes suspendus" value={data.stats.suspended} />
-            <Stat icon={<Trash2 size={16} />} label="Suppressions en attente" value={data.stats.pending_deletions} />
-            <Stat icon={<Activity size={16} />} label="Actions admin récentes" value={data.stats.admin_actions} />
+            <Stat icon={<Ban size={16} />} label={tr("Comptes suspendus")} value={data.stats.suspended} />
+            <Stat icon={<Trash2 size={16} />} label={tr("Suppressions en attente")} value={data.stats.pending_deletions} />
+            <Stat icon={<Activity size={16} />} label={tr("Actions admin récentes")} value={data.stats.admin_actions} />
           </section>
 
           <section className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
-            <Panel title="Comptes suspendus" subtitle="Réactive ou consulte un membre depuis sa fiche détaillée.">
+            <Panel title={tr("Comptes suspendus")} subtitle={tr("Réactive ou consulte un membre depuis sa fiche détaillée.")}>
               {data.suspended.length ? (
                 <div className="divide-y divide-white/[0.05]">
                   {data.suspended.map((user: any) => (
@@ -123,26 +118,23 @@ export default function AdminModerationPage() {
                       <div>
                         <div className="text-xs font-semibold text-white">{user.username}</div>
                         <div className="mt-1 text-[9px] text-white/30">{user.email}</div>
-                        <div className="mt-1 text-[9px] text-red-300">
-                          Suspendu jusqu’au {dateLabel(user.banned_until)}
+                        <div className="mt-1 text-[9px] text-red-300">{tr("Suspendu jusqu’au ")}{dateLabel(user.banned_until, locale)}
                         </div>
                       </div>
 
                       <Link
                         href={`/dashboard/admin/utilisateurs/${user.id}`}
                         className="rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-2 text-[10px] font-semibold text-[color:var(--gold)] no-underline"
-                      >
-                        Ouvrir
-                      </Link>
+                      >{tr("Ouvrir")}</Link>
                     </div>
                   ))}
                 </div>
               ) : (
-                <Empty text="Aucun compte suspendu." />
+                <Empty text={tr("Aucun compte suspendu.")} />
               )}
             </Panel>
 
-            <Panel title="Demandes de suppression" subtitle="Le statut peut être géré depuis l’Inbox. Aucune suppression automatique ici.">
+            <Panel title={tr("Demandes de suppression")} subtitle={tr("Le statut peut être géré depuis l’Inbox. Aucune suppression automatique ici.")}>
               {data.deletions.length ? (
                 <div className="divide-y divide-white/[0.05]">
                   {data.deletions.slice(0, 20).map((item: any) => (
@@ -154,7 +146,7 @@ export default function AdminModerationPage() {
                           </div>
                           <div className="mt-1 inline-flex items-center gap-1 text-[9px] text-white/30">
                             <Clock3 size={10} />
-                            {dateLabel(item.requested_at)}
+                            {dateLabel(item.requested_at, locale)}
                           </div>
                         </div>
 
@@ -166,27 +158,27 @@ export default function AdminModerationPage() {
                   ))}
                 </div>
               ) : (
-                <Empty text="Aucune demande." />
+                <Empty text={tr("Aucune demande.")} />
               )}
             </Panel>
           </section>
 
-          <Panel title="Journal des actions administrateur" subtitle="Traçabilité des dernières actions sensibles." className="mt-4">
+          <Panel title={tr("Journal des actions administrateur")} subtitle={tr("Traçabilité des dernières actions sensibles.")} className="mt-4">
             {data.audit.length ? (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[760px] border-collapse text-left">
                   <thead>
                     <tr className="border-b border-white/[0.05] text-[8px] uppercase text-white/25">
-                      <th className="px-2 py-3 font-semibold">Date</th>
-                      <th className="px-2 py-3 font-semibold">Action</th>
-                      <th className="px-2 py-3 font-semibold">Admin</th>
-                      <th className="px-2 py-3 font-semibold">Membre cible</th>
+                      <th className="px-2 py-3 font-semibold">{tr("Date")}</th>
+                      <th className="px-2 py-3 font-semibold">{tr("Action")}</th>
+                      <th className="px-2 py-3 font-semibold">{tr("Admin")}</th>
+                      <th className="px-2 py-3 font-semibold">{tr("Membre cible")}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {data.audit.map((log: any) => (
                       <tr key={log.id} className="border-b border-white/[0.04] last:border-0">
-                        <td className="px-2 py-3 text-[9px] text-white/35">{dateLabel(log.created_at)}</td>
+                        <td className="px-2 py-3 text-[9px] text-white/35">{dateLabel(log.created_at, locale)}</td>
                         <td className="px-2 py-3 text-[10px] font-semibold text-white/65">{log.action}</td>
                         <td className="px-2 py-3 font-mono text-[8px] text-white/25">{log.admin_user_id}</td>
                         <td className="px-2 py-3 font-mono text-[8px] text-white/25">{log.target_user_id}</td>
@@ -196,7 +188,7 @@ export default function AdminModerationPage() {
                 </table>
               </div>
             ) : (
-              <Empty text="Aucune action admin enregistrée." />
+              <Empty text={tr("Aucune action admin enregistrée.")} />
             )}
           </Panel>
         </>

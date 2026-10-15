@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
+
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
@@ -25,11 +27,11 @@ type Check = {
   href?: string;
 };
 
-function dateLabel(value: string | null) {
+function dateLabel(value: string | null, locale: "fr" | "en" = "fr") {
   if (!value) return "Jamais";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Jamais";
-  return date.toLocaleString("fr-FR", {
+  return date.toLocaleString(locale === "en" ? "en-US" : "fr-FR", {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -38,7 +40,19 @@ function dateLabel(value: string | null) {
   });
 }
 
+function healthDetail(detail: string, translate: (text: string) => string) {
+  const accounts = detail.match(/^(\d+) compte\(s\), dont (\d+) Auto-sync$/);
+  if (accounts) return translate("{count} compte(s), dont {automatic} Auto-sync").replace("{count}", accounts[1]).replace("{automatic}", accounts[2]);
+  const connections = detail.match(/^(\d+) connexion\(s\) détectée\(s\)$/);
+  if (connections) return translate("{count} connexion(s) détectée(s)").replace("{count}", connections[1]);
+  const automatic = detail.match(/^(\d+) compte\(s\) indiqué\(s\) en Auto-sync · état détaillé à vérifier$/);
+  if (automatic) return translate("{count} compte(s) indiqué(s) en Auto-sync · état détaillé à vérifier").replace("{count}", automatic[1]);
+  if (detail.startsWith("Dernière : ")) return translate("Dernière :") + detail.slice("Dernière :".length);
+  return translate(detail);
+}
+
 export default function HealthPage() {
+  const { t: translate, locale } = useLocale();
   const supabase = useMemo(() => createClient(), []);
   const [loading, setLoading] = useState(true);
   const [checks, setChecks] = useState<Check[]>([]);
@@ -220,16 +234,14 @@ export default function HealthPage() {
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gold)]">
               <ShieldCheck size={12} />
-              Santé du compte
-            </div>
+              {translate("Santé du compte")}</div>
 
             <h1 className="mt-3 text-2xl font-semibold text-white md:text-3xl">
-              Ton espace est prêt à <span className="text-[color:var(--gold)]">combien ?</span>
+              {translate("Ton espace est prêt à")}{" "}<span className="text-[color:var(--gold)]">{translate("combien ?")}</span>
             </h1>
 
             <p className="mt-2 text-sm text-[color:var(--muted)]">
-              Vérification rapide de ton profil, sécurité, connexions et sauvegarde.
-            </p>
+              {translate("Vérification rapide de ton profil, sécurité, connexions et sauvegarde.")}</p>
           </div>
 
           <div className="grid h-28 w-28 place-items-center rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]">
@@ -238,8 +250,7 @@ export default function HealthPage() {
                 {score}%
               </div>
               <div className="mt-1 text-[8px] uppercase tracking-[0.1em] text-white/35">
-                Santé
-              </div>
+                {translate("Santé")}</div>
             </div>
           </div>
         </div>
@@ -248,7 +259,7 @@ export default function HealthPage() {
       <section className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {checks.map((check) => (
           <Link
-            key={check.label}
+            key={translate(check.label)}
             href={check.href || "#"}
             className="flex items-center justify-between gap-4 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4 no-underline transition hover:border-[color:var(--gold-border)]"
           >
@@ -270,10 +281,10 @@ export default function HealthPage() {
 
               <div className="min-w-0">
                 <div className="text-xs font-semibold text-white">
-                  {check.label}
+                  {translate(check.label)}
                 </div>
                 <div className="mt-1 truncate text-[9px] text-white/35">
-                  {check.detail}
+                  {check.label === "Sauvegarde récente" && lastBackup ? translate("Dernière :") + " " + dateLabel(lastBackup, locale) : healthDetail(check.detail, translate)}
                 </div>
               </div>
             </div>
@@ -286,20 +297,20 @@ export default function HealthPage() {
       <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <QuickCard
           icon={<Activity size={16} />}
-          title="Activité"
-          text="Voir la timeline InvestPro."
+          title={translate("Activité")}
+          text={translate("Voir la timeline InvestPro.")}
           href="/dashboard/activite"
         />
         <QuickCard
           icon={<CloudDownload size={16} />}
-          title="Sauvegarde"
-          text={lastBackup ? `Dernière : ${dateLabel(lastBackup)}` : "Créer ta première sauvegarde."}
+          title={translate("Sauvegarde")}
+          text={lastBackup ? `Dernière : ${dateLabel(lastBackup, locale)}` : translate("Créer ta première sauvegarde.")}
           href="/dashboard/sauvegarde"
         />
         <QuickCard
           icon={<Wifi size={16} />}
-          title="Connexions"
-          text="Vérifier MT4, MT5 et Futures."
+          title={translate("Connexions")}
+          text={translate("Vérifier MT4, MT5 et Futures.")}
           href="/dashboard/connexions"
         />
       </section>
@@ -318,6 +329,7 @@ function QuickCard({
   text: string;
   href: string;
 }) {
+  const { t: translate } = useLocale();
   return (
     <Link
       href={href}
@@ -326,8 +338,8 @@ function QuickCard({
       <div className="grid h-9 w-9 place-items-center rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]">
         {icon}
       </div>
-      <div className="mt-3 text-xs font-semibold text-white">{title}</div>
-      <div className="mt-1 text-[9px] text-white/35">{text}</div>
+      <div className="mt-3 text-xs font-semibold text-white">{translate(title)}</div>
+      <div className="mt-1 text-[9px] text-white/35">{translate(text)}</div>
     </Link>
   );
 }

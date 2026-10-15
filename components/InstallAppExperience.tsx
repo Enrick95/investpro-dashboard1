@@ -1,4 +1,6 @@
 "use client";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+
 
 import { useEffect, useRef, useState } from "react";
 import {
@@ -50,6 +52,8 @@ function isIOSDevice() {
 }
 
 export default function InstallAppExperience() {
+  const { t } = useLocale();
+
   const [guideOpen, setGuideOpen] = useState(false);
   const [tab, setTab] = useState<"ios" | "android">("ios");
   const [deferredPrompt, setDeferredPrompt] = useState<InstallPromptEvent | null>(null);
@@ -168,21 +172,21 @@ export default function InstallAppExperience() {
   return (
     <>
       {bannerVisible && !standalone && !guideOpen ? (
-        <aside className="ip-install-banner" aria-label="Installer InvestPro">
+        <aside className="ip-install-banner" aria-label={t("Installer InvestPro")}>
           <Smartphone size={25} aria-hidden="true" />
           <div className="ip-install-banner-copy">
-            <strong>InvestPro sur ton téléphone</strong>
-            <span>Ajoute l’app à ton écran d’accueil.</span>
+            <strong>{t("InvestPro sur ton téléphone")}</strong>
+            <span>{t("Ajoute l’app à ton écran d’accueil.")}</span>
           </div>
-          <button type="button" className="ip-install-banner-action" onClick={() => { setTab(isIOSDevice() ? "ios" : "android"); setInstallError(""); setGuideOpen(true); }}>Installer</button>
-          <button type="button" className="ip-install-banner-dismiss" onClick={remindLater} aria-label="Me le rappeler plus tard"><X size={17} /></button>
+          <button type="button" className="ip-install-banner-action" onClick={() => { setTab(isIOSDevice() ? "ios" : "android"); setInstallError(""); setGuideOpen(true); }}>{t("Installer")}</button>
+          <button type="button" className="ip-install-banner-dismiss" onClick={remindLater} aria-label={t("Me le rappeler plus tard")}><X size={17} /></button>
         </aside>
       ) : null}
       {guideOpen ? (
         <div className="ip-install-overlay">
           <button
             type="button"
-            aria-label="Fermer"
+            aria-label={t("Fermer")}
             tabIndex={-1}
             className="ip-install-backdrop"
             onClick={closeGuide}
@@ -193,31 +197,30 @@ export default function InstallAppExperience() {
               type="button"
               className="ip-install-close"
               onClick={closeGuide}
-              aria-label="Fermer"
+              aria-label={t("Fermer")}
             >
               <X size={20} />
             </button>
 
             <div className="ip-install-badge">
               <MonitorSmartphone size={13} />
-              InvestPro Mobile
-            </div>
+              {t("InvestPro Mobile")}</div>
 
             <h2 id="ip-install-title" className="ip-install-title">
-              {standalone ? <>Ton application <span>est déjà ouverte.</span></> : <>Installe InvestPro comme une <span>vraie app.</span></>}
+              {standalone ? <>{t("Ton application ")}<span>{t("est déjà ouverte.")}</span></> : <>{t("Installe InvestPro comme une ")}<span>{t("vraie app.")}</span></>}
             </h2>
 
             <p id="ip-install-description" className="ip-install-subtitle">
-              {standalone ? "Tu utilises déjà InvestPro en mode application. Aucune nouvelle installation n’est nécessaire ici. Tu peux retrouver ci-dessous les étapes pour un autre téléphone." : "Accède à ton espace directement depuis ton écran d’accueil, sans chercher le site à chaque fois."}
+              {t(standalone ? "Tu utilises déjà InvestPro en mode application. Aucune nouvelle installation n’est nécessaire ici. Tu peux retrouver ci-dessous les étapes pour un autre téléphone." : "Accède à ton espace directement depuis ton écran d’accueil, sans chercher le site à chaque fois.")}
             </p>
 
             <div className="ip-install-benefits">
-              <span><Check size={13} /> Accès en 1 clic</span>
-              <span><Check size={13} /> iPhone & Android</span>
-              <span><Check size={13} /> Aucun App Store</span>
+              <span><Check size={13} /> {t(" Accès en 1 clic")}</span>
+              <span><Check size={13} /> {t(" iPhone & Android")}</span>
+              <span><Check size={13} /> {t(" Aucun App Store")}</span>
             </div>
 
-            <div className="ip-install-tabs" aria-label="Choisir ton téléphone">
+            <div className="ip-install-tabs" aria-label={t("Choisir ton téléphone")}>
               <button
                 type="button"
                 onClick={() => setTab("ios")}
@@ -225,8 +228,7 @@ export default function InstallAppExperience() {
                 className={tab === "ios" ? "active" : ""}
               >
                 <Apple size={17} />
-                iPhone
-              </button>
+                {t("iPhone")}</button>
 
               <button
                 type="button"
@@ -235,8 +237,7 @@ export default function InstallAppExperience() {
                 className={tab === "android" ? "active" : ""}
               >
                 <Smartphone size={17} />
-                Android
-              </button>
+                {t("Android")}</button>
             </div>
 
             {tab === "ios" ? (
@@ -244,20 +245,20 @@ export default function InstallAppExperience() {
                 <InstallStep
                   number="1"
                   icon={<Apple size={17} />}
-                  title="Ouvre InvestPro dans Safari"
-                  text="Le raccourci iPhone s’ajoute directement depuis Safari."
+                  title={t("Ouvre InvestPro dans Safari")}
+                  text={t("Le raccourci iPhone s’ajoute directement depuis Safari.")}
                 />
                 <InstallStep
                   number="2"
                   icon={<Share size={17} />}
-                  title="Appuie sur Partager"
-                  text="Utilise l’icône de partage située dans la barre Safari."
+                  title={t("Appuie sur Partager")}
+                  text={t("Utilise l’icône de partage située dans la barre Safari.")}
                 />
                 <InstallStep
                   number="3"
                   icon={<Download size={17} />}
-                  title="Choisis « Sur l’écran d’accueil »"
-                  text="Active « Ouvrir comme app web » si proposé, puis confirme avec « Ajouter »."
+                  title={t("Choisis « Sur l’écran d’accueil »")}
+                  text={t("Active « Ouvrir comme app web » si proposé, puis confirme avec « Ajouter ».")}
                 />
               </div>
             ) : (
@@ -265,22 +266,22 @@ export default function InstallAppExperience() {
                 <InstallStep
                   number="1"
                   icon={<Smartphone size={17} />}
-                  title="Ouvre InvestPro dans Chrome"
-                  text="Utilise Chrome sur ton téléphone Android, Samsung inclus."
+                  title={t("Ouvre InvestPro dans Chrome")}
+                  text={t("Utilise Chrome sur ton téléphone Android, Samsung inclus.")}
                 />
                 <InstallStep
                   number="2"
                   icon={<MoreVertical size={17} />}
-                  title="Ouvre le menu ⋮"
-                  text="Appuie sur les trois points en haut à droite."
+                  title={t("Ouvre le menu ⋮")}
+                  text={t("Appuie sur les trois points en haut à droite.")}
                 />
                 <InstallStep
                   number="3"
                   icon={<Download size={17} />}
-                  title="Installe l’application"
-                  text="Choisis « Installer et créer un raccourci » ou « Installer l’application », puis confirme avec « Installer »."
+                  title={t("Installe l’application")}
+                  text={t("Choisis « Installer et créer un raccourci » ou « Installer l’application », puis confirme avec « Installer ».")}
                 />
-                <p className="ip-install-platform-note"><strong>Samsung Internet :</strong> touche l’icône d’installation dans la barre d’adresse si elle apparaît. Sinon, ouvre InvestPro dans Chrome et suis les étapes ci-dessus.</p>
+                <p className="ip-install-platform-note"><strong>{t("Samsung Internet :")}</strong> {t(" touche l’icône d’installation dans la barre d’adresse si elle apparaît. Sinon, ouvre InvestPro dans Chrome et suis les étapes ci-dessus.")}</p>
               </div>
             )}
 
@@ -291,11 +292,10 @@ export default function InstallAppExperience() {
                 onClick={installAndroid}
               >
                 <Download size={17} />
-                Installer maintenant
-              </button>
+                {t("Installer maintenant")}</button>
             ) : null}
 
-            {installError ? <p role="alert" className="ip-install-subtitle">{installError}</p> : null}
+            {installError ? <p role="alert" className="ip-install-subtitle">{t(installError)}</p> : null}
 
             <button
               type="button"
@@ -303,7 +303,7 @@ export default function InstallAppExperience() {
               onClick={standalone ? closeGuide : markInstalled}
             >
               <Check size={16} />
-              {standalone ? "Fermer le guide" : "J’ai terminé l’installation"}
+              {t(standalone ? "Fermer le guide" : "J’ai terminé l’installation")}
             </button>
 
             <button
@@ -311,8 +311,7 @@ export default function InstallAppExperience() {
               className="ip-install-later"
               onClick={remindLater}
             >
-              Continuer plus tard
-            </button>
+              {t("Continuer plus tard")}</button>
           </section>
         </div>
       ) : null}

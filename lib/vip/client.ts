@@ -30,10 +30,10 @@ export async function vipRequest<T>(path: string, init: RequestInit = {}): Promi
   if (!response.ok) throw new VipApiError(typeof payload?.error === "string" ? payload.error : typeof payload?.message === "string" ? payload.message : "Cette action est indisponible. Réessayez dans un instant.", response.status);
   return payload as T;
 }
-export function vipDate(value: string | null | undefined) {
-  if (!value) return "Sans échéance";
+export function vipDate(value: string | null | undefined, locale: "fr" | "en" = "fr") {
+  if (!value) return locale === "en" ? "No expiry" : "Sans échéance";
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "—" : new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Paris" }).format(date);
+  return Number.isNaN(date.getTime()) ? "—" : new Intl.DateTimeFormat(locale === "en" ? "en-US" : "fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Paris" }).format(date);
 }
 export function safeHttps(value: string | null | undefined) {
   try { const url = new URL(value || ""); return url.protocol === "https:" ? url.toString() : null; } catch { return null; }

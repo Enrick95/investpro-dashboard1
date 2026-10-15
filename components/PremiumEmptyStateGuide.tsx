@@ -1,4 +1,6 @@
 "use client";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -24,6 +26,8 @@ type State = {
 };
 
 export default function PremiumEmptyStateGuide() {
+  const { t } = useLocale();
+
   const pathname = usePathname();
   const supabase = useMemo(() => createClient(), []);
   const [state, setState] = useState<State>({
@@ -95,7 +99,7 @@ export default function PremiumEmptyStateGuide() {
       <PremiumState
         eyebrow="PREMIÈRE ÉTAPE"
         icon={<WalletCards size={21} />}
-        title="Ajoute ton premier compte de trading"
+        title={t("Ajoute ton premier compte de trading")}
         text="Centralise ton capital et prépare ton espace pour le Journal, les rapports et la synchronisation CFD & Futures."
         primary={{
           label: "Ajouter mon premier compte",
@@ -119,7 +123,7 @@ export default function PremiumEmptyStateGuide() {
       <PremiumState
         eyebrow="TON JOURNAL EST PRÊT"
         icon={<BookOpen size={21} />}
-        title="Ajoute ton premier trade"
+        title={t("Ajoute ton premier trade")}
         text={
           state.accounts > 0
             ? "Ton compte est prêt. Enregistre maintenant un premier trade pour débloquer tes statistiques, ta discipline et tes analyses."
@@ -147,7 +151,7 @@ export default function PremiumEmptyStateGuide() {
       <PremiumState
         eyebrow="ANALYTICS INVESTPRO"
         icon={<BarChart3 size={21} />}
-        title="Tes rapports se construisent à partir de ton Journal"
+        title={t("Tes rapports se construisent à partir de ton Journal")}
         text="Dès ton premier trade clôturé, InvestPro commencera à calculer ton winrate, Profit Factor, courbe d’équité, drawdown et tes performances par actif."
         primary={{
           label: "Ajouter mon premier trade",
@@ -189,6 +193,7 @@ function PremiumState({
   bullets: string[];
   reports?: boolean;
 }) {
+  const { t } = useLocale();
   return (
     <section className="mb-5 overflow-hidden rounded-[24px] border border-[color:var(--gold-border)] bg-[color:var(--panel)]">
       <div className="relative p-5 md:p-6">
@@ -198,7 +203,7 @@ function PremiumState({
           <div className="lg:col-span-7">
             <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1 text-[9px] font-semibold tracking-[0.12em] text-[color:var(--gold)]">
               <Sparkles size={11} />
-              {eyebrow}
+              {t(eyebrow)}
             </div>
 
             <div className="mt-4 flex items-start gap-4">
@@ -208,11 +213,11 @@ function PremiumState({
 
               <div>
                 <h2 className="text-lg font-semibold text-white md:text-xl">
-                  {title}
+                  {t(title)}
                 </h2>
 
                 <p className="mt-2 max-w-2xl text-[11px] leading-5 text-[color:var(--muted)]">
-                  {text}
+                  {t(text)}
                 </p>
               </div>
             </div>
@@ -223,7 +228,7 @@ function PremiumState({
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[color:var(--gold)] px-4 text-[11px] font-semibold text-black no-underline transition hover:bg-[color:var(--gold-2)]"
               >
                 <Plus size={14} />
-                {primary.label}
+                {t(primary.label)}
                 <ArrowRight size={13} />
               </Link>
 
@@ -231,7 +236,7 @@ function PremiumState({
                 href={secondary.href}
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-black/20 px-4 text-[11px] font-semibold text-white/65 no-underline transition hover:border-[color:var(--gold-border)] hover:text-white"
               >
-                {secondary.label}
+                {t(secondary.label)}
                 <ArrowRight size={13} />
               </Link>
             </div>
@@ -247,11 +252,11 @@ function PremiumState({
 }
 
 function FeaturePreview({ bullets }: { bullets: string[] }) {
+  const { t } = useLocale();
   return (
     <div className="rounded-2xl border border-white/[0.06] bg-black/20 p-4">
       <div className="text-[9px] font-semibold uppercase tracking-[0.12em] text-white/28">
-        Ce que tu vas débloquer
-      </div>
+        {t("Ce que tu vas débloquer")}</div>
 
       <div className="mt-4 space-y-3">
         {bullets.map((item) => (
@@ -259,7 +264,7 @@ function FeaturePreview({ bullets }: { bullets: string[] }) {
             <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-emerald-500/15 bg-emerald-500/[0.05] text-emerald-400">
               <CheckCircle2 size={13} />
             </div>
-            <span className="text-[10px] text-white/55">{item}</span>
+            <span className="text-[10px] text-white/55">{t(item)}</span>
           </div>
         ))}
       </div>
@@ -268,16 +273,15 @@ function FeaturePreview({ bullets }: { bullets: string[] }) {
 }
 
 function ReportsPreview() {
+  const { t } = useLocale();
   return (
     <div className="rounded-2xl border border-white/[0.06] bg-black/20 p-4">
       <div className="flex items-center justify-between">
         <div>
           <div className="text-[8px] uppercase tracking-[0.12em] text-white/25">
-            Aperçu analytics
-          </div>
+            {t("Aperçu analytics")}</div>
           <div className="mt-1 text-[11px] font-semibold text-white">
-            Tes données apparaîtront ici
-          </div>
+            {t("Tes données apparaîtront ici")}</div>
         </div>
         <LineChart size={18} className="text-[color:var(--gold)]" />
       </div>
@@ -308,8 +312,7 @@ function ReportsPreview() {
 
       <div className="mt-3 flex items-center gap-2 text-[8px] text-white/25">
         <ShieldCheck size={11} className="text-[color:var(--gold)]" />
-        Aucune fausse statistique n’est affichée avant tes données.
-      </div>
+        {t("Aucune fausse statistique n’est affichée avant tes données.")}</div>
     </div>
   );
 }

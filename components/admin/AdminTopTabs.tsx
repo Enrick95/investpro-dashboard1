@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -24,6 +25,7 @@ export default function AdminTopTabs({
 }: {
   onRevoke?: () => void; permissions?: string[];
 }) {
+  const { t: tr } = useLocale();
   const pathname = usePathname();
   const tabsAllowed = tabs.filter(t=>!permissions||permissions.includes(({Overview:"overview",Finance:"finance",Utilisateurs:"users",VIP:"users_write",Modération:"moderation",Inbox:"inbox","InvestPro Copier":"copier",Annonces:"announcements_write",Système:"system",Navigation:"navigation",Équipe:"staff"} as Record<string,string>)[t.label]));
   const supabase = useMemo(() => createClient(), []);
@@ -120,7 +122,7 @@ export default function AdminTopTabs({
 
         return (
           <Link
-            key={tab.label}
+            key={tr(tab.label)}
             href={tab.href}
             className="rounded-xl border px-4 py-2 text-sm font-medium no-underline transition"
             style={{
@@ -134,7 +136,7 @@ export default function AdminTopTabs({
             }}
           >
             <span className="inline-flex items-center gap-2">
-              {tab.label}
+              {tr(tab.label)}
               {tab.label === "Inbox" && inboxCount > 0 ? (
                 <span
                   className="inline-flex min-w-5 h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold"
@@ -172,9 +174,7 @@ export default function AdminTopTabs({
             background: "rgba(255,255,255,.025)",
             color: "var(--muted)",
           }}
-        >
-          Quitter admin
-        </button>
+        >{tr("Quitter admin")}</button>
       ) : null}
     </div>
   );

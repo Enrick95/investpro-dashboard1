@@ -1,4 +1,6 @@
 "use client";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -60,6 +62,8 @@ function scoreLabel(score: number) {
 }
 
 export default function SmartDashboardInsights() {
+  const { t, locale } = useLocale();
+
   const supabase = useMemo(() => createClient(), []);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [plan, setPlan] = useState<Plan | null>(null);
@@ -247,7 +251,7 @@ export default function SmartDashboardInsights() {
       today.some((trade) => Number(trade.risk_percent || 0) > riskLimit)
     ) {
       headline = "Risque au-dessus du plan";
-      recommendation = `Au moins un trade dépasse ta limite de ${riskLimit}%. Reviens à ton risque prévu avant la prochaine entrée.`;
+      recommendation = t("Au moins un trade dépasse ta limite de {risk}%. Reviens à ton risque prévu avant la prochaine entrée.").replace("{risk}", String(riskLimit));
       tone = "warn";
     } else if (todayClosed.length && pnlToday > 0) {
       headline = "Session positive";
@@ -256,11 +260,11 @@ export default function SmartDashboardInsights() {
       tone = "good";
     } else if (lossStreak >= 3) {
       headline = "Série de pertes détectée";
-      recommendation = `${lossStreak} pertes consécutives. Réduis le rythme et vérifie ton setup avant de reprendre.`;
+      recommendation = t("{count} pertes consécutives. Réduis le rythme et vérifie ton setup avant de reprendre.").replace("{count}", String(lossStreak));
       tone = "warn";
     } else if (bestSession && bestSession[1].pnl > 0) {
-      headline = `Ton avantage ressort sur ${bestSession[0]}`;
-      recommendation = `Sur les 90 derniers jours, ${bestSession[0]} est ta session la plus performante. Priorise tes meilleurs contextes.`;
+      headline = t("Ton avantage ressort sur {session}").replace("{session}", bestSession[0]);
+      recommendation = t("Sur les 90 derniers jours, {session} est ta session la plus performante. Priorise tes meilleurs contextes.").replace("{session}", bestSession[0]);
       tone = "good";
     }
 
@@ -277,7 +281,7 @@ export default function SmartDashboardInsights() {
       worstSession,
       bestSetup,
     };
-  }, [trades, plan]);
+  }, [trades, plan, t]);
 
   if (loading || !trades.length) return null;
 
@@ -288,24 +292,20 @@ export default function SmartDashboardInsights() {
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gold)]">
               <BrainCircuit size={11} />
-              Intelligence trading
-            </div>
+              {t("Intelligence trading")}</div>
 
             <h2 className="mt-3 text-lg font-semibold text-white">
-              Ce qu’InvestPro détecte dans ton trading
-            </h2>
+              {t("Ce qu’InvestPro détecte dans ton trading")}</h2>
 
             <p className="mt-1 text-[10px] leading-5 text-white/35">
-              Analyse automatique basée sur tes 90 derniers jours et ton plan de trading.
-            </p>
+              {t("Analyse automatique basée sur tes 90 derniers jours et ton plan de trading.")}</p>
           </div>
 
           <Link
             href="/dashboard/rapports"
             className="inline-flex items-center gap-2 text-[10px] font-semibold text-[color:var(--gold)] no-underline"
           >
-            Voir l’analyse complète
-            <ArrowRight size={12} />
+            {t("Voir l’analyse complète")}<ArrowRight size={12} />
           </Link>
         </div>
       </div>
@@ -342,10 +342,10 @@ export default function SmartDashboardInsights() {
 
               <div>
                 <div className="text-sm font-semibold text-white">
-                  {insight.headline}
+                  {t(insight.headline)}
                 </div>
                 <p className="mt-1 text-[10px] leading-5 text-white/45">
-                  {insight.recommendation}
+                  {t(insight.recommendation)}
                 </p>
               </div>
             </div>
@@ -353,14 +353,14 @@ export default function SmartDashboardInsights() {
 
           <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Metric
-              label="Trades aujourd’hui"
+              label={t("Trades aujourd’hui")}
               value={String(insight.todayCount)}
               icon={<Clock3 size={13} />}
             />
             <Metric
-              label="P&L aujourd’hui"
+              label={t("P&L aujourd’hui")}
               value={`${insight.pnlToday > 0 ? "+" : ""}${insight.pnlToday.toLocaleString(
-                "fr-FR",
+                locale === "en" ? "en-US" : "fr-FR",
                 { maximumFractionDigits: 0 }
               )}`}
               icon={
@@ -379,7 +379,7 @@ export default function SmartDashboardInsights() {
               }
             />
             <Metric
-              label="Série actuelle"
+              label={t("Série actuelle")}
               value={
                 insight.lossStreak
                   ? `${insight.lossStreak}L`
@@ -397,7 +397,7 @@ export default function SmartDashboardInsights() {
               }
             />
             <Metric
-              label="Discipline"
+              label={t("Discipline")}
               value={`${insight.disciplineScore}/100`}
               icon={<ShieldCheck size={13} />}
               tone={insight.disciplineScore >= 75 ? "good" : "warn"}
@@ -407,43 +407,42 @@ export default function SmartDashboardInsights() {
 
         <div className="border-t border-white/[0.05] bg-black/15 p-4 md:p-5 xl:border-l xl:border-t-0">
           <div className="text-[9px] font-semibold uppercase tracking-[0.1em] text-white/30">
-            Forces / points d’attention
-          </div>
+            {t("Forces / points d’attention")}</div>
 
           <div className="mt-3 space-y-2">
             <InsightLine
               icon={<Target size={13} />}
-              title="Discipline"
-              value={scoreLabel(insight.disciplineScore)}
+              title={t("Discipline")}
+              value={t(scoreLabel(insight.disciplineScore))}
               good={insight.disciplineScore >= 75}
             />
             <InsightLine
               icon={<TrendingUp size={13} />}
-              title="Meilleure session"
+              title={t("Meilleure session")}
               value={
                 insight.bestSession
                   ? insight.bestSession[0]
-                  : "Pas assez de données"
+                  : t("Pas assez de données")
               }
               good={Boolean(insight.bestSession)}
             />
             <InsightLine
               icon={<Sparkles size={13} />}
-              title="Meilleur setup"
+              title={t("Meilleur setup")}
               value={
                 insight.bestSetup
                   ? insight.bestSetup[0]
-                  : "Pas assez de données"
+                  : t("Pas assez de données")
               }
               good={Boolean(insight.bestSetup)}
             />
             <InsightLine
               icon={<AlertTriangle size={13} />}
-              title="Session à surveiller"
+              title={t("Session à surveiller")}
               value={
                 insight.worstSession && insight.worstSession[1].pnl < 0
                   ? insight.worstSession[0]
-                  : "Aucune alerte nette"
+                  : t("Aucune alerte nette")
               }
               good={
                 !(insight.worstSession && insight.worstSession[1].pnl < 0)

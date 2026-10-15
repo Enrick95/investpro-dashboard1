@@ -1,4 +1,6 @@
 "use client";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -55,6 +57,8 @@ const pageItems: SearchItem[] = [
 ];
 
 export default function InvestProCommandPalette() {
+  const { t } = useLocale();
+
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
   const [open, setOpen] = useState(false);
@@ -130,12 +134,12 @@ export default function InvestProCommandPalette() {
 
     return source
       .filter((item) =>
-        `${item.label} ${item.hint} ${item.keywords || ""}`
+        `${item.label} ${item.hint} ${item.kind === "page" ? `${t(item.label)} ${t(item.hint)}` : ""} ${item.keywords || ""}`
           .toLowerCase()
           .includes(q)
       )
       .slice(0, 30);
-  }, [query, dynamicItems]);
+  }, [query, dynamicItems, t]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -200,7 +204,7 @@ export default function InvestProCommandPalette() {
             className="ip-command-modal"
             role="dialog"
             aria-modal="true"
-            aria-label="Recherche InvestPro"
+            aria-label={t("Recherche InvestPro")}
           >
             <div className="ip-command-search-row">
               <Search size={17} />
@@ -209,12 +213,12 @@ export default function InvestProCommandPalette() {
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 onKeyDown={onInputKeyDown}
-                placeholder="Page, compte, GOLD, EURUSD..."
+                placeholder={t("Page, compte, GOLD, EURUSD...")}
               />
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                aria-label="Fermer"
+                aria-label={t("Fermer")}
               >
                 <X size={16} />
               </button>
@@ -238,14 +242,14 @@ export default function InvestProCommandPalette() {
                       </span>
 
                       <span className="ip-command-copy">
-                        <strong>{item.label}</strong>
+                        <strong>{item.kind === "page" ? t(item.label) : item.label}</strong>
                         <small>
                           {item.kind === "trade"
                             ? "TRADE · "
                             : item.kind === "account"
                               ? "COMPTE · "
                               : ""}
-                          {item.hint}
+                          {item.kind === "page" ? t(item.hint) : item.hint}
                         </small>
                       </span>
 
@@ -256,15 +260,14 @@ export default function InvestProCommandPalette() {
               ) : (
                 <div className="ip-command-empty">
                   <Command size={22} />
-                  Aucun résultat.
-                </div>
+                  {t("Aucun résultat.")}</div>
               )}
             </div>
 
             <div className="ip-command-footer">
-              <span>Recherche pages + comptes + trades</span>
-              <span>↑↓ naviguer</span>
-              <span>↵ ouvrir</span>
+              <span>{t("Recherche pages + comptes + trades")}</span>
+              <span>{t("↑↓ naviguer")}</span>
+              <span>{t("↵ ouvrir")}</span>
             </div>
           </div>
         </div>

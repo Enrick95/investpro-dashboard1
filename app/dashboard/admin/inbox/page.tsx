@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import Link from "next/link";
 import {
   Bug,
@@ -44,8 +45,8 @@ type Payload = {
   items: Item[];
 };
 
-function dateLabel(value: string) {
-  return new Date(value).toLocaleString("fr-FR", {
+function dateLabel(value: string, locale: "fr" | "en" = "fr") {
+  return new Date(value).toLocaleString((locale === "en" ? "en-US" : "fr-FR"), {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -67,6 +68,7 @@ function statuses(kind: Item["kind"]) {
 }
 
 export default function AdminInboxPage() {
+  const { t: tr, locale } = useLocale();
   const supabase = useMemo(() => createClient(), []);
   const [data, setData] = useState<Payload | null>(null);
   const [selected, setSelected] = useState<Item | null>(null);
@@ -107,7 +109,7 @@ export default function AdminInboxPage() {
       });
 
       const json = await response.json();
-      if (!response.ok) throw new Error(json?.error || "Inbox indisponible.");
+      if (!response.ok) throw new Error(json?.error || tr("Inbox indisponible."));
       setData(json);
 
       if (selected) {
@@ -122,7 +124,7 @@ export default function AdminInboxPage() {
         }
       }
     } catch (e: any) {
-      setError(e?.message || "Inbox indisponible.");
+      setError(e?.message || tr("Inbox indisponible."));
     } finally {
       setLoading(false);
     }
@@ -153,13 +155,13 @@ export default function AdminInboxPage() {
 
   async function loadChat(id:string){
     const token=await getToken();if(!token)return;
-    try{const r=await fetch(`/api/admin/support/messages?ticket_id=${encodeURIComponent(id)}`,{headers:{Authorization:`Bearer ${token}`},cache:"no-store"});const j=await r.json();if(r.ok)setChatMessages(j.messages||[]);else setError(j.error||"Historique indisponible")}catch{setError("Historique indisponible")}
+    try{const r=await fetch(`/api/admin/support/messages?ticket_id=${encodeURIComponent(id)}`,{headers:{Authorization:`Bearer ${token}`},cache:"no-store"});const j=await r.json();if(r.ok)setChatMessages(j.messages||[]);else setError(j.error||tr("Historique indisponible"))}catch{setError(tr("Historique indisponible"))}
   }
   async function sendChat(){
     if(!selected||selected.kind!=="support"||(!chatDraft.trim()&&!chatFile)||selected.status==="closed")return;
     setChatBusy(true);setError("");
     try{
-      const token=await getToken();if(!token)throw Error("Non authentifié");
+      const token=await getToken();if(!token)throw Error(tr("Non authentifié"));
       let r:Response;
       if(chatFile){
         const fd=new FormData();fd.set("ticket_id",selected.id);fd.set("file",chatFile);fd.set("message",chatDraft.trim());
@@ -167,9 +169,9 @@ export default function AdminInboxPage() {
       }else{
         r=await fetch("/api/admin/support/messages",{method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:JSON.stringify({ticket_id:selected.id,message:chatDraft})});
       }
-      const j=await r.json();if(!r.ok)throw Error(j.error||"Envoi impossible");
+      const j=await r.json();if(!r.ok)throw Error(j.error||tr("Envoi impossible"));
       setChatDraft("");setChatFile(null);await loadChat(selected.id);await load(true);
-    }catch(e:any){setError(e.message||"Envoi impossible")}finally{setChatBusy(false)}
+    }catch(e:any){setError(e.message||tr("Envoi impossible"))}finally{setChatBusy(false)}
   }
   function open(item: Item) {
     setSelected(item);
@@ -181,22 +183,22 @@ export default function AdminInboxPage() {
 
   async function closeConversation() {
     if (!selected || selected.kind !== "support" || selected.status === "closed") return;
-    if (!window.confirm("Clôturer définitivement cette conversation ? Le client devra ouvrir une nouvelle demande.")) return;
+    if (!window.confirm(tr("Clôturer définitivement cette conversation ? Le client devra ouvrir une nouvelle demande."))) return;
     setSaving(true);setError("");
     try {
       const token = await getToken();
-      if (!token) throw new Error("Session expirée");
+      if (!token) throw new Error(tr("Session expirée"));
       const response = await fetch("/api/admin/inbox", {
         method: "PATCH",
         headers: {Authorization: `Bearer ${token}`, "Content-Type": "application/json"},
         body: JSON.stringify({kind:"support", id:selected.id, user_id:selected.user_id,status:"closed",admin_note:note})
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Clôture impossible");
+      if (!response.ok) throw new Error(result.error || tr("Clôture impossible"));
       setStatus("closed");
       await load(true);
       await loadChat(selected.id);
-    } catch (e) { setError(e instanceof Error ? e.message : "Clôture impossible"); }
+    } catch (e) { setError(e instanceof Error ? e.message : tr("Clôture impossible")); }
     finally {setSaving(false);}
   }
 
@@ -226,11 +228,11 @@ export default function AdminInboxPage() {
       });
 
       const json = await response.json();
-      if (!response.ok) throw new Error(json?.error || "Action impossible.");
+      if (!response.ok) throw new Error(json?.error || tr("Action impossible."));
 
       await load(true);
     } catch (e: any) {
-      setError(e?.message || "Action impossible.");
+      setError(e?.message || tr("Action impossible."));
     } finally {
       setSaving(false);
     }
@@ -259,9 +261,7 @@ export default function AdminInboxPage() {
 
   if (loading) {
     return (
-      <div className="py-16 text-center text-sm text-[color:var(--muted)]">
-        Chargement de l’Inbox…
-      </div>
+      <div className="py-16 text-center text-sm text-[color:var(--muted)]">{tr("Chargement de l’Inbox…")}</div>
     );
   }
 
@@ -269,26 +269,19 @@ export default function AdminInboxPage() {
     <div className="w-full pb-10">
       {error ? (
         <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/[0.05] p-3 text-xs text-red-300">
-          {error}
+          {tr(error)}
         </div>
       ) : null}
 
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gold)]">
-            <Mail size={11} />
-            Support centralisé
-          </div>
-          <h1 className="mt-3 text-2xl font-semibold text-white">
-            Inbox & <span className="text-[color:var(--gold)]">Support</span>
+            <Mail size={11} />{tr("Support centralisé")}</div>
+          <h1 className="mt-3 text-2xl font-semibold text-white">{tr("Inbox & ")}<span className="text-[color:var(--gold)]">{tr("Support")}</span>
           </h1>
-          <p className="mt-1 text-sm text-[color:var(--muted)]">
-            Support, bugs et demandes de suppression réunis dans le back-office.
-          </p>
+          <p className="mt-1 text-sm text-[color:var(--muted)]">{tr("Support, bugs et demandes de suppression réunis dans le back-office.")}</p>
           <div className="mt-2 inline-flex items-center gap-2 text-[9px] text-emerald-400/80">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-            Actualisation automatique toutes les 20 secondes
-          </div>
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />{tr("Actualisation automatique toutes les 20 secondes")}</div>
         </div>
 
         <button
@@ -296,17 +289,15 @@ export default function AdminInboxPage() {
           onClick={() => load(true)}
           className="inline-flex h-10 items-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 text-xs font-semibold text-[color:var(--gold)]"
         >
-          <RefreshCw size={14} />
-          Actualiser
-        </button>
+          <RefreshCw size={14} />{tr("Actualiser")}</button>
       </div>
 
       {data ? (
         <section className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Stat icon={<MessageSquare size={15} />} label="Support ouvert" value={data.stats.open_support} />
-          <Stat icon={<Bug size={15} />} label="Bugs ouverts" value={data.stats.open_bugs} />
-          <Stat icon={<Trash2 size={15} />} label="Suppressions" value={data.stats.pending_deletions} />
-          <Stat icon={<Mail size={15} />} label="Total" value={data.stats.total} />
+          <Stat icon={<MessageSquare size={15} />} label={tr("Support ouvert")} value={data.stats.open_support} />
+          <Stat icon={<Bug size={15} />} label={tr("Bugs ouverts")} value={data.stats.open_bugs} />
+          <Stat icon={<Trash2 size={15} />} label={tr("Suppressions")} value={data.stats.pending_deletions} />
+          <Stat icon={<Mail size={15} />} label={tr("Total")} value={data.stats.total} />
         </section>
       ) : null}
 
@@ -318,13 +309,13 @@ export default function AdminInboxPage() {
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Rechercher un membre, sujet, e-mail..."
+                placeholder={tr("Rechercher un membre, sujet, e-mail...")}
                 className="h-10 w-full rounded-xl border border-white/[0.07] bg-black/20 pl-9 pr-3 text-xs text-white outline-none"
               />
             </div>
 
             <div className="mt-3 flex flex-wrap gap-2">
-              {(["all", "open", "closed"] as const).map(v=><button key={v} type="button" onClick={()=>{setFilter("support");setSupportFilter(v)}} className={`rounded-lg border px-3 py-2 text-[10px] ${filter==="support"&&supportFilter===v?"border-amber-500 text-amber-300":"border-white/10 text-white/60"}`}>{v==="all"?"Tous les supports":v==="open"?"Ouverts / En cours":"Clôturés"}</button>)}
+              {(["all", "open", "closed"] as const).map(v=><button key={v} type="button" onClick={()=>{setFilter("support");setSupportFilter(v)}} className={`rounded-lg border px-3 py-2 text-[10px] ${filter==="support"&&supportFilter===v?"border-amber-500 text-amber-300":"border-white/10 text-white/60"}`}>{v==="all"?tr("Tous les supports"):v==="open"?tr("Ouverts / En cours"):tr("Clôturés")}</button>)}
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
               {(["all", "support", "bug", "deletion"] as const).map((value) => (
@@ -339,7 +330,7 @@ export default function AdminInboxPage() {
                       : "border-white/[0.07] bg-black/20 text-white/40",
                   ].join(" ")}
                 >
-                  {value === "all" ? "Tout" : value === "support" ? "Support" : value === "bug" ? "Bugs" : "Suppressions"}
+                  {value === "all" ? tr("Tout") : value === "support" ? "Support" : value === "bug" ? "Bugs" : tr("Suppressions")}
                 </button>
               ))}
             </div>
@@ -362,7 +353,7 @@ export default function AdminInboxPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="text-[9px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gold)]">
-                        {kindLabel(item.kind)}
+                        {tr(kindLabel(item.kind))}
                       </div>
                       <div className="mt-1 truncate text-xs font-semibold text-white">
                         {item.title}
@@ -373,7 +364,7 @@ export default function AdminInboxPage() {
                     </div>
 
                     <span className={`shrink-0 rounded-full border px-2 py-1 text-[9px] font-semibold ${item.kind==="support"?(item.status==="closed"?"border-red-500/40 bg-red-500/10 text-red-400":item.status==="answered"?"border-amber-500/40 bg-amber-500/10 text-amber-300":"border-emerald-500/40 bg-emerald-500/10 text-emerald-400"):"border-white/10 bg-black/20 text-white/60"}`}>
-                      {item.kind==="support"?(item.status==="closed"?"Clôturé":item.status==="answered"?"Répondu":"Ouvert"):item.status}
+                      {item.kind==="support"?(item.status==="closed"?tr("Clôturé"):item.status==="answered"?tr("Répondu"):tr("Ouvert")):item.status}
                     </span>
                   </div>
 
@@ -383,14 +374,12 @@ export default function AdminInboxPage() {
 
                   <div className="mt-2 inline-flex items-center gap-1 text-[8px] text-white/25">
                     <Clock3 size={10} />
-                    {dateLabel(item.created_at)}
+                    {dateLabel(item.created_at, locale)}
                   </div>
                 </button>
               ))
             ) : (
-              <div className="p-10 text-center text-sm text-white/25">
-                Aucun élément.
-              </div>
+              <div className="p-10 text-center text-sm text-white/25">{tr("Aucun élément.")}</div>
             )}
           </div>
         </div>
@@ -401,7 +390,7 @@ export default function AdminInboxPage() {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <div className="text-[9px] font-semibold uppercase text-[color:var(--gold)]">
-                    {kindLabel(selected.kind)}
+                    {tr(kindLabel(selected.kind))}
                   </div>
                   <h2 className="mt-1 text-lg font-semibold text-white">
                     {selected.title}
@@ -417,7 +406,7 @@ export default function AdminInboxPage() {
                 </div>
 
                 <div className="text-[9px] text-white/30">
-                  {dateLabel(selected.created_at)}
+                  {dateLabel(selected.created_at, locale)}
                 </div>
               </div>
 
@@ -428,8 +417,7 @@ export default function AdminInboxPage() {
               </div>
 
               {selected.page_url ? (
-                <div className="mt-3 break-all rounded-xl border border-white/[0.06] bg-black/20 p-3 text-[9px] text-white/35">
-                  Page : {selected.page_url}
+                <div className="mt-3 break-all rounded-xl border border-white/[0.06] bg-black/20 p-3 text-[9px] text-white/35">{tr("Page : ")}{selected.page_url}
                 </div>
               ) : null}
 
@@ -442,7 +430,7 @@ export default function AdminInboxPage() {
                         <img src={image.dataUrl} alt={image?.name || "Bug"} className="h-32 w-full object-cover" />
                       ) : null}
                       <div className="truncate p-2 text-[8px] text-white/30">
-                        {image?.name || `Image ${index + 1}`}
+                        {image?.name || (tr("Image ") + (index + 1))}
                       </div>
                     </div>
                   ))}
@@ -451,20 +439,20 @@ export default function AdminInboxPage() {
 
               <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <label>
-                  <div className="mb-2 text-[9px] text-white/35">Statut</div>
+                  <div className="mb-2 text-[9px] text-white/35">{tr("Statut")}</div>
                   <select
                     value={status}
                     onChange={(e) => setStatus(e.target.value)}
                     className="h-11 w-full rounded-xl border border-white/[0.07] bg-black/30 px-3 text-xs text-white outline-none"
                   >
                     {statuses(selected.kind).map((value) => (
-                      <option key={value} value={value}>{value}</option>
+                      <option key={value} value={value}>{tr(({ open: "Ouvert", in_progress: "En cours", answered: "Répondu", resolved: "Résolu", closed: "Clôturé", pending: "En attente", processing: "En cours", rejected: "Refusé", cancelled: "Annulé", investigating: "En analyse" } as Record<string, string>)[value] || value)}</option>
                     ))}
                   </select>
                 </label>
 
                 <div className="rounded-xl border border-white/[0.06] bg-black/20 p-3">
-                  <div className="text-[8px] uppercase text-white/25">Plan</div>
+                  <div className="text-[8px] uppercase text-white/25">{tr("Plan")}</div>
                   <div className="mt-1 text-xs font-semibold uppercase text-[color:var(--gold)]">
                     {selected.member.plan}
                   </div>
@@ -473,37 +461,35 @@ export default function AdminInboxPage() {
 
               {selected.kind === "support" ? (
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <button type="button" disabled={saving||status==="closed"} onClick={()=>void closeConversation()} className="rounded-lg border border-amber-500/40 px-3 py-2 text-xs text-amber-300 disabled:opacity-40">Clôturer la conversation</button>
+                  <button type="button" disabled={saving||status==="closed"} onClick={()=>void closeConversation()} className="rounded-lg border border-amber-500/40 px-3 py-2 text-xs text-amber-300 disabled:opacity-40">{tr("Clôturer la conversation")}</button>
 
-                  <span className="self-center text-[10px] text-white/50">La clôture est définitive et enregistrée immédiatement.</span>
+                  <span className="self-center text-[10px] text-white/50">{tr("La clôture est définitive et enregistrée immédiatement.")}</span>
                 </div>
               ) : null}
 
               {selected.kind === "support" ? (
                 <section className="mt-4 rounded-xl border border-amber-500/20 bg-black/20 p-3">
-                  <div className="mb-2 text-xs font-semibold text-amber-300">Conversation avec le membre</div>
+                  <div className="mb-2 text-xs font-semibold text-amber-300">{tr("Conversation avec le membre")}</div>
                   <div className="max-h-64 min-h-32 space-y-2 overflow-y-auto rounded-lg border border-white/10 p-2">
-                    {chatMessages.map(m=><div key={m.id} className={`flex ${m.sender_role==="staff"?"justify-end":"justify-start"}`}><div className={`max-w-[85%] rounded-xl p-2 text-xs ${m.sender_role==="staff"?"bg-amber-500/20":"bg-white/10"}`}><div className="mb-1 text-[10px] text-amber-300">{m.sender_role==="staff"?"Équipe InvestPro":"Client"}</div><div className="whitespace-pre-wrap break-words">{m.body}</div>{m.attachment_url?<a href={m.attachment_url} target="_blank" rel="noopener noreferrer"><img src={m.attachment_url} alt="Pièce jointe" className="mt-2 max-h-44 rounded"/></a>:null}<div className="mt-1 text-[9px] text-white/40">{dateLabel(m.created_at)}</div></div></div>)}
+                    {chatMessages.map(m=><div key={m.id} className={`flex ${m.sender_role==="staff"?"justify-end":"justify-start"}`}><div className={`max-w-[85%] rounded-xl p-2 text-xs ${m.sender_role==="staff"?"bg-amber-500/20":"bg-white/10"}`}><div className="mb-1 text-[10px] text-amber-300">{m.sender_role==="staff"?tr("Équipe InvestPro"):"Client"}</div><div className="whitespace-pre-wrap break-words">{m.body}</div>{m.attachment_url?<a href={m.attachment_url} target="_blank" rel="noopener noreferrer"><img src={m.attachment_url} alt={tr("Pièce jointe")} className="mt-2 max-h-44 rounded"/></a>:null}<div className="mt-1 text-[9px] text-white/40">{dateLabel(m.created_at, locale)}</div></div></div>)}
                   </div>
-                  {status==="closed"?<p className="mt-2 text-xs text-amber-300">🔒 Conversation définitivement clôturée.</p>:null}
-                  {status!=="closed"?<div className="mt-3 flex gap-2 text-xs"><input type="file" aria-label="Envoyer une image" accept="image/png,image/jpeg,image/webp" onChange={e=>setChatFile(e.target.files?.[0]||null)} className="min-w-0"/>{chatFile?<span className="text-amber-300">Image prête ✓</span>:null}</div>:null}
-                  <textarea value={chatDraft} onChange={e=>setChatDraft(e.target.value)} maxLength={8000} rows={3} placeholder="Répondre au client…" className="mt-3 w-full rounded-lg border border-white/10 bg-black/30 p-3 text-xs text-white"/>
-                  <button type="button" onClick={()=>void sendChat()} disabled={chatBusy||(!chatDraft.trim()&&!chatFile)||status==="closed"} className="mt-2 w-full rounded-lg bg-amber-400 p-3 text-xs font-bold text-black disabled:opacity-40">{chatBusy?"Envoi en cours…":"Envoyer la réponse"}</button>
-                  <p className="mt-2 text-[10px] text-white/50">Une réponse envoyée déclenche une notification dans InvestPro.</p>
+                  {status==="closed"?<p className="mt-2 text-xs text-amber-300">{tr("🔒 Conversation définitivement clôturée.")}</p>:null}
+                  {status!=="closed"?<div className="mt-3 flex gap-2 text-xs"><input type="file" aria-label={tr("Envoyer une image")} accept="image/png,image/jpeg,image/webp" onChange={e=>setChatFile(e.target.files?.[0]||null)} className="min-w-0"/>{chatFile?<span className="text-amber-300">{tr("Image prête ✓")}</span>:null}</div>:null}
+                  <textarea value={chatDraft} onChange={e=>setChatDraft(e.target.value)} maxLength={8000} rows={3} placeholder={tr("Répondre au client…")} className="mt-3 w-full rounded-lg border border-white/10 bg-black/30 p-3 text-xs text-white"/>
+                  <button type="button" onClick={()=>void sendChat()} disabled={chatBusy||(!chatDraft.trim()&&!chatFile)||status==="closed"} className="mt-2 w-full rounded-lg bg-amber-400 p-3 text-xs font-bold text-black disabled:opacity-40">{chatBusy?tr("Envoi en cours…"):tr("Envoyer la réponse")}</button>
+                  <p className="mt-2 text-[10px] text-white/50">{tr("Une réponse envoyée déclenche une notification dans InvestPro.")}</p>
                 </section>
               ) : null}
 
 
               <label className="mt-4 block">
-                <div className="mb-2 text-[9px] text-white/35">
-                  Note interne admin
-                </div>
+                <div className="mb-2 text-[9px] text-white/35">{tr("Note interne admin")}</div>
                 <textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   rows={4}
                   className="w-full rounded-xl border border-white/[0.07] bg-black/20 p-3 text-xs text-white outline-none"
-                  placeholder="Note interne, non visible par le membre..."
+                  placeholder={tr("Note interne, non visible par le membre...")}
                 />
               </label>
 
@@ -513,19 +499,13 @@ export default function AdminInboxPage() {
                 disabled={saving}
                 className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[color:var(--gold)] text-xs font-semibold text-black disabled:opacity-50"
               >
-                {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-                Enregistrer
-              </button>
+                {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}{tr("Enregistrer")}</button>
             </>
           ) : (
             <div className="flex min-h-[420px] flex-col items-center justify-center text-center">
               <Mail size={28} className="text-[color:var(--gold)]" />
-              <div className="mt-4 text-sm font-semibold text-white">
-                Sélectionne une demande
-              </div>
-              <p className="mt-2 max-w-sm text-[10px] leading-5 text-white/35">
-                Tu pourras répondre au support, suivre les bugs et gérer les demandes de suppression.
-              </p>
+              <div className="mt-4 text-sm font-semibold text-white">{tr("Sélectionne une demande")}</div>
+              <p className="mt-2 max-w-sm text-[10px] leading-5 text-white/35">{tr("Tu pourras répondre au support, suivre les bugs et gérer les demandes de suppression.")}</p>
             </div>
           )}
         </div>

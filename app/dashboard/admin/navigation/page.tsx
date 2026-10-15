@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { Eye, EyeOff, Loader2, Menu, RefreshCw, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 type Definition = { key: string; label: string; href: string; group: string; defaultVisible: boolean; order: number };
 
 export default function AdminNavigationPage() {
+  const { t: tr } = useLocale();
   const supabase = useMemo(() => createClient(), []);
   const [definitions, setDefinitions] = useState<Definition[]>([]);
   const [visibility, setVisibility] = useState<Record<string, boolean>>({});
@@ -31,11 +33,11 @@ export default function AdminNavigationPage() {
     try {
       const response = await fetch("/api/admin/navigation", { headers: await authHeaders(), cache: "no-store" });
       const data = await response.json();
-      if (!response.ok) throw new Error(data?.error || "Chargement impossible.");
+      if (!response.ok) throw new Error(data?.error || tr("Chargement impossible."));
       setDefinitions(data.definitions || []);
       setVisibility(data.visibility || {});
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Chargement impossible.");
+      setError(e instanceof Error ? e.message : tr("Chargement impossible."));
     } finally { setLoading(false); }
   }
 
@@ -51,10 +53,10 @@ export default function AdminNavigationPage() {
         body: JSON.stringify({ key: item.key, visible: next }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data?.error || "Modification impossible.");
+      if (!response.ok) throw new Error(data?.error || tr("Modification impossible."));
       setVisibility((current) => ({ ...current, [item.key]: next }));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Modification impossible.");
+      setError(e instanceof Error ? e.message : tr("Modification impossible."));
     } finally { setSaving(null); }
   }
 
@@ -66,26 +68,24 @@ export default function AdminNavigationPage() {
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.14em] text-[color:var(--gold)]">
-              <Menu size={13}/> Navigation InvestPro
-            </div>
-            <h1 className="mt-4 text-2xl font-semibold text-white">Gestion du menu</h1>
-            <p className="mt-1 text-sm text-[color:var(--muted)]">Affiche ou masque une rubrique sur desktop, mobile et dans l’accès direct.</p>
+              <Menu size={13}/>{tr(" Navigation InvestPro")}</div>
+            <h1 className="mt-4 text-2xl font-semibold text-white">{tr("Gestion du menu")}</h1>
+            <p className="mt-1 text-sm text-[color:var(--muted)]">{tr("Affiche ou masque une rubrique sur desktop, mobile et dans l’accès direct.")}</p>
           </div>
           <button onClick={() => void load()} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[.03] px-4 py-2 text-sm text-white/70">
-            <RefreshCw size={14}/> Actualiser
-          </button>
+            <RefreshCw size={14}/>{tr(" Actualiser")}</button>
         </div>
       </section>
 
-      {error ? <div className="rounded-xl border border-red-500/20 bg-red-500/[.06] px-4 py-3 text-sm text-red-300">{error}</div> : null}
+      {error ? <div className="rounded-xl border border-red-500/20 bg-red-500/[.06] px-4 py-3 text-sm text-red-300">{tr(error)}</div> : null}
 
       {loading ? (
-        <div className="flex min-h-[280px] items-center justify-center text-sm text-[color:var(--muted)]"><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Chargement…</div>
+        <div className="flex min-h-[280px] items-center justify-center text-sm text-[color:var(--muted)]"><Loader2 className="mr-2 h-4 w-4 animate-spin"/>{tr(" Chargement…")}</div>
       ) : (
         <div className="space-y-4">
           {groups.map((group) => (
             <section key={group} className="overflow-hidden rounded-[22px] border border-white/[.07] bg-[color:var(--panel)]">
-              <div className="border-b border-white/[.06] px-5 py-4 text-xs font-bold tracking-[.14em] text-[color:var(--gold)]">{group}</div>
+              <div className="border-b border-white/[.06] px-5 py-4 text-xs font-bold tracking-[.14em] text-[color:var(--gold)]">{tr(group)}</div>
               <div className="divide-y divide-white/[.05]">
                 {definitions.filter((item) => item.group === group).sort((a,b)=>a.order-b.order).map((item) => {
                   const visible = visibility[item.key] !== false;
@@ -95,7 +95,7 @@ export default function AdminNavigationPage() {
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 text-sm font-semibold text-white">
                           {visible ? <Eye size={14} className="text-emerald-400"/> : <EyeOff size={14} className="text-white/35"/>}
-                          {item.label}
+                          {tr(item.label)}
                         </div>
                         <div className="mt-1 truncate text-[10px] text-white/35">{item.href}</div>
                       </div>
@@ -104,7 +104,7 @@ export default function AdminNavigationPage() {
                         disabled={locked || saving === item.key}
                         onClick={() => void toggle(item)}
                         className={`relative h-7 w-12 rounded-full border transition ${visible ? "border-emerald-500/25 bg-emerald-500/15" : "border-white/10 bg-white/[.04]"} disabled:cursor-not-allowed disabled:opacity-45`}
-                        aria-label={`${visible ? "Masquer" : "Afficher"} ${item.label}`}
+                        aria-label={`${visible ? tr("Masquer") : tr("Afficher")} ${tr(item.label)}`}
                       >
                         <span className={`absolute top-[3px] h-5 w-5 rounded-full transition ${visible ? "left-[23px] bg-emerald-400" : "left-[3px] bg-white/35"}`}/>
                       </button>
@@ -118,9 +118,7 @@ export default function AdminNavigationPage() {
       )}
 
       <div className="flex items-start gap-3 rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4 text-xs leading-5 text-white/55">
-        <ShieldCheck size={16} className="mt-0.5 shrink-0 text-[color:var(--gold)]"/>
-        Une rubrique masquée disparaît du menu desktop et du menu mobile. Son URL directe affiche également un écran d’indisponibilité. Dashboard et Profil restent toujours accessibles.
-      </div>
+        <ShieldCheck size={16} className="mt-0.5 shrink-0 text-[color:var(--gold)]"/>{tr("Une rubrique masquée disparaît du menu desktop et du menu mobile. Son URL directe affiche également un écran d’indisponibilité. Dashboard et Profil restent toujours accessibles.")}</div>
     </div>
   );
 }

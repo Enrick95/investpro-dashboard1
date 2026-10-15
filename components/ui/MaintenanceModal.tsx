@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import Modal from "./Modal";
 import { Button } from "./Button";
 
@@ -11,6 +12,7 @@ export default function MaintenanceModal({
   open: boolean;
   target: "terminal" | "copieur";
 }) {
+  const { t } = useLocale();
   const title =
     target === "terminal" ? "Terminal en maintenance" : "InvestPro Copier en maintenance";
 
@@ -22,21 +24,21 @@ export default function MaintenanceModal({
   return (
     <Modal
       open={open}
-      title={title}
+      title={t(title)}
       onClose={() => {}}
       hideClose
       footer={
         <div className="flex items-center justify-end gap-3 w-full">
           <Link href="/dashboard">
-            <Button>Retour Dashboard</Button>
+            <Button>{t("Retour Dashboard")}</Button>
           </Link>
           <Link href="/dashboard/journal">
-            <Button variant="ghost">Aller au Journal</Button>
+            <Button variant="ghost">{t("Aller au Journal")}</Button>
           </Link>
         </div>
       }
     >
-      <div className="text-sm text-[color:var(--muted)]">{desc}</div>
+      <div className="text-sm text-[color:var(--muted)]">{t(desc)}</div>
     </Modal>
   );
 }

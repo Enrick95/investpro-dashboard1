@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
+
 import { useMemo, useRef, useState } from "react";
 import { Card, CardBody } from "../../../components/ui/Card";
 import { Button } from "../../../components/ui/Button";
@@ -31,6 +33,7 @@ function readAsDataUrl(file: File): Promise<string> {
 }
 
 export default function BugPage() {
+  const { t: translate } = useLocale();
   const supabase = useMemo(() => createClient(), []);
   const [where, setWhere] = useState("");
   const [desc, setDesc] = useState("");
@@ -143,36 +146,35 @@ export default function BugPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-semibold">
-          Rapporter <span className="text-[color:var(--gold)]">un bug</span>
+          {translate("Rapporter")}{" "}<span className="text-[color:var(--gold)]">{translate("un bug")}</span>
         </h1>
         <p className="text-[color:var(--muted)] mt-1">
-          Décris précisément, et ajoute des images si possible.
-        </p>
+          {translate("Décris précisément, et ajoute des images si possible.")}</p>
       </div>
 
       <Card>
         <CardBody>
           {err ? (
             <div className="mb-4 text-sm rounded-2xl border border-[color:var(--danger)]/25 bg-[color:var(--danger)]/10 text-[color:var(--danger)] p-3">
-              {err}
+              {err.startsWith("Image trop grosse : ") ? translate("Image trop grosse :") + err.slice("Image trop grosse :".length) : translate(err)}
             </div>
           ) : null}
 
           {ok ? (
             <div className="mb-4 text-sm rounded-2xl border border-[color:var(--success)]/25 bg-[color:var(--success)]/10 text-[color:var(--success)] p-3">
-              {ok}
+              {translate(ok)}
             </div>
           ) : null}
 
           {/* Où */}
           <label className="block">
             <div className="text-sm text-white/80 mb-2">
-              Où avez-vous trouvé ce bug ? <span className="text-[color:var(--danger)]">*</span>
+              {translate("Où avez-vous trouvé ce bug ?")}{" "}<span className="text-[color:var(--danger)]">*</span>
             </div>
             <input
               value={where}
               onChange={(e) => setWhere(e.target.value)}
-              placeholder="Problème avec l’abonnement"
+              placeholder={translate("Problème avec l’abonnement")}
               className="w-full px-4 py-3 rounded-2xl bg-black/20 border border-[color:var(--border)]
                          text-white placeholder:text-white/30 outline-none
                          focus:border-[color:var(--gold-border)]
@@ -183,13 +185,13 @@ export default function BugPage() {
           {/* Description */}
           <label className="block mt-5">
             <div className="text-sm text-white/80 mb-2">
-              Description détaillée du bug ? <span className="text-[color:var(--danger)]">*</span>
+              {translate("Description détaillée du bug ?")}{" "}<span className="text-[color:var(--danger)]">*</span>
             </div>
             <textarea
               value={desc}
               onChange={(e) => setDesc(e.target.value)}
               rows={5}
-              placeholder="Expliquez comment vous avez fait pour rencontrer ce bug. Exemple : Je vais dans la page Paramètres, je clique sur annuler mon abonnement : mon abonnement ne s’annule pas."
+              placeholder={translate("Expliquez comment vous avez fait pour rencontrer ce bug. Exemple : Je vais dans la page Paramètres, je clique sur annuler mon abonnement : mon abonnement ne s’annule pas.")}
               className="w-full px-4 py-3 rounded-2xl bg-black/20 border border-[color:var(--border)]
                          text-white placeholder:text-white/30 outline-none
                          focus:border-[color:var(--gold-border)]
@@ -200,7 +202,7 @@ export default function BugPage() {
           {/* Dropzone */}
           <div className="mt-6">
             <div className="text-sm text-white/80 mb-2">
-              Illustrations du bug <span className="text-[color:var(--muted)]">(facultatif)</span>
+              {translate("Illustrations du bug")}{" "}<span className="text-[color:var(--muted)]">{translate("(facultatif)")}</span>
             </div>
 
             <div
@@ -233,10 +235,9 @@ export default function BugPage() {
               }}
             >
               <div className="text-sm font-semibold text-white">
-                Sélectionnez ou glissez déposez vos images ici
-              </div>
+                {translate("Sélectionnez ou glissez déposez vos images ici")}</div>
               <div className="text-xs text-[color:var(--muted)] mt-2">
-                Taille maximale : {fmtBytes(MAX_IMG_BYTES)}
+                {translate("Taille maximale :")}{" "}{fmtBytes(MAX_IMG_BYTES)}
               </div>
 
               <div className="mt-4 flex justify-center">
@@ -245,8 +246,7 @@ export default function BugPage() {
                   onClick={() => fileRef.current?.click()}
                   className="px-4 py-2 rounded-2xl border border-[color:var(--border)] bg-black/20 hover:bg-white/5 transition text-sm"
                 >
-                  📎 Choisir des images
-                </button>
+                  {translate("📎 Choisir des images")}</button>
 
                 <input
                   ref={fileRef}
@@ -275,7 +275,7 @@ export default function BugPage() {
                         type="button"
                         onClick={() => removeImg(img.id)}
                         className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/70 border border-white/10 text-white hover:bg-black transition"
-                        title="Supprimer"
+                        title={translate("Supprimer")}
                       >
                         ✕
                       </button>
@@ -296,16 +296,15 @@ export default function BugPage() {
               disabled={!canSend}
               className="w-full py-4 text-base font-semibold"
             >
-              {sending ? "Envoi..." : "Rapporter un bug"}
+              {sending ? translate("Envoi...") : translate("Rapporter un bug")}
             </Button>
           </div>
 
           {/* Info footer */}
           <div className="mt-6 rounded-2xl border border-blue-500/20 bg-blue-500/10 p-4 text-sm text-blue-200">
-            <div className="font-semibold">ℹ️ Nous reviendrons vers vous au plus vite.</div>
+            <div className="font-semibold">{translate("ℹ️ Nous reviendrons vers vous au plus vite.")}</div>
             <div className="mt-1 text-blue-100/80">
-              Merci de détailler au mieux le rapport de bug. Veuillez inclure des photos si possible.
-            </div>
+              {translate("Merci de détailler au mieux le rapport de bug. Veuillez inclure des photos si possible.")}</div>
           </div>
         </CardBody>
       </Card>

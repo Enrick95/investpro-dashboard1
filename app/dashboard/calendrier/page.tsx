@@ -1,4 +1,5 @@
 "use client";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import MarketWidget from "@/components/markets/MarketWidget";
 
 import { useEffect, useMemo, useState } from "react";
@@ -166,7 +167,8 @@ function startOfWeekMonday(
 }
 
 function formatDayHeaderFR(
-  ymd: string
+  ymd: string,
+  locale: "fr" | "en" = "fr"
 ) {
   const [year, month, day] =
     ymd
@@ -184,7 +186,7 @@ function formatDayHeaderFR(
     );
 
   return new Intl.DateTimeFormat(
-    "fr-FR",
+    locale === "en" ? "en-GB" : "fr-FR",
     {
       timeZone:
         "Europe/Paris",
@@ -604,6 +606,8 @@ function ImpactBadge({
 }: {
   stars: Stars;
 }) {
+  const { t: translate } = useLocale();
+
   return (
     <span
       className={[
@@ -616,9 +620,9 @@ function ImpactBadge({
           : "border-white/10 bg-white/5 text-white/45",
       ].join(" ")}
     >
-      {impactLabel(
+      {translate(impactLabel(
         stars
-      )}
+      ))}
     </span>
   );
 }
@@ -670,6 +674,8 @@ function eventTimestamp(
 ========================================================= */
 
 function CalendrierPage() {
+  const { t: translate, locale } = useLocale();
+
   const today =
     useMemo(
       () =>
@@ -807,9 +813,9 @@ function CalendrierPage() {
         pushNotif({
           kind: "warning",
           title:
-            "Calendrier",
+            translate("Calendrier"),
           message:
-            "La source du calendrier est momentanément indisponible.",
+            translate("La source du calendrier est momentanément indisponible."),
           ttlMs: 10000,
         });
 
@@ -838,9 +844,9 @@ function CalendrierPage() {
       pushNotif({
         kind: "error",
         title:
-          "Calendrier",
+          translate("Calendrier"),
         message:
-          "Impossible de charger le calendrier économique.",
+          translate("Impossible de charger le calendrier économique."),
         ttlMs: 10000,
       });
     } finally {
@@ -904,7 +910,7 @@ function CalendrierPage() {
               return true;
             }
 
-            return `${event.title} ${event.currency} ${event.countryLabel}`
+            return `${event.title} ${event.currency} ${translate(event.countryLabel)}`
               .toLowerCase()
               .includes(
                 search
@@ -916,6 +922,7 @@ function CalendrierPage() {
       starsFilter,
       currencyFilter,
       query,
+      translate,
     ]);
 
   /* =====================================================
@@ -1048,18 +1055,13 @@ function CalendrierPage() {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-white">
-            Calendrier{" "}
+            {translate("Calendrier économique").split(" ").slice(0, -1).join(" ")}{" "}
             <span className="text-[color:var(--gold)]">
-              économique
-            </span>
+              {translate("Calendrier économique").split(" ").slice(-1)}</span>
           </h1>
 
           <p className="mt-1 text-sm text-[color:var(--muted)]">
-            Suis les annonces
-            macroéconomiques qui
-            peuvent impacter les
-            marchés.
-          </p>
+            {translate("Suis les annonces macroéconomiques qui peuvent impacter les marchés.")}</p>
         </div>
 
         <button
@@ -1094,8 +1096,8 @@ function CalendrierPage() {
           />
 
           {loading
-            ? "Actualisation..."
-            : "Actualiser"}
+            ? translate("Actualisation...")
+            : translate("Actualiser")}
         </button>
       </div>
 
@@ -1135,9 +1137,7 @@ function CalendrierPage() {
                 size={14}
               />
 
-              PROCHAINE NEWS
-              IMPORTANTE
-            </div>
+              {translate("PROCHAINE NEWS IMPORTANTE")}</div>
 
             {nextImportant ? (
               <>
@@ -1162,9 +1162,7 @@ function CalendrierPage() {
 
                   <span>
                     {
-                      nextImportant
-                        .countryLabel
-                    }
+                      translate(nextImportant.countryLabel)}
                   </span>
 
                   <span>
@@ -1188,15 +1186,10 @@ function CalendrierPage() {
             ) : (
               <>
                 <h2 className="mt-3 text-lg font-semibold text-white">
-                  Aucune news majeure
-                  détectée
-                </h2>
+                  {translate("Aucune news majeure détectée")}</h2>
 
                 <p className="mt-2 text-xs text-[color:var(--muted)]">
-                  Aucune annonce 3
-                  étoiles à venir dans
-                  la plage chargée.
-                </p>
+                  {translate("Aucune annonce 3 étoiles à venir dans la plage chargée.")}</p>
               </>
             )}
           </div>
@@ -1204,7 +1197,7 @@ function CalendrierPage() {
           {nextImportant ? (
             <div className="flex items-center gap-5">
               <DataValue
-                label="Précédent"
+                label={translate("Précédent")}
                 value={
                   nextImportant.previous ??
                   "—"
@@ -1212,7 +1205,7 @@ function CalendrierPage() {
               />
 
               <DataValue
-                label="Prévision"
+                label={translate("Prévision")}
                 value={
                   nextImportant.forecast ??
                   "—"
@@ -1244,8 +1237,7 @@ function CalendrierPage() {
 
           <div>
             <div className="mb-2 text-[10px] uppercase tracking-[0.12em] text-white/35">
-              Période
-            </div>
+              {translate("Période")}</div>
 
             <div className="flex flex-wrap gap-2">
               <SegmentedButton
@@ -1262,8 +1254,7 @@ function CalendrierPage() {
                   );
                 }}
               >
-                Aujourd’hui
-              </SegmentedButton>
+                {translate("Aujourd’hui")}</SegmentedButton>
 
               <SegmentedButton
                 active={
@@ -1276,8 +1267,7 @@ function CalendrierPage() {
                   )
                 }
               >
-                Demain
-              </SegmentedButton>
+                {translate("Demain")}</SegmentedButton>
 
               <SegmentedButton
                 active={
@@ -1290,8 +1280,7 @@ function CalendrierPage() {
                   )
                 }
               >
-                Cette semaine
-              </SegmentedButton>
+                {translate("Cette semaine")}</SegmentedButton>
             </div>
           </div>
 
@@ -1299,8 +1288,7 @@ function CalendrierPage() {
 
           <div className="xl:w-[190px]">
             <div className="mb-2 text-[10px] uppercase tracking-[0.12em] text-white/35">
-              Impact
-            </div>
+              {translate("Impact")}</div>
 
             <GoldSelect
               value={
@@ -1347,32 +1335,32 @@ function CalendrierPage() {
                   value:
                     "ALL",
                   label:
-                    "Tous les impacts",
+                    translate("Tous les impacts"),
                 },
 
                 {
                   value:
                     "23",
                   label:
-                    "Moyen + Élevé",
+                    translate("Moyen + Élevé"),
                 },
 
                 {
                   value: "3",
                   label:
-                    "Élevé",
+                    translate("Élevé"),
                 },
 
                 {
                   value: "2",
                   label:
-                    "Moyen",
+                    translate("Moyen"),
                 },
 
                 {
                   value: "1",
                   label:
-                    "Faible",
+                    translate("Faible"),
                 },
               ]}
               className="w-full"
@@ -1383,8 +1371,7 @@ function CalendrierPage() {
 
           <div className="xl:w-[180px]">
             <div className="mb-2 text-[10px] uppercase tracking-[0.12em] text-white/35">
-              Devise
-            </div>
+              {translate("Devise")}</div>
 
             <select
               value={
@@ -1412,28 +1399,22 @@ function CalendrierPage() {
               "
             >
               <option value="ALL">
-                Toutes
-              </option>
+                {translate("Toutes")}</option>
 
               <option value="USD">
-                🇺🇸 USD
-              </option>
+                {translate("🇺🇸 USD")}</option>
 
               <option value="EUR">
-                🇪🇺 EUR
-              </option>
+                {translate("🇪🇺 EUR")}</option>
 
               <option value="GBP">
-                🇬🇧 GBP
-              </option>
+                {translate("🇬🇧 GBP")}</option>
 
               <option value="JPY">
-                🇯🇵 JPY
-              </option>
+                {translate("🇯🇵 JPY")}</option>
 
               <option value="CNY">
-                🇨🇳 CNY
-              </option>
+                {translate("🇨🇳 CNY")}</option>
             </select>
           </div>
 
@@ -1441,8 +1422,7 @@ function CalendrierPage() {
 
           <div className="relative flex-1">
             <div className="mb-2 text-[10px] uppercase tracking-[0.12em] text-white/35">
-              Recherche
-            </div>
+              {translate("Recherche")}</div>
 
             <Search
               size={15}
@@ -1466,7 +1446,7 @@ function CalendrierPage() {
                     .value
                 )
               }
-              placeholder="NFP, CPI, taux d’intérêt..."
+              placeholder={translate("NFP, CPI, taux d’intérêt...")}
               className="
                 h-11
                 w-full
@@ -1502,9 +1482,7 @@ function CalendrierPage() {
           </span>
 
           <span className="ml-auto">
-            Heure affichée :
-            Paris
-          </span>
+            {translate("Heure affichée : Paris")}</span>
         </div>
       </section>
 
@@ -1514,7 +1492,7 @@ function CalendrierPage() {
 
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
-          label="Événements"
+          label={translate("Événements")}
           value={
             stats.total
           }
@@ -1526,7 +1504,7 @@ function CalendrierPage() {
         />
 
         <StatCard
-          label="Impact élevé"
+          label={translate("Impact élevé")}
           value={
             stats.high
           }
@@ -1539,7 +1517,7 @@ function CalendrierPage() {
         />
 
         <StatCard
-          label="Impact moyen"
+          label={translate("Impact moyen")}
           value={
             stats.medium
           }
@@ -1552,7 +1530,7 @@ function CalendrierPage() {
         />
 
         <StatCard
-          label="Impact faible"
+          label={translate("Impact faible")}
           value={
             stats.low
           }
@@ -1586,18 +1564,15 @@ function CalendrierPage() {
         >
           <div>
             <h2 className="text-sm font-semibold text-white">
-              Événements
-              économiques
-            </h2>
+              {translate("Événements économiques")}</h2>
 
             <p className="mt-1 text-[10px] text-[color:var(--muted)]">
               {
                 filtered.length
               }{" "}
-              événement
-              {filtered.length !==
+              {translate("événement")}{filtered.length !==
               1
-                ? "s"
+                ? translate("s")
                 : ""}
             </p>
           </div>
@@ -1632,17 +1607,13 @@ function CalendrierPage() {
 
             <div className="mt-4 text-sm font-semibold text-white">
               {loading
-                ? "Chargement du calendrier..."
-                : "Aucun événement"}
+                ? translate("Chargement du calendrier...")
+                : translate("Aucun événement")}
             </div>
 
             {!loading ? (
               <p className="mt-2 text-xs text-[color:var(--muted)]">
-                Modifie les
-                filtres ou
-                actualise le
-                calendrier.
-              </p>
+                {translate("Modifie les filtres ou actualise le calendrier.")}</p>
             ) : null}
           </div>
         ) : (
@@ -1680,7 +1651,7 @@ function CalendrierPage() {
 
                       <span className="text-xs font-semibold capitalize text-white">
                         {formatDayHeaderFR(
-                          day
+                          day, locale
                         )}
                       </span>
                     </div>
@@ -1689,10 +1660,9 @@ function CalendrierPage() {
                       {
                         list.length
                       }{" "}
-                      annonce
-                      {list.length !==
+                      {translate("annonce")}{list.length !==
                       1
-                        ? "s"
+                        ? translate("s")
                         : ""}
                     </span>
                   </div>
@@ -1714,32 +1684,25 @@ function CalendrierPage() {
                     "
                   >
                     <div className="lg:col-span-1">
-                      Heure
-                    </div>
+                      {translate("Heure")}</div>
 
                     <div className="lg:col-span-1">
-                      Devise
-                    </div>
+                      {translate("Devise")}</div>
 
                     <div className="lg:col-span-1">
-                      Impact
-                    </div>
+                      {translate("Impact")}</div>
 
                     <div className="lg:col-span-5">
-                      Événement
-                    </div>
+                      {translate("Événement")}</div>
 
                     <div className="text-right lg:col-span-1">
-                      Préc.
-                    </div>
+                      {translate("Préc.")}</div>
 
                     <div className="text-right lg:col-span-1">
-                      Prévision
-                    </div>
+                      {translate("Prévision")}</div>
 
                     <div className="text-right lg:col-span-2">
-                      Réel
-                    </div>
+                      {translate("Réel")}</div>
                   </div>
 
                   {/* EVENT ROWS */}
@@ -1815,15 +1778,14 @@ function CalendrierPage() {
 
                             <div className="mt-1 text-[10px] text-[color:var(--muted)]">
                               {
-                                event.countryLabel
-                              }
+                                translate(event.countryLabel)}
                             </div>
                           </div>
 
                           {/* PREVIOUS */}
 
                           <DataCell
-                            label="Précédent"
+                            label={translate("Précédent")}
                             value={
                               event.previous ??
                               "—"
@@ -1833,7 +1795,7 @@ function CalendrierPage() {
                           {/* FORECAST */}
 
                           <DataCell
-                            label="Prévision"
+                            label={translate("Prévision")}
                             value={
                               event.forecast ??
                               "—"
@@ -1844,8 +1806,7 @@ function CalendrierPage() {
 
                           <div className="lg:col-span-2 lg:text-right">
                             <div className="text-[9px] text-white/30 lg:hidden">
-                              Réel
-                            </div>
+                              {translate("Réel")}</div>
 
                             <div className="text-sm font-semibold text-[color:var(--gold)]">
                               {
@@ -1886,6 +1847,8 @@ function StatCard({
     | "warning"
     | "danger";
 }) {
+  const { t: translate } = useLocale();
+
   return (
     <div
       className="
@@ -1914,7 +1877,7 @@ function StatCard({
 
         <div>
           <div className="text-[10px] text-[color:var(--muted)]">
-            {label}
+            {translate(label)}
           </div>
 
           <div className="mt-1 text-xl font-semibold text-white">
@@ -1933,10 +1896,12 @@ function DataValue({
   label: string;
   value: string;
 }) {
+  const { t: translate } = useLocale();
+
   return (
     <div>
       <div className="text-[9px] text-white/30">
-        {label}
+        {translate(label)}
       </div>
 
       <div className="mt-1 text-sm font-semibold text-white">
@@ -1953,10 +1918,12 @@ function DataCell({
   label: string;
   value: string;
 }) {
+  const { t: translate } = useLocale();
+
   return (
     <div className="lg:col-span-1 lg:text-right">
       <div className="text-[9px] text-white/30 lg:hidden">
-        {label}
+        {translate(label)}
       </div>
 
       <div className="text-xs font-medium text-white/75">
@@ -1965,4 +1932,6 @@ function DataCell({
     </div>
   );
 }
-export default function MarketPage(){return <><MarketWidget kind="calendrier"/><details className="mt-6"><summary className="cursor-pointer text-sm text-[color:var(--gold)]">Outils et affichage InvestPro</summary><div className="mt-5"><CalendrierPage/></div></details></>;}
+export default function MarketPage(){
+  const { t: translate } = useLocale();
+return <><MarketWidget kind="calendrier"/><details className="mt-6"><summary className="cursor-pointer text-sm text-[color:var(--gold)]">{translate("Outils et affichage InvestPro")}</summary><div className="mt-5"><CalendrierPage/></div></details></>;}

@@ -1,4 +1,6 @@
 "use client";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+
 
 import Link from "next/link";
 import {
@@ -64,6 +66,8 @@ export default function NewMemberJourney({
   appDone,
   onDismiss,
 }: Props) {
+  const { t } = useLocale();
+
   const doneMap = {
     account: accountDone,
     plan: planDone,
@@ -83,17 +87,13 @@ export default function NewMemberJourney({
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gold)]">
               <Sparkles size={11} />
-              Commence ici
-            </div>
+              {t("Commence ici")}</div>
 
             <h2 className="mt-3 text-lg font-semibold text-white">
-              Configure ton espace InvestPro
-            </h2>
+              {t("Configure ton espace InvestPro")}</h2>
 
             <p className="mt-1 max-w-2xl text-[10px] leading-5 text-[color:var(--muted)]">
-              Quelques étapes suffisent pour débloquer une expérience complète :
-              comptes, discipline, journal, statistiques et accès mobile.
-            </p>
+              {t("Quelques étapes suffisent pour débloquer une expérience complète : comptes, discipline, journal, statistiques et accès mobile.")}</p>
           </div>
 
           {onDismiss ? (
@@ -101,7 +101,7 @@ export default function NewMemberJourney({
               type="button"
               onClick={onDismiss}
               className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-black/20 text-white/35 transition hover:text-white"
-              aria-label="Masquer"
+              aria-label={t("Masquer")}
             >
               <X size={15} />
             </button>
@@ -136,11 +136,10 @@ export default function NewMemberJourney({
                       <Check size={16} />
                     </span>
                     <span className="min-w-0 flex-1 truncate text-[12px] font-semibold text-white">
-                      {step.title}
+                      {t(step.title)}
                     </span>
                     <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-500/15 bg-emerald-500/[0.05] px-2 py-1 text-[8px] font-bold uppercase text-emerald-400">
-                      <Check size={9} /> Terminé
-                    </span>
+                      <Check size={9} /> {t(" Terminé")}</span>
                   </div>
 
                   <div className="hidden p-5 md:block">
@@ -149,18 +148,16 @@ export default function NewMemberJourney({
                         <Check size={17} />
                       </span>
                       <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/15 bg-emerald-500/[0.05] px-2 py-1 text-[8px] font-bold uppercase text-emerald-400">
-                        <Check size={9} /> Terminé
-                      </span>
+                        <Check size={9} /> {t(" Terminé")}</span>
                     </div>
                     <div className="mt-4 text-[12px] font-semibold text-white">
-                      {step.title}
+                      {t(step.title)}
                     </div>
                     <p className="mt-1 min-h-[40px] text-[9px] leading-4 text-white/35">
-                      {step.text}
+                      {t(step.text)}
                     </p>
                     <div className="mt-4 inline-flex items-center gap-2 text-[9px] font-semibold text-emerald-400">
-                      <Check size={12} /> Étape complétée
-                    </div>
+                      <Check size={12} /> {t(" Étape complétée")}</div>
                   </div>
                 </>
               ) : (
@@ -170,20 +167,19 @@ export default function NewMemberJourney({
                       <Icon size={17} />
                     </span>
                     <span className="inline-flex items-center gap-1 rounded-full border border-white/[0.07] bg-black/20 px-2 py-1 text-[8px] font-bold uppercase text-white/30">
-                      <Circle size={8} /> À faire
-                    </span>
+                      <Circle size={8} /> {t(" À faire")}</span>
                   </div>
                   <div className="mt-4 text-[12px] font-semibold text-white">
-                    {step.title}
+                    {t(step.title)}
                   </div>
                   <p className="mt-1 min-h-[40px] text-[9px] leading-4 text-white/35">
-                    {step.text}
+                    {t(step.text)}
                   </p>
                   <Link
                     href={step.href}
                     className="mt-4 inline-flex items-center gap-1.5 text-[9px] font-semibold text-[color:var(--gold)] no-underline"
                   >
-                    {step.cta}
+                    {t(step.cta)}
                     <ArrowRight size={11} />
                   </Link>
                 </div>
@@ -197,15 +193,13 @@ export default function NewMemberJourney({
         <div className="flex flex-col gap-3 border-t border-white/[0.06] bg-black/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between md:px-5">
           <div className="flex items-center gap-2 text-[9px] text-white/38">
             <BarChart3 size={13} className="text-[color:var(--gold)]" />
-            Tes premières données sont prêtes à être analysées.
-          </div>
+            {t("Tes premières données sont prêtes à être analysées.")}</div>
 
           <Link
             href="/dashboard/rapports"
             className="inline-flex items-center gap-1.5 text-[9px] font-semibold text-[color:var(--gold)]"
           >
-            Voir mes rapports
-            <ArrowRight size={11} />
+            {t("Voir mes rapports")}<ArrowRight size={11} />
           </Link>
         </div>
       ) : null}

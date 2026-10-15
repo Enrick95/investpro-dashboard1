@@ -1,4 +1,6 @@
 "use client";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+
 
 import { useMemo } from "react";
 import { X, Bell, CheckCircle2, AlertTriangle, Info, Radio, Clock, Shield, Youtube } from "lucide-react";
@@ -34,6 +36,8 @@ function iconFor(kind: string) {
 }
 
 export default function ToastHub() {
+  const { t: translate } = useLocale();
+
   const { toasts } = useNotifs();
 
   // top-right like you wanted
@@ -73,7 +77,7 @@ export default function ToastHub() {
                     className="mt-2 inline-flex items-center gap-1 text-xs text-white/75 hover:text-white"
                     onClick={() => markRead(t.id)}
                   >
-                    Ouvrir <span className="opacity-60">↗</span>
+                    {translate("Ouvrir ")}<span className="opacity-60">↗</span>
                   </a>
                 ) : null}
               </div>
@@ -84,7 +88,7 @@ export default function ToastHub() {
                   removeNotif(t.id);
                 }}
                 className="w-8 h-8 rounded-xl border border-white/10 bg-black/20 hover:bg-white/5 flex items-center justify-center"
-                title="Fermer"
+                title={translate("Fermer")}
               >
                 <X size={16} className="text-white/70" />
               </button>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
@@ -47,15 +48,15 @@ function parseTradeRow(row: HTMLElement): DrawerTrade {
   const direction =
     lines.find((line) => /^(ACHAT|VENTE|BUY|SELL)$/i.test(line)) || "";
   const status =
-    lines.find((line) => /^(WIN|LOSS|BE|OUVERT|ANNULÉ)$/i.test(line)) || "";
+    lines.find((line) => /^(WIN|LOSS|BE|OUVERT|ANNULÉ|OPEN|CANCELLED)$/i.test(line)) || "";
   const source =
-    lines.find((line) => /^(Import|Manuel|ProjectX|MT4|MT5)/i.test(line)) || "";
+    lines.find((line) => /^(Import|Manuel|Manual|ProjectX|MT4|MT5)/i.test(line)) || "";
   const pnl =
     lines.find((line) => /[-+]?\d[\d\s.,]*\s*(\$US|USD|EUR|€|\$)$/i.test(line)) ||
     lines.find((line) => /[-+]?\d[\d\s.,]*\s*(\$US|USD|EUR|€|\$)/i.test(line)) ||
     "—";
   const rInfo =
-    lines.find((line) => /\bR\b|risque initial|R et risque/i.test(line)) || "—";
+    lines.find((line) => /\bR\b|risque initial|R et risque|initial risk/i.test(line)) || "—";
   const date =
     lines.find((line) => /\b\d{1,2}\s+[a-zéû.]+\s+\d{4}\b/i.test(line)) ||
     lines.find((line) => /\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4}/.test(line)) ||
@@ -131,6 +132,8 @@ const frenchMonths: Record<string, number> = {
   novembre: 10,
   decembre: 11,
   décembre: 11,
+  january: 0, february: 1, march: 2, april: 3, may: 4, june: 5,
+  july: 6, august: 7, september: 8, october: 9, november: 10, december: 11,
 };
 
 const shortFrenchMonths: Record<string, number> = {
@@ -152,6 +155,7 @@ const shortFrenchMonths: Record<string, number> = {
   nov: 10,
   dec: 11,
   déc: 11,
+  feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8,
 };
 
 function dateKeyFromRowText(value: string) {
@@ -166,11 +170,11 @@ function dateKeyFromRowText(value: string) {
   return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
-function labelFromDateKey(value: string | null) {
+function labelFromDateKey(value: string | null, locale: "fr" | "en" = "fr") {
   if (!value) return "";
   const [year, month, day] = value.split("-").map(Number);
   if (!year || !month || !day) return value;
-  return new Date(year, month - 1, day).toLocaleDateString("fr-FR", {
+  return new Date(year, month - 1, day).toLocaleDateString(locale === "en" ? "en-GB" : "fr-FR", {
     day: "2-digit",
     month: "long",
     year: "numeric",
@@ -194,6 +198,8 @@ function InfoCard({ label, value }: { label: string; value: string }) {
 }
 
 export default function JournalV2Shell({ children }: { children: ReactNode }) {
+  const { t, locale } = useLocale();
+
   const [selected, setSelected] = useState<DrawerTrade | null>(null);
   const [toolsHost, setToolsHost] = useState<HTMLElement | null>(null);
   const [accountFilter, setAccountFilter] = useState("all");
@@ -220,7 +226,7 @@ export default function JournalV2Shell({ children }: { children: ReactNode }) {
       const sections = Array.from(document.querySelectorAll("section")) as HTMLElement[];
       const filterSection = sections.find((section) => {
         const text = section.innerText || "";
-        return /Tous les résultats/i.test(text) && /(Achat|Vente)/i.test(text);
+        return /Tous les résultats|All results/i.test(text) && /(Achat|Vente|Buy|Sell)/i.test(text);
       });
 
       if (filterSection) {
@@ -235,7 +241,7 @@ export default function JournalV2Shell({ children }: { children: ReactNode }) {
       }
 
       const historySection = sections.find(
-        (section) => section.querySelector("h2")?.textContent?.trim().toLowerCase() === "historique"
+        (section) => ["historique", "history"].includes(section.querySelector("h2")?.textContent?.trim().toLowerCase() || "")
       );
       const rows = historySection
         ? (Array.from(historySection.querySelectorAll(".divide-y > div")) as HTMLElement[])
@@ -268,7 +274,7 @@ export default function JournalV2Shell({ children }: { children: ReactNode }) {
     function applyFilters() {
       const sections = Array.from(document.querySelectorAll("section")) as HTMLElement[];
       const historySection = sections.find(
-        (section) => section.querySelector("h2")?.textContent?.trim().toLowerCase() === "historique"
+        (section) => ["historique", "history"].includes(section.querySelector("h2")?.textContent?.trim().toLowerCase() || "")
       );
       if (!historySection) return;
 
@@ -319,12 +325,12 @@ export default function JournalV2Shell({ children }: { children: ReactNode }) {
       const target = event.target as HTMLElement | null;
       if (!target) return;
       const sections = Array.from(document.querySelectorAll("section")) as HTMLElement[];
-      const calendarSection = sections.find((section) => /Calendrier de performance/i.test(section.innerText || ""));
+      const calendarSection = sections.find((section) => /Calendrier de performance|Performance calendar/i.test(section.innerText || ""));
       if (!calendarSection || !calendarSection.contains(target)) return;
 
       const monthText = Array.from(calendarSection.querySelectorAll("button, div, span"))
         .map((node) => (node.textContent || "").trim().toLowerCase())
-        .find((text) => /^(janvier|février|fevrier|mars|avril|mai|juin|juillet|août|aout|septembre|octobre|novembre|décembre|decembre)\s+\d{4}$/.test(text));
+        .find((text) => /^[a-zà-ÿ]+\s+\d{4}$/i.test(text) && Object.hasOwn(frenchMonths, text.split(/\s+/)[0]));
       if (!monthText) return;
       const monthMatch = monthText.match(/^([a-zà-ÿ]+)\s+(\d{4})$/i);
       if (!monthMatch) return;
@@ -352,7 +358,7 @@ export default function JournalV2Shell({ children }: { children: ReactNode }) {
       setDateFilter(`${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`);
       window.setTimeout(() => {
         const history = sections.find(
-          (section) => section.querySelector("h2")?.textContent?.trim().toLowerCase() === "historique"
+          (section) => ["historique", "history"].includes(section.querySelector("h2")?.textContent?.trim().toLowerCase() || "")
         );
         history?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 80);
@@ -382,7 +388,7 @@ export default function JournalV2Shell({ children }: { children: ReactNode }) {
       if (!historySection) return;
 
       const heading = historySection.querySelector("h2")?.textContent?.trim().toLowerCase();
-      if (heading && heading !== "historique") return;
+      if (heading && !["historique", "history"].includes(heading)) return;
 
       setSelected(parseTradeRow(row));
     }
@@ -439,36 +445,35 @@ export default function JournalV2Shell({ children }: { children: ReactNode }) {
             >
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                 <div className="rounded-2xl border border-white/[0.07] bg-black/20 p-4">
-                  <div className="text-[10px] uppercase tracking-[0.12em] text-white/35">Profit Factor</div>
+                  <div className="text-[10px] uppercase tracking-[0.12em] text-white/35">{t("Profit Factor")}</div>
                   <div className="mt-1 text-xl font-bold text-[color:var(--gold)]">{quickStats.profitFactor}</div>
                 </div>
                 <div className="rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.035] p-4">
-                  <div className="text-[10px] uppercase tracking-[0.12em] text-white/35">Gain moyen</div>
+                  <div className="text-[10px] uppercase tracking-[0.12em] text-white/35">{t("Gain moyen")}</div>
                   <div className="mt-1 text-xl font-bold text-emerald-400">{quickStats.avgWin}</div>
                 </div>
                 <div className="rounded-2xl border border-red-500/15 bg-red-500/[0.035] p-4">
-                  <div className="text-[10px] uppercase tracking-[0.12em] text-white/35">Perte moyenne</div>
+                  <div className="text-[10px] uppercase tracking-[0.12em] text-white/35">{t("Perte moyenne")}</div>
                   <div className="mt-1 text-xl font-bold text-red-400">{quickStats.avgLoss}</div>
                 </div>
               </div>
 
               <div className="mt-4 flex items-center gap-2 text-sm font-semibold text-white">
                 <Filter size={15} className="text-[color:var(--gold)]" />
-                Filtres avancés
-                <span className="ml-auto text-[10px] font-normal text-white/35">{quickStats.visible} trade{quickStats.visible !== 1 ? "s" : ""} affiché{quickStats.visible !== 1 ? "s" : ""}</span>
+                {t("Filtres avancés")}<span className="ml-auto text-[10px] font-normal text-white/35">{quickStats.visible} {t("trade")}{quickStats.visible !== 1 ? t("s") : ""} {quickStats.visible !== 1 ? t("affichés") : t("affiché")}</span>
               </div>
 
               <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-4">
                 <select value={accountFilter} onChange={(e) => setAccountFilter(e.target.value)} className="journal-v2-select">
-                  <option value="all">Tous les comptes</option>
+                  <option value="all">{t("Tous les comptes")}</option>
                   {accounts.map((value) => <option key={value} value={value}>{value}</option>)}
                 </select>
                 <select value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)} className="journal-v2-select">
-                  <option value="all">Toutes les sources</option>
+                  <option value="all">{t("Toutes les sources")}</option>
                   {sources.map((value) => <option key={value} value={value}>{value}</option>)}
                 </select>
                 <select value={symbolFilter} onChange={(e) => setSymbolFilter(e.target.value)} className="journal-v2-select">
-                  <option value="all">Tous les actifs</option>
+                  <option value="all">{t("Tous les actifs")}</option>
                   {symbols.map((value) => <option key={value} value={value}>{value}</option>)}
                 </select>
                 <button
@@ -484,14 +489,13 @@ export default function JournalV2Shell({ children }: { children: ReactNode }) {
                   }}
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-black/20 px-4 text-xs font-semibold text-white/55 hover:border-[color:var(--gold-border)] hover:text-white"
                 >
-                  <RefreshCw size={13} /> Réinitialiser
-                </button>
+                  <RefreshCw size={13} /> {t("Réinitialiser")}</button>
               </div>
 
               {dateFilter ? (
                 <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-2.5 text-xs text-white/65">
                   <CalendarDays size={14} className="text-[color:var(--gold)]" />
-                  Journée sélectionnée : <strong className="text-white">{labelFromDateKey(dateFilter)}</strong>
+                  {t("Journée sélectionnée :")}{" "}<strong className="text-white">{labelFromDateKey(dateFilter, locale)}</strong>
                   <button
                     type="button"
                     onClick={() => {
@@ -502,11 +506,10 @@ export default function JournalV2Shell({ children }: { children: ReactNode }) {
                     }}
                     className="ml-auto rounded-lg border border-white/[0.08] bg-black/20 px-2.5 py-1.5 text-[10px] font-semibold text-white/55 hover:text-white"
                   >
-                    Effacer la journée
-                  </button>
+                    {t("Effacer la journée")}</button>
                 </div>
               ) : (
-                <div className="mt-3 text-[10px] text-white/30">Astuce : clique sur un jour du calendrier pour afficher uniquement les trades de cette journée.</div>
+                <div className="mt-3 text-[10px] text-white/30">{t("Astuce : clique sur un jour du calendrier pour afficher uniquement les trades de cette journée.")}</div>
               )}
             </motion.section>,
             toolsHost
@@ -518,7 +521,7 @@ export default function JournalV2Shell({ children }: { children: ReactNode }) {
           <>
             <motion.button
               type="button"
-              aria-label="Fermer le détail"
+              aria-label={t("Fermer le détail")}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -582,7 +585,7 @@ export default function JournalV2Shell({ children }: { children: ReactNode }) {
                 <div className="rounded-[22px] border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-5">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <div className="text-[10px] uppercase tracking-[0.12em] text-white/40">Résultat</div>
+                      <div className="text-[10px] uppercase tracking-[0.12em] text-white/40">{t("Résultat")}</div>
                       <div
                         className={`mt-1 text-2xl font-bold tracking-[-0.03em] ${
                           positive ? "text-emerald-400" : selected.pnl.startsWith("-") ? "text-red-400" : "text-white"
@@ -599,28 +602,25 @@ export default function JournalV2Shell({ children }: { children: ReactNode }) {
                 </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-3">
-                  <InfoCard label="Compte" value={selected.account} />
-                  <InfoCard label="Broker / serveur" value={selected.broker} />
-                  <InfoCard label="Source" value={selected.source || "Journal InvestPro"} />
-                  <InfoCard label="Sens" value={selected.direction || "—"} />
+                  <InfoCard label={t("Compte")} value={selected.account} />
+                  <InfoCard label={t("Broker / serveur")} value={selected.broker} />
+                  <InfoCard label={t("Source")} value={selected.source || t("Journal InvestPro")} />
+                  <InfoCard label={t("Sens")} value={selected.direction || "—"} />
                 </div>
 
                 <div className="mt-5 rounded-[22px] border border-white/[0.07] bg-white/[0.018] p-5">
                   <div className="flex items-center gap-2 text-sm font-semibold text-white">
                     <ShieldCheck size={16} className="text-[color:var(--gold)]" />
-                    Informations du journal
-                  </div>
+                    {t("Informations du journal")}</div>
                   <p className="mt-3 text-xs leading-6 text-white/45">
-                    Ce panneau reprend les informations disponibles dans ton historique actuel. Pour les trades importés MT4/MT5, le stop initial et le R peuvent rester indisponibles lorsque la plateforme ne permet pas de les reconstruire de façon fiable.
-                  </p>
+                    {t("Ce panneau reprend les informations disponibles dans ton historique actuel. Pour les trades importés MT4/MT5, le stop initial et le R peuvent rester indisponibles lorsque la plateforme ne permet pas de les reconstruire de façon fiable.")}</p>
                 </div>
 
                 {selected.raw.length ? (
                   <div className="mt-5 rounded-[22px] border border-white/[0.07] bg-black/20 p-5">
                     <div className="flex items-center gap-2 text-sm font-semibold text-white">
                       <FileText size={16} className="text-[color:var(--gold)]" />
-                      Détails disponibles
-                    </div>
+                      {t("Détails disponibles")}</div>
                     <div className="mt-4 flex flex-wrap gap-2">
                       {selected.raw.slice(0, 14).map((line, index) => (
                         <span
@@ -637,39 +637,35 @@ export default function JournalV2Shell({ children }: { children: ReactNode }) {
 
               <div className="border-t border-white/[0.07] bg-black/35 p-4 sm:px-6">
                 <div className="grid grid-cols-2 gap-3">
-                  {selected.row.querySelector('button[title="Voir le graphique"]') ? (
+                  {selected.row.querySelector('button[title="Voir le graphique"], button[title="View chart"]') ? (
                     <button
                       type="button"
-                      onClick={() => clickExistingAction("Voir le graphique")}
+                      onClick={() => clickExistingAction(t("Voir le graphique"))}
                       className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 text-xs font-semibold text-[color:var(--gold)]"
                     >
                       <Eye size={14} />
-                      Graphique
-                    </button>
+                      {t("Graphique")}</button>
                   ) : (
                     <div className="flex h-11 items-center justify-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 text-xs text-white/25">
                       <WalletCards size={14} />
-                      Pas de capture
-                    </div>
+                      {t("Pas de capture")}</div>
                   )}
 
-                  {selected.row.querySelector('button[title="Modifier"]') ? (
+                  {selected.row.querySelector('button[title="Modifier"], button[title="Edit"]') ? (
                     <button
                       type="button"
-                      onClick={() => clickExistingAction("Modifier")}
+                      onClick={() => clickExistingAction(t("Modifier"))}
                       className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[color:var(--gold)] px-4 text-xs font-bold text-black hover:brightness-105"
                     >
                       <Edit3 size={14} />
-                      Modifier
-                    </button>
+                      {t("Modifier")}</button>
                   ) : (
                     <button
                       type="button"
                       onClick={() => setSelected(null)}
                       className="h-11 rounded-xl bg-[color:var(--gold)] px-4 text-xs font-bold text-black"
                     >
-                      Fermer
-                    </button>
+                      {t("Fermer")}</button>
                   )}
                 </div>
               </div>
@@ -700,6 +696,7 @@ export default function JournalV2Shell({ children }: { children: ReactNode }) {
         [data-journal-v2] button { transition: transform .16s ease, filter .16s ease, border-color .16s ease, background .16s ease; }
         [data-journal-v2] button:active { transform: scale(.975); }
 
+        html[lang="en"] [data-journal-v2] .divide-y > div:hover::after { content: "View details"; }
         .journal-v2-select { height: 44px; width: 100%; border-radius: 12px; border: 1px solid rgba(255,255,255,.08); background: rgba(0,0,0,.20); padding: 0 12px; color: white; font-size: 12px; outline: none; }
         .journal-v2-select:focus { border-color: rgba(216,175,71,.35); box-shadow: 0 0 0 3px rgba(216,175,71,.06); }
         [data-journal-v2-selected-day="true"] { position: relative; z-index: 2; outline: 1px solid var(--gold, #d8af47) !important; outline-offset: -2px; box-shadow: inset 0 0 0 1px rgba(216,175,71,.30), 0 0 24px rgba(216,175,71,.10) !important; }

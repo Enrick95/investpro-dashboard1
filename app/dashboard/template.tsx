@@ -1,4 +1,6 @@
 "use client";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+
 
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -45,6 +47,8 @@ export default function DashboardTemplate({
 }: {
   children: React.ReactNode;
 }) {
+  const { t, locale } = useLocale();
+
   const pathname = usePathname();
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
@@ -135,7 +139,7 @@ export default function DashboardTemplate({
 
       Object.entries(routes).forEach(([label, href]) => {
         const labelNode = candidates.find(
-          (node) => node.textContent?.trim() === label
+          (node) => node.textContent?.trim() === label || node.textContent?.trim() === t(label)
         );
 
         const card = labelNode?.closest(".group");
@@ -165,7 +169,7 @@ export default function DashboardTemplate({
     }, 500);
 
     return () => window.clearTimeout(timer);
-  }, [isHome, router]);
+  }, [isHome, router, t]);
 
 
   useEffect(() => {
@@ -346,7 +350,7 @@ export default function DashboardTemplate({
     let tone: "neutral" | "good" | "warn" = "neutral";
 
     if (riskAlerts > 0) {
-      status = `${riskAlerts} alerte${riskAlerts > 1 ? "s" : ""} risque`;
+      status = `${riskAlerts} ${t(riskAlerts > 1 ? "alertes risque" : "alerte risque")}`;
       tone = "warn";
     } else if (closed.length && pnl > 0) {
       status = "Session positive";
@@ -368,7 +372,7 @@ export default function DashboardTemplate({
       status,
       tone,
     };
-  }, [trades, plan]);
+  }, [trades, plan, t]);
 
   return (
     <>
@@ -392,8 +396,7 @@ export default function DashboardTemplate({
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gold)]">
                     <Clock3 size={11} />
-                    Aujourd’hui
-                  </span>
+                    {t("Aujourd’hui")}</span>
                   <span
                     className={[
                       "rounded-full border px-2.5 py-1 text-[9px] font-semibold",
@@ -404,39 +407,37 @@ export default function DashboardTemplate({
                         : "border-white/[0.07] bg-black/20 text-white/40",
                     ].join(" ")}
                   >
-                    {todaySummary.status}
+                    {t(todaySummary.status)}
                   </span>
                 </div>
 
                 <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                   <div>
-                    <h2 className="text-xl font-semibold text-white">Pulse de session</h2>
+                    <h2 className="text-xl font-semibold text-white">{t("Pulse de session")}</h2>
                     <p className="mt-1 max-w-xl text-[10px] leading-5 text-[color:var(--muted)]">
-                      Un résumé instantané pour savoir où tu en es avant de reprendre une position.
-                    </p>
+                      {t("Un résumé instantané pour savoir où tu en es avant de reprendre une position.")}</p>
                   </div>
 
                   <Link
                     href="/dashboard/journal"
                     className="inline-flex items-center gap-1 text-[10px] font-semibold text-[color:var(--gold)]"
                   >
-                    Ouvrir le journal
-                    <ChevronRight size={12} />
+                    {t("Ouvrir le journal")}<ChevronRight size={12} />
                   </Link>
                 </div>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-px border-t border-white/[0.05] bg-white/[0.04] sm:grid-cols-4 xl:border-l xl:border-t-0">
-              <PulseMetric label="Trades" value={String(todaySummary.count)} />
-              <PulseMetric label="Wins / Loss" value={`${todaySummary.wins} / ${todaySummary.losses}`} />
+              <PulseMetric label={t("Trades")} value={String(todaySummary.count)} />
+              <PulseMetric label={t("Wins / Loss")} value={`${todaySummary.wins} / ${todaySummary.losses}`} />
               <PulseMetric
-                label="P&L jour"
-                value={`${todaySummary.pnl > 0 ? "+" : ""}${todaySummary.pnl.toLocaleString("fr-FR", { maximumFractionDigits: 0 })}`}
+                label={t("P&L jour")}
+                value={`${todaySummary.pnl > 0 ? "+" : ""}${todaySummary.pnl.toLocaleString(locale === "en" ? "en-US" : "fr-FR", { maximumFractionDigits: 0 })}`}
                 tone={todaySummary.pnl > 0 ? "good" : todaySummary.pnl < 0 ? "bad" : "neutral"}
               />
               <PulseMetric
-                label="Alertes risque"
+                label={t("Alertes risque")}
                 value={String(todaySummary.riskAlerts)}
                 tone={todaySummary.riskAlerts > 0 ? "warn" : "good"}
               />
@@ -453,38 +454,36 @@ export default function DashboardTemplate({
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h2 className="text-lg font-semibold text-white">
-                Analyse rapide
-              </h2>
+                {t("Analyse rapide")}</h2>
               <p className="mt-1 text-[10px] text-[color:var(--muted)]">
-                Tes raccourcis Journal, Rapports et Discipline réunis sur l’accueil.
-              </p>
+                {t("Tes raccourcis Journal, Rapports et Discipline réunis sur l’accueil.")}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
               <QuickLink
                 href="/dashboard/journal"
                 icon={<BookOpen size={14} />}
-                label="Journal"
+                label={t("Journal")}
               />
               <QuickLink
                 href="/dashboard/rapports"
                 icon={<BarChart3 size={14} />}
-                label="Rapports"
+                label={t("Rapports")}
               />
               <QuickLink
                 href="/dashboard/plan"
                 icon={<ShieldCheck size={14} />}
-                label="Discipline"
+                label={t("Discipline")}
               />
               <QuickLink
                 href="/dashboard/comptes"
                 icon={<Target size={14} />}
-                label="Comptes"
+                label={t("Comptes")}
               />
               <QuickLink
                 href="/dashboard/rapport-mensuel"
                 icon={<FileText size={14} />}
-                label="Bilan mensuel"
+                label={t("Bilan mensuel")}
               />
             </div>
           </div>
@@ -494,8 +493,7 @@ export default function DashboardTemplate({
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <div className="text-[9px] uppercase tracking-[0.08em] text-white/30">
-                    Courbe de capital
-                  </div>
+                    {t("Courbe de capital")}</div>
                   <div
                     className={[
                       "mt-1 text-lg font-semibold",
@@ -507,19 +505,17 @@ export default function DashboardTemplate({
                     ].join(" ")}
                   >
                     {analytics.totalPnl > 0 ? "+" : ""}
-                    {analytics.totalPnl.toLocaleString("fr-FR", {
+                    {analytics.totalPnl.toLocaleString(locale === "en" ? "en-US" : "fr-FR", {
                       maximumFractionDigits: 2,
                     })}{" "}
-                    $US
-                  </div>
+                    {t("$US")}</div>
                 </div>
 
                 <Link
                   href="/dashboard/rapports"
                   className="inline-flex items-center gap-1 text-[10px] font-semibold text-[color:var(--gold)]"
                 >
-                  Analyse complète
-                  <ChevronRight size={12} />
+                  {t("Analyse complète")}<ChevronRight size={12} />
                 </Link>
               </div>
 
@@ -529,7 +525,7 @@ export default function DashboardTemplate({
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:col-span-5">
               <MiniMetric
                 icon={<TrendingUp size={15} />}
-                label="Profit Factor"
+                label={t("Profit Factor")}
                 value={
                   analytics.profitFactor
                     ? analytics.profitFactor.toFixed(2)
@@ -538,17 +534,17 @@ export default function DashboardTemplate({
               />
               <MiniMetric
                 icon={<BarChart3 size={15} />}
-                label="Drawdown max"
-                value={`${analytics.maxDrawdown.toLocaleString("fr-FR", {
+                label={t("Drawdown max")}
+                value={`${analytics.maxDrawdown.toLocaleString(locale === "en" ? "en-US" : "fr-FR", {
                   maximumFractionDigits: 0,
                 })} $`}
               />
               <MiniMetric
                 icon={<ShieldCheck size={15} />}
-                label="Risque respecté"
+                label={t("Risque respecté")}
                 value={
                   analytics.riskRespect == null
-                    ? "N/D"
+                    ? t("N/D")
                     : `${Math.round(analytics.riskRespect)}%`
                 }
               />
@@ -636,11 +632,11 @@ function PulseMetric({
 }
 
 function MiniCurve({ values }: { values: number[] }) {
+  const { t } = useLocale();
   if (!values.length) {
     return (
       <div className="mt-4 flex h-[92px] items-center justify-center rounded-xl border border-dashed border-white/[0.07] text-[9px] text-white/25">
-        La courbe apparaîtra avec tes trades clôturés.
-      </div>
+        {t("La courbe apparaîtra avec tes trades clôturés.")}</div>
     );
   }
 

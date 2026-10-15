@@ -1,9 +1,13 @@
 "use client";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+
 
 import { useEffect, useState } from "react";
 import { getCurrentAccount } from "../lib/authStore";
 
 export default function RequireAuth({ children }: { children: React.ReactNode }) {
+  const { t } = useLocale();
+
   const [allowed, setAllowed] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -21,8 +25,7 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
   if (allowed === null) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center text-[color:var(--muted)]">
-        Vérification de la connexion...
-      </div>
+        {t("Vérification de la connexion...")}</div>
     );
   }
 

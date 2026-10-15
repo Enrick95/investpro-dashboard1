@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
+
 import { FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Eye, EyeOff, Loader2, LockKeyhole } from "lucide-react";
@@ -12,6 +14,7 @@ import AuthExperienceShell, {
 } from "@/components/auth/AuthExperienceShell";
 
 export default function ResetPasswordPage() {
+  const { t } = useLocale();
   const supabase = useMemo(() => createClient(), []);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -39,10 +42,11 @@ export default function ResetPasswordPage() {
       if (error) throw error;
       setDone(true);
       setMessage({ kind: "success", text: "Ton nouveau mot de passe est enregistré." });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = typeof error === "object" && error !== null && "message" in error && typeof error.message === "string" ? error.message : "";
       setMessage({
         kind: "error",
-        text: error?.message || "Le lien est peut-être expiré. Recommence depuis la page de connexion.",
+        text: errorMessage || "Le lien est peut-être expiré. Recommence depuis la page de connexion.",
       });
     } finally {
       setBusy(false);
@@ -53,10 +57,10 @@ export default function ResetPasswordPage() {
     <AuthExperienceShell mode="reset">
       <div className="rounded-[26px] border border-white/[0.07] bg-[#0d0f0d]/90 p-5 shadow-[0_30px_80px_rgba(0,0,0,.28)] sm:p-7">
         <AuthCardHeader
-          badge="Sécurité du compte"
-          title="Choisis un nouveau"
-          highlight="mot de passe"
-          description="Utilise un mot de passe unique pour InvestPro et différent de celui de tes brokers ou prop firms."
+          badge={t("Sécurité du compte")}
+          title={t("Choisis un nouveau")}
+          highlight={t("mot de passe")}
+          description={t("Utilise un mot de passe unique pour InvestPro et différent de celui de tes brokers ou prop firms.")}
         />
 
         <div className="mt-6 space-y-4">
@@ -66,7 +70,7 @@ export default function ResetPasswordPage() {
             <form onSubmit={update} className="space-y-3.5">
               {[{ label: "Nouveau mot de passe", value: password, setter: setPassword }, { label: "Confirmer", value: confirm, setter: setConfirm }].map((field) => (
                 <label key={field.label} className="block">
-                  <span className="mb-2 block text-[9px] font-medium text-white/45">{field.label}</span>
+                  <span className="mb-2 block text-[9px] font-medium text-white/45">{t(field.label)}</span>
                   <div className="relative">
                     <LockKeyhole size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
                     <input
@@ -78,6 +82,7 @@ export default function ResetPasswordPage() {
                     <button
                       type="button"
                       onClick={() => setShow((value) => !value)}
+                      aria-label={t(show ? "Masquer le mot de passe" : "Afficher le mot de passe")}
                       className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-white/28"
                     >
                       {show ? <EyeOff size={15} /> : <Eye size={15} />}
@@ -92,8 +97,7 @@ export default function ResetPasswordPage() {
                 className="flex h-12 w-full items-center justify-center gap-2 rounded-[14px] bg-[#e7ba4d] text-[11px] font-bold text-black disabled:opacity-50"
               >
                 {busy ? <Loader2 size={15} className="animate-spin" /> : null}
-                Enregistrer le nouveau mot de passe
-                {!busy ? <ArrowRight size={14} /> : null}
+                {t("Enregistrer le nouveau mot de passe")}{!busy ? <ArrowRight size={14} /> : null}
               </button>
             </form>
           ) : (
@@ -101,8 +105,7 @@ export default function ResetPasswordPage() {
               href="/login"
               className="flex h-12 w-full items-center justify-center gap-2 rounded-[14px] bg-[#e7ba4d] text-[11px] font-bold text-black"
             >
-              Retour à la connexion
-              <ArrowRight size={14} />
+              {t("Retour à la connexion")}<ArrowRight size={14} />
             </Link>
           )}
 

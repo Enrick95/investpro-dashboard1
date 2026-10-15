@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
+
 import { FormEvent, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -28,6 +30,7 @@ function requestedNextPath() {
 function serverNextPath() { return null; }
 
 export default function LoginPage() {
+  const { t } = useLocale();
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
@@ -140,13 +143,13 @@ export default function LoginPage() {
     <AuthExperienceShell mode="login">
       <div className="rounded-[26px] border border-white/[0.07] bg-[#0d0f0d]/90 p-5 shadow-[0_30px_80px_rgba(0,0,0,.28)] sm:p-7">
         <AuthCardHeader
-          badge={forgotMode ? "Récupération du compte" : "Espace membre"}
-          title={forgotMode ? "Retrouve ton" : "Connexion à ton espace"}
-          highlight={forgotMode ? "accès" : "InvestPro"}
+          badge={forgotMode ? t("Récupération du compte") : t("Espace membre")}
+          title={forgotMode ? t("Retrouve ton") : t("Connexion à ton espace")}
+          highlight={forgotMode ? t("accès") : t("InvestPro")}
           description={
             forgotMode
-              ? "Entre ton e-mail et nous t’enverrons un lien sécurisé pour choisir un nouveau mot de passe."
-              : "Retrouve ton journal, tes comptes, tes rapports et ta progression au même endroit."
+              ? t("Entre ton e-mail et nous t’enverrons un lien sécurisé pour choisir un nouveau mot de passe.")
+              : t("Retrouve ton journal, tes comptes, tes rapports et ta progression au même endroit.")
           }
         />
 
@@ -155,14 +158,14 @@ export default function LoginPage() {
 
           {!forgotMode ? (
             <>
-              <GoogleButton onClick={googleLogin} busy={googleBusy} label="Se connecter avec Google" />
+              <GoogleButton onClick={googleLogin} busy={googleBusy} label={t("Se connecter avec Google")} />
               <Divider />
             </>
           ) : null}
 
           <form onSubmit={forgotMode ? (event) => { event.preventDefault(); sendReset(); } : login} className="space-y-3.5">
             <label className="block">
-              <span className="mb-2 block text-[9px] font-medium text-white/45">Adresse e-mail</span>
+              <span className="mb-2 block text-[9px] font-medium text-white/45">{t("Adresse e-mail")}</span>
               <div className="relative">
                 <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
                 <input
@@ -170,7 +173,7 @@ export default function LoginPage() {
                   autoComplete="email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
-                  placeholder="ton@email.com"
+                  placeholder={t("ton@email.com")}
                   className="h-12 w-full rounded-[14px] border border-white/[0.075] bg-black/25 pl-10 pr-3 text-[11px] text-white outline-none transition placeholder:text-white/18 focus:border-[#d9ac43]/45"
                 />
               </div>
@@ -179,7 +182,7 @@ export default function LoginPage() {
             {!forgotMode ? (
               <label className="block">
                 <div className="mb-2 flex items-center justify-between gap-3">
-                  <span className="text-[9px] font-medium text-white/45">Mot de passe</span>
+                  <span className="text-[9px] font-medium text-white/45">{t("Mot de passe")}</span>
                   <button
                     type="button"
                     onClick={() => {
@@ -188,8 +191,7 @@ export default function LoginPage() {
                     }}
                     className="text-[8px] font-semibold text-[#d9ac43]"
                   >
-                    Mot de passe oublié ?
-                  </button>
+                    {t("Mot de passe oublié ?")}</button>
                 </div>
 
                 <div className="relative">
@@ -206,7 +208,7 @@ export default function LoginPage() {
                     type="button"
                     onClick={() => setShowPassword((value) => !value)}
                     className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-white/28 hover:text-white/65"
-                    aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                    aria-label={showPassword ? t("Masquer le mot de passe") : t("Afficher le mot de passe")}
                   >
                     {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
@@ -220,7 +222,7 @@ export default function LoginPage() {
               className="mt-1 flex h-12 w-full items-center justify-center gap-2 rounded-[14px] bg-[#e7ba4d] text-[11px] font-bold text-[#090a09] shadow-[0_12px_35px_rgba(231,186,77,.12)] transition hover:bg-[#efc55d] disabled:opacity-50"
             >
               {busy ? <Loader2 size={15} className="animate-spin" /> : null}
-              {forgotMode ? "Envoyer le lien sécurisé" : "Connexion"}
+              {forgotMode ? t("Envoyer le lien sécurisé") : t("Connexion", "auth")}
               {!busy ? <ArrowRight size={14} /> : null}
             </button>
           </form>
@@ -234,14 +236,12 @@ export default function LoginPage() {
               }}
               className="w-full text-center text-[9px] font-semibold text-white/38 hover:text-white/65"
             >
-              ← Retour à la connexion
-            </button>
+              {t("← Retour à la connexion")}</button>
           ) : (
             <div className="pt-1 text-center text-[9px] text-white/35">
-              Pas encore de compte ?{" "}
+              {t("Pas encore de compte ?")}{" "}
               <Link href={nextPath ? `/register?next=${encodeURIComponent(nextPath)}` : "/register"} className="font-semibold text-[#d9ac43]">
-                Créer mon espace
-              </Link>
+                {t("Créer mon espace")}</Link>
             </div>
           )}
 

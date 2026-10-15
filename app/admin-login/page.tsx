@@ -1,6 +1,8 @@
 "use client";
 
 import { Suspense, useState } from "react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import LanguageSwitcher from "@/components/i18n/LanguageSwitcher";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { Card, CardBody } from "@/components/ui/Card";
@@ -8,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { pushNotif } from "@/lib/notifyStore";
 
 function AdminLoginContent() {
+  const { t: tr } = useLocale();
   const router = useRouter();
   const sp = useSearchParams();
 
@@ -44,9 +47,9 @@ function AdminLoginContent() {
       if (!r.ok) {
         pushNotif({
           kind: "error",
-          title: "Accès refusé",
+          title: tr("Accès refusé"),
           message:
-            "Code admin incorrect.",
+            tr("Code admin incorrect."),
           ttlMs: 2500,
         });
 
@@ -57,7 +60,7 @@ function AdminLoginContent() {
         kind: "success",
         title: "OK",
         message:
-          "Accès admin activé.",
+          tr("Accès admin activé."),
         ttlMs: 1800,
       });
 
@@ -73,13 +76,10 @@ function AdminLoginContent() {
       <div className="w-full max-w-md">
         <Card>
           <CardBody>
-            <div className="text-xl font-extrabold">
-              Admin Login
-            </div>
+            <div className="mb-4 flex justify-end"><LanguageSwitcher /></div>
+            <div className="text-xl font-extrabold">{tr("Admin Login")}</div>
 
-            <div className="mt-1 text-sm text-[color:var(--muted)]">
-              Entrez votre code admin.
-            </div>
+            <div className="mt-1 text-sm text-[color:var(--muted)]">{tr("Entrez votre code admin.")}</div>
 
             <div className="mt-4">
               <input
@@ -98,7 +98,7 @@ function AdminLoginContent() {
                     login();
                   }
                 }}
-                placeholder="Code admin…"
+                placeholder={tr("Code admin…")}
                 className="w-full bg-transparent text-sm outline-none placeholder:text-[color:var(--muted)]"
               />
 
@@ -111,8 +111,8 @@ function AdminLoginContent() {
                 disabled={busy}
               >
                 {busy
-                  ? "Connexion…"
-                  : "Entrer"}
+                  ? tr("Connexion…")
+                  : tr("Entrer")}
               </Button>
 
               <Button
@@ -123,9 +123,7 @@ function AdminLoginContent() {
                   )
                 }
                 disabled={busy}
-              >
-                Retour
-              </Button>
+              >{tr("Retour")}</Button>
             </div>
           </CardBody>
         </Card>
@@ -135,11 +133,10 @@ function AdminLoginContent() {
 }
 
 function LoadingAdminLogin() {
+  const { t: tr } = useLocale();
   return (
     <div className="min-h-screen w-full bg-[color:var(--bg)] text-[color:var(--text)] flex items-center justify-center">
-      <div className="text-sm text-[color:var(--muted)]">
-        Chargement…
-      </div>
+      <div className="text-sm text-[color:var(--muted)]">{tr("Chargement…")}</div>
     </div>
   );
 }

@@ -1,4 +1,6 @@
 "use client";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -7,6 +9,8 @@ import { EyeOff, ArrowLeft } from "lucide-react";
 import { defaultVisibility, navigationKeyForPath, type NavigationKey } from "@/lib/navigation/config";
 
 export default function NavigationVisibilityGuard({ children }: { children: React.ReactNode }) {
+  const { t } = useLocale();
+
   const pathname = usePathname();
   const [visibility, setVisibility] = useState<Record<NavigationKey, boolean>>(defaultVisibility());
   const [loaded, setLoaded] = useState(false);
@@ -34,13 +38,11 @@ export default function NavigationVisibilityGuard({ children }: { children: Reac
         <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]">
           <EyeOff size={20} />
         </div>
-        <h1 className="mt-5 text-xl font-semibold text-white">Fonctionnalité temporairement masquée</h1>
+        <h1 className="mt-5 text-xl font-semibold text-white">{t("Fonctionnalité temporairement masquée")}</h1>
         <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[color:var(--muted)]">
-          Cette rubrique n’est pas disponible dans la navigation InvestPro pour le moment. Elle pourra être réactivée depuis le back-office.
-        </p>
+          {t("Cette rubrique n’est pas disponible dans la navigation InvestPro pour le moment. Elle pourra être réactivée depuis le back-office.")}</p>
         <Link href="/dashboard" className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[color:var(--gold)] px-4 py-2.5 text-sm font-semibold text-black no-underline">
-          <ArrowLeft size={15} /> Retour au dashboard
-        </Link>
+          <ArrowLeft size={15} /> {t(" Retour au dashboard")}</Link>
       </div>
     </div>
   );

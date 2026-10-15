@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import Link from "next/link";
 import {
   Activity,
@@ -48,10 +49,10 @@ type Payload = {
   members: Member[];
 };
 
-function dateLabel(value: string | null) {
-  if (!value) return "Jamais";
+function dateLabel(value: string | null, locale: "fr" | "en" = "fr") {
+  if (!value) return locale === "en" ? "Never" : "Jamais";
 
-  return new Date(value).toLocaleString("fr-FR", {
+  return new Date(value).toLocaleString((locale === "en" ? "en-US" : "fr-FR"), {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -61,6 +62,7 @@ function dateLabel(value: string | null) {
 }
 
 export default function AdminPage() {
+  const { t: tr, locale } = useLocale();
   const supabase = useMemo(() => createClient(), []);
 
   const [payload, setPayload] = useState<Payload | null>(null);
@@ -94,18 +96,18 @@ export default function AdminPage() {
       const json = await response.json();
 
       if (response.status === 403) {
-        setError("Ton compte n’est pas autorisé à accéder au back-office.");
+        setError(tr("Ton compte n’est pas autorisé à accéder au back-office."));
         return;
       }
 
       if (!response.ok) {
-        throw new Error(json?.error || "Impossible de charger le back-office.");
+        throw new Error(json?.error || tr("Impossible de charger le back-office."));
       }
 
       setPayload(json);
     } catch (err: any) {
       console.error(err);
-      setError(err?.message || "Impossible de charger le back-office.");
+      setError(err?.message || tr("Impossible de charger le back-office."));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -148,7 +150,7 @@ export default function AdminPage() {
     return (
       <main className="min-h-screen bg-[#050605] text-white">
         <div className="mx-auto flex min-h-screen max-w-[1500px] items-center justify-center px-5">
-          <div className="text-sm text-white/40">Chargement du back-office…</div>
+          <div className="text-sm text-white/40">{tr("Chargement du back-office…")}</div>
         </div>
       </main>
     );
@@ -160,17 +162,12 @@ export default function AdminPage() {
         <div className="flex flex-col gap-4 border-b border-white/[0.06] pb-5 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.13em] text-[color:var(--gold)]">
-              <ShieldCheck size={11} />
-              Administration InvestPro
-            </div>
+              <ShieldCheck size={11} />{tr("Administration InvestPro")}</div>
 
-            <h1 className="mt-3 text-2xl font-semibold">
-              Back-office <span className="text-[color:var(--gold)]">InvestPro</span>
+            <h1 className="mt-3 text-2xl font-semibold">{tr("Back-office ")}<span className="text-[color:var(--gold)]">{tr("InvestPro")}</span>
             </h1>
 
-            <p className="mt-1 text-sm text-white/35">
-              Membres, activité et connexions de la plateforme.
-            </p>
+            <p className="mt-1 text-sm text-white/35">{tr("Membres, activité et connexions de la plateforme.")}</p>
           </div>
 
           <div className="flex gap-2">
@@ -178,9 +175,7 @@ export default function AdminPage() {
               href="/dashboard"
               className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.025] px-4 text-xs font-semibold text-white/60 no-underline hover:text-white"
             >
-              <ArrowLeft size={14} />
-              Dashboard
-            </Link>
+              <ArrowLeft size={14} />{tr("Dashboard")}</Link>
 
             <button
               type="button"
@@ -188,35 +183,33 @@ export default function AdminPage() {
               disabled={refreshing}
               className="inline-flex h-10 items-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 text-xs font-semibold text-[color:var(--gold)]"
             >
-              <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
-              Actualiser
-            </button>
+              <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />{tr("Actualiser")}</button>
           </div>
         </div>
 
         {error ? (
           <div className="mt-5 rounded-2xl border border-red-500/20 bg-red-500/[0.06] p-4 text-sm text-red-200">
-            {error}
+            {tr(error)}
           </div>
         ) : null}
 
         {payload ? (
           <>
             <section className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-              <Stat icon={<Users size={17} />} label="Membres" value={payload.stats.members_total} />
-              <Stat icon={<Activity size={17} />} label="Nouveaux 7j" value={payload.stats.new_7d} />
-              <Stat icon={<CheckCircle2 size={17} />} label="Actifs 30j" value={payload.stats.active_30d} />
-              <Stat icon={<WalletCards size={17} />} label="Comptes" value={payload.stats.accounts_total} />
-              <Stat icon={<Database size={17} />} label="Auto sync" value={payload.stats.auto_accounts_total} />
-              <Stat icon={<BarChart3 size={17} />} label="Trades" value={payload.stats.trades_total} />
+              <Stat icon={<Users size={17} />} label={tr("Membres")} value={payload.stats.members_total} />
+              <Stat icon={<Activity size={17} />} label={tr("Nouveaux 7j")} value={payload.stats.new_7d} />
+              <Stat icon={<CheckCircle2 size={17} />} label={tr("Actifs 30j")} value={payload.stats.active_30d} />
+              <Stat icon={<WalletCards size={17} />} label={tr("Comptes")} value={payload.stats.accounts_total} />
+              <Stat icon={<Database size={17} />} label={tr("Auto sync")} value={payload.stats.auto_accounts_total} />
+              <Stat icon={<BarChart3 size={17} />} label={tr("Trades")} value={payload.stats.trades_total} />
             </section>
 
             <section className="mt-5 overflow-hidden rounded-[22px] border border-white/[0.07] bg-[#0d0f0d]">
               <div className="flex flex-col gap-3 border-b border-white/[0.06] p-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                  <h2 className="text-sm font-semibold">Membres inscrits</h2>
+                  <h2 className="text-sm font-semibold">{tr("Membres inscrits")}</h2>
                   <p className="mt-1 text-[10px] text-white/30">
-                    {members.length} résultat{members.length !== 1 ? "s" : ""}
+                    {members.length}{tr(" résultat")}{members.length !== 1 ? "s" : ""}
                   </p>
                 </div>
 
@@ -226,16 +219,16 @@ export default function AdminPage() {
                     <input
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
-                      placeholder="Pseudo ou e-mail…"
+                      placeholder={tr("Pseudo ou e-mail…")}
                       className="h-10 w-full min-w-[250px] rounded-xl border border-white/[0.07] bg-black/20 pl-9 pr-3 text-xs text-white outline-none placeholder:text-white/20 focus:border-[color:var(--gold-border)]"
                     />
                   </div>
 
                   <div className="flex rounded-xl border border-white/[0.07] bg-black/20 p-1">
                     {[
-                      ["all", "Tous"],
-                      ["active", "Actifs"],
-                      ["new", "Nouveaux"],
+                      ["all", tr("Tous")],
+                      ["active", tr("Actifs")],
+                      ["new", tr("Nouveaux")],
                     ].map(([value, label]) => (
                       <button
                         key={value}
@@ -259,13 +252,13 @@ export default function AdminPage() {
                 <table className="w-full min-w-[1000px] border-collapse text-left">
                   <thead>
                     <tr className="border-b border-white/[0.05] text-[9px] uppercase tracking-[0.11em] text-white/25">
-                      <th className="px-5 py-3 font-semibold">Membre</th>
-                      <th className="px-4 py-3 font-semibold">Inscription</th>
-                      <th className="px-4 py-3 font-semibold">Dernière connexion</th>
-                      <th className="px-4 py-3 font-semibold">Comptes</th>
-                      <th className="px-4 py-3 font-semibold">Trades</th>
-                      <th className="px-4 py-3 font-semibold">Plan</th>
-                      <th className="px-4 py-3 font-semibold">Statut</th>
+                      <th className="px-5 py-3 font-semibold">{tr("Membre")}</th>
+                      <th className="px-4 py-3 font-semibold">{tr("Inscription")}</th>
+                      <th className="px-4 py-3 font-semibold">{tr("Dernière connexion")}</th>
+                      <th className="px-4 py-3 font-semibold">{tr("Comptes")}</th>
+                      <th className="px-4 py-3 font-semibold">{tr("Trades")}</th>
+                      <th className="px-4 py-3 font-semibold">{tr("Plan")}</th>
+                      <th className="px-4 py-3 font-semibold">{tr("Statut")}</th>
                     </tr>
                   </thead>
 
@@ -285,16 +278,15 @@ export default function AdminPage() {
                         </td>
 
                         <td className="px-4 py-4 text-[10px] text-white/42">
-                          {dateLabel(member.created_at)}
+                          {dateLabel(member.created_at, locale)}
                         </td>
 
                         <td className="px-4 py-4">
                           <div className="text-[10px] text-white/45">
-                            {dateLabel(member.last_sign_in_at)}
+                            {dateLabel(member.last_sign_in_at, locale)}
                           </div>
                           {member.last_trade_at ? (
-                            <div className="mt-1 text-[8px] text-white/22">
-                              Dernier trade : {dateLabel(member.last_trade_at)}
+                            <div className="mt-1 text-[8px] text-white/22">{tr("Dernier trade : ")}{dateLabel(member.last_trade_at, locale)}
                             </div>
                           ) : null}
                         </td>
@@ -304,8 +296,7 @@ export default function AdminPage() {
                             {member.accounts_count}
                           </div>
                           <div className="mt-1 text-[8px] text-emerald-400/70">
-                            {member.automatic_accounts_count} auto
-                          </div>
+                            {member.automatic_accounts_count}{tr(" auto")}</div>
                         </td>
 
                         <td className="px-4 py-4 text-[11px] font-semibold">
@@ -320,11 +311,11 @@ export default function AdminPage() {
 
                         <td className="px-4 py-4">
                           {member.banned_until ? (
-                            <Status bad label="Suspendu" />
+                            <Status bad label={tr("Suspendu")} />
                           ) : member.active ? (
-                            <Status label="Actif" />
+                            <Status label={tr("Activé")} />
                           ) : (
-                            <Status neutral label="Inactif" />
+                            <Status neutral label={tr("Inactif")} />
                           )}
                         </td>
                       </tr>
@@ -332,9 +323,7 @@ export default function AdminPage() {
 
                     {members.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="px-5 py-14 text-center text-xs text-white/30">
-                          Aucun membre ne correspond à ta recherche.
-                        </td>
+                        <td colSpan={7} className="px-5 py-14 text-center text-xs text-white/30">{tr("Aucun membre ne correspond à ta recherche.")}</td>
                       </tr>
                     ) : null}
                   </tbody>
@@ -343,9 +332,7 @@ export default function AdminPage() {
             </section>
 
             <div className="mt-4 flex items-center gap-2 text-[9px] text-white/22">
-              <Clock3 size={12} />
-              “Actif” = au moins une connexion dans les 30 derniers jours.
-            </div>
+              <Clock3 size={12} />{tr("“Actif” = au moins une connexion dans les 30 derniers jours.")}</div>
           </>
         ) : null}
       </div>

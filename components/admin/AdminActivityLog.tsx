@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useMemo } from "react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { useAdminAudit } from "../../lib/adminClient";
 
 export default function AdminActivityLog() {
+  const { t: tr, locale } = useLocale();
   const logs = useAdminAudit();
 
   const items = useMemo(() => logs.slice(0, 8), [logs]);
@@ -13,18 +15,12 @@ export default function AdminActivityLog() {
       className="rounded-2xl border p-4"
       style={{ borderColor: "rgba(255,255,255,.08)", background: "rgba(255,255,255,.03)" }}
     >
-      <div className="font-semibold" style={{ color: "var(--text)" }}>
-        Logs admin / modération
-      </div>
-      <div className="text-sm mt-1" style={{ color: "var(--muted)" }}>
-        Dernières actions (local)
-      </div>
+      <div className="font-semibold" style={{ color: "var(--text)" }}>{tr("Logs admin / modération")}</div>
+      <div className="text-sm mt-1" style={{ color: "var(--muted)" }}>{tr("Dernières actions (local)")}</div>
 
       <div className="mt-4 space-y-2">
         {items.length === 0 ? (
-          <div className="text-sm" style={{ color: "var(--muted)" }}>
-            — Aucun log pour l’instant
-          </div>
+          <div className="text-sm" style={{ color: "var(--muted)" }}>{tr("— Aucun log pour l’instant")}</div>
         ) : (
           items.map((l) => (
             <div
@@ -37,7 +33,7 @@ export default function AdminActivityLog() {
                   <span style={{ color: "var(--gold)" }}>{l.by}</span> • {l.action}
                 </div>
                 <div className="text-xs mt-1" style={{ color: "var(--muted)" }}>
-                  {new Date(l.at).toLocaleString("fr-FR")}
+                  {new Date(l.at).toLocaleString((locale === "en" ? "en-US" : "fr-FR"))}
                 </div>
               </div>
 

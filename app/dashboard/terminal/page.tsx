@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { useEffect, useMemo, useState, useId } from "react";
 
 import { Card, CardBody } from "@/components/ui/Card";
@@ -161,9 +162,11 @@ function InputCompact({
   listId?: string;
   inputMode?: "decimal" | "numeric" | "text";
 }) {
+  const { t: translate } = useLocale();
+
   return (
     <div className="w-full">
-      <div className="text-[11px] text-white/60 mb-1">{label}</div>
+      <div className="text-[11px] text-white/60 mb-1">{translate(label)}</div>
       <input
         inputMode={inputMode}
         value={value}
@@ -215,21 +218,22 @@ function pnlBetweenUSD(priceA: number, priceB: number, lots: number, info: Symbo
 
 /* ------------------------ Lock modal (Terminal) ------------------------ */
 function LockModal(props: { open: boolean; onClose: () => void }) {
+  const { t: translate } = useLocale();
+
   return (
     <Modal
       open={props.open}
-      title="Bloquer le compte"
+      title={translate("Bloquer le compte")}
       onClose={props.onClose}
       footer={
         <div className="flex items-center justify-end gap-2 w-full">
           <Button variant="ghost" onClick={props.onClose}>
-            Annuler
-          </Button>
+            {translate("Annuler")}</Button>
         </div>
       }
     >
       <div className="space-y-3">
-        <div className="text-sm text-[color:var(--muted)]">Bloque le trading depuis InvestPro (anti revenge trade).</div>
+        <div className="text-sm text-[color:var(--muted)]">{translate("Bloque le trading depuis InvestPro (anti revenge trade).")}</div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           <Button
@@ -237,50 +241,45 @@ function LockModal(props: { open: boolean; onClose: () => void }) {
             onClick={() => {
               lockTrading("15m", "Blocage terminal");
               props.onClose();
-              pushNotif({ kind: "warning", title: "Blocage", message: "Compte bloqué 15 minutes." });
+              pushNotif({ kind: "warning", title: translate("Blocage"), message: translate("Compte bloqué 15 minutes.") });
             }}
           >
-            15 min
-          </Button>
+            {translate("15 min")}</Button>
 
           <Button
             variant="secondary"
             onClick={() => {
               lockTrading("30m", "Blocage terminal");
               props.onClose();
-              pushNotif({ kind: "warning", title: "Blocage", message: "Compte bloqué 30 minutes." });
+              pushNotif({ kind: "warning", title: translate("Blocage"), message: translate("Compte bloqué 30 minutes.") });
             }}
           >
-            30 min
-          </Button>
+            {translate("30 min")}</Button>
 
           <Button
             variant="secondary"
             onClick={() => {
               lockTrading("1h", "Blocage terminal");
               props.onClose();
-              pushNotif({ kind: "warning", title: "Blocage", message: "Compte bloqué 1 heure." });
+              pushNotif({ kind: "warning", title: translate("Blocage"), message: translate("Compte bloqué 1 heure.") });
             }}
           >
-            1h
-          </Button>
+            {translate("1h")}</Button>
 
           <Button
             variant="secondary"
             onClick={() => {
               lockTrading("eod", "Blocage terminal");
               props.onClose();
-              pushNotif({ kind: "warning", title: "Blocage", message: "Compte bloqué jusqu’à 00:00 (FR)." });
+              pushNotif({ kind: "warning", title: translate("Blocage"), message: translate("Compte bloqué jusqu’à 00:00 (FR).") });
             }}
-            title="Jusqu’à demain 00:00 (heure FR)"
+            title={translate("Jusqu’à demain 00:00 (heure FR)")}
           >
-            Fin journée
-          </Button>
+            {translate("Fin journée")}</Button>
         </div>
 
         <div className="text-[11px] text-[color:var(--muted)]">
-          Le blocage s’applique à l’interface InvestPro (pas à MT5 directement).
-        </div>
+          {translate("Le blocage s’applique à l’interface InvestPro (pas à MT5 directement).")}</div>
       </div>
     </Modal>
   );
@@ -317,6 +316,7 @@ function loadTradingViewScript() {
 }
 
 function TradingViewApiChart(props: { symbol: string }) {
+  const { locale } = useLocale();
   const { symbol } = props;
 
   // ✅ FIX HYDRATION : ID stable server/client
@@ -344,7 +344,7 @@ function TradingViewApiChart(props: { symbol: string }) {
         timezone: "Europe/Paris",
         theme: "dark",
         style: "1",
-        locale: "fr",
+        locale,
         toolbar_bg: "rgba(0,0,0,0)",
         enable_publishing: false,
         allow_symbol_change: true,
@@ -361,7 +361,7 @@ function TradingViewApiChart(props: { symbol: string }) {
       const el = document.getElementById(containerId);
       if (el) el.innerHTML = "";
     };
-  }, [containerId, symbol]);
+  }, [containerId, symbol, locale]);
 
   return <div id={containerId} className="w-full h-[700px]" />;
 }
@@ -378,11 +378,13 @@ function MiniProgress({
   right: string;
   valuePct: number; // 0..100
 }) {
+  const { t: translate } = useLocale();
+
   const pct = Number.isFinite(valuePct) ? clamp(valuePct, 0, 100) : 0;
   return (
     <div className="w-full rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
       <div className="flex items-center justify-between text-xs text-white/80">
-        <span className="font-semibold">{label}</span>
+        <span className="font-semibold">{translate(label)}</span>
         <span className="text-white/60">{right}</span>
       </div>
 
@@ -407,6 +409,8 @@ function MiniProgress({
 
 /* -------------------------------- Page -------------------------------- */
 export default function TerminalPage() {
+  const { t: translate } = useLocale();
+
   const { rules, lock } = usePrefs();
 
   // ✅ Maintenance flag
@@ -564,16 +568,16 @@ export default function TerminalPage() {
     if (!rules?.enabled) return a;
 
     if (rules.maxSLPerDay > 0 && slCountToday >= rules.maxSLPerDay) {
-      a.push(`⚠️ Limite SL atteinte : ${slCountToday}/${rules.maxSLPerDay}`);
+      a.push(translate("⚠️ Limite SL atteinte : {count}/{max}").replace("{count}", String(slCountToday)).replace("{max}", String(rules.maxSLPerDay)));
     }
     if (rules.dailyLossMax > 0 && realizedToday <= -Math.abs(rules.dailyLossMax)) {
-      a.push(`⛔ Daily loss atteint : ${fmt(realizedToday)}$ (max -${rules.dailyLossMax}$)`);
+      a.push(translate("⛔ Daily loss atteint : {loss}$ (max -{max}$)").replace("{loss}", fmt(realizedToday)).replace("{max}", String(rules.dailyLossMax)));
     }
     if (rules.dailyProfitTarget > 0 && realizedToday >= rules.dailyProfitTarget) {
-      a.push(`✅ Objectif atteint : +${fmt(realizedToday)}$ (target +${rules.dailyProfitTarget}$)`);
+      a.push(translate("✅ Objectif atteint : +{profit}$ (target +{target}$)").replace("{profit}", fmt(realizedToday)).replace("{target}", String(rules.dailyProfitTarget)));
     }
     return a;
-  }, [rules?.enabled, rules?.maxSLPerDay, rules?.dailyLossMax, rules?.dailyProfitTarget, slCountToday, realizedToday]);
+  }, [rules?.enabled, rules?.maxSLPerDay, rules?.dailyLossMax, rules?.dailyProfitTarget, slCountToday, realizedToday, translate]);
 
   // ✅ barres PDDL/PDPT (comme ton screen)
   const dailyLossMax = useMemo(() => Math.max(0, Number(rules?.dailyLossMax ?? 0)), [rules?.dailyLossMax]);
@@ -805,7 +809,7 @@ export default function TerminalPage() {
       } catch (e: any) {
         setSymbolInfo(null);
         setMsg("❌ symbol_info: " + String(e?.message ?? e));
-        pushNotif({ kind: "error", title: "Erreur", message: "symbol_info impossible", ttlMs: 8000 });
+        pushNotif({ kind: "error", title: translate("Erreur"), message: translate("symbol_info impossible"), ttlMs: 8000 });
       }
       try {
         await loadTick(symbol.trim());
@@ -924,7 +928,7 @@ export default function TerminalPage() {
     setOrdres((prev) => {
       const id = nextOrdreId(prev);
       if (!id) {
-        pushNotif({ kind: "warning", title: "Limite atteinte", message: "Maximum 10 ordres.", ttlMs: 7000 });
+        pushNotif({ kind: "warning", title: translate("Limite atteinte"), message: translate("Maximum 10 ordres."), ttlMs: 7000 });
         return prev;
       }
       return [...prev, { id, entry: "", sl: "", tp: "", enabled: true }];
@@ -1050,10 +1054,10 @@ export default function TerminalPage() {
         await loadTick(symbol.trim());
       }
 
-      pushNotif({ kind: "success", title: "Sync terminé", message: `+${added} trade(s)`, ttlMs: 8000 });
-      setMsg(`✅ Sync OK : +${added} trades • symboles OK`);
+      pushNotif({ kind: "success", title: translate("Sync terminé"), message: `+${added} trade(s)`, ttlMs: 8000 });
+      setMsg(translate("✅ Sync OK : +{count} trades • symboles OK").replace("{count}", String(added)));
     } catch (e: any) {
-      pushNotif({ kind: "error", title: "Erreur Sync", message: String(e?.message ?? e), ttlMs: 12000 });
+      pushNotif({ kind: "error", title: translate("Erreur Sync"), message: String(e?.message ?? e), ttlMs: 12000 });
       setMsg("❌ Sync: " + String(e?.message ?? e));
     } finally {
       setBusy(false);
@@ -1066,8 +1070,8 @@ export default function TerminalPage() {
     if (isTradeLocked()) {
       pushNotif({
         kind: "warning",
-        title: "Compte bloqué",
-        message: `Impossible de prendre un trade. Temps restant: ${fmtCountdown(lockRemaining)}.`,
+        title: translate("Compte bloqué"),
+        message: translate("Impossible de prendre un trade. Temps restant: {time}.").replace("{time}", fmtCountdown(lockRemaining)),
         ttlMs: 9000,
       });
       return;
@@ -1093,14 +1097,14 @@ export default function TerminalPage() {
         const sl = toNum(o.sl);
         const tp = toNum(o.tp);
 
-        if (!Number.isFinite(entry) || entry <= 0) throw new Error(`Entrée invalide (Ordre ${o.id})`);
-        if (!Number.isFinite(sl) || sl <= 0) throw new Error(`SL invalide (Ordre ${o.id})`);
+        if (!Number.isFinite(entry) || entry <= 0) throw new Error(translate("Entrée invalide (Ordre {id})").replace("{id}", String(o.id)));
+        if (!Number.isFinite(sl) || sl <= 0) throw new Error(translate("SL invalide (Ordre {id})").replace("{id}", String(o.id)));
 
         const lots = lotsForOrdre(o);
-        if (lots.reason !== "ok" || lots.lots <= 0) throw new Error(`Lots = 0 (Ordre ${o.id})`);
+        if (lots.reason !== "ok" || lots.lots <= 0) throw new Error(translate("Lots = 0 (Ordre {id})").replace("{id}", String(o.id)));
 
         const v = validateLevels(side, entry, Number.isFinite(sl) ? sl : undefined, Number.isFinite(tp) ? tp : undefined);
-        if (!v.ok) throw new Error(`${v.error} (Ordre ${o.id})`);
+        if (!v.ok) throw new Error(translate(v.error) + " " + translate("(Ordre {id})").replace("{id}", String(o.id)));
 
         const orderMode = (() => {
           if (mode === "MARKET") return side === "BUY" ? "MARKET_BUY" : "MARKET_SELL";
@@ -1126,13 +1130,13 @@ export default function TerminalPage() {
         });
       }
 
-      pushNotif({ kind: "success", title: "Ordres envoyés", message: `${ordresON.length} ordre(s)`, ttlMs: 8000 });
-      setMsg(`✅ ${ordresON.length} ordre(s) envoyé(s).`);
+      pushNotif({ kind: "success", title: translate("Ordres envoyés"), message: String(ordresON.length) + " " + translate("ordre(s)"), ttlMs: 8000 });
+      setMsg(translate("✅ {count} ordre(s) envoyé(s).").replace("{count}", String(ordresON.length)));
 
       await refreshPositions();
       await refreshOrders();
     } catch (e: any) {
-      pushNotif({ kind: "error", title: "Erreur ordre", message: String(e?.message ?? e), ttlMs: 12000 });
+      pushNotif({ kind: "error", title: translate("Erreur ordre"), message: String(e?.message ?? e), ttlMs: 12000 });
       setMsg("❌ " + String(e?.message ?? e));
     } finally {
       setBusy(false);
@@ -1143,7 +1147,7 @@ export default function TerminalPage() {
     if (!selectedAccount) return;
 
     if (!Number.isFinite(ticket) || ticket <= 0) {
-      pushNotif({ kind: "error", title: "Annulation", message: "Ticket invalide.", ttlMs: 8000 });
+      pushNotif({ kind: "error", title: translate("Annulation"), message: translate("Ticket invalide."), ttlMs: 8000 });
       return;
     }
 
@@ -1158,10 +1162,10 @@ export default function TerminalPage() {
         order: ticket,
       });
 
-      pushNotif({ kind: "success", title: "Ordre annulé", message: `Ticket ${ticket}`, ttlMs: 8000 });
+      pushNotif({ kind: "success", title: translate("Ordre annulé"), message: `Ticket ${ticket}`, ttlMs: 8000 });
       await refreshOrders();
     } catch (e: any) {
-      pushNotif({ kind: "error", title: "Erreur annulation", message: String(e?.message ?? e), ttlMs: 12000 });
+      pushNotif({ kind: "error", title: translate("Erreur annulation"), message: String(e?.message ?? e), ttlMs: 12000 });
     } finally {
       setBusy(false);
     }
@@ -1265,11 +1269,11 @@ export default function TerminalPage() {
         tp: modTp ? toNum(modTp) : null,
       });
 
-      pushNotif({ kind: "success", title: "SL/TP modifiés", message: modSymbol, ttlMs: 7000 });
+      pushNotif({ kind: "success", title: translate("SL/TP modifiés"), message: modSymbol, ttlMs: 7000 });
       setOpenModify(false);
       await refreshPositions();
     } catch (e: any) {
-      pushNotif({ kind: "error", title: "Erreur SL/TP", message: String(e?.message ?? e), ttlMs: 12000 });
+      pushNotif({ kind: "error", title: translate("Erreur SL/TP"), message: String(e?.message ?? e), ttlMs: 12000 });
     } finally {
       setBusy(false);
     }
@@ -1278,7 +1282,7 @@ export default function TerminalPage() {
   function setBreakEven() {
     if (!Number.isFinite(modEntry) || modEntry <= 0) return;
     setModSl(modEntry.toFixed(2));
-    pushNotif({ kind: "be", title: "B/E", message: "SL mis au prix d’entrée", ttlMs: 5000 });
+    pushNotif({ kind: "be", title: translate("B/E"), message: translate("SL mis au prix d’entrée"), ttlMs: 5000 });
   }
 
   function openClosePosition(p: any) {
@@ -1340,13 +1344,13 @@ export default function TerminalPage() {
     if (!selectedAccount || !closeTicket) return;
 
     if (closeTooHigh) {
-      pushNotif({ kind: "error", title: "Volume invalide", message: `Max = ${fmt2(closeLotsTotal)} lots`, ttlMs: 9000 });
+      pushNotif({ kind: "error", title: translate("Volume invalide"), message: `Max = ${fmt2(closeLotsTotal)} lots`, ttlMs: 9000 });
       return;
     }
 
     const v = closeLots.trim() ? toNum(closeLots) : undefined;
     if (closeLots.trim() && (!Number.isFinite(toNum(closeLots)) || toNum(closeLots) <= 0)) {
-      pushNotif({ kind: "error", title: "Volume invalide", message: "Entre un volume correct.", ttlMs: 8000 });
+      pushNotif({ kind: "error", title: translate("Volume invalide"), message: translate("Entre un volume correct."), ttlMs: 8000 });
       return;
     }
 
@@ -1364,7 +1368,7 @@ export default function TerminalPage() {
 
       pushNotif({
         kind: "success",
-        title: v ? "Clôture partielle envoyée" : "Position clôturée",
+        title: v ? translate("Clôture partielle envoyée") : translate("Position clôturée"),
         message: `${closeSymbol}`,
         ttlMs: 9000,
       });
@@ -1374,7 +1378,7 @@ export default function TerminalPage() {
       await refreshPositions();
       await syncTodayHistory();
     } catch (e: any) {
-      pushNotif({ kind: "error", title: "Erreur clôture", message: String(e?.message ?? e), ttlMs: 12000 });
+      pushNotif({ kind: "error", title: translate("Erreur clôture"), message: String(e?.message ?? e), ttlMs: 12000 });
     } finally {
       setBusy(false);
     }
@@ -1382,7 +1386,7 @@ export default function TerminalPage() {
 
   function fillMaxCloseLots() {
     setCloseLots(fmt2(closeLotsTotal));
-    pushNotif({ kind: "info", title: "Max", message: "Volume mis au max.", ttlMs: 5000 });
+    pushNotif({ kind: "info", title: translate("Max"), message: translate("Volume mis au max."), ttlMs: 5000 });
   }
 
   async function confirmCloseAll() {
@@ -1404,11 +1408,11 @@ export default function TerminalPage() {
         });
       }
       setOpenCloseAll(false);
-      pushNotif({ kind: "success", title: "Tout clôturé", message: `${positions.length} position(s)`, ttlMs: 9000 });
+      pushNotif({ kind: "success", title: translate("Tout clôturé"), message: `${positions.length} position(s)`, ttlMs: 9000 });
       await refreshPositions();
       await syncTodayHistory();
     } catch (e: any) {
-      pushNotif({ kind: "error", title: "Erreur", message: String(e?.message ?? e), ttlMs: 12000 });
+      pushNotif({ kind: "error", title: translate("Erreur"), message: String(e?.message ?? e), ttlMs: 12000 });
     } finally {
       setBusy(false);
     }
@@ -1433,10 +1437,10 @@ export default function TerminalPage() {
         });
       }
       setOpenCancelAll(false);
-      pushNotif({ kind: "success", title: "Tout annulé", message: `${orders.length} ordre(s)`, ttlMs: 9000 });
+      pushNotif({ kind: "success", title: translate("Tout annulé"), message: String(orders.length) + " " + translate("ordre(s)"), ttlMs: 9000 });
       await refreshOrders();
     } catch (e: any) {
-      pushNotif({ kind: "error", title: "Erreur", message: String(e?.message ?? e), ttlMs: 12000 });
+      pushNotif({ kind: "error", title: translate("Erreur"), message: String(e?.message ?? e), ttlMs: 12000 });
     } finally {
       setBusy(false);
     }
@@ -1473,11 +1477,11 @@ export default function TerminalPage() {
           {/* Title */}
           <div>
             <h1 className="text-3xl font-semibold">
-              Terminal <span className="text-[color:var(--gold)]">de trading</span>
+              {translate("Terminal de trading").split(" ").slice(0, -1).join(" ")}{" "}<span className="text-[color:var(--gold)]">{translate("Terminal de trading").split(" ").slice(-1)}</span>
             </h1>
             <p className="text-[color:var(--muted)] mt-1">
-              Market: <span className="text-white/90">{marketStr}</span> • Ask:{" "}
-              <span className="text-white/90">{askStr}</span> • Spread:{" "}
+              {translate("Market:")}{" "}<span className="text-white/90">{marketStr}</span> {" "}{translate("• Ask:")}{" "}
+              <span className="text-white/90">{askStr}</span> {" "}{translate("• Spread:")}{" "}
               <span className="text-white/90">{spreadStr}</span>
             </p>
           </div>
@@ -1485,13 +1489,13 @@ export default function TerminalPage() {
           {/* ✅ PDDL / PDPT */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <MiniProgress
-              label="PDDL"
+              label={translate("PDDL")}
               left={`$${fmt(pddlUsed)}`}
               right={`$${fmt(dailyLossMax || 0)}`}
               valuePct={dailyLossMax ? pddlPct : 0}
             />
             <MiniProgress
-              label="PDPT"
+              label={translate("PDPT")}
               left={`$${fmt(pdptDone)}`}
               right={`$${fmt(dailyProfitTarget || 0)}`}
               valuePct={dailyProfitTarget ? pdptPct : 0}
@@ -1505,7 +1509,7 @@ export default function TerminalPage() {
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="px-3 py-2 rounded-2xl border border-[color:var(--border)] bg-black/20">
-                      <div className="text-[10px] text-white/50 uppercase tracking-wide">Gain du jour</div>
+                      <div className="text-[10px] text-white/50 uppercase tracking-wide">{translate("Gain du jour")}</div>
                       <div
                         className={
                           realizedToday >= 0
@@ -1518,7 +1522,7 @@ export default function TerminalPage() {
                     </div>
 
                     <div className="px-3 py-2 rounded-2xl border border-[color:var(--border)] bg-black/20">
-                      <div className="text-[10px] text-white/50 uppercase tracking-wide">Gain en cours</div>
+                      <div className="text-[10px] text-white/50 uppercase tracking-wide">{translate("Gain en cours")}</div>
                       <div
                         className={
                           unrealizedNow >= 0
@@ -1533,8 +1537,7 @@ export default function TerminalPage() {
                     {locked ? (
                       <div className="px-3 py-2 rounded-2xl border border-rose-500/25 bg-rose-500/10">
                         <div className="text-[10px] text-rose-200/70 uppercase tracking-wide flex items-center gap-2">
-                          <Lock size={12} /> Compte bloqué
-                        </div>
+                          <Lock size={12} /> {" "}{translate("Compte bloqué")}</div>
                         <div className="text-sm font-semibold text-rose-200">{fmtCountdown(lockRemaining)}</div>
                       </div>
                     ) : null}
@@ -1545,7 +1548,7 @@ export default function TerminalPage() {
                       variant={locked ? "danger" : "secondary"}
                       onClick={() => (locked ? unlockTrading() : setOpenLockModal(true))}
                     >
-                      {locked ? "Débloquer" : "Bloquer"}
+                      {locked ? translate("Débloquer") : translate("Bloquer")}
                     </Button>
                   </div>
                 </div>
@@ -1554,8 +1557,7 @@ export default function TerminalPage() {
                   <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 p-3">
                     <div className="flex items-center gap-2 text-amber-200 text-sm font-semibold">
                       <ShieldAlert size={16} />
-                      Discipline
-                    </div>
+                      {translate("Discipline")}</div>
                     <div className="mt-2 space-y-1 text-sm text-amber-100/90">
                       {ruleAlerts.map((x, i) => (
                         <div key={i}>{x}</div>
@@ -1574,7 +1576,7 @@ export default function TerminalPage() {
             <CardBody>
               {/* Compte */}
               <div className="w-full">
-                <div className="text-xs text-white/70 mb-1">Compte</div>
+                <div className="text-xs text-white/70 mb-1">{translate("Compte")}</div>
                 <button
                   type="button"
                   onClick={clickAccounts}
@@ -1586,7 +1588,7 @@ export default function TerminalPage() {
                       🏦
                     </span>
                     <div className="text-sm text-white/80 truncate">
-                      {selectedAccount ? selectedAccount.label : "Choisir…"}
+                      {selectedAccount ? selectedAccount.label : translate("Choisir…")}
                     </div>
                   </div>
                   <span className="text-white/40">▾</span>
@@ -1599,12 +1601,12 @@ export default function TerminalPage() {
                   value={category}
                   onChange={(v) => setCategory(v as SymbolCat)}
                   options={[
-                    { value: "all", label: "Tous" },
-                    { value: "forex", label: "Forex" },
-                    { value: "crypto", label: "Cryptomonnaie" },
-                    { value: "indices", label: "Indices" },
-                    { value: "metals", label: "Métaux" },
-                    { value: "other", label: "Autres" },
+                    { value: "all", label: translate("Tous") },
+                    { value: "forex", label: translate("Forex") },
+                    { value: "crypto", label: translate("Cryptomonnaie") },
+                    { value: "indices", label: translate("Indices") },
+                    { value: "metals", label: translate("Métaux") },
+                    { value: "other", label: translate("Autres") },
                   ]}
                 />
 
@@ -1612,10 +1614,10 @@ export default function TerminalPage() {
                   value={mode}
                   onChange={(v) => setMode(v as Mode3)}
                   options={[
-                    { value: "", label: "N/A" },
-                    { value: "MARKET", label: "Market" },
-                    { value: "LIMIT", label: "Limit" },
-                    { value: "STOP_LIMIT", label: "Stop-Limit" },
+                    { value: "", label: translate("N/A") },
+                    { value: "MARKET", label: translate("Market") },
+                    { value: "LIMIT", label: translate("Limit") },
+                    { value: "STOP_LIMIT", label: translate("Stop-Limit") },
                   ]}
                 />
 
@@ -1623,9 +1625,9 @@ export default function TerminalPage() {
                   value={side}
                   onChange={(v) => setSide(v as Side)}
                   options={[
-                    { value: "NONE", label: "None" },
-                    { value: "BUY", label: "BUY" },
-                    { value: "SELL", label: "SELL" },
+                    { value: "NONE", label: translate("None") },
+                    { value: "BUY", label: translate("BUY") },
+                    { value: "SELL", label: translate("SELL") },
                   ]}
                 />
               </div>
@@ -1634,10 +1636,10 @@ export default function TerminalPage() {
               <div className="mt-4 flex justify-center">
                 <div className="w-full md:w-[560px]">
                   <InputCompact
-                    label={`Symbol ${symbolsLoaded ? `(${filteredSymbols.length})` : "(clique Sync)"}`}
+                    label={`Symbol ${symbolsLoaded ? `(${filteredSymbols.length})` : translate("(clique Sync)")}`}
                     value={symbol}
                     onChange={setSymbol}
-                    placeholder="Ex: BTCUSD.pi"
+                    placeholder={translate("Ex: BTCUSD.pi")}
                     listId="mt5-symbols"
                   />
                   <datalist id="mt5-symbols">
@@ -1651,12 +1653,11 @@ export default function TerminalPage() {
               {/* Buttons */}
               <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Button onClick={placeAllOrdres} disabled={busy || mode === "" || side === "NONE"} className="w-full h-12 justify-center">
-                  {busy ? "..." : locked ? "Bloqué" : "Envoyer"}
+                  {busy ? "..." : locked ? translate("Bloqué") : translate("Envoyer")}
                 </Button>
 
                 <Button variant="secondary" onClick={syncAll} disabled={busy} className="w-full h-12 justify-center">
-                  Sync
-                </Button>
+                  {translate("Sync")}</Button>
               </div>
 
               {/* Progress */}
@@ -1673,14 +1674,14 @@ export default function TerminalPage() {
                   />
                 </div>
                 <div className="mt-2 flex justify-between text-xs text-[color:var(--muted)]">
-                  <span>{progressPct === 0 ? "En attente de configuration" : "Configuration en cours"}</span>
+                  <span>{progressPct === 0 ? translate("En attente de configuration") : translate("Configuration en cours")}</span>
                   <span>{progressPct}%</span>
                 </div>
               </div>
 
               {msg ? (
                 <div className="mt-4 text-sm rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)] p-3">
-                  {msg}
+                  {translate(msg)}
                 </div>
               ) : null}
             </CardBody>
@@ -1694,7 +1695,7 @@ export default function TerminalPage() {
                 {/* Position */}
                 <Card className="min-h-[320px]">
                   <CardBody className="p-5">
-                    <div className="text-lg font-semibold">Réglages de votre position</div>
+                    <div className="text-lg font-semibold">{translate("Réglages de votre position")}</div>
 
                     <div className="mt-3 flex flex-wrap gap-2">
                       {ordres.map((o) => (
@@ -1709,7 +1710,7 @@ export default function TerminalPage() {
                           ].join(" ")}
                           type="button"
                         >
-                          Ordre {o.id} {o.enabled ? "" : "(off)"}
+                          {translate("Ordre")}{" "}{o.id} {o.enabled ? "" : translate("(off)")}
                         </button>
                       ))}
 
@@ -1719,16 +1720,14 @@ export default function TerminalPage() {
                           className="px-3 py-1.5 rounded-xl border border-white/10 bg-black/20 hover:bg-white/5 transition text-sm"
                           type="button"
                         >
-                          + Ordre
-                        </button>
+                          {translate("+ Ordre")}</button>
                         <button
                           onClick={removeOrdre}
                           className="px-3 py-1.5 rounded-xl border border-white/10 bg-black/10 hover:bg-white/5 transition text-sm"
                           type="button"
                           disabled={ordres.length <= 1}
                         >
-                          − Ordre
-                        </button>
+                          {translate("− Ordre")}</button>
                       </div>
                     </div>
 
@@ -1738,13 +1737,13 @@ export default function TerminalPage() {
                           <InputCompact
                             label={
                               mode === "MARKET"
-                                ? `Entrée (Market • auto • ${side === "BUY" ? "Ask" : side === "SELL" ? "Bid" : "-"})`
-                                : `Entrée ${ordreActifId}`
+                                ? (translate("Entrée (Market • auto • ") + (side === "BUY" ? translate("Ask") : side === "SELL" ? translate("Bid") : "-") + ")")
+                                : (translate("Entrée ") + (ordreActifId) + "")
                             }
                             value={ordreActif.entry}
                             onChange={mode === "MARKET" ? undefined : (v) => setOrdreField(ordreActifId, "entry", v)}
                             readOnly={mode === "MARKET"}
-                            placeholder="Ex: 91000.00"
+                            placeholder={translate("Ex: 91000.00")}
                           />
                         </div>
 
@@ -1758,7 +1757,7 @@ export default function TerminalPage() {
                               : "border-white/10 bg-black/20 text-white/60 hover:bg-white/5",
                           ].join(" ")}
                         >
-                          {ordreActif.enabled ? "ON" : "OFF"}
+                          {ordreActif.enabled ? translate("ON") : translate("OFF")}
                         </button>
                       </div>
 
@@ -1766,22 +1765,22 @@ export default function TerminalPage() {
                         label={`Stop Loss ${ordreActifId}`}
                         value={ordreActif.sl}
                         onChange={(v) => setOrdreField(ordreActifId, "sl", v)}
-                        placeholder="Ex: 90000.00"
+                        placeholder={translate("Ex: 90000.00")}
                       />
 
                       <InputCompact
                         label={`Take Profit ${ordreActifId}`}
                         value={ordreActif.tp}
                         onChange={(v) => setOrdreField(ordreActifId, "tp", v)}
-                        placeholder="Ex: 101000.00"
+                        placeholder={translate("Ex: 101000.00")}
                       />
 
                       {needsStop ? (
                         <InputCompact
-                          label="Stop (trigger) • Stop-Limit"
+                          label={translate("Stop (trigger) • Stop-Limit")}
                           value={stopPrice}
                           onChange={setStopPrice}
-                          placeholder="Ex: 91500.00"
+                          placeholder={translate("Ex: 91500.00")}
                         />
                       ) : null}
 
@@ -1798,7 +1797,7 @@ export default function TerminalPage() {
                         );
                       })()}
 
-                      <div className="text-xs text-[color:var(--muted)]">* Ordre B/C = position différente.</div>
+                      <div className="text-xs text-[color:var(--muted)]">{translate("* Ordre B/C = position différente.")}</div>
                     </div>
                   </CardBody>
                 </Card>
@@ -1806,36 +1805,36 @@ export default function TerminalPage() {
                 {/* Risk */}
                 <Card className="min-h-[320px]">
                   <CardBody className="p-5">
-                    <div className="text-lg font-semibold">Réglages de votre risque</div>
+                    <div className="text-lg font-semibold">{translate("Réglages de votre risque")}</div>
 
                     <div className="mt-4 space-y-3">
                       <InputCompact
-                        label="Risque (%) (0.01 → 100)"
+                        label={translate("Risque (%) (0.01 → 100)")}
                         value={riskPct}
                         onChange={onChangeRiskPct}
                         onBlur={onBlurRiskPct}
                         placeholder="1.00"
                       />
                       <InputCompact
-                        label="Risque (USD)"
+                        label={translate("Risque (USD)")}
                         value={riskUsd}
                         onChange={onChangeRiskUsd}
                         onBlur={onBlurRiskUsd}
                         placeholder="100"
                       />
-                      <InputCompact label="Capital (USD)" value={capitalUsd} readOnly />
+                      <InputCompact label={translate("Capital (USD)")} value={capitalUsd} readOnly />
 
                       <div className="grid grid-cols-2 gap-3">
                         <InputCompact
-                          label="Commission estimée (USD/lot)"
+                          label={translate("Commission estimée (USD/lot)")}
                           value={commissionPerLot}
                           onChange={setCommissionPerLot}
-                          placeholder="ex: 7"
+                          placeholder={translate("ex: 7")}
                         />
                         <div className="rounded-xl border border-white/10 bg-black/20 p-3 text-sm">
-                          <div className="text-xs text-white/60 mb-1">Risque / Ordre</div>
-                          <div className="text-white font-semibold">{fmt(riskMoneyPerOrdre)} USD</div>
-                          <div className="text-[11px] text-white/40 mt-1">({ordresON.length} ordre(s) ON)</div>
+                          <div className="text-xs text-white/60 mb-1">{translate("Risque / Ordre")}</div>
+                          <div className="text-white font-semibold">{fmt(riskMoneyPerOrdre)} {" "}{translate("USD")}</div>
+                          <div className="text-[11px] text-white/40 mt-1">({ordresON.length} {" "}{translate("ordre(s) ON)")}</div>
                         </div>
                       </div>
 
@@ -1850,8 +1849,7 @@ export default function TerminalPage() {
                               : "border-white/10 bg-black/20 text-white/70 hover:bg-white/5",
                           ].join(" ")}
                         >
-                          Déduire commissions: Oui
-                        </button>
+                          {translate("Déduire commissions: Oui")}</button>
                         <button
                           type="button"
                           onClick={() => setDeductCommission(false)}
@@ -1862,26 +1860,25 @@ export default function TerminalPage() {
                               : "border-white/10 bg-black/20 text-white/70 hover:bg-white/5",
                           ].join(" ")}
                         >
-                          Non
-                        </button>
+                          {translate("Non")}</button>
                       </div>
 
                       <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
                         <div className="flex justify-between text-sm">
-                          <span className="text-white/60">Lots (Ordre {ordreActifId})</span>
+                          <span className="text-white/60">{translate("Lots (Ordre")}{" "}{ordreActifId})</span>
                           <span className="font-semibold text-[color:var(--gold)]">
-                            {lotsActif.reason === "ok" ? lotsActif.lots.toFixed(2) : "N/A"}
+                            {lotsActif.reason === "ok" ? lotsActif.lots.toFixed(2) : translate("N/A")}
                           </span>
                         </div>
 
                         <div className="flex justify-between text-sm mt-2">
-                          <span className="text-white/60">R:R estimé</span>
-                          <span className="text-white font-semibold">{rrActif > 0 ? rrActif.toFixed(2) : "N/A"}</span>
+                          <span className="text-white/60">{translate("R:R estimé")}</span>
+                          <span className="text-white font-semibold">{rrActif > 0 ? rrActif.toFixed(2) : translate("N/A")}</span>
                         </div>
 
                         <div className="mt-2 text-xs text-[color:var(--muted)]">
-                          Market: <span className="text-white/80">{marketStr}</span> • Ask:{" "}
-                          <span className="text-white/80">{askStr}</span> • Spread:{" "}
+                          {translate("Market:")}{" "}<span className="text-white/80">{marketStr}</span> {" "}{translate("• Ask:")}{" "}
+                          <span className="text-white/80">{askStr}</span> {" "}{translate("• Spread:")}{" "}
                           <span className="text-white/80">{spreadStr}</span>
                         </div>
                       </div>
@@ -1893,33 +1890,33 @@ export default function TerminalPage() {
               {/* Résumé */}
               <Card className="min-h-[220px]">
                 <CardBody className="p-5">
-                  <div className="text-lg font-semibold mb-3">Résumé</div>
+                  <div className="text-lg font-semibold mb-3">{translate("Résumé")}</div>
 
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
                     <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-                      <div className="text-xs text-white/60">Ordres ON</div>
+                      <div className="text-xs text-white/60">{translate("Ordres ON")}</div>
                       <div className="mt-1 font-semibold text-white">{ordresON.length}</div>
                     </div>
 
                     <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-                      <div className="text-xs text-white/60">Risque total</div>
-                      <div className="mt-1 font-semibold text-[color:var(--gold)]">{fmt(riskMoneyTotal)} USD</div>
+                      <div className="text-xs text-white/60">{translate("Risque total")}</div>
+                      <div className="mt-1 font-semibold text-[color:var(--gold)]">{fmt(riskMoneyTotal)} {" "}{translate("USD")}</div>
                     </div>
 
                     <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-                      <div className="text-xs text-white/60">Actif</div>
-                      <div className="mt-1 font-semibold text-white">Ordre {ordreActifId}</div>
+                      <div className="text-xs text-white/60">{translate("Actif")}</div>
+                      <div className="mt-1 font-semibold text-white">{translate("Ordre")}{" "}{ordreActifId}</div>
                     </div>
 
                     <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-                      <div className="text-xs text-white/60">Market</div>
+                      <div className="text-xs text-white/60">{translate("Market")}</div>
                       <div className="mt-1 font-semibold text-white">{marketStr}</div>
                     </div>
 
                     <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-                      <div className="text-xs text-white/60">Reward (actif)</div>
+                      <div className="text-xs text-white/60">{translate("Reward (actif)")}</div>
                       <div className="mt-1 font-semibold text-[color:var(--success)]">
-                        {expRewardActif > 0 ? `${fmt(expRewardActif)} USD` : "0.00 USD"}
+                        {expRewardActif > 0 ? `${fmt(expRewardActif)} USD` : translate("0.00 USD")}
                       </div>
                     </div>
                   </div>
@@ -1930,9 +1927,9 @@ export default function TerminalPage() {
             {/* RIGHT: TradingView */}
             <Card className="lg:col-span-4 min-h-[560px]">
               <CardBody className="p-5">
-                <div className="text-lg font-semibold mb-3">Graphique TradingView</div>
+                <div className="text-lg font-semibold mb-3">{translate("Graphique TradingView")}</div>
                 <div className="text-xs text-[color:var(--muted)] mb-3">
-                  TradingView API (tv.js) • Symbol: {symbol ? symbol : "BTCUSD"}
+                  {translate("TradingView API (tv.js) • Symbol:")}{" "}{symbol ? symbol : translate("BTCUSD")}
                 </div>
 
                 <div className="rounded-2xl border border-white/10 overflow-hidden bg-black/20">
@@ -1940,9 +1937,9 @@ export default function TerminalPage() {
                 </div>
 
                 <div className="mt-3 text-xs text-[color:var(--muted)] flex justify-between">
-                  <span>Market: {marketStr}</span>
-                  <span>Ask: {askStr}</span>
-                  <span>Spread: {spreadStr}</span>
+                  <span>{translate("Market:")}{" "}{marketStr}</span>
+                  <span>{translate("Ask:")}{" "}{askStr}</span>
+                  <span>{translate("Spread:")}{" "}{spreadStr}</span>
                 </div>
               </CardBody>
             </Card>
@@ -1960,8 +1957,7 @@ export default function TerminalPage() {
               ].join(" ")}
               type="button"
             >
-              Positions ouvertes
-            </button>
+              {translate("Positions ouvertes")}</button>
 
             <button
               onClick={() => setShowOrders((v) => !v)}
@@ -1973,16 +1969,13 @@ export default function TerminalPage() {
               ].join(" ")}
               type="button"
             >
-              Ordres en attente
-            </button>
+              {translate("Ordres en attente")}</button>
 
             <div className="ml-auto flex gap-2">
               <Button variant="secondary" onClick={() => refreshPositions().catch(() => {})} disabled={busy}>
-                Refresh Positions
-              </Button>
+                {translate("Refresh Positions")}</Button>
               <Button variant="secondary" onClick={() => refreshOrders().catch(() => {})} disabled={busy}>
-                Refresh Pending
-              </Button>
+                {translate("Refresh Pending")}</Button>
             </div>
           </div>
 
@@ -1992,9 +1985,9 @@ export default function TerminalPage() {
               <CardBody>
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                   <div>
-                    <div className="text-lg font-semibold">Positions ouvertes</div>
+                    <div className="text-lg font-semibold">{translate("Positions ouvertes")}</div>
                     <div className="text-xs text-[color:var(--muted)] mt-1">
-                      PnL total:{" "}
+                      {translate("PnL total:")}{" "}
                       <span
                         className={
                           totalPnl >= 0
@@ -2008,23 +2001,22 @@ export default function TerminalPage() {
                   </div>
 
                   <Button variant="danger" onClick={() => setOpenCloseAll(true)} disabled={busy || positions.length === 0}>
-                    Tout clôturer
-                  </Button>
+                    {translate("Tout clôturer")}</Button>
                 </div>
 
                 <div className="mt-4 overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="text-white/70">
                       <tr className="border-b border-white/10">
-                        <th className="text-left py-3">Ticket</th>
-                        <th className="text-left py-3">Symbol</th>
-                        <th className="text-left py-3">Type</th>
-                        <th className="text-left py-3">Lots</th>
-                        <th className="text-left py-3">Entry</th>
-                        <th className="text-left py-3">Prix actuel</th>
-                        <th className="text-left py-3">SL</th>
-                        <th className="text-left py-3">TP</th>
-                        <th className="text-left py-3">Profit</th>
+                        <th className="text-left py-3">{translate("Ticket")}</th>
+                        <th className="text-left py-3">{translate("Symbol")}</th>
+                        <th className="text-left py-3">{translate("Type")}</th>
+                        <th className="text-left py-3">{translate("Lots")}</th>
+                        <th className="text-left py-3">{translate("Entry")}</th>
+                        <th className="text-left py-3">{translate("Prix actuel")}</th>
+                        <th className="text-left py-3">{translate("SL")}</th>
+                        <th className="text-left py-3">{translate("TP")}</th>
+                        <th className="text-left py-3">{translate("Profit")}</th>
                         <th className="text-left py-3"></th>
                       </tr>
                     </thead>
@@ -2033,8 +2025,7 @@ export default function TerminalPage() {
                       {positions.length === 0 ? (
                         <tr>
                           <td colSpan={10} className="py-10 text-center text-[color:var(--muted)]">
-                            Aucune position ouverte.
-                          </td>
+                            {translate("Aucune position ouverte.")}</td>
                         </tr>
                       ) : (
                         positions.map((p) => {
@@ -2064,11 +2055,9 @@ export default function TerminalPage() {
                               </td>
                               <td className="py-3 flex gap-2">
                                 <Button variant="secondary" onClick={() => openModifyPosition(p)} disabled={busy}>
-                                  Modifier
-                                </Button>
+                                  {translate("Modifier")}</Button>
                                 <Button variant="danger" onClick={() => openClosePosition(p)} disabled={busy}>
-                                  Clôturer
-                                </Button>
+                                  {translate("Clôturer")}</Button>
                               </td>
                             </tr>
                           );
@@ -2087,27 +2076,26 @@ export default function TerminalPage() {
               <CardBody>
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                   <div>
-                    <div className="text-lg font-semibold">Ordres en attente</div>
+                    <div className="text-lg font-semibold">{translate("Ordres en attente")}</div>
                   </div>
 
                   <Button variant="secondary" onClick={() => setOpenCancelAll(true)} disabled={busy || orders.length === 0}>
-                    Tout annuler
-                  </Button>
+                    {translate("Tout annuler")}</Button>
                 </div>
 
                 <div className="mt-4 overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="text-white/70">
                       <tr className="border-b border-white/10">
-                        <th className="text-left py-3">Order</th>
-                        <th className="text-left py-3">Symbol</th>
-                        <th className="text-left py-3">Type</th>
-                        <th className="text-left py-3">Volume</th>
-                        <th className="text-left py-3">Prix</th>
-                        <th className="text-left py-3">Prix actuel</th>
-                        <th className="text-left py-3">SL</th>
-                        <th className="text-left py-3">TP</th>
-                        <th className="text-left py-3">Comment</th>
+                        <th className="text-left py-3">{translate("Order")}</th>
+                        <th className="text-left py-3">{translate("Symbol")}</th>
+                        <th className="text-left py-3">{translate("Type")}</th>
+                        <th className="text-left py-3">{translate("Volume")}</th>
+                        <th className="text-left py-3">{translate("Prix")}</th>
+                        <th className="text-left py-3">{translate("Prix actuel")}</th>
+                        <th className="text-left py-3">{translate("SL")}</th>
+                        <th className="text-left py-3">{translate("TP")}</th>
+                        <th className="text-left py-3">{translate("Comment")}</th>
                         <th className="text-left py-3"></th>
                       </tr>
                     </thead>
@@ -2116,8 +2104,7 @@ export default function TerminalPage() {
                       {orders.length === 0 ? (
                         <tr>
                           <td colSpan={10} className="py-10 text-center text-[color:var(--muted)]">
-                            Aucun ordre en attente.
-                          </td>
+                            {translate("Aucun ordre en attente.")}</td>
                         </tr>
                       ) : (
                         orders.map((o) => {
@@ -2137,8 +2124,7 @@ export default function TerminalPage() {
                               <td className="py-3 text-white/60">{o.comment}</td>
                               <td className="py-3">
                                 <Button variant="danger" onClick={() => cancelPending(Number(o.ticket))} disabled={busy}>
-                                  Annuler
-                                </Button>
+                                  {translate("Annuler")}</Button>
                               </td>
                             </tr>
                           );
@@ -2154,13 +2140,12 @@ export default function TerminalPage() {
           {/* Accounts modal */}
           <Modal
             open={openAccountsModal}
-            title="Choisir le compte MT5"
+            title={translate("Choisir le compte MT5")}
             onClose={() => setOpenAccountsModal(false)}
             footer={
               <div className="flex items-center justify-end gap-3 w-full">
                 <Button variant="secondary" onClick={() => setOpenAccountsModal(false)}>
-                  Fermer
-                </Button>
+                  {translate("Fermer")}</Button>
               </div>
             }
           >
@@ -2198,28 +2183,26 @@ export default function TerminalPage() {
           {/* ✅ MODIFY modal */}
           <Modal
             open={openModify}
-            title={`Modifier SL/TP • Ticket ${modTicket ?? ""}`}
+            title={translate("Modifier SL/TP • Ticket {ticket}").replace("{ticket}", String(modTicket ?? ""))}
             onClose={() => setOpenModify(false)}
             footer={
               <div className="flex items-center justify-between gap-3 w-full">
                 <div className="flex gap-2">
                   <Button variant="secondary" onClick={setBreakEven} disabled={!Number.isFinite(modEntry) || modEntry <= 0}>
-                    B/E
-                  </Button>
+                    {translate("B/E")}</Button>
 
                   <div className="hidden sm:flex items-center px-3 py-2 rounded-2xl border border-white/10 bg-black/20 text-xs text-white/70">
-                    Entry: <span className="ml-1 text-white/90">{Number.isFinite(modEntry) ? fmt2(modEntry) : "—"}</span>
+                    {translate("Entry:")}{" "}<span className="ml-1 text-white/90">{Number.isFinite(modEntry) ? fmt2(modEntry) : "—"}</span>
                     <span className="mx-2 text-white/20">•</span>
-                    Now: <span className="ml-1 text-white/90">{Number.isFinite(modPxNow) ? fmt2(modPxNow) : "—"}</span>
+                    {translate("Now:")}{" "}<span className="ml-1 text-white/90">{Number.isFinite(modPxNow) ? fmt2(modPxNow) : "—"}</span>
                   </div>
                 </div>
 
                 <div className="flex gap-3">
                   <Button variant="ghost" onClick={() => setOpenModify(false)}>
-                    Annuler
-                  </Button>
+                    {translate("Annuler")}</Button>
                   <Button onClick={saveModify} disabled={busy}>
-                    {busy ? "..." : "Enregistrer"}
+                    {busy ? "..." : translate("Enregistrer")}
                   </Button>
                 </div>
               </div>
@@ -2227,39 +2210,39 @@ export default function TerminalPage() {
           >
             <div className="space-y-4">
               <div className="text-sm text-[color:var(--muted)]">
-                {modSymbol} • Lots:{" "}
+                {modSymbol} {" "}{translate("• Lots:")}{" "}
                 <span className="text-[color:var(--gold)] font-semibold">{Number.isFinite(modLots) ? fmt2(modLots) : "—"}</span>{" "}
-                • Type: <span className="text-white/90 font-semibold">{modType === 0 ? "BUY" : "SELL"}</span>
+                {translate("• Type:")}{" "}<span className="text-white/90 font-semibold">{modType === 0 ? translate("BUY") : translate("SELL")}</span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <InputCompact label="Stop Loss (prix)" value={modSl} onChange={setModSl} placeholder="Ex: 90000.00" />
-                <InputCompact label="Take Profit (prix)" value={modTp} onChange={setModTp} placeholder="Ex: 101000.00" />
+                <InputCompact label={translate("Stop Loss (prix)")} value={modSl} onChange={setModSl} placeholder={translate("Ex: 90000.00")} />
+                <InputCompact label={translate("Take Profit (prix)")} value={modTp} onChange={setModTp} placeholder={translate("Ex: 101000.00")} />
               </div>
 
               <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
                   <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-                    <div className="text-xs text-white/60">Perte au SL (est.)</div>
+                    <div className="text-xs text-white/60">{translate("Perte au SL (est.)")}</div>
                     <div className="mt-1 font-semibold text-[color:var(--danger)]">
                       {modLossUsd == null ? "—" : `${fmt(modLossUsd)} $`}
                     </div>
                   </div>
 
                   <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-                    <div className="text-xs text-white/60">Gain au TP (est.)</div>
+                    <div className="text-xs text-white/60">{translate("Gain au TP (est.)")}</div>
                     <div className="mt-1 font-semibold text-[color:var(--success)]">
                       {modGainUsd == null ? "—" : `${fmt(modGainUsd)} $`}
                     </div>
                   </div>
 
                   <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-                    <div className="text-xs text-white/60">R:R</div>
+                    <div className="text-xs text-white/60">{translate("R:R")}</div>
                     <div className="mt-1 font-semibold text-[color:var(--gold)]">{modRR == null ? "—" : modRR.toFixed(2)}</div>
                   </div>
                 </div>
 
-                <div className="mt-3 text-xs text-[color:var(--muted)]">* Estimations via tick_value/tick_size.</div>
+                <div className="mt-3 text-xs text-[color:var(--muted)]">{translate("* Estimations via tick_value/tick_size.")}</div>
               </div>
             </div>
           </Modal>
@@ -2267,12 +2250,12 @@ export default function TerminalPage() {
           {/* ✅ CLOSE modal */}
           <Modal
             open={openCloseModal}
-            title={`Clôturer • Ticket ${closeTicket ?? ""}`}
+            title={(translate("Clôturer • Ticket ") + (closeTicket ?? "") + "")}
             onClose={() => setOpenCloseModal(false)}
             footer={
               <div className="flex items-center justify-between gap-3 w-full">
                 <div className="text-xs text-white/60">
-                  Lots total:{" "}
+                  {translate("Lots total:")}{" "}
                   <span className="text-[color:var(--gold)] font-semibold">
                     {Number.isFinite(closeLotsTotal) ? fmt2(closeLotsTotal) : "—"}
                   </span>
@@ -2280,10 +2263,9 @@ export default function TerminalPage() {
 
                 <div className="flex gap-3">
                   <Button variant="ghost" onClick={() => setOpenCloseModal(false)}>
-                    Annuler
-                  </Button>
+                    {translate("Annuler")}</Button>
                   <Button variant="danger" onClick={confirmClosePartial} disabled={busy}>
-                    {busy ? "..." : "Clôturer"}
+                    {busy ? "..." : translate("Clôturer")}
                   </Button>
                 </div>
               </div>
@@ -2291,15 +2273,15 @@ export default function TerminalPage() {
           >
             <div className="space-y-4">
               <div className="text-sm text-[color:var(--muted)]">
-                {closeSymbol} • {closeType === 0 ? "BUY" : "SELL"} • Entry{" "}
+                {closeSymbol} • {closeType === 0 ? translate("BUY") : translate("SELL")} {" "}{translate("• Entry")}{" "}
                 <span className="text-white/90">{Number.isFinite(closeEntry) ? fmt2(closeEntry) : "—"}</span>
-                {"  "}• Now{" "}
+                {"  "}{translate("• Now")}{" "}
                 <span className="text-white/90">{Number.isFinite(closePxNow) ? fmt2(closePxNow) : "—"}</span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <InputCompact
-                  label="Lots à clôturer (vide = tout)"
+                  label={translate("Lots à clôturer (vide = tout)")}
                   value={closeLots}
                   onChange={setCloseLots}
                   placeholder={fmt2(closeLotsTotal)}
@@ -2307,7 +2289,7 @@ export default function TerminalPage() {
 
                 <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
                   <div className="flex items-center justify-between">
-                    <div className="text-xs text-white/60">Prévisualisation PnL (est.)</div>
+                    <div className="text-xs text-white/60">{translate("Prévisualisation PnL (est.)")}</div>
                     <div
                       className={[
                         "text-sm font-semibold",
@@ -2321,17 +2303,15 @@ export default function TerminalPage() {
                       {closeEstPnl == null ? "—" : `${fmt(closeEstPnl)} $`}
                     </div>
                   </div>
-                  <div className="mt-2 text-[11px] text-white/40">* Estimation sur le prix actuel et le lot saisi.</div>
+                  <div className="mt-2 text-[11px] text-white/40">{translate("* Estimation sur le prix actuel et le lot saisi.")}</div>
                 </div>
               </div>
 
               {closeTooHigh ? (
                 <div className="text-sm rounded-2xl border border-[color:var(--danger)]/25 bg-[color:var(--danger)]/10 text-[color:var(--danger)] p-3">
-                  Volume trop élevé. Max = <b>{fmt2(closeLotsTotal)}</b> lots.
-                  <div className="mt-2">
+                  {translate("Volume trop élevé. Max =")}{" "}<b>{fmt2(closeLotsTotal)}</b> {" "}{translate("lots.")}<div className="mt-2">
                     <Button variant="secondary" onClick={fillMaxCloseLots}>
-                      Mettre le max
-                    </Button>
+                      {translate("Mettre le max")}</Button>
                   </div>
                 </div>
               ) : (
@@ -2341,10 +2321,9 @@ export default function TerminalPage() {
                     onClick={fillMaxCloseLots}
                     disabled={!Number.isFinite(closeLotsTotal) || closeLotsTotal <= 0}
                   >
-                    Max
-                  </Button>
+                    {translate("Max")}</Button>
                   <div className="text-xs text-white/40">
-                    Si tu mets un lot, ça fera une <b>clôture partielle</b>.
+                    {translate("Si tu mets un lot, ça fera une")}{" "}<b>{translate("clôture partielle")}</b>.
                   </div>
                 </div>
               )}
@@ -2354,74 +2333,67 @@ export default function TerminalPage() {
           {/* ✅ BULK CLOSE ALL */}
           <Modal
             open={openCloseAll}
-            title="Clôturer toutes les positions ?"
+            title={translate("Clôturer toutes les positions ?")}
             onClose={() => setOpenCloseAll(false)}
             footer={
               <div className="flex justify-end gap-3">
                 <Button variant="ghost" onClick={() => setOpenCloseAll(false)}>
-                  Annuler
-                </Button>
+                  {translate("Annuler")}</Button>
                 <Button variant="danger" onClick={confirmCloseAll} disabled={busy}>
-                  {busy ? "..." : "Confirmer"}
+                  {busy ? "..." : translate("Confirmer")}
                 </Button>
               </div>
             }
           >
             <div className="text-sm text-[color:var(--muted)]">
-              Tu es sur le point de clôturer <b>{positions.length}</b> position(s). Action irréversible.
-            </div>
+              {translate("Tu es sur le point de clôturer")}{" "}<b>{positions.length}</b> {" "}{translate("position(s). Action irréversible.")}</div>
           </Modal>
 
           {/* ✅ BULK CANCEL ALL */}
           <Modal
             open={openCancelAll}
-            title="Annuler tous les ordres en attente ?"
+            title={translate("Annuler tous les ordres en attente ?")}
             onClose={() => setOpenCancelAll(false)}
             footer={
               <div className="flex justify-end gap-3">
                 <Button variant="ghost" onClick={() => setOpenCancelAll(false)}>
-                  Annuler
-                </Button>
+                  {translate("Annuler")}</Button>
                 <Button variant="secondary" onClick={confirmCancelAll} disabled={busy}>
-                  {busy ? "..." : "Confirmer"}
+                  {busy ? "..." : translate("Confirmer")}
                 </Button>
               </div>
             }
           >
             <div className="text-sm text-[color:var(--muted)]">
-              Tu es sur le point d’annuler <b>{orders.length}</b> ordre(s) en attente.
-            </div>
+              {translate("Tu es sur le point d’annuler")}{" "}<b>{orders.length}</b> {" "}{translate("ordre(s) en attente.")}</div>
           </Modal>
 
           {/* Gate modal */}
           <Modal
             open={openGateModal}
-            title="Accès requis"
+            title={translate("Accès requis")}
             onClose={() => setOpenGateModal(false)}
             footer={
               <div className="flex items-center justify-end gap-3">
                 <Button variant="ghost" onClick={() => setOpenGateModal(false)}>
-                  Fermer
-                </Button>
+                  {translate("Fermer")}</Button>
                 {gateReason === "noPlan" ? (
-                  <Button onClick={() => (window.location.href = "/dashboard/abonnement")}>Voir abonnement</Button>
+                  <Button onClick={() => (window.location.href = "/dashboard/abonnement")}>{translate("Voir abonnement")}</Button>
                 ) : (
-                  <Button onClick={() => (window.location.href = "/dashboard/comptes")}>Ajouter un compte</Button>
+                  <Button onClick={() => (window.location.href = "/dashboard/comptes")}>{translate("Ajouter un compte")}</Button>
                 )}
               </div>
             }
           >
             {gateReason === "noPlan" ? (
               <div className="text-sm text-[color:var(--muted)]">
-                L’accès au terminal nécessite un abonnement.
-                <div className="mt-3 rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-3 text-[color:var(--gold)]">
-                  Plan actuel : <b>{getPlan()}</b>
+                {translate("L’accès au terminal nécessite un abonnement.")}<div className="mt-3 rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-3 text-[color:var(--gold)]">
+                  {translate("Plan actuel :")}{" "}<b>{getPlan()}</b>
                 </div>
               </div>
             ) : (
               <div className="text-sm text-[color:var(--muted)]">
-                Aucun compte MT5 connecté. Va sur Comptes et clique “Tester”.
-              </div>
+                {translate("Aucun compte MT5 connecté. Va sur Comptes et clique “Tester”.")}</div>
             )}
           </Modal>
         </div>

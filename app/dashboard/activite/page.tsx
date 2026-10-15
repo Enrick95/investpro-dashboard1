@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
+
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
@@ -27,11 +29,11 @@ type EventRow = {
   tone: "gold" | "good" | "warn" | "neutral";
 };
 
-function dateLabel(value: string) {
+function dateLabel(value: string, locale: "fr" | "en" = "fr") {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
 
-  return date.toLocaleString("fr-FR", {
+  return date.toLocaleString(locale === "en" ? "en-US" : "fr-FR", {
     day: "2-digit",
     month: "short",
     hour: "2-digit",
@@ -56,7 +58,34 @@ function toneClass(tone: EventRow["tone"]) {
   return "border-white/[0.07] bg-white/[0.03] text-white/45";
 }
 
+/** Localize generated event labels while leaving account names and support subjects intact. */
+function eventDisplay(event: EventRow, translate: (text: string) => string) {
+  let title = event.title;
+  let text = event.text;
+  if (event.type === "trade") {
+    if (title.endsWith(" · enregistré")) title = title.slice(0, -"enregistré".length) + translate("enregistré");
+    text = text.startsWith("Résultat ") ? translate("Résultat") + text.slice("Résultat".length) : translate(text);
+  } else if (event.type === "account") {
+    const separator = text.indexOf(" · ");
+    text = separator >= 0 ? translate(text.slice(0, separator)) + text.slice(separator) : translate(text);
+  } else if (event.type === "support") {
+    if (title === "Réponse du support") {
+      title = translate(title);
+      if (text === "L’équipe InvestPro a répondu.") text = translate(text);
+    } else if (text.startsWith("Statut : ")) {
+      text = translate("Statut :") + text.slice("Statut :".length);
+    }
+  } else if (event.type === "connection") {
+    if (text.startsWith("Statut : ")) text = translate("Statut :") + text.slice("Statut :".length);
+    else if (text.endsWith(" · synchronisation active")) text = text.slice(0, -"synchronisation active".length) + translate("synchronisation active");
+    else if (text.endsWith(" · synchronisation en attente")) text = text.slice(0, -"synchronisation en attente".length) + translate("synchronisation en attente");
+    else text = translate(text);
+  }
+  return { title, text };
+}
+
 export default function ActivityCenterPage() {
+  const { t: translate, locale } = useLocale();
   const supabase = useMemo(() => createClient(), []);
   const [events, setEvents] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -253,16 +282,14 @@ export default function ActivityCenterPage() {
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gold)]">
               <Activity size={12} />
-              Centre d’activité
-            </div>
+              {translate("Centre d’activité")}</div>
 
             <h1 className="mt-3 text-2xl font-semibold text-white md:text-3xl">
-              Tout ce qui se passe dans <span className="text-[color:var(--gold)]">InvestPro</span>
+              {translate("Tout ce qui se passe dans")}{" "}<span className="text-[color:var(--gold)]">{translate("InvestPro")}</span>
             </h1>
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-[color:var(--muted)]">
-              Trades, comptes, connexions et support réunis dans une seule timeline.
-            </p>
+              {translate("Trades, comptes, connexions et support réunis dans une seule timeline.")}</p>
           </div>
 
           <button
@@ -271,14 +298,13 @@ export default function ActivityCenterPage() {
             className="inline-flex h-10 items-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 text-xs font-semibold text-[color:var(--gold)]"
           >
             <RefreshCw size={13} />
-            Actualiser
-          </button>
+            {translate("Actualiser")}</button>
         </div>
       </section>
 
       {error ? (
         <div className="rounded-xl border border-red-500/20 bg-red-500/[0.05] p-3 text-xs text-red-300">
-          {error}
+          {translate(error)}
         </div>
       ) : null}
 
@@ -305,7 +331,7 @@ export default function ActivityCenterPage() {
                     : "border-white/[0.07] bg-black/20 text-white/40",
                 ].join(" ")}
               >
-                {label}
+                {translate(label)}
               </button>
             ))}
           </div>
@@ -329,16 +355,16 @@ export default function ActivityCenterPage() {
 
                 <div className="min-w-0">
                   <div className="truncate text-xs font-semibold text-white">
-                    {event.title}
+                    {eventDisplay(event, translate).title}
                   </div>
                   <div className="mt-1 truncate text-[9px] text-white/35">
-                    {event.text}
+                    {eventDisplay(event, translate).text}
                   </div>
                 </div>
 
                 <div className="inline-flex items-center gap-1 text-[8px] text-white/25">
                   <Clock3 size={10} />
-                  {dateLabel(event.date)}
+                  {dateLabel(event.date, locale)}
                 </div>
               </Link>
             ))
@@ -346,11 +372,9 @@ export default function ActivityCenterPage() {
             <div className="p-12 text-center">
               <CheckCircle2 size={24} className="mx-auto text-[color:var(--gold)]" />
               <div className="mt-3 text-sm font-semibold text-white">
-                Aucune activité pour ce filtre
-              </div>
+                {translate("Aucune activité pour ce filtre")}</div>
               <p className="mt-1 text-[10px] text-white/30">
-                Les prochains événements apparaîtront ici.
-              </p>
+                {translate("Les prochains événements apparaîtront ici.")}</p>
             </div>
           )}
         </div>

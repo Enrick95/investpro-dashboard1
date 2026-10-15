@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { planAllowsAsset, normalizePlanAsset } from "@/lib/trading-plan-assets";
 import {loadJournal as loadJournalRows} from "@/lib/metasync/loadJournal";
 
@@ -565,7 +566,8 @@ function evaluatePlan(
     setup: string | null;
   },
 
-  plan: TradingPlan | null
+  plan: TradingPlan | null,
+  t: (message: string) => string = message => message,
 ) {
   if (!plan) {
     return {
@@ -596,7 +598,7 @@ function evaluatePlan(
     key: "risk",
 
     label:
-      "Risque respecté",
+      t("Risque respecté"),
 
     valid:
       riskValid,
@@ -628,14 +630,14 @@ function evaluatePlan(
     key: "rr",
 
     label:
-      "RR respecté",
+      t("RR respecté"),
 
     valid:
       rrValid,
 
     detail:
       rr === null
-        ? `Impossible à vérifier • minimum 1:${plan.minimum_rr}`
+        ? (t("Impossible à vérifier • minimum 1:") + (plan.minimum_rr) + "")
         : `1:${rr.toFixed(
             2
           )} / minimum 1:${plan.minimum_rr}`,
@@ -654,7 +656,7 @@ function evaluatePlan(
       key: "asset",
 
       label:
-        "Actif autorisé",
+        t("Actif autorisé"),
 
       valid:
         assetValid,
@@ -692,7 +694,7 @@ function evaluatePlan(
       key: "session",
 
       label:
-        "Session autorisée",
+        t("Session autorisée"),
 
       valid:
         sessionValid,
@@ -701,8 +703,8 @@ function evaluatePlan(
         sessionValid
           ? session
           : session
-          ? `${session} n’est pas autorisée`
-          : "Session non renseignée",
+          ? ("" + (session) + t(" n’est pas autorisée"))
+          : t("Session non renseignée"),
     });
   }
 
@@ -732,7 +734,7 @@ function evaluatePlan(
       key: "setup",
 
       label:
-        "Setup autorisé",
+        t("Setup autorisé"),
 
       valid:
         setupValid,
@@ -742,7 +744,7 @@ function evaluatePlan(
           ? trade.setup || ""
           : setup
           ? `${trade.setup} n’est pas dans ton plan`
-          : "Setup non renseigné",
+          : t("Setup non renseigné"),
     });
   }
 
@@ -765,6 +767,8 @@ function evaluatePlan(
 ========================================================= */
 
 export default function JournalPage() {
+  const { t, locale } = useLocale();
+
   const { rates, rateDate, rateLoading } = useCurrencyRates();
   const { displayCurrency } = useDisplayCurrency();
   const supabase =
@@ -1016,10 +1020,10 @@ export default function JournalPage() {
           kind: "error",
 
           title:
-            "Journal",
+            t("Journal"),
 
           message:
-            "Impossible de charger les trades.",
+            t("Impossible de charger les trades."),
 
           ttlMs: 8000,
         });
@@ -1051,10 +1055,10 @@ export default function JournalPage() {
           kind: "error",
 
           title:
-            "Journal",
+            t("Journal"),
 
           message:
-            "Impossible de charger tes comptes de trading.",
+            t("Impossible de charger tes comptes de trading."),
 
           ttlMs: 8000,
         });
@@ -1267,10 +1271,10 @@ export default function JournalPage() {
           "warning",
 
         title:
-          "Capture TradingView",
+          t("Capture TradingView"),
 
         message:
-          "Utilise une image PNG, JPG/JPEG ou WEBP.",
+          t("Utilise une image PNG, JPG/JPEG ou WEBP."),
 
         ttlMs:
           7000,
@@ -1288,10 +1292,10 @@ export default function JournalPage() {
           "warning",
 
         title:
-          "Capture TradingView",
+          t("Capture TradingView"),
 
         message:
-          "La capture ne doit pas dépasser 5 Mo.",
+          t("La capture ne doit pas dépasser 5 Mo."),
 
         ttlMs:
           7000,
@@ -1358,7 +1362,7 @@ export default function JournalPage() {
   ) {
     if (!userId) {
       throw new Error(
-        "Utilisateur non connecté."
+        t("Utilisateur non connecté.")
       );
     }
 
@@ -1831,11 +1835,13 @@ export default function JournalPage() {
             null,
         },
 
-        tradingPlan
+        tradingPlan,
+        t
       );
     }, [
       form,
       tradingPlan,
+      t,
     ]);
 
   /* =========================================================
@@ -1912,7 +1918,7 @@ export default function JournalPage() {
   function openEditTrade(
     trade: Trade
   ) {
-    if((trade.setup==='MT5 synchronisé'||trade.setup==='MT4 synchronisé')){alert("Ce trade provient de MetaTrader : les données importées ne se modifient pas manuellement.");return;}
+    if((trade.setup==='MT5 synchronisé'||trade.setup==='MT4 synchronisé')){alert(t("Ce trade provient de MetaTrader : les données importées ne se modifient pas manuellement."));return;}
     setEditingTrade(
       trade
     );
@@ -2062,10 +2068,10 @@ export default function JournalPage() {
           "warning",
 
         title:
-          "Journal",
+          t("Journal"),
 
         message:
-          "L’actif est obligatoire.",
+          t("L’actif est obligatoire."),
 
         ttlMs:
           7000,
@@ -2082,10 +2088,10 @@ export default function JournalPage() {
           "warning",
 
         title:
-          "Journal",
+          t("Journal"),
 
         message:
-          "Sélectionne un compte de trading avant d’ajouter le trade.",
+          t("Sélectionne un compte de trading avant d’ajouter le trade."),
 
         ttlMs:
           8000,
@@ -2111,10 +2117,10 @@ export default function JournalPage() {
           "warning",
 
         title:
-          "Journal",
+          t("Journal"),
 
         message:
-          "Le capital actuel de ce compte doit être supérieur à 0.",
+          t("Le capital actuel de ce compte doit être supérieur à 0."),
 
         ttlMs:
           8000,
@@ -2134,10 +2140,10 @@ export default function JournalPage() {
           "warning",
 
         title:
-          "Journal",
+          t("Journal"),
 
         message:
-          "Pour un WIN, renseigne l’entrée, le Stop Loss et le Take Profit afin de calculer le RR.",
+          t("Pour un WIN, renseigne l’entrée, le Stop Loss et le Take Profit afin de calculer le RR."),
 
         ttlMs:
           9000,
@@ -2323,10 +2329,10 @@ export default function JournalPage() {
             "success",
 
           title:
-            "Journal",
+            t("Journal"),
 
           message:
-            "Trade modifié et résultats recalculés.",
+            t("Trade modifié et résultats recalculés."),
 
           ttlMs:
             6000,
@@ -2365,16 +2371,16 @@ export default function JournalPage() {
             "success",
 
           title:
-            "Journal",
+            t("Journal"),
 
           message:
             formPlanEvaluation.compliant ===
             true
-              ? "Trade ajouté • conforme à ton plan."
+              ? t("Trade ajouté • conforme à ton plan.")
               : formPlanEvaluation.compliant ===
                 false
-              ? "Trade ajouté • certaines règles du plan ne sont pas respectées."
-              : "Trade ajouté.",
+              ? t("Trade ajouté • certaines règles du plan ne sont pas respectées.")
+              : t("Trade ajouté."),
 
           ttlMs:
             7000,
@@ -2417,11 +2423,11 @@ export default function JournalPage() {
           "error",
 
         title:
-          "Journal",
+          t("Journal"),
 
         message:
           error?.message ||
-          "Impossible d’enregistrer le trade.",
+          t("Impossible d’enregistrer le trade."),
 
         ttlMs:
           10000,
@@ -2440,7 +2446,7 @@ export default function JournalPage() {
   async function deleteTrade(
     trade: Trade
   ) {
-    if((trade.setup==='MT5 synchronisé'||trade.setup==='MT4 synchronisé')){alert("Ce trade provient de MetaTrader et serait réimporté. Révoque la connexion dans Mes comptes pour arrêter la synchronisation.");return;}
+    if((trade.setup==='MT5 synchronisé'||trade.setup==='MT4 synchronisé')){alert(t("Ce trade provient de MetaTrader et serait réimporté. Révoque la connexion dans Mes comptes pour arrêter la synchronisation."));return;}
     const confirmed =
       window.confirm(
         `Supprimer le trade ${trade.symbol} ?`
@@ -2469,10 +2475,10 @@ export default function JournalPage() {
           "error",
 
         title:
-          "Journal",
+          t("Journal"),
 
         message:
-          "Impossible de supprimer le trade.",
+          t("Impossible de supprimer le trade."),
 
         ttlMs:
           8000,
@@ -2503,10 +2509,10 @@ export default function JournalPage() {
         "success",
 
       title:
-        "Journal",
+        t("Journal"),
 
       message:
-        "Trade supprimé.",
+        t("Trade supprimé."),
 
       ttlMs:
         5000,
@@ -2520,8 +2526,7 @@ export default function JournalPage() {
   if (loading) {
     return (
       <div className="min-h-[70vh] flex items-center justify-center text-sm text-[color:var(--muted)]">
-        Chargement du journal…
-      </div>
+        {t("Chargement du journal…")}</div>
     );
   }
 
@@ -2535,14 +2540,10 @@ export default function JournalPage() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-white">
-              Journal de trading
-            </h1>
+              {t("Journal de trading")}</h1>
 
             <p className="mt-1 text-sm text-[color:var(--muted)]">
-              Analyse tes trades,
-              tes résultats et
-              ta discipline.
-            </p>
+              {t("Analyse tes trades, tes résultats et ta discipline.")}</p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 lg:gap-3">
@@ -2557,8 +2558,7 @@ export default function JournalPage() {
                 text-[color:var(--muted)]
               "
             >
-              Mode manuel
-            </div>
+              {t("Mode manuel")}</div>
 
             <button
               type="button"
@@ -2584,8 +2584,7 @@ export default function JournalPage() {
                 size={16}
               />
 
-              Ajouter un trade
-            </button>
+              {t("Ajouter un trade")}</button>
           </div>
         </div>
 
@@ -2626,21 +2625,16 @@ export default function JournalPage() {
 
               <div>
                 <div className="text-xs font-semibold text-white">
-                  Ton plan de
-                  trading est actif
-                </div>
+                  {t("Ton plan de trading est actif")}</div>
 
                 <div className="mt-1 text-[10px] text-[color:var(--muted)]">
-                  Chaque trade est
-                  analysé automatiquement
-                  selon tes règles.
-                </div>
+                  {t("Chaque trade est analysé automatiquement selon tes règles.")}</div>
               </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
               <PlanMiniPill
-                text={`Risque max ${tradingPlan.max_risk_percent}%`}
+                text={(t("Risque max ") + (tradingPlan.max_risk_percent) + "%")}
               />
 
               <PlanMiniPill
@@ -2648,7 +2642,7 @@ export default function JournalPage() {
               />
 
               <PlanMiniPill
-                text={`${tradingPlan.max_trades_per_day} trades/jour`}
+                text={("" + (tradingPlan.max_trades_per_day) + t(" trades/jour"))}
               />
 
               <Link
@@ -2661,8 +2655,7 @@ export default function JournalPage() {
                   no-underline
                 "
               >
-                Modifier mon plan →
-              </Link>
+                {t("Modifier mon plan →")}</Link>
             </div>
           </section>
         ) : null}
@@ -2710,15 +2703,12 @@ export default function JournalPage() {
                 <div className="text-xs font-semibold text-white">
                   {accounts.length ===
                   1
-                    ? "Compte de trading connecté au journal"
-                    : `${accounts.length} comptes disponibles`}
+                    ? t("Compte de trading connecté au journal")
+                    : ("" + (accounts.length) + t(" comptes disponibles"))}
                 </div>
 
                 <div className="mt-1 text-[10px] text-[color:var(--muted)]">
-                  Le capital est
-                  récupéré automatiquement
-                  depuis Mes comptes.
-                </div>
+                  {t("Le capital est récupéré automatiquement depuis Mes comptes.")}</div>
               </div>
             </div>
 
@@ -2763,17 +2753,10 @@ export default function JournalPage() {
           >
             <div>
               <div className="text-xs font-semibold text-white">
-                Aucun compte de
-                trading
-              </div>
+                {t("Aucun compte de trading")}</div>
 
               <div className="mt-1 text-[10px] text-[color:var(--muted)]">
-                Ajoute d’abord un
-                compte pour que le
-                Journal connaisse
-                automatiquement ton
-                capital.
-              </div>
+                {t("Ajoute d’abord un compte pour que le Journal connaisse automatiquement ton capital.")}</div>
             </div>
 
             <Link
@@ -2789,8 +2772,7 @@ export default function JournalPage() {
                 no-underline
               "
             >
-              Ajouter un compte
-            </Link>
+              {t("Ajouter un compte")}</Link>
           </section>
         )}
 
@@ -2805,16 +2787,16 @@ export default function JournalPage() {
                 size={18}
               />
             }
-            label="P&L total"
+            label={t("P&L total")}
             value={trades.length === 0
               ? "—"
               : totalPnl === null
-                ? rateLoading ? "Chargement…" : "—"
-                : formatDisplayCurrency(totalPnl, displayCurrency)}
+                ? rateLoading ? t("Chargement…") : "—"
+                : formatDisplayCurrency(totalPnl, displayCurrency, locale)}
             positive={totalPnl === null ? undefined : totalPnl >= 0}
             sub={totalPnl === null
-              ? `Conversion ${displayCurrency} indisponible pour une devise`
-              : rateDateLabel(rateDate, displayCurrency)}
+              ? (t("Conversion ") + (displayCurrency) + t(" indisponible pour une devise"))
+              : rateDateLabel(rateDate, displayCurrency, locale)}
           />
 
           <StatCard
@@ -2823,7 +2805,7 @@ export default function JournalPage() {
                 size={18}
               />
             }
-            label="Winrate"
+            label={t("Winrate")}
             value={`${stats.winrate.toFixed(
               1
             )}%`}
@@ -2835,7 +2817,7 @@ export default function JournalPage() {
                 size={18}
               />
             }
-            label="Trades"
+            label={t("Trades")}
             value={String(
               stats.total
             )}
@@ -2847,7 +2829,7 @@ export default function JournalPage() {
                 size={18}
               />
             }
-            label="Wins / Losses"
+            label={t("Wins / Losses")}
             value={`${stats.wins} / ${stats.losses}`}
           />
 
@@ -2857,7 +2839,7 @@ export default function JournalPage() {
                 size={18}
               />
             }
-            label="R moyen"
+            label={t("R moyen")}
             value={
               !trades.some(t=>(t.setup==='MT5 synchronisé'||t.setup==='MT4 synchronisé')) && stats.avgR !== 0
                 ? `${stats.avgR.toFixed(
@@ -2873,7 +2855,7 @@ export default function JournalPage() {
                 size={18}
               />
             }
-            label="Discipline"
+            label={t("Discipline")}
             value={
               !trades.some(t=>(t.setup==='MT5 synchronisé'||t.setup==='MT4 synchronisé')) && tradingPlan &&
               stats.total > 0
@@ -2923,7 +2905,7 @@ export default function JournalPage() {
                       .value
                   )
                 }
-                placeholder="Rechercher GOLD, London, FusionMarket..."
+                placeholder={t("Rechercher GOLD, London, FusionMarket...")}
                 className="
                   h-11
                   w-full
@@ -2965,24 +2947,19 @@ export default function JournalPage() {
               "
             >
               <option value="all">
-                Tous les résultats
-              </option>
+                {t("Tous les résultats")}</option>
 
               <option value="win">
-                WIN
-              </option>
+                {t("WIN")}</option>
 
               <option value="loss">
-                LOSS
-              </option>
+                {t("LOSS")}</option>
 
               <option value="breakeven">
-                BE
-              </option>
+                {t("BE")}</option>
 
               <option value="open">
-                Ouvert
-              </option>
+                {t("Ouvert")}</option>
             </select>
 
             <select
@@ -3011,16 +2988,13 @@ export default function JournalPage() {
               "
             >
               <option value="all">
-                Achat + Vente
-              </option>
+                {t("Achat + Vente")}</option>
 
               <option value="buy">
-                Achats
-              </option>
+                {t("Achats")}</option>
 
               <option value="sell">
-                Ventes
-              </option>
+                {t("Ventes")}</option>
             </select>
           </div>
         </section>
@@ -3050,17 +3024,15 @@ export default function JournalPage() {
           >
             <div>
               <h2 className="text-sm font-semibold text-white">
-                Historique
-              </h2>
+                {t("Historique")}</h2>
 
               <div className="mt-1 text-[10px] text-[color:var(--muted)]">
                 {
                   filteredTrades.length
                 }{" "}
-                trade
-                {filteredTrades.length !==
+                {" "}{t("trade")}{filteredTrades.length !==
                 1
-                  ? "s"
+                  ? t("s")
                   : ""}
               </div>
             </div>
@@ -3075,9 +3047,7 @@ export default function JournalPage() {
               />
 
               <div className="mt-4 text-sm font-semibold text-white">
-                Aucun trade
-                enregistré
-              </div>
+                {t("Aucun trade enregistré")}</div>
 
               <button
                 onClick={
@@ -3101,8 +3071,7 @@ export default function JournalPage() {
                   size={14}
                 />
 
-                Ajouter un trade
-              </button>
+                {t("Ajouter un trade")}</button>
             </div>
           ) : (
             <div className="divide-y divide-white/[0.05]">
@@ -3207,17 +3176,12 @@ export default function JournalPage() {
               <div>
                 <h2 className="text-lg font-semibold text-white">
                   {editingTrade
-                    ? "Modifier le trade"
-                    : "Ajouter un trade"}
+                    ? t("Modifier le trade")
+                    : t("Ajouter un trade")}
                 </h2>
 
                 <p className="mt-1 text-xs text-[color:var(--muted)]">
-                  Le capital,
-                  le P&L et le
-                  résultat en R
-                  sont calculés
-                  automatiquement.
-                </p>
+                  {t("Le capital, le P&L et le résultat en R sont calculés automatiquement.")}</p>
               </div>
 
               <button
@@ -3263,8 +3227,7 @@ export default function JournalPage() {
                   />
 
                   <div className="text-sm font-semibold text-white">
-                    Compte de trading
-                  </div>
+                    {t("Compte de trading")}</div>
                 </div>
 
                 {accounts.length >
@@ -3272,7 +3235,7 @@ export default function JournalPage() {
                   <>
                     <div className="mt-4">
                       <SelectField
-                        label="Compte utilisé"
+                        label={t("Compte utilisé")}
                         value={
                           form.account_id
                         }
@@ -3292,7 +3255,7 @@ export default function JournalPage() {
                               "",
 
                             label:
-                              "Sélectionner un compte",
+                              t("Sélectionner un compte"),
                           },
 
                           ...accounts.map(
@@ -3320,22 +3283,22 @@ export default function JournalPage() {
                     {selectedAccount ? (
                       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
                         <AccountInfoCard
-                          label="Compte"
+                          label={t("Compte")}
                           value={
                             selectedAccount.name
                           }
                         />
 
                         <AccountInfoCard
-                          label="Broker"
+                          label={t("Broker")}
                           value={
                             selectedAccount.broker ||
-                            "Non renseigné"
+                            t("Non renseigné")
                           }
                         />
 
                         <AccountInfoCard
-                          label="Capital actuel"
+                          label={t("Capital actuel")}
                           value={formatCurrency(
                             Number(
                               selectedAccount.current_balance ||
@@ -3351,18 +3314,10 @@ export default function JournalPage() {
                 ) : (
                   <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/[0.04] p-4">
                     <div className="text-xs font-semibold text-white">
-                      Aucun compte
-                      disponible
-                    </div>
+                      {t("Aucun compte disponible")}</div>
 
                     <p className="mt-1 text-[10px] text-[color:var(--muted)]">
-                      Ajoute un
-                      compte dans
-                      Mes comptes
-                      avant
-                      d’enregistrer
-                      ton trade.
-                    </p>
+                      {t("Ajoute un compte dans Mes comptes avant d’enregistrer ton trade.")}</p>
 
                     <Link
                       href="/dashboard/comptes"
@@ -3376,9 +3331,7 @@ export default function JournalPage() {
                         no-underline
                       "
                     >
-                      Aller dans Mes
-                      comptes →
-                    </Link>
+                      {t("Aller dans Mes comptes →")}</Link>
                   </div>
                 )}
               </div>
@@ -3389,7 +3342,7 @@ export default function JournalPage() {
 
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <InputField
-                  label="Date"
+                  label={t("Date")}
                   type="date"
                   value={
                     form.trade_date
@@ -3407,8 +3360,8 @@ export default function JournalPage() {
                 />
 
                 <InputField
-                  label="Actif / Symbole"
-                  placeholder="GOLD, EURUSD, BTCUSD..."
+                  label={t("Actif / Symbole")}
+                  placeholder={t("GOLD, EURUSD, BTCUSD...")}
                   value={
                     form.symbol
                   }
@@ -3425,7 +3378,7 @@ export default function JournalPage() {
                 />
 
                 <InputField
-                  label="Risque (%)"
+                  label={t("Risque (%)")}
                   placeholder="1"
                   value={
                     form.risk_percent
@@ -3443,7 +3396,7 @@ export default function JournalPage() {
                 />
 
                 <SelectField
-                  label="Direction"
+                  label={t("Direction")}
                   value={
                     form.direction
                   }
@@ -3463,7 +3416,7 @@ export default function JournalPage() {
                         "buy",
 
                       label:
-                        "Achat",
+                        t("Achat"),
                     },
 
                     {
@@ -3471,13 +3424,13 @@ export default function JournalPage() {
                         "sell",
 
                       label:
-                        "Vente",
+                        t("Vente"),
                     },
                   ]}
                 />
 
                 <SelectField
-                  label="Résultat"
+                  label={t("Résultat")}
                   value={
                     form.status
                   }
@@ -3497,7 +3450,7 @@ export default function JournalPage() {
                         "open",
 
                       label:
-                        "Ouvert",
+                        t("Ouvert"),
                     },
 
                     {
@@ -3505,7 +3458,7 @@ export default function JournalPage() {
                         "win",
 
                       label:
-                        "WIN",
+                        t("WIN"),
                     },
 
                     {
@@ -3513,7 +3466,7 @@ export default function JournalPage() {
                         "loss",
 
                       label:
-                        "LOSS",
+                        t("LOSS"),
                     },
 
                     {
@@ -3521,7 +3474,7 @@ export default function JournalPage() {
                         "breakeven",
 
                       label:
-                        "Break-even",
+                        t("Break-even"),
                     },
 
                     {
@@ -3529,13 +3482,13 @@ export default function JournalPage() {
                         "cancelled",
 
                       label:
-                        "Annulé",
+                        t("Annulé"),
                     },
                   ]}
                 />
 
                 <InputField
-                  label="Prix d’entrée"
+                  label={t("Prix d’entrée")}
                   placeholder="2350.50"
                   value={
                     form.entry_price
@@ -3553,7 +3506,7 @@ export default function JournalPage() {
                 />
 
                 <InputField
-                  label="Stop Loss"
+                  label={t("Stop Loss")}
                   placeholder="2340.00"
                   value={
                     form.stop_loss
@@ -3571,7 +3524,7 @@ export default function JournalPage() {
                 />
 
                 <InputField
-                  label="Take Profit"
+                  label={t("Take Profit")}
                   placeholder="2370.00"
                   value={
                     form.take_profit
@@ -3589,8 +3542,8 @@ export default function JournalPage() {
                 />
 
                 <InputField
-                  label="Setup"
-                  placeholder="OTE + OB, Breakout..."
+                  label={t("Setup")}
+                  placeholder={t("OTE + OB, Breakout...")}
                   value={
                     form.setup
                   }
@@ -3607,7 +3560,7 @@ export default function JournalPage() {
                 />
 
                 <SelectField
-                  label="Session"
+                  label={t("Session")}
                   value={
                     form.session
                   }
@@ -3629,7 +3582,7 @@ export default function JournalPage() {
                         "",
 
                       label:
-                        "Non renseignée",
+                        t("Non renseignée"),
                     },
 
                     {
@@ -3637,7 +3590,7 @@ export default function JournalPage() {
                         "asian",
 
                       label:
-                        "Asian",
+                        t("Asian"),
                     },
 
                     {
@@ -3645,7 +3598,7 @@ export default function JournalPage() {
                         "london",
 
                       label:
-                        "London",
+                        t("London"),
                     },
 
                     {
@@ -3653,7 +3606,7 @@ export default function JournalPage() {
                         "new_york",
 
                       label:
-                        "New York",
+                        t("New York"),
                     },
 
                     {
@@ -3661,14 +3614,14 @@ export default function JournalPage() {
                         "other",
 
                       label:
-                        "Autre",
+                        t("Autre"),
                     },
                   ]}
                 />
 
                 <InputField
-                  label="Timeframe"
-                  placeholder="M1, M15, H1, H4..."
+                  label={t("Timeframe")}
+                  placeholder={t("M1, M15, H1, H4...")}
                   value={
                     form.timeframe
                   }
@@ -3685,8 +3638,8 @@ export default function JournalPage() {
                 />
 
                 <InputField
-                  label="Émotion"
-                  placeholder="Calme, stressé, FOMO..."
+                  label={t("Émotion")}
+                  placeholder={t("Calme, stressé, FOMO...")}
                   value={
                     form.emotion
                   }
@@ -3738,12 +3691,10 @@ export default function JournalPage() {
 
                   <div>
                     <div className="text-sm font-semibold text-white">
-                      Capture du graphique TradingView
-                    </div>
+                      {t("Capture du graphique TradingView")}</div>
 
                     <p className="mt-1 text-[10px] leading-5 text-[color:var(--muted)]">
-                      Ajoute une capture de ton setup pour pouvoir revoir visuellement ta prise de position plus tard.
-                    </p>
+                      {t("Ajoute une capture de ton setup pour pouvoir revoir visuellement ta prise de position plus tard.")}</p>
                   </div>
                 </div>
 
@@ -3778,7 +3729,7 @@ export default function JournalPage() {
                         src={
                           currentScreenshotPreview
                         }
-                        alt="Capture TradingView"
+                        alt={t("Capture TradingView")}
                         className="
                           max-h-[360px]
                           w-full
@@ -3820,8 +3771,7 @@ export default function JournalPage() {
                           "
                         >
                           <Eye size={14} />
-                          Agrandir
-                        </span>
+                          {t("Agrandir")}</span>
                       </div>
                     </button>
 
@@ -3840,7 +3790,7 @@ export default function JournalPage() {
                       <div className="text-[10px] text-[color:var(--muted)]">
                         {screenshotFile
                           ? screenshotFile.name
-                          : "Capture actuellement enregistrée"}
+                          : t("Capture actuellement enregistrée")}
                       </div>
 
                       <div className="flex gap-2">
@@ -3861,9 +3811,7 @@ export default function JournalPage() {
                           "
                         >
                           <Upload size={13} />
-                          Remplacer
-
-                          <input
+                          {t("Remplacer")}<input
                             type="file"
                             accept="image/png,image/jpeg,image/webp"
                             className="hidden"
@@ -3894,8 +3842,7 @@ export default function JournalPage() {
                             text-red-400
                           "
                         >
-                          Retirer
-                        </button>
+                          {t("Retirer")}</button>
                       </div>
                     </div>
                   </div>
@@ -3952,16 +3899,13 @@ export default function JournalPage() {
                     </div>
 
                     <div className="mt-3 text-xs font-semibold text-white">
-                      Ajouter une capture
-                    </div>
+                      {t("Ajouter une capture")}</div>
 
                     <div className="mt-1 text-[10px] text-[color:var(--muted)]">
-                      Clique ou dépose ton graphique ici
-                    </div>
+                      {t("Clique ou dépose ton graphique ici")}</div>
 
                     <div className="mt-2 text-[9px] text-white/25">
-                      PNG, JPG ou WEBP • 5 Mo maximum
-                    </div>
+                      {t("PNG, JPG ou WEBP • 5 Mo maximum")}</div>
 
                     <input
                       type="file"
@@ -4000,13 +3944,12 @@ export default function JournalPage() {
                   />
 
                   <div className="text-sm font-semibold text-white">
-                    Calcul automatique
-                  </div>
+                    {t("Calcul automatique")}</div>
                 </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
                   <AutoResultCard
-                    label="Montant risqué"
+                    label={t("Montant risqué")}
                     value={
                       selectedAccount
                         ? formatCurrency(
@@ -4018,7 +3961,7 @@ export default function JournalPage() {
                   />
 
                   <AutoResultCard
-                    label="RR théorique"
+                    label={t("RR théorique")}
                     value={
                       autoResult.rr !==
                       null
@@ -4030,7 +3973,7 @@ export default function JournalPage() {
                   />
 
                   <AutoResultCard
-                    label="Résultat"
+                    label={t("Résultat")}
                     value={
                       autoResult.resultR >
                       0
@@ -4052,7 +3995,7 @@ export default function JournalPage() {
                   />
 
                   <AutoResultCard
-                    label="P&L"
+                    label={t("P&L")}
                     value={
                       selectedAccount
                         ? formatCurrency(
@@ -4073,14 +4016,7 @@ export default function JournalPage() {
                 </div>
 
                 <p className="mt-4 text-[10px] leading-5 text-[color:var(--muted)]">
-                  Le capital est
-                  récupéré depuis
-                  ton compte • WIN
-                  = RR calculé avec
-                  Entrée / SL / TP
-                  • LOSS = -1R •
-                  Break-even = 0R.
-                </p>
+                  {t("Le capital est récupéré depuis ton compte • WIN = RR calculé avec Entrée / SL / TP • LOSS = -1R • Break-even = 0R.")}</p>
               </div>
 
               {/* =============================================
@@ -4113,15 +4049,12 @@ export default function JournalPage() {
                     <div>
                       <div className="text-sm font-semibold text-white">
                         {formPlanEvaluation.compliant
-                          ? "Trade conforme à ton plan"
-                          : "Vérification du plan"}
+                          ? t("Trade conforme à ton plan")
+                          : t("Vérification du plan")}
                       </div>
 
                       <div className="mt-1 text-[10px] text-[color:var(--muted)]">
-                        Analyse
-                        automatique
-                        de tes règles.
-                      </div>
+                        {t("Analyse automatique de tes règles.")}</div>
                     </div>
                   </div>
 
@@ -4146,8 +4079,8 @@ export default function JournalPage() {
 
               <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <TextAreaField
-                  label="Erreur / point à améliorer"
-                  placeholder="Entrée trop tôt, déplacement du SL..."
+                  label={t("Erreur / point à améliorer")}
+                  placeholder={t("Entrée trop tôt, déplacement du SL...")}
                   value={
                     form.mistake
                   }
@@ -4164,8 +4097,8 @@ export default function JournalPage() {
                 />
 
                 <TextAreaField
-                  label="Notes"
-                  placeholder="Pourquoi j’ai pris ce trade ?"
+                  label={t("Notes")}
+                  placeholder={t("Pourquoi j’ai pris ce trade ?")}
                   value={
                     form.notes
                   }
@@ -4210,8 +4143,7 @@ export default function JournalPage() {
                     text-white/70
                   "
                 >
-                  Annuler
-                </button>
+                  {t("Annuler")}</button>
 
                 <button
                   type="button"
@@ -4234,10 +4166,10 @@ export default function JournalPage() {
                   "
                 >
                   {saving
-                    ? "Enregistrement..."
+                    ? t("Enregistrement...")
                     : editingTrade
-                    ? "Enregistrer les modifications"
-                    : "Ajouter le trade"}
+                    ? t("Enregistrer les modifications")
+                    : t("Ajouter le trade")}
                 </button>
               </div>
             </div>
@@ -4305,8 +4237,7 @@ export default function JournalPage() {
                 />
 
                 <div className="text-xs font-semibold text-white">
-                  Graphique TradingView
-                </div>
+                  {t("Graphique TradingView")}</div>
               </div>
 
               <button
@@ -4347,7 +4278,7 @@ export default function JournalPage() {
                 src={
                   viewingScreenshot
                 }
-                alt="Graphique TradingView"
+                alt={t("Graphique TradingView")}
                 className="
                   max-h-[calc(94vh-90px)]
                   max-w-full
@@ -4533,6 +4464,7 @@ function PlanCheckRow({
 }: {
   check: PlanCheck;
 }) {
+  const { t } = useLocale();
   return (
     <div
       className={[
@@ -4557,7 +4489,7 @@ function PlanCheckRow({
 
       <div>
         <div className="text-[10px] font-semibold text-white">
-          {check.label}
+          {t(check.label)}
         </div>
 
         <div className="mt-1 text-[9px] text-[color:var(--muted)]">
@@ -4575,6 +4507,8 @@ function PlanBadge({
     | boolean
     | null;
 }) {
+  const { t } = useLocale();
+
   if (
     compliant === null
   ) {
@@ -4602,8 +4536,8 @@ function PlanBadge({
       )}
 
       {compliant
-        ? "CONFORME AU PLAN"
-        : "HORS PLAN"}
+        ? t("CONFORME AU PLAN")
+        : t("HORS PLAN")}
     </span>
   );
 }
@@ -4644,10 +4578,13 @@ function TradeRow({
   onDelete:
     () => void;
 }) {
+  const { t } = useLocale();
+
   const planResult =
     evaluatePlan(
       trade,
-      plan
+      plan,
+      t
     );
 
   const currency =
@@ -4700,8 +4637,8 @@ function TradeRow({
             <div className="mt-1 text-[10px] uppercase text-[color:var(--muted)]">
               {trade.direction ===
               "buy"
-                ? "Achat"
-                : "Vente"}
+                ? t("Achat")
+                : t("Vente")}
 
               {trade.timeframe
                 ? ` • ${trade.timeframe}`
@@ -4739,13 +4676,11 @@ function TradeRow({
             ),
           ].join(" ")}
         >
-          {statusLabel(
-            trade.status
-          )}
+          {t(statusLabel(trade.status))}
         </span>
 
         <div>
-          {(trade.setup==='MT5 synchronisé'||trade.setup==='MT4 synchronisé')?<span className="text-xs text-white/50">Import {trade.setup?.startsWith('MT4')?'MT4':'MT5'}</span>:<PlanBadge
+          {(trade.setup==='MT5 synchronisé'||trade.setup==='MT4 synchronisé')?<span className="text-xs text-white/50">{t("Import")}{trade.setup?.startsWith('MT4')?t("MT4"):t("MT5")}</span>:<PlanBadge
             compliant={
               planResult.compliant
             }
@@ -4777,7 +4712,7 @@ function TradeRow({
         </div>
 
         <div className="mt-1 text-[10px] text-[color:var(--muted)]">
-          {(trade.setup==='MT5 synchronisé'||trade.setup==='MT4 synchronisé')?'R et risque initial indisponibles':<>          {trade.result_r >
+          {(trade.setup==='MT5 synchronisé'||trade.setup==='MT4 synchronisé')?t("R et risque initial indisponibles"):<>          {trade.result_r >
           0
             ? "+"
             : ""}
@@ -4788,7 +4723,7 @@ function TradeRow({
           ).toFixed(
             2
           )}
-          R • Risque{" "}
+          {t("R • Risque")}{" "}
           {Number(
             trade.risk_percent ||
               0
@@ -4808,7 +4743,7 @@ function TradeRow({
 
             <div className="mt-1 text-[10px] text-[color:var(--muted)]">
               {account.broker ||
-                "Compte manuel"}
+                t("Compte manuel")}
 
               {trade.account_balance
                 ? ` • ${formatCurrency(
@@ -4833,8 +4768,7 @@ function TradeRow({
 
             {trade.account_balance ? (
               <div className="mt-1 text-[10px] text-[color:var(--muted)]">
-                Ancien trade •
-                Capital :{" "}
+                {t("Ancien trade • Capital :")}{" "}
                 {formatCurrency(
                   Number(
                     trade.account_balance
@@ -4864,7 +4798,7 @@ function TradeRow({
               transition
               hover:bg-white/[0.06]
             "
-            title="Voir le graphique"
+            title={t("Voir le graphique")}
           >
             <Eye
               size={14}
@@ -4885,7 +4819,7 @@ function TradeRow({
             text-white/50
             hover:text-[color:var(--gold)]
           "
-          title="Modifier"
+          title={t("Modifier")}
         >
           <Edit3
             size={14}
@@ -4904,7 +4838,7 @@ function TradeRow({
             bg-red-500/5
             text-red-400/70
           "
-          title="Supprimer"
+          title={t("Supprimer")}
         >
           <Trash2
             size={14}

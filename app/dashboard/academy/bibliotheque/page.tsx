@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import {
   useEffect,
   useMemo,
@@ -64,21 +65,23 @@ type ResourceCategory =
 ========================================================= */
 
 function getTitle(
-  resource: Resource
+  resource: Resource,
+  translate: (message: string) => string = message => message,
 ) {
   return (
     resource.title ||
     resource.name ||
-    "Ressource InvestPro"
+    translate("Ressource InvestPro")
   );
 }
 
 function getDescription(
-  resource: Resource
+  resource: Resource,
+  translate: (message: string) => string = message => message,
 ) {
   return (
     resource.description ||
-    "Ressource disponible dans la bibliothèque InvestPro."
+    translate("Ressource disponible dans la bibliothèque InvestPro.")
   );
 }
 
@@ -255,6 +258,8 @@ function categoryIcon(
 ========================================================= */
 
 export default function AcademyBibliothequePage() {
+  const { t: translate } = useLocale();
+
   const supabase =
     useMemo(
       () =>
@@ -485,8 +490,7 @@ export default function AcademyBibliothequePage() {
   ) {
     return (
       <div className="flex min-h-[70vh] items-center justify-center text-sm text-[color:var(--muted)]">
-        Chargement de la bibliothèque…
-      </div>
+        {translate("Chargement de la bibliothèque…")}</div>
     );
   }
 
@@ -520,16 +524,13 @@ export default function AcademyBibliothequePage() {
             size={12}
           />
 
-          Academy InvestPro
-        </div>
+          {translate("Academy InvestPro")}</div>
 
         <h1 className="text-2xl font-semibold text-white">
-          Bibliothèque
-        </h1>
+          {translate("Bibliothèque")}</h1>
 
         <p className="mt-1 max-w-2xl text-sm leading-6 text-[color:var(--muted)]">
-          Retrouve tous les PDF, guides, checklists, templates, vidéos et outils mis à disposition dans l’Academy.
-        </p>
+          {translate("Retrouve tous les PDF, guides, checklists, templates, vidéos et outils mis à disposition dans l’Academy.")}</p>
       </div>
 
       {/* =====================================================
@@ -566,42 +567,39 @@ export default function AcademyBibliothequePage() {
         <div className="relative z-10 grid grid-cols-1 gap-5 lg:grid-cols-12 lg:items-center">
           <div className="lg:col-span-7">
             <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--gold)]">
-              Ressources pédagogiques
-            </div>
+              {translate("Ressources pédagogiques")}</div>
 
             <h2 className="mt-2 text-xl font-semibold text-white lg:text-2xl">
-              Tout ce qu’il te faut pour progresser
-            </h2>
+              {translate("Tout ce qu’il te faut pour progresser")}</h2>
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-[color:var(--muted)]">
-              Une bibliothèque centralisée pour retrouver rapidement les supports InvestPro utiles à ton apprentissage.
-            </p>
+              {translate("Une bibliothèque centralisée pour retrouver rapidement les supports InvestPro utiles à ton apprentissage.")}</p>
           </div>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:col-span-5">
             <MiniStat
-              label="Ressources"
+              label={translate("Ressources")}
               value={String(
                 stats.total
               )}
             />
 
             <MiniStat
-              label="PDF"
+              label={translate("PDF")}
               value={String(
                 stats.pdf
               )}
             />
 
             <MiniStat
-              label="Vidéos"
+              label={translate("Vidéos")}
               value={String(
                 stats.video
               )}
             />
 
             <MiniStat
-              label="Outils"
+              label={translate("Outils")}
               value={String(
                 stats.tools
               )}
@@ -647,7 +645,7 @@ export default function AcademyBibliothequePage() {
                   event.target.value
                 )
               }
-              placeholder="Rechercher un PDF, guide, checklist..."
+              placeholder={translate("Rechercher un PDF, guide, checklist...")}
               className="
                 h-11
                 w-full
@@ -703,9 +701,9 @@ export default function AcademyBibliothequePage() {
                     " "
                   )}
                 >
-                  {categoryLabel(
+                  {translate(categoryLabel(
                     item
-                  )}
+                  ))}
                 </button>
               )
             )}
@@ -721,17 +719,15 @@ export default function AcademyBibliothequePage() {
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <h2 className="text-sm font-semibold text-white">
-              Ressources disponibles
-            </h2>
+              {translate("Ressources disponibles")}</h2>
 
             <p className="mt-1 text-xs text-[color:var(--muted)]">
               {
                 filteredResources.length
               }{" "}
-              ressource
-              {filteredResources.length !==
+              {translate("ressource")}{filteredResources.length !==
               1
-                ? "s"
+                ? translate("s")
                 : ""}
             </p>
           </div>
@@ -761,12 +757,10 @@ export default function AcademyBibliothequePage() {
             />
 
             <div className="mt-4 text-sm font-semibold text-white">
-              Aucune ressource disponible
-            </div>
+              {translate("Aucune ressource disponible")}</div>
 
             <p className="mt-1 text-xs text-[color:var(--muted)]">
-              Les prochaines ressources de l’Academy apparaîtront ici.
-            </p>
+              {translate("Les prochaines ressources de l’Academy apparaîtront ici.")}</p>
           </div>
         ) : (
           <div
@@ -835,12 +829,10 @@ export default function AcademyBibliothequePage() {
 
         <div>
           <div className="text-xs font-semibold text-white">
-            Bibliothèque évolutive
-          </div>
+            {translate("Bibliothèque évolutive")}</div>
 
           <p className="mt-1 max-w-3xl text-[10px] leading-5 text-[color:var(--muted)]">
-            Tu pourras ajouter progressivement tes PDF, checklists, guides et autres supports directement dans la table academy_resources.
-          </p>
+            {translate("Tu pourras ajouter progressivement tes PDF, checklists, guides et autres supports directement dans la table academy_resources.")}</p>
         </div>
       </section>
     </div>
@@ -857,6 +849,8 @@ function ResourceCard({
   resource:
     Resource;
 }) {
+  const { t: translate } = useLocale();
+
   const currentCategory =
     normalizeCategory(
       resource
@@ -944,17 +938,15 @@ function ResourceCard({
             text-[color:var(--gold)]
           "
         >
-          {categoryLabel(
+          {translate(categoryLabel(
             currentCategory
-          )}
+          ))}
         </span>
       </div>
 
       <div className="relative mt-5">
         <h2 className="line-clamp-2 text-sm font-semibold text-white">
-          {getTitle(
-            resource
-          )}
+          {getTitle(resource, translate)}
         </h2>
 
         <p
@@ -967,9 +959,7 @@ function ResourceCard({
             text-[color:var(--muted)]
           "
         >
-          {getDescription(
-            resource
-          )}
+          {getDescription(resource, translate)}
         </p>
       </div>
 
@@ -1007,16 +997,14 @@ function ResourceCard({
                 size={13}
               />
 
-              Ouvrir la ressource
-            </>
+              {translate("Ouvrir la ressource")}</>
           ) : (
             <>
               <LinkIcon
                 size={13}
               />
 
-              Accéder
-            </>
+              {translate("Accéder")}</>
           )}
         </a>
       ) : (
@@ -1037,8 +1025,7 @@ function ResourceCard({
             text-white/25
           "
         >
-          Ressource bientôt disponible
-        </div>
+          {translate("Ressource bientôt disponible")}</div>
       )}
     </article>
   );
@@ -1054,6 +1041,8 @@ function MiniStat({
   value:
     string;
 }) {
+  const { t: translate } = useLocale();
+
   return (
     <div
       className="
@@ -1066,7 +1055,7 @@ function MiniStat({
       "
     >
       <div className="text-[9px] text-[color:var(--muted)]">
-        {label}
+        {translate(label)}
       </div>
 
       <div className="mt-1 text-sm font-semibold text-white">

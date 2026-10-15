@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
+
 import { useEffect, useMemo, useState } from "react";
 import {
   Bell,
@@ -49,6 +51,7 @@ const defaults: Preferences = {
 };
 
 export default function ProfilePage() {
+  const { t: translate, locale, setLocale } = useLocale();
   const supabase = useMemo(() => createClient(), []);
 
   const [loading, setLoading] = useState(true);
@@ -138,6 +141,7 @@ export default function ProfilePage() {
   }, [supabase]);
 
   function update<K extends keyof Preferences>(key: K, value: Preferences[K]) {
+    if (key === "language" && (value === "fr" || value === "en")) setLocale(value);
     setSaved(false);
     setPrefs((prev) => ({ ...prev, [key]: value }));
   }
@@ -166,6 +170,7 @@ export default function ProfilePage() {
           {
             user_id: user.id,
             ...prefs,
+            language: locale,
             favorite_asset: prefs.favorite_asset.trim().toUpperCase(),
             updated_at: new Date().toISOString(),
           },
@@ -240,8 +245,7 @@ export default function ProfilePage() {
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gold)]">
                 <CircleUserRound size={11} />
-                Profil trader
-              </div>
+                {translate("Profil trader")}</div>
 
               <h1 className="mt-2 text-2xl font-semibold text-white md:text-3xl">
                 {username}
@@ -250,11 +254,11 @@ export default function ProfilePage() {
               <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-[color:var(--muted)]">
                 <span>{email}</span>
                 <span>•</span>
-                <span>Plan {plan.toUpperCase()}</span>
+                <span>{translate("Plan")}{" "}{plan.toUpperCase()}</span>
                 <span>•</span>
                 <span>{level}</span>
                 <span>•</span>
-                <span>{xp.toLocaleString("fr-FR")} XP</span>
+                <span>{xp.toLocaleString("fr-FR")} {translate("XP")}</span>
               </div>
             </div>
           </div>
@@ -273,17 +277,17 @@ export default function ProfilePage() {
               <Save size={15} />
             )}
             {saving
-              ? "Enregistrement…"
+              ? translate("Enregistrement…")
               : saved
-              ? "Enregistré"
-              : "Enregistrer mes paramètres"}
+              ? translate("Enregistré")
+              : translate("Enregistrer mes paramètres")}
           </button>
         </div>
       </section>
 
       {error ? (
         <div className="rounded-xl border border-red-500/20 bg-red-500/[0.06] px-4 py-3 text-xs text-red-300">
-          {error}
+          {translate(error)}
         </div>
       ) : null}
 
@@ -291,11 +295,11 @@ export default function ProfilePage() {
         <div className="space-y-4 xl:col-span-7">
           <SettingsCard
             icon={<CircleUserRound size={17} />}
-            title="Mon identité InvestPro"
-            subtitle="Les informations visibles dans ton espace trader."
+            title={translate("Mon identité InvestPro")}
+            subtitle={translate("Les informations visibles dans ton espace trader.")}
           >
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Field label="Pseudo">
+              <Field label={translate("Pseudo")}>
                 <input
                   value={username}
                   onChange={(e) => {
@@ -304,11 +308,11 @@ export default function ProfilePage() {
                   }}
                   maxLength={30}
                   className="ip-profile-input"
-                  placeholder="Ton pseudo"
+                  placeholder={translate("Ton pseudo")}
                 />
               </Field>
 
-              <Field label="Email">
+              <Field label={translate("Email")}>
                 <input
                   value={email}
                   readOnly
@@ -318,20 +322,20 @@ export default function ProfilePage() {
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <InfoBox label="Plan" value={plan.toUpperCase()} />
-              <InfoBox label="Niveau" value={level} />
-              <InfoBox label="XP" value={xp.toLocaleString("fr-FR")} />
-              <InfoBox label="Langue" value={prefs.language.toUpperCase()} />
+              <InfoBox label={translate("Plan")} value={plan.toUpperCase()} />
+              <InfoBox label={translate("Niveau")} value={level} />
+              <InfoBox label={translate("XP")} value={xp.toLocaleString("fr-FR")} />
+              <InfoBox label={translate("Langue")} value={locale.toUpperCase()} />
             </div>
           </SettingsCard>
 
           <SettingsCard
             icon={<TrendingUp size={17} />}
-            title="Profil de trading"
-            subtitle="Personnalise ton environnement selon ta façon de trader."
+            title={translate("Profil de trading")}
+            subtitle={translate("Personnalise ton environnement selon ta façon de trader.")}
           >
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Field label="Style de trading">
+              <Field label={translate("Style de trading")}>
                 <Select
                   value={prefs.trading_style}
                   onChange={(value) => update("trading_style", value)}
@@ -344,7 +348,7 @@ export default function ProfilePage() {
                 />
               </Field>
 
-              <Field label="Niveau d’expérience">
+              <Field label={translate("Niveau d’expérience")}>
                 <Select
                   value={prefs.experience_level}
                   onChange={(value) => update("experience_level", value)}
@@ -357,7 +361,7 @@ export default function ProfilePage() {
                 />
               </Field>
 
-              <Field label="Session préférée">
+              <Field label={translate("Session préférée")}>
                 <Select
                   value={prefs.favorite_session}
                   onChange={(value) => update("favorite_session", value)}
@@ -370,7 +374,7 @@ export default function ProfilePage() {
                 />
               </Field>
 
-              <Field label="Actif favori">
+              <Field label={translate("Actif favori")}>
                 <input
                   value={prefs.favorite_asset}
                   onChange={(e) =>
@@ -378,7 +382,7 @@ export default function ProfilePage() {
                   }
                   maxLength={20}
                   className="ip-profile-input"
-                  placeholder="Ex: XAUUSD"
+                  placeholder={translate("Ex: XAUUSD")}
                 />
               </Field>
             </div>
@@ -388,11 +392,11 @@ export default function ProfilePage() {
         <div className="space-y-4 xl:col-span-5">
           <SettingsCard
             icon={<Globe2 size={17} />}
-            title="Préférences générales"
-            subtitle="Format d’affichage utilisé dans ton espace."
+            title={translate("Préférences générales")}
+            subtitle={translate("Format d’affichage utilisé dans ton espace.")}
           >
             <div className="space-y-4">
-              <Field icon={<Coins size={13} />} label="Devise préférée">
+              <Field icon={<Coins size={13} />} label={translate("Devise préférée")}>
                 <Select
                   value={prefs.preferred_currency}
                   onChange={(value) => update("preferred_currency", value)}
@@ -405,7 +409,7 @@ export default function ProfilePage() {
                 />
               </Field>
 
-              <Field icon={<Clock3 size={13} />} label="Fuseau horaire">
+              <Field icon={<Clock3 size={13} />} label={translate("Fuseau horaire")}>
                 <Select
                   value={prefs.timezone}
                   onChange={(value) => update("timezone", value)}
@@ -419,9 +423,9 @@ export default function ProfilePage() {
                 />
               </Field>
 
-              <Field icon={<Globe2 size={13} />} label="Langue">
+              <Field icon={<Globe2 size={13} />} label={translate("Langue")}>
                 <Select
-                  value={prefs.language}
+                  value={locale}
                   onChange={(value) => update("language", value)}
                   options={[
                     ["fr", "Français"],
@@ -434,25 +438,25 @@ export default function ProfilePage() {
 
           <SettingsCard
             icon={<Bell size={17} />}
-            title="Notifications"
-            subtitle="Choisis les alertes que tu souhaites recevoir dans la cloche."
+            title={translate("Notifications")}
+            subtitle={translate("Choisis les alertes que tu souhaites recevoir dans la cloche.")}
           >
             <div className="space-y-2">
               <Toggle
-                title="Imports & synchronisations"
-                text="Compte synchronisé et nouveaux trades importés."
+                title={translate("Imports & synchronisations")}
+                text={translate("Compte synchronisé et nouveaux trades importés.")}
                 checked={prefs.notify_imports}
                 onChange={(value) => update("notify_imports", value)}
               />
               <Toggle
-                title="Discipline & hors plan"
-                text="Alerte lorsqu’un trade enfreint une règle détectable."
+                title={translate("Discipline & hors plan")}
+                text={translate("Alerte lorsqu’un trade enfreint une règle détectable.")}
                 checked={prefs.notify_discipline}
                 onChange={(value) => update("notify_discipline", value)}
               />
               <Toggle
-                title="Rapports"
-                text="Bilan mensuel et rapports disponibles."
+                title={translate("Rapports")}
+                text={translate("Bilan mensuel et rapports disponibles.")}
                 checked={prefs.notify_reports}
                 onChange={(value) => update("notify_reports", value)}
               />
@@ -464,43 +468,43 @@ export default function ProfilePage() {
       <section className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
         <BottomCard
           icon={<ShieldCheck size={17} />}
-          title="Plan & discipline"
-          text="Tes règles restent gérées depuis ton Plan de trading."
+          title={translate("Plan & discipline")}
+          text={translate("Tes règles restent gérées depuis ton Plan de trading.")}
           href="/dashboard/plan"
           cta="Voir mon plan"
         />
         <BottomCard
           icon={<Target size={17} />}
-          title="Mes comptes"
-          text="Gère tes comptes et tes connexions de trading."
+          title={translate("Mes comptes")}
+          text={translate("Gère tes comptes et tes connexions de trading.")}
           href="/dashboard/comptes"
           cta="Gérer mes comptes"
         />
         <BottomCard
           icon={<Cable size={17} />}
-          title="Centre des connexions"
-          text="Vérifie l’état de MT4, MT5, ProjectX et Tradovate."
+          title={translate("Centre des connexions")}
+          text={translate("Vérifie l’état de MT4, MT5, ProjectX et Tradovate.")}
           href="/dashboard/connexions"
           cta="Voir mes connexions"
         />
         <BottomCard
           icon={<LockKeyhole size={17} />}
-          title="Compte & sécurité"
-          text="Mot de passe, sessions et actions sensibles."
+          title={translate("Compte & sécurité")}
+          text={translate("Mot de passe, sessions et actions sensibles.")}
           href="/dashboard/compte"
           cta="Sécuriser mon compte"
         />
         <BottomCard
           icon={<Crown size={17} />}
-          title="Abonnement & accès"
-          text="Plan actuel, fonctionnalités et état de l’abonnement."
+          title={translate("Abonnement & accès")}
+          text={translate("Plan actuel, fonctionnalités et état de l’abonnement.")}
           href="/dashboard/abonnement"
           cta="Voir mon accès"
         />
         <BottomCard
           icon={<Sparkles size={17} />}
-          title="Bilan"
-          text="Retrouve ton analyse mensuelle automatique."
+          title={translate("Bilan")}
+          text={translate("Retrouve ton analyse mensuelle automatique.")}
           href="/dashboard/rapport-mensuel"
           cta="Voir mon bilan"
         />
@@ -510,13 +514,11 @@ export default function ProfilePage() {
           className="rounded-[18px] border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4 text-left transition hover:border-[color:var(--gold)]"
         >
           <div className="text-[color:var(--gold)]"><Smartphone size={17} /></div>
-          <div className="mt-3 text-xs font-semibold text-white">InvestPro Mobile</div>
+          <div className="mt-3 text-xs font-semibold text-white">{translate("InvestPro Mobile")}</div>
           <div className="mt-1 text-[9px] leading-4 text-[color:var(--muted)]">
-            Ajoute InvestPro à ton écran d’accueil et utilise-le comme une app.
-          </div>
+            {translate("Ajoute InvestPro à ton écran d’accueil et utilise-le comme une app.")}</div>
           <div className="mt-3 text-[10px] font-semibold text-[color:var(--gold)]">
-            Installer l’application →
-          </div>
+            {translate("Installer l’application →")}</div>
         </button>
       </section>
 
@@ -568,6 +570,7 @@ function SettingsCard({
   subtitle: string;
   children: React.ReactNode;
 }) {
+  const { t: translate } = useLocale();
   return (
     <section className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5">
       <div className="flex items-start gap-3">
@@ -575,9 +578,9 @@ function SettingsCard({
           {icon}
         </div>
         <div>
-          <h2 className="text-sm font-semibold text-white">{title}</h2>
+          <h2 className="text-sm font-semibold text-white">{translate(title)}</h2>
           <p className="mt-1 text-[10px] leading-4 text-[color:var(--muted)]">
-            {subtitle}
+            {translate(subtitle)}
           </p>
         </div>
       </div>
@@ -596,11 +599,12 @@ function Field({
   icon?: React.ReactNode;
   children: React.ReactNode;
 }) {
+  const { t: translate } = useLocale();
   return (
     <label className="block">
       <span className="mb-2 flex items-center gap-1.5 text-[10px] font-medium text-white/45">
         {icon ? <span className="text-[color:var(--gold)]">{icon}</span> : null}
-        {label}
+        {translate(label)}
       </span>
       {children}
     </label>
@@ -616,6 +620,7 @@ function Select({
   onChange: (value: string) => void;
   options: [string, string][];
 }) {
+  const { t: translate } = useLocale();
   return (
     <select
       value={value}
@@ -624,7 +629,7 @@ function Select({
     >
       {options.map(([key, label]) => (
         <option key={key} value={key} className="bg-[#101210]">
-          {label}
+          {translate(label)}
         </option>
       ))}
     </select>
@@ -632,10 +637,11 @@ function Select({
 }
 
 function InfoBox({ label, value }: { label: string; value: string }) {
+  const { t: translate } = useLocale();
   return (
     <div className="rounded-xl border border-white/[0.06] bg-black/20 p-3">
       <div className="text-[8px] uppercase tracking-[0.08em] text-white/25">
-        {label}
+        {translate(label)}
       </div>
       <div className="mt-1 truncate text-xs font-semibold text-white">{value}</div>
     </div>
@@ -653,6 +659,7 @@ function Toggle({
   checked: boolean;
   onChange: (value: boolean) => void;
 }) {
+  const { t: translate } = useLocale();
   return (
     <button
       type="button"
@@ -674,9 +681,9 @@ function Toggle({
       </span>
 
       <span>
-        <span className="block text-xs font-semibold text-white">{title}</span>
+        <span className="block text-xs font-semibold text-white">{translate(title)}</span>
         <span className="mt-0.5 block text-[9px] leading-4 text-[color:var(--muted)]">
-          {text}
+          {translate(text)}
         </span>
       </span>
     </button>
@@ -696,18 +703,19 @@ function BottomCard({
   href: string;
   cta: string;
 }) {
+  const { t: translate } = useLocale();
   return (
     <a
       href={href}
       className="rounded-[18px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4 transition hover:border-[color:var(--gold-border)]"
     >
       <div className="text-[color:var(--gold)]">{icon}</div>
-      <div className="mt-3 text-xs font-semibold text-white">{title}</div>
+      <div className="mt-3 text-xs font-semibold text-white">{translate(title)}</div>
       <div className="mt-1 text-[9px] leading-4 text-[color:var(--muted)]">
-        {text}
+        {translate(text)}
       </div>
       <div className="mt-3 text-[10px] font-semibold text-[color:var(--gold)]">
-        {cta} →
+        {translate(cta)} →
       </div>
     </a>
   );

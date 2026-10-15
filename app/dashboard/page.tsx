@@ -1,6 +1,7 @@
 "use client";
 
 import { planAllowsAsset } from "@/lib/trading-plan-assets";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -189,12 +190,12 @@ function formatCurrencyBreakdown(values: Record<string, number>) {
 }
 
 function formatDate(
-  value: string
+  value: string, locale: "fr" | "en" = "fr"
 ) {
   return new Date(
     value
   ).toLocaleDateString(
-    "fr-FR",
+    (locale === "en" ? "en-US" : "fr-FR"),
     {
       day: "2-digit",
       month: "short",
@@ -1012,6 +1013,7 @@ function parseInvestingHtml(
 ========================================================= */
 
 export default function DashboardPage() {
+  const { t: tr, locale } = useLocale();
   const { rates, rateDate, rateLoading } = useCurrencyRates();
   const { displayCurrency } = useDisplayCurrency();
   const reduceMotion = useReducedMotion();
@@ -1927,9 +1929,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="min-h-[70vh] flex items-center justify-center">
-        <div className="text-sm text-[color:var(--muted)]">
-          Chargement de ton espace InvestPro…
-        </div>
+        <div className="text-sm text-[color:var(--muted)]">{tr("Chargement de ton espace InvestPro…")}</div>
       </div>
     );
   }
@@ -1947,14 +1947,12 @@ export default function DashboardPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: "easeOut" }}
       >
-        <h1 className="text-xl font-semibold text-white md:text-2xl">
-          Vue d’ensemble
-        </h1>
+        <h1 className="text-xl font-semibold text-white md:text-2xl">{tr("Vue d’ensemble")}</h1>
         <div className="flex items-center gap-2">
           <DisplayCurrencySelect compact />
           <div className="hidden items-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-2 md:flex">
             <ShieldCheck size={15} className="text-[color:var(--gold)]" />
-            <span className="text-xs text-[color:var(--muted)]">Plan</span>
+            <span className="text-xs text-[color:var(--muted)]">{tr("Plan")}</span>
             <span className="text-xs font-bold text-[color:var(--gold)]">{planLabel}</span>
           </div>
         </div>
@@ -1983,25 +1981,25 @@ export default function DashboardPage() {
               size={18}
             />
           }
-          label="Capital total"
+          label={tr("Capital total")}
           value={
             accounts.length ===
             0
               ? "—"
               : totalCapital === null
-                ? rateLoading ? "Chargement…" : "—"
-                : formatDisplayCurrency(totalCapital, displayCurrency)
+                ? rateLoading ? tr("Chargement…") : "—"
+                : formatDisplayCurrency(totalCapital, displayCurrency, locale)
           }
           sub={
             accounts.length ===
             0
-              ? "Ajoute un compte"
-              : `${accounts.length} compte${
+              ? tr("Ajoute un compte")
+              : `${accounts.length}${tr(" compte")}${
                   accounts.length !==
                   1
                     ? "s"
                     : ""
-                } · ${totalCapital === null ? (rateLoading ? "récupération du taux" : "conversion indisponible") : rateDateLabel(rateDate, displayCurrency)}`
+                } · ${totalCapital === null ? (rateLoading ? tr("récupération du taux") : tr("conversion indisponible")) : rateDateLabel(rateDate, displayCurrency, locale)}`
           }
         />
 
@@ -2011,22 +2009,22 @@ export default function DashboardPage() {
               size={18}
             />
           }
-          label="P&L du mois"
+          label={tr("P&L du mois")}
           value={
             monthTrades.length ===
             0
               ? "—"
               : monthPnl === null
-                ? rateLoading ? "Chargement…" : "—"
-                : formatDisplayCurrency(monthPnl, displayCurrency)
+                ? rateLoading ? tr("Chargement…") : "—"
+                : formatDisplayCurrency(monthPnl, displayCurrency, locale)
           }
           sub={
             monthTrades.length ===
             0
-              ? "Aucune donnée"
+              ? tr("Aucune donnée")
               : monthPnl === null
-                ? `Conversion ${displayCurrency} indisponible pour une devise de trade`
-                : `${rateDateLabel(rateDate, displayCurrency)} · ce mois-ci`
+                ? (tr("Conversion ") + (displayCurrency) + tr(" indisponible pour une devise de trade"))
+                : ((rateDateLabel(rateDate, displayCurrency, locale)) + tr(" · ce mois-ci"))
           }
           positive={
             monthTrades.length >
@@ -2043,7 +2041,7 @@ export default function DashboardPage() {
               size={18}
             />
           }
-          label="Winrate"
+          label={tr("Winrate")}
           value={
             monthTrades.length >
             0
@@ -2052,7 +2050,7 @@ export default function DashboardPage() {
                 )}%`
               : "—"
           }
-          sub="Ce mois-ci"
+          sub={tr("Ce mois-ci")}
         />
 
         <StatCard
@@ -2061,7 +2059,7 @@ export default function DashboardPage() {
               size={18}
             />
           }
-          label="Risque moyen"
+          label={tr("Risque moyen")}
           value={
             dashboardStats.averageRisk >
             0
@@ -2072,8 +2070,8 @@ export default function DashboardPage() {
           }
           sub={
             tradingPlan
-              ? `Plan max ${tradingPlan.max_risk_percent}%`
-              : "Ce mois-ci"
+              ? (tr("Plan max ") + (tradingPlan.max_risk_percent) + "%")
+              : tr("Ce mois-ci")
           }
         />
 
@@ -2083,11 +2081,11 @@ export default function DashboardPage() {
               size={18}
             />
           }
-          label="Trades du mois"
+          label={tr("Trades du mois")}
           value={String(
             dashboardStats.tradesThisMonth
           )}
-          sub="Ce mois-ci"
+          sub={tr("Ce mois-ci")}
         />
       </motion.section>
 
@@ -2105,7 +2103,7 @@ export default function DashboardPage() {
                 size={17}
               />
             }
-            title="Continuer ma formation"
+            title={tr("Continuer ma formation")}
             right={
               !isAcademyUnlocked ? (
                 <span
@@ -2124,10 +2122,7 @@ export default function DashboardPage() {
                 >
                   <Lock
                     size={10}
-                  />
-
-                  PRO
-                </span>
+                  />{tr("PRO")}</span>
               ) : null
             }
           />
@@ -2152,14 +2147,9 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <div className="font-semibold text-white">
-                    Les bases du
-                    trading
-                  </div>
+                  <div className="font-semibold text-white">{tr("Les bases du trading")}</div>
 
-                  <div className="mt-1 text-xs text-[color:var(--muted)]">
-                    Module 1
-                  </div>
+                  <div className="mt-1 text-xs text-[color:var(--muted)]">{tr("Module 1")}</div>
 
                   <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/5">
                     <div className="h-full w-0 bg-[color:var(--gold)]" />
@@ -2204,20 +2194,9 @@ export default function DashboardPage() {
                 </div>
 
                 <div>
-                  <div className="font-semibold text-white">
-                    Academy
-                    InvestPro
-                  </div>
+                  <div className="font-semibold text-white">{tr("Academy InvestPro")}</div>
 
-                  <p className="mt-1 max-w-md text-sm leading-5 text-[color:var(--muted)]">
-                    Accède aux
-                    formations,
-                    ressources et
-                    au suivi de
-                    progression
-                    avec
-                    InvestPro PRO.
-                  </p>
+                  <p className="mt-1 max-w-md text-sm leading-5 text-[color:var(--muted)]">{tr("Accède aux formations, ressources et au suivi de progression avec InvestPro PRO.")}</p>
 
                   <Link
                     href="/dashboard/abonnement"
@@ -2231,11 +2210,7 @@ export default function DashboardPage() {
                       text-[color:var(--gold)]
                       no-underline
                     "
-                  >
-                    Débloquer
-                    l’Academy
-
-                    <ArrowRight
+                  >{tr("Débloquer l’Academy")}<ArrowRight
                       size={14}
                     />
                   </Link>
@@ -2256,7 +2231,7 @@ export default function DashboardPage() {
                 size={17}
               />
             }
-            title="Mon activité récente"
+            title={tr("Mon activité récente")}
           />
 
           <div className="mt-5">
@@ -2307,18 +2282,15 @@ export default function DashboardPage() {
                     text-[color:var(--gold)]
                     no-underline
                   "
-                >
-                  Voir le journal
-
-                  <ArrowRight
+                >{tr("Voir le journal")}<ArrowRight
                     size={13}
                   />
                 </Link>
               </div>
             ) : (
               <EmptyState
-                title="Aucune activité récente"
-                text="Tes trades, journaux et activités apparaîtront ici."
+                title={tr("Aucune activité récente")}
+                text={tr("Tes trades, journaux et activités apparaîtront ici.")}
               />
             )}
           </div>
@@ -2335,7 +2307,7 @@ export default function DashboardPage() {
                 size={17}
               />
             }
-            title="Marchés aujourd’hui"
+            title={tr("Marchés aujourd’hui")}
             right={
               calendarLoading ? (
                 <RefreshCw
@@ -2348,10 +2320,7 @@ export default function DashboardPage() {
 
           <div className="mt-5">
             {calendarLoading ? (
-              <div className="py-5 text-center text-xs text-[color:var(--muted)]">
-                Chargement des
-                annonces…
-              </div>
+              <div className="py-5 text-center text-xs text-[color:var(--muted)]">{tr("Chargement des annonces…")}</div>
             ) : marketEvents.length >
               0 ? (
               <div className="space-y-3">
@@ -2395,18 +2364,9 @@ export default function DashboardPage() {
                   p-4
                 "
               >
-                <div className="text-xs font-semibold text-white">
-                  Aucune annonce
-                  importante
-                </div>
+                <div className="text-xs font-semibold text-white">{tr("Aucune annonce importante")}</div>
 
-                <p className="mt-1 text-[10px] leading-5 text-[color:var(--muted)]">
-                  Aucune news
-                  économique
-                  majeure n’est
-                  disponible pour
-                  aujourd’hui.
-                </p>
+                <p className="mt-1 text-[10px] leading-5 text-[color:var(--muted)]">{tr("Aucune news économique majeure n’est disponible pour aujourd’hui.")}</p>
               </div>
             )}
 
@@ -2422,11 +2382,7 @@ export default function DashboardPage() {
                 text-[color:var(--gold)]
                 no-underline
               "
-            >
-              Voir le calendrier
-              complet
-
-              <ArrowRight
+            >{tr("Voir le calendrier complet")}<ArrowRight
                 size={13}
               />
             </Link>
@@ -2456,7 +2412,7 @@ export default function DashboardPage() {
                 size={17}
               />
             }
-            title="Objectifs de la semaine"
+            title={tr("Objectifs de la semaine")}
             right={
               <span
                 className="
@@ -2468,9 +2424,7 @@ export default function DashboardPage() {
                   font-bold
                   text-[color:var(--gold)]
                 "
-              >
-                LUN → DIM
-              </span>
+              >{tr("LUN → DIM")}</span>
             }
           />
 
@@ -2486,10 +2440,7 @@ export default function DashboardPage() {
                 }
               </div>
 
-              <div className="mt-1 text-xs text-[color:var(--muted)]">
-                objectifs
-                complétés
-              </div>
+              <div className="mt-1 text-xs text-[color:var(--muted)]">{tr("objectifs complétés")}</div>
             </div>
 
             <div className="text-right">
@@ -2500,9 +2451,7 @@ export default function DashboardPage() {
                 %
               </div>
 
-              <div className="mt-1 text-[9px] text-[color:var(--muted)]">
-                Reset chaque lundi
-              </div>
+              <div className="mt-1 text-[9px] text-[color:var(--muted)]">{tr("Reset chaque lundi")}</div>
             </div>
           </div>
 
@@ -2517,7 +2466,7 @@ export default function DashboardPage() {
 
           <div className="mt-5 space-y-3 text-xs text-[color:var(--muted)]">
             <Goal
-              text={`Réaliser ${weeklyGoals.tradeTarget} trades • ${weeklyGoals.weekTrades}/${weeklyGoals.tradeTarget}`}
+              text={(tr("Réaliser ") + (weeklyGoals.tradeTarget) + tr(" trades • ") + (weeklyGoals.weekTrades) + "/" + (weeklyGoals.tradeTarget))}
               done={
                 weeklyGoals.fiveTrades
               }
@@ -2526,8 +2475,8 @@ export default function DashboardPage() {
             <Goal
               text={
                 tradingPlan
-                  ? `Respecter le risque max • ${tradingPlan.max_risk_percent}%`
-                  : "Définir puis respecter ton risque max"
+                  ? (tr("Respecter le risque max • ") + (tradingPlan.max_risk_percent) + "%")
+                  : tr("Définir puis respecter ton risque max")
               }
               done={
                 weeklyGoals.riskRespected
@@ -2537,8 +2486,8 @@ export default function DashboardPage() {
             <Goal
               text={
                 tradingPlan
-                  ? `Ne pas dépasser ${tradingPlan.max_trades_per_day} trades/jour`
-                  : "Respecter ta limite de trades/jour"
+                  ? (tr("Ne pas dépasser ") + (tradingPlan.max_trades_per_day) + tr(" trades/jour"))
+                  : tr("Respecter ta limite de trades/jour")
               }
               done={
                 weeklyGoals.dailyLimitRespected
@@ -2546,16 +2495,16 @@ export default function DashboardPage() {
             />
 
             <Goal
-              text={`Discipline du plan ≥ 80% • ${weeklyGoals.disciplinePercent.toFixed(
+              text={(tr("Discipline du plan ≥ 80% • ") + (weeklyGoals.disciplinePercent.toFixed(
                 0
-              )}%`}
+              )) + "%")}
               done={
                 weeklyGoals.disciplineGoal
               }
             />
 
             <Goal
-              text={`Journal documenté • ${weeklyGoals.documentedTrades}/${weeklyGoals.weekTrades || 0} avec notes + capture`}
+              text={(tr("Journal documenté • ") + (weeklyGoals.documentedTrades) + "/" + (weeklyGoals.weekTrades || 0) + tr(" avec notes + capture"))}
               done={
                 weeklyGoals.journalCompleted
               }
@@ -2573,21 +2522,15 @@ export default function DashboardPage() {
                 px-3 py-3
               "
             >
-              <div className="text-[9px] font-semibold text-white">
-                Nouvelle semaine
-              </div>
+              <div className="text-[9px] font-semibold text-white">{tr("Nouvelle semaine")}</div>
 
-              <div className="mt-1 text-[9px] leading-4 text-[color:var(--muted)]">
-                Ajoute ton premier trade au journal pour commencer à faire progresser tes objectifs.
-              </div>
+              <div className="mt-1 text-[9px] leading-4 text-[color:var(--muted)]">{tr("Ajoute ton premier trade au journal pour commencer à faire progresser tes objectifs.")}</div>
             </div>
           ) : null}
 
           {tradingPlan?.weekly_goal ? (
             <div className="mt-4 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-2">
-              <div className="text-[9px] text-[color:var(--muted)]">
-                Ton objectif personnel
-              </div>
+              <div className="text-[9px] text-[color:var(--muted)]">{tr("Ton objectif personnel")}</div>
 
               <div className="mt-1 text-[10px] font-medium text-white">
                 {
@@ -2607,7 +2550,7 @@ export default function DashboardPage() {
                 size={17}
               />
             }
-            title="Mes comptes"
+            title={tr("Mes comptes")}
             right={
               accounts.length >
               0 ? (
@@ -2655,8 +2598,8 @@ export default function DashboardPage() {
               </div>
             ) : (
               <EmptyState
-                title="Aucun compte"
-                text="Ajoute un compte manuel pour commencer à suivre tes performances."
+                title={tr("Aucun compte")}
+                text={tr("Ajoute un compte manuel pour commencer à suivre tes performances.")}
               />
             )}
           </div>
@@ -2683,10 +2626,7 @@ export default function DashboardPage() {
           >
             {accounts.length >
             0 ? (
-              <>
-                Voir mes comptes
-
-                <ArrowRight
+              <>{tr("Voir mes comptes")}<ArrowRight
                   size={14}
                 />
               </>
@@ -2694,10 +2634,7 @@ export default function DashboardPage() {
               <>
                 <Plus
                   size={15}
-                />
-
-                Ajouter un compte
-              </>
+                />{tr("Ajouter un compte")}</>
             )}
           </Link>
         </DashboardCard>
@@ -2711,13 +2648,13 @@ export default function DashboardPage() {
                 size={17}
               />
             }
-            title="Classement hebdo"
+            title={tr("Classement hebdo")}
           />
 
           <div className="mt-5">
             <EmptyState
-              title="Classement bientôt disponible"
-              text="Compare tes performances avec la communauté InvestPro."
+              title={tr("Classement bientôt disponible")}
+              text={tr("Compare tes performances avec la communauté InvestPro.")}
             />
           </div>
 
@@ -2733,10 +2670,7 @@ export default function DashboardPage() {
               text-[color:var(--gold)]
               no-underline
             "
-          >
-            Voir le classement
-
-            <ArrowRight
+          >{tr("Voir le classement")}<ArrowRight
               size={13}
             />
           </Link>
@@ -2751,7 +2685,7 @@ export default function DashboardPage() {
                 size={17}
               />
             }
-            title="Défis en cours"
+            title={tr("Défis en cours")}
           />
 
           <div
@@ -2764,10 +2698,7 @@ export default function DashboardPage() {
             "
           >
             <div className="flex items-center justify-between gap-3">
-              <div className="text-sm font-semibold text-white">
-                Défi
-                Régularité
-              </div>
+              <div className="text-sm font-semibold text-white">{tr("Défi Régularité")}</div>
 
               <span
                 className="
@@ -2779,17 +2710,10 @@ export default function DashboardPage() {
                   font-bold
                   text-[color:var(--gold)]
                 "
-              >
-                BIENTÔT
-              </span>
+              >{tr("BIENTÔT")}</span>
             </div>
 
-            <p className="mt-3 text-xs leading-5 text-[color:var(--muted)]">
-              Les challenges
-              communautaires
-              arrivent
-              prochainement.
-            </p>
+            <p className="mt-3 text-xs leading-5 text-[color:var(--muted)]">{tr("Les challenges communautaires arrivent prochainement.")}</p>
           </div>
         </DashboardCard>
       </section>
@@ -2985,6 +2909,7 @@ function DashboardAccount({
   account:
     TradingAccount;
 }) {
+  const { t: tr } = useLocale();
   return (
     <div
       className="
@@ -3004,7 +2929,7 @@ function DashboardAccount({
 
           <div className="mt-1 truncate text-[9px] text-[color:var(--muted)]">
             {account.broker ||
-              "Compte manuel"}
+              tr("Compte manuel")}
 
             {account.platform
               ? ` • ${account.platform}`
@@ -3044,6 +2969,7 @@ function RecentTrade({
   currency:
     string;
 }) {
+ const { locale } = useLocale();
   const positive =
     Number(
       trade.result_amount
@@ -3105,7 +3031,7 @@ function RecentTrade({
 
         <div className="mt-1 text-[9px] text-[color:var(--muted)]">
           {formatDate(
-            trade.trade_date
+            trade.trade_date, locale
           )}
 
           {trade.timeframe
@@ -3159,12 +3085,13 @@ function MarketRow({
   stars:
     Stars;
 }) {
+  const { t: tr } = useLocale();
   const level =
     stars === 3
-      ? "Élevé"
+      ? tr("Élevé")
       : stars === 2
-      ? "Moyen"
-      : "Faible";
+      ? tr("Moyen")
+      : tr("Faible");
 
   return (
     <div className="flex items-center gap-2 border-b border-white/5 pb-3 last:border-b-0">

@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
+
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
@@ -48,12 +50,12 @@ type DeletionRequest = {
   requested_at: string;
 };
 
-function formatDate(value?: string | null) {
+function formatDate(value?: string | null, locale: "fr" | "en" = "fr") {
   if (!value) return "—";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
 
-  return date.toLocaleString("fr-FR", {
+  return date.toLocaleString(locale === "en" ? "en-US" : "fr-FR", {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -85,6 +87,7 @@ function detectDevice() {
 }
 
 export default function AccountSecurityPage() {
+  const { t: translate, locale } = useLocale();
   const supabase = useMemo(() => createClient(), []);
 
   const [loading, setLoading] = useState(true);
@@ -342,16 +345,14 @@ export default function AccountSecurityPage() {
         <div className="relative">
           <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gold)]">
             <ShieldCheck size={12} />
-            Compte & sécurité
-          </div>
+            {translate("Compte & sécurité")}</div>
 
           <h1 className="mt-3 text-2xl font-semibold text-white md:text-3xl">
-            Protège ton <span className="text-[color:var(--gold)]">espace InvestPro</span>
+            {translate("Protège ton")}{" "}<span className="text-[color:var(--gold)]">{translate("espace InvestPro")}</span>
           </h1>
 
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[color:var(--muted)]">
-            Gère tes identifiants, tes sessions et les actions sensibles de ton compte.
-          </p>
+            {translate("Gère tes identifiants, tes sessions et les actions sensibles de ton compte.")}</p>
         </div>
       </section>
 
@@ -363,8 +364,8 @@ export default function AccountSecurityPage() {
           <div className="grid h-9 w-9 place-items-center rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]">
             <HeartPulse size={15} />
           </div>
-          <div className="mt-3 text-xs font-semibold text-white">Santé du compte</div>
-          <div className="mt-1 text-[9px] text-white/35">Sécurité, connexions et préparation.</div>
+          <div className="mt-3 text-xs font-semibold text-white">{translate("Santé du compte")}</div>
+          <div className="mt-1 text-[9px] text-white/35">{translate("Sécurité, connexions et préparation.")}</div>
         </Link>
 
         <Link
@@ -374,8 +375,8 @@ export default function AccountSecurityPage() {
           <div className="grid h-9 w-9 place-items-center rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]">
             <DatabaseBackup size={15} />
           </div>
-          <div className="mt-3 text-xs font-semibold text-white">Sauvegarde</div>
-          <div className="mt-1 text-[9px] text-white/35">Exporter Journal et réglages.</div>
+          <div className="mt-3 text-xs font-semibold text-white">{translate("Sauvegarde")}</div>
+          <div className="mt-1 text-[9px] text-white/35">{translate("Exporter Journal et réglages.")}</div>
         </Link>
 
         <Link
@@ -385,8 +386,8 @@ export default function AccountSecurityPage() {
           <div className="grid h-9 w-9 place-items-center rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]">
             <Activity size={15} />
           </div>
-          <div className="mt-3 text-xs font-semibold text-white">Activité</div>
-          <div className="mt-1 text-[9px] text-white/35">Timeline de ton espace InvestPro.</div>
+          <div className="mt-3 text-xs font-semibold text-white">{translate("Activité")}</div>
+          <div className="mt-1 text-[9px] text-white/35">{translate("Timeline de ton espace InvestPro.")}</div>
         </Link>
       </section>
 
@@ -408,7 +409,7 @@ export default function AccountSecurityPage() {
           ) : (
             <ShieldCheck size={15} className="mt-0.5 shrink-0" />
           )}
-          {message.text}
+          {translate(message.text)}
         </div>
       ) : null}
 
@@ -416,30 +417,30 @@ export default function AccountSecurityPage() {
         <div className="space-y-4 xl:col-span-7">
           <Card
             icon={<UserRound size={17} />}
-            title="Informations du compte"
-            subtitle="Identité de connexion et statut InvestPro."
+            title={translate("Informations du compte")}
+            subtitle={translate("Identité de connexion et statut InvestPro.")}
           >
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <InfoRow
                 icon={<Mail size={15} />}
-                label="Adresse e-mail"
+                label={translate("Adresse e-mail")}
                 value={user?.email || "—"}
               />
               <InfoRow
                 icon={<ShieldCheck size={15} />}
-                label="Plan"
+                label={translate("Plan")}
                 value={(profile?.plan || "PRO").toUpperCase()}
                 accent
               />
               <InfoRow
                 icon={<UserRound size={15} />}
-                label="Pseudo"
+                label={translate("Pseudo")}
                 value={profile?.username || "Non renseigné"}
               />
               <InfoRow
                 icon={<RefreshCw size={15} />}
-                label="Dernière connexion"
-                value={formatDate(user?.lastSignInAt)}
+                label={translate("Dernière connexion")}
+                value={formatDate(user?.lastSignInAt, locale)}
               />
             </div>
 
@@ -448,8 +449,7 @@ export default function AccountSecurityPage() {
                 href="/dashboard/profil"
                 className="inline-flex h-10 items-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 text-xs font-semibold text-[color:var(--gold)]"
               >
-                Modifier mon profil
-                <ArrowRight size={13} />
+                {translate("Modifier mon profil")}<ArrowRight size={13} />
               </Link>
 
               <Link
@@ -457,19 +457,18 @@ export default function AccountSecurityPage() {
                 className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 text-xs font-semibold text-white/70"
               >
                 <Cable size={14} />
-                Mes connexions
-              </Link>
+                {translate("Mes connexions")}</Link>
             </div>
           </Card>
 
           <Card
             icon={<KeyRound size={17} />}
-            title="Changer le mot de passe"
-            subtitle="Choisis un mot de passe unique pour InvestPro."
+            title={translate("Changer le mot de passe")}
+            subtitle={translate("Choisis un mot de passe unique pour InvestPro.")}
           >
             <form onSubmit={updatePassword} className="space-y-3">
               <PasswordField
-                label="Nouveau mot de passe"
+                label={translate("Nouveau mot de passe")}
                 value={password}
                 onChange={setPassword}
                 visible={showPassword}
@@ -477,7 +476,7 @@ export default function AccountSecurityPage() {
               />
 
               <PasswordField
-                label="Confirmer le nouveau mot de passe"
+                label={translate("Confirmer le nouveau mot de passe")}
                 value={passwordConfirm}
                 onChange={setPasswordConfirm}
                 visible={showPassword}
@@ -486,8 +485,7 @@ export default function AccountSecurityPage() {
 
               <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
                 <div className="text-[9px] leading-4 text-white/35">
-                  Minimum 8 caractères. Évite de réutiliser le mot de passe d’un broker ou d’une prop firm.
-                </div>
+                  {translate("Minimum 8 caractères. Évite de réutiliser le mot de passe d’un broker ou d’une prop firm.")}</div>
 
                 <button
                   type="submit"
@@ -495,16 +493,15 @@ export default function AccountSecurityPage() {
                   className="inline-flex h-10 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-4 text-xs font-semibold text-black disabled:opacity-50"
                 >
                   {passwordBusy ? <Loader2 size={14} className="animate-spin" /> : <LockKeyhole size={14} />}
-                  Mettre à jour
-                </button>
+                  {translate("Mettre à jour")}</button>
               </div>
             </form>
           </Card>
 
           <Card
             icon={<Laptop size={17} />}
-            title="Appareils & sessions"
-            subtitle="Contrôle rapidement les sessions liées à ton compte."
+            title={translate("Appareils & sessions")}
+            subtitle={translate("Contrôle rapidement les sessions liées à ton compte.")}
           >
             <div className="rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.04] p-4">
               <div className="flex items-start justify-between gap-4">
@@ -520,15 +517,14 @@ export default function AccountSecurityPage() {
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <div className="text-xs font-semibold text-white">
-                        {device.device} · {device.browser}
+                        {translate(device.device)} · {device.browser}
                       </div>
                       <span className="rounded-full border border-emerald-500/20 bg-emerald-500/[0.07] px-2 py-0.5 text-[8px] font-bold uppercase text-emerald-400">
-                        Session actuelle
-                      </span>
+                        {translate("Session actuelle")}</span>
                     </div>
 
                     <div className="mt-1 text-[9px] text-white/35">
-                      Dernière authentification : {formatDate(user?.lastSignInAt)}
+                      {translate("Dernière authentification :")}{" "}{formatDate(user?.lastSignInAt, locale)}
                     </div>
                   </div>
                 </div>
@@ -536,8 +532,7 @@ export default function AccountSecurityPage() {
             </div>
 
             <p className="mt-3 text-[9px] leading-4 text-white/35">
-              InvestPro ne peut pas afficher une liste détaillée de tous les appareils depuis le navigateur, mais tu peux fermer toutes les autres sessions en un clic.
-            </p>
+              {translate("InvestPro ne peut pas afficher une liste détaillée de tous les appareils depuis le navigateur, mais tu peux fermer toutes les autres sessions en un clic.")}</p>
 
             <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
               <button
@@ -547,8 +542,7 @@ export default function AccountSecurityPage() {
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] text-xs font-semibold text-white/70 disabled:opacity-50"
               >
                 {logoutBusy ? <Loader2 size={14} className="animate-spin" /> : <LogOut size={14} />}
-                Déconnecter cet appareil
-              </button>
+                {translate("Déconnecter cet appareil")}</button>
 
               <button
                 type="button"
@@ -557,8 +551,7 @@ export default function AccountSecurityPage() {
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.05] text-xs font-semibold text-amber-300 disabled:opacity-50"
               >
                 {globalLogoutBusy ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
-                Déconnecter partout
-              </button>
+                {translate("Déconnecter partout")}</button>
             </div>
           </Card>
         </div>
@@ -566,8 +559,8 @@ export default function AccountSecurityPage() {
         <div className="space-y-4 xl:col-span-5">
           <Card
             icon={<MonitorSmartphone size={17} />}
-            title="InvestPro Mobile"
-            subtitle="Installe la plateforme comme une application."
+            title={translate("InvestPro Mobile")}
+            subtitle={translate("Installe la plateforme comme une application.")}
           >
             <div className="rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4">
               <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[color:var(--gold-border)] bg-black/20 text-[color:var(--gold)]">
@@ -575,12 +568,10 @@ export default function AccountSecurityPage() {
               </div>
 
               <div className="mt-4 text-sm font-semibold text-white">
-                InvestPro directement sur ton écran d’accueil
-              </div>
+                {translate("InvestPro directement sur ton écran d’accueil")}</div>
 
               <p className="mt-2 text-[10px] leading-5 text-white/45">
-                Accède au Dashboard, Journal, Comptes et Rapports sans rechercher le site dans ton navigateur.
-              </p>
+                {translate("Accède au Dashboard, Journal, Comptes et Rapports sans rechercher le site dans ton navigateur.")}</p>
 
               <button
                 type="button"
@@ -588,28 +579,27 @@ export default function AccountSecurityPage() {
                 className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-[color:var(--gold)] text-xs font-semibold text-black"
               >
                 <MonitorSmartphone size={14} />
-                Installer / voir le guide
-              </button>
+                {translate("Installer / voir le guide")}</button>
             </div>
           </Card>
 
           <Card
             icon={<ShieldCheck size={17} />}
-            title="Bonnes pratiques"
-            subtitle="Quelques règles simples pour protéger tes accès."
+            title={translate("Bonnes pratiques")}
+            subtitle={translate("Quelques règles simples pour protéger tes accès.")}
           >
             <div className="space-y-3">
-              <SecurityTip text="Utilise un mot de passe différent de tes brokers, prop firms et e-mails." />
-              <SecurityTip text="Ne partage jamais une clé API, une clé de synchronisation ou ton mot de passe dans Telegram/Discord." />
-              <SecurityTip text="Utilise « Déconnecter partout » si tu penses qu’un autre appareil est encore connecté." />
-              <SecurityTip text="Les intégrations trading InvestPro restent en lecture seule : aucun ordre n’est envoyé." />
+              <SecurityTip text={translate("Utilise un mot de passe différent de tes brokers, prop firms et e-mails.")} />
+              <SecurityTip text={translate("Ne partage jamais une clé API, une clé de synchronisation ou ton mot de passe dans Telegram/Discord.")} />
+              <SecurityTip text={translate("Utilise « Déconnecter partout » si tu penses qu’un autre appareil est encore connecté.")} />
+              <SecurityTip text={translate("Les intégrations trading InvestPro restent en lecture seule : aucun ordre n’est envoyé.")} />
             </div>
           </Card>
 
           <Card
             icon={<Trash2 size={17} />}
-            title="Suppression du compte"
-            subtitle="Action sensible — la demande est enregistrée avant suppression définitive."
+            title={translate("Suppression du compte")}
+            subtitle={translate("Action sensible — la demande est enregistrée avant suppression définitive.")}
             danger
           >
             {deletionRequest ? (
@@ -618,11 +608,9 @@ export default function AccountSecurityPage() {
                   <AlertTriangle size={17} className="mt-0.5 shrink-0 text-amber-300" />
                   <div>
                     <div className="text-xs font-semibold text-white">
-                      Demande de suppression en attente
-                    </div>
+                      {translate("Demande de suppression en attente")}</div>
                     <div className="mt-1 text-[9px] leading-4 text-white/40">
-                      Envoyée le {formatDate(deletionRequest.requested_at)}. Rien n’est supprimé automatiquement.
-                    </div>
+                      {translate("Envoyée le")}{" "}{formatDate(deletionRequest.requested_at, locale)}{translate(". Rien n’est supprimé automatiquement.")}</div>
                   </div>
                 </div>
 
@@ -633,14 +621,12 @@ export default function AccountSecurityPage() {
                   className="mt-4 inline-flex h-9 items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 text-[10px] font-semibold text-white/60 disabled:opacity-50"
                 >
                   {deletionBusy ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
-                  Annuler la demande
-                </button>
+                  {translate("Annuler la demande")}</button>
               </div>
             ) : !confirmDelete ? (
               <>
                 <p className="text-[10px] leading-5 text-white/40">
-                  Cette action crée uniquement une demande. Ton compte, ton journal et tes données restent intacts tant que la suppression n’a pas été traitée.
-                </p>
+                  {translate("Cette action crée uniquement une demande. Ton compte, ton journal et tes données restent intacts tant que la suppression n’a pas été traitée.")}</p>
 
                 <button
                   type="button"
@@ -648,23 +634,20 @@ export default function AccountSecurityPage() {
                   className="mt-4 inline-flex h-10 items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/[0.05] px-4 text-xs font-semibold text-red-300"
                 >
                   <Trash2 size={14} />
-                  Demander la suppression
-                </button>
+                  {translate("Demander la suppression")}</button>
               </>
             ) : (
               <div className="rounded-2xl border border-red-500/20 bg-red-500/[0.05] p-4">
                 <div className="text-xs font-semibold text-red-200">
-                  Confirme ta demande
-                </div>
+                  {translate("Confirme ta demande")}</div>
 
                 <p className="mt-2 text-[9px] leading-4 text-white/40">
-                  Écris <strong className="text-white">SUPPRIMER</strong> ci-dessous. La demande sera enregistrée mais aucune donnée ne sera effacée automatiquement.
-                </p>
+                  {translate("Écris")}{" "}<strong className="text-white">{"SUPPRIMER"}</strong> {translate("ci-dessous. La demande sera enregistrée mais aucune donnée ne sera effacée automatiquement.")}</p>
 
                 <input
                   value={deletePhrase}
                   onChange={(event) => setDeletePhrase(event.target.value)}
-                  placeholder="SUPPRIMER"
+                  placeholder={"SUPPRIMER"}
                   className="mt-3 h-10 w-full rounded-xl border border-red-500/20 bg-black/25 px-3 text-xs text-white outline-none placeholder:text-white/20 focus:border-red-400/40"
                 />
 
@@ -677,8 +660,7 @@ export default function AccountSecurityPage() {
                     }}
                     className="h-10 rounded-xl border border-white/[0.08] bg-white/[0.03] text-[10px] font-semibold text-white/55"
                   >
-                    Annuler
-                  </button>
+                    {translate("Annuler")}</button>
 
                   <button
                     type="button"
@@ -687,8 +669,7 @@ export default function AccountSecurityPage() {
                     className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-red-500/15 text-[10px] font-semibold text-red-300 disabled:opacity-50"
                   >
                     {deletionBusy ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
-                    Confirmer
-                  </button>
+                    {translate("Confirmer")}</button>
                 </div>
               </div>
             )}
@@ -712,6 +693,7 @@ function Card({
   children: React.ReactNode;
   danger?: boolean;
 }) {
+  const { t: translate } = useLocale();
   return (
     <section
       className={[
@@ -732,8 +714,8 @@ function Card({
         </div>
 
         <div>
-          <h2 className="text-sm font-semibold text-white">{title}</h2>
-          <p className="mt-1 text-[9px] leading-4 text-white/35">{subtitle}</p>
+          <h2 className="text-sm font-semibold text-white">{translate(title)}</h2>
+          <p className="mt-1 text-[9px] leading-4 text-white/35">{translate(subtitle)}</p>
         </div>
       </div>
 
@@ -753,12 +735,13 @@ function InfoRow({
   value: string;
   accent?: boolean;
 }) {
+  const { t: translate } = useLocale();
   return (
     <div className="rounded-2xl border border-white/[0.06] bg-black/20 p-4">
       <div className={accent ? "text-[color:var(--gold)]" : "text-white/35"}>
         {icon}
       </div>
-      <div className="mt-3 text-[9px] text-white/30">{label}</div>
+      <div className="mt-3 text-[9px] text-white/30">{translate(label)}</div>
       <div className={accent ? "mt-1 text-xs font-semibold text-[color:var(--gold)]" : "mt-1 break-all text-xs font-semibold text-white"}>
         {value}
       </div>
@@ -779,9 +762,10 @@ function PasswordField({
   visible: boolean;
   onToggle: () => void;
 }) {
+  const { t: translate } = useLocale();
   return (
     <label className="block">
-      <span className="mb-2 block text-[10px] font-medium text-white/55">{label}</span>
+      <span className="mb-2 block text-[10px] font-medium text-white/55">{translate(label)}</span>
       <div className="relative">
         <input
           type={visible ? "text" : "password"}
@@ -795,7 +779,7 @@ function PasswordField({
           type="button"
           onClick={onToggle}
           className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-white/35 hover:text-white/70"
-          aria-label={visible ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+          aria-label={visible ? translate("Masquer le mot de passe") : translate("Afficher le mot de passe")}
         >
           {visible ? <EyeOff size={15} /> : <Eye size={15} />}
         </button>
@@ -805,10 +789,11 @@ function PasswordField({
 }
 
 function SecurityTip({ text }: { text: string }) {
+  const { t: translate } = useLocale();
   return (
     <div className="flex items-start gap-2 text-[10px] leading-5 text-white/55">
       <CheckCircle2 size={14} className="mt-0.5 shrink-0 text-emerald-400" />
-      {text}
+      {translate(text)}
     </div>
   );
 }

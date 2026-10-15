@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import HostedSyncPanel from "./HostedSyncPanel";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -35,6 +36,8 @@ export default function MetaSyncPanel() {
 }
 
 function LocalSyncPanel() {
+  const { t: translate } = useLocale();
+
   const [enabled, setEnabled] = useState(false);
   const [rows, setRows] = useState<Connection[]>([]);
   const [error, setError] = useState("");
@@ -115,17 +118,14 @@ function LocalSyncPanel() {
 
           <div>
             <div className="text-xs font-semibold text-white">
-              Installation locale MetaTrader
-            </div>
+              {translate("Installation locale MetaTrader")}</div>
             <div className="mt-1 text-[9px] text-white/30">
-              Mode pilote / connecteur Windows avancé
-            </div>
+              {translate("Mode pilote / connecteur Windows avancé")}</div>
           </div>
         </div>
 
         <span className="rounded-full border border-white/[0.07] bg-white/[0.03] px-2 py-1 text-[8px] font-semibold text-white/35">
-          AVANCÉ
-        </span>
+          {translate("AVANCÉ")}</span>
       </summary>
 
       <section className="border-t border-white/[0.06] p-4 md:p-5">
@@ -136,23 +136,21 @@ function LocalSyncPanel() {
               className="mt-0.5 shrink-0 text-[color:var(--gold)]"
             />
             <p className="text-[10px] leading-5 text-white/45">
-              Associe un terminal Windows déjà connecté. Aucun mot de passe MetaTrader
-              n’est saisi ici : InvestPro génère une clé de synchronisation.
-            </p>
+              {translate("Associe un terminal Windows déjà connecté. Aucun mot de passe MetaTrader n’est saisi ici : InvestPro génère une clé de synchronisation.")}</p>
           </div>
         </div>
 
         {error ? (
           <div className="mt-4 flex items-start gap-2 rounded-xl border border-red-500/20 bg-red-500/[0.05] p-3 text-[10px] text-red-300">
             <AlertTriangle size={13} className="mt-0.5 shrink-0" />
-            {error}
+            {translate(error)}
           </div>
         ) : null}
 
         {enabled ? (
           <>
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <Field label="Plateforme">
+              <Field label={translate("Plateforme")}>
                 <select
                   className="ip-local-input"
                   value={platform}
@@ -161,39 +159,39 @@ function LocalSyncPanel() {
                     setToken("");
                   }}
                 >
-                  <option value="MT4">MetaTrader 4</option>
-                  <option value="MT5">MetaTrader 5</option>
+                  <option value="MT4">{translate("MetaTrader 4")}</option>
+                  <option value="MT5">{translate("MetaTrader 5")}</option>
                 </select>
               </Field>
 
-              <Field label="Numéro du compte">
+              <Field label={translate("Numéro du compte")}>
                 <input
                   className="ip-local-input"
                   value={login}
                   onChange={(event) => setLogin(event.target.value)}
-                  placeholder="Ex. 12345678"
+                  placeholder={translate("Ex. 12345678")}
                 />
               </Field>
 
-              <Field label="Serveur exact du broker">
+              <Field label={translate("Serveur exact du broker")}>
                 <input
                   className="ip-local-input"
                   value={server}
                   onChange={(event) => setServer(event.target.value)}
-                  placeholder="Ex. FusionMarkets-Live"
+                  placeholder={translate("Ex. FusionMarkets-Live")}
                 />
               </Field>
 
-              <Field label="Devise">
+              <Field label={translate("Devise")}>
                 <input
                   className="ip-local-input"
                   value={currency}
                   onChange={(event) => setCurrency(event.target.value)}
-                  placeholder="EUR"
+                  placeholder={translate("EUR")}
                 />
               </Field>
 
-              <Field label="Capital de départ">
+              <Field label={translate("Capital de départ")}>
                 <input
                   className="ip-local-input"
                   inputMode="decimal"
@@ -203,15 +201,15 @@ function LocalSyncPanel() {
                 />
               </Field>
 
-              <Field label="Type">
+              <Field label={translate("Type")}>
                 <select
                   className="ip-local-input"
                   value={type}
                   onChange={(event) => setType(event.target.value)}
                 >
-                  <option value="demo">Démo</option>
-                  <option value="real">Réel</option>
-                  <option value="prop">Prop firm</option>
+                  <option value="demo">{translate("Démo")}</option>
+                  <option value="real">{translate("Réel")}</option>
+                  <option value="prop">{translate("Prop firm")}</option>
                 </select>
               </Field>
             </div>
@@ -226,23 +224,20 @@ function LocalSyncPanel() {
               ) : (
                 <KeyRound size={13} />
               )}
-              Créer / renouveler ma clé
-            </button>
+              {translate("Créer / renouveler ma clé")}</button>
 
             {token ? (
               <div className="mt-4 rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.04] p-4">
                 <div className="flex items-center gap-2 text-[10px] font-semibold text-emerald-300">
                   <CheckCircle2 size={13} />
-                  Clé prête
-                </div>
+                  {translate("Clé prête")}</div>
 
                 <p className="mt-2 text-[9px] leading-4 text-white/35">
-                  Copie cette clé maintenant. Elle ne sera plus affichée après rechargement.
-                </p>
+                  {translate("Copie cette clé maintenant. Elle ne sera plus affichée après rechargement.")}</p>
 
                 <div className="mt-3 flex gap-2">
                   <input
-                    aria-label="Clé de synchronisation"
+                    aria-label={translate("Clé de synchronisation")}
                     readOnly
                     type="password"
                     value={token}
@@ -301,19 +296,19 @@ function LocalSyncPanel() {
                           ].join(" ")}
                         >
                           {connection.revoked
-                            ? "Déconnecté"
+                            ? translate("Déconnecté")
                             : old
-                              ? "À vérifier"
-                              : "Actif"}
+                              ? translate("À vérifier")
+                              : translate("Actif")}
                         </span>
                       </div>
 
                       <div className="mt-2 text-[8px] text-white/30">
                         {connection.last_sync
-                          ? `Dernière réception : ${new Date(
+                          ? (translate("Dernière réception : ") + (new Date(
                               connection.last_sync
-                            ).toLocaleString("fr-FR")}`
-                          : "En attente du connecteur"}
+                            ).toLocaleString("fr-FR")) + "")
+                          : translate("En attente du connecteur")}
                       </div>
 
                       {connection.warnings?.map((warning) => (
@@ -332,8 +327,7 @@ function LocalSyncPanel() {
                           className="mt-3 inline-flex items-center gap-1.5 text-[8px] font-semibold text-red-300/70"
                         >
                           <Unplug size={10} />
-                          Révoquer la clé
-                        </button>
+                          {translate("Révoquer la clé")}</button>
                       ) : null}
                     </div>
                   );
@@ -373,9 +367,11 @@ function Field({
   label: string;
   children: React.ReactNode;
 }) {
+  const { t: translate } = useLocale();
+
   return (
     <label className="block">
-      <span className="text-[9px] font-medium text-white/40">{label}</span>
+      <span className="text-[9px] font-medium text-white/40">{translate(label)}</span>
       {children}
     </label>
   );

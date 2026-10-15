@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { useRouter, usePathname } from "next/navigation";
 import { ShieldCheck, Loader2 } from "lucide-react";
 
@@ -14,6 +15,7 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const { t: tr } = useLocale();
   const router = useRouter();
   const pathname = usePathname();
   const [permissions,setPermissions]=useState<string[]>([]);
@@ -92,7 +94,7 @@ export default function AdminLayout({
             }}
           >
             <Loader2 className="h-4 w-4 animate-spin text-[color:var(--gold)]" />
-            <span className="text-sm">Vérification de l’accès administrateur…</span>
+            <span className="text-sm">{tr("Vérification de l’accès administrateur…")}</span>
           </div>
         </div>
       </div>
@@ -114,13 +116,9 @@ export default function AdminLayout({
               <ShieldCheck size={19} />
             </div>
 
-            <div className="mt-4 text-lg font-semibold" style={{ color: "var(--text)" }}>
-              Accès administrateur refusé
-            </div>
+            <div className="mt-4 text-lg font-semibold" style={{ color: "var(--text)" }}>{tr("Accès administrateur refusé")}</div>
 
-            <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>
-              Ce compte n’est pas présent dans la liste des administrateurs InvestPro.
-            </p>
+            <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>{tr("Ce compte n’est pas présent dans la liste des administrateurs InvestPro.")}</p>
 
             <button
               type="button"
@@ -130,28 +128,22 @@ export default function AdminLayout({
                 background: "var(--gold)",
                 color: "#050605",
               }}
-            >
-              Retour au dashboard
-            </button>
+            >{tr("Retour au dashboard")}</button>
           </div>
         </div>
       </div>
     );
   }
 
-  if(!sectionAllowed)return <div className="p-8 text-red-300">Accès refusé : vous ne disposez pas des permissions pour cette rubrique.</div>;
+  if(!sectionAllowed)return <div className="p-8 text-red-300">{tr("Accès refusé : vous ne disposez pas des permissions pour cette rubrique.")}</div>;
   return (
     <div className="min-h-[calc(100vh-64px)] px-6 py-6">
       <div className="mx-auto w-full max-w-[1600px]">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <div className="text-3xl font-bold" style={{ color: "var(--text)" }}>
-              Admin — Overview
-            </div>
+            <div className="text-3xl font-bold" style={{ color: "var(--text)" }}>{tr("Admin — Overview")}</div>
 
-            <div className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
-              InvestPro — accès administrateur sécurisé
-            </div>
+            <div className="mt-1 text-sm" style={{ color: "var(--muted)" }}>{tr("InvestPro — accès administrateur sécurisé")}</div>
           </div>
 
           <div
@@ -162,9 +154,7 @@ export default function AdminLayout({
               color: "#34d399",
             }}
           >
-            <ShieldCheck size={14} />
-            Session admin vérifiée
-          </div>
+            <ShieldCheck size={14} />{tr("Session admin vérifiée")}</div>
         </div>
 
         <div className="mt-4">

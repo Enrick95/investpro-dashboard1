@@ -1,12 +1,14 @@
 import type { Metadata, Viewport } from "next";
 import PwaRegister from "@/components/PwaRegister";
 import InstallAppExperience from "@/components/InstallAppExperience";
+import LocaleProvider from "@/components/i18n/LocaleProvider";
+import { getRequestLocale } from "@/lib/i18n/server";
 import "./globals.css";
 import "./aura.css";
 import "./fundamentals.css";
 import "./aura-faithful.css";
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
   metadataBase: new URL("https://investprotrading.fr"),
   title: { default: "InvestPro Trading — Journal, risque & multi-comptes", template: "%s | InvestPro Trading" },
   description: "Centralisez vos comptes de trading, automatisez votre journal, analysez vos performances et suivez votre discipline dans un seul espace.",
@@ -33,6 +35,20 @@ export const metadata: Metadata = {
   },
 };
 
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  if (locale === "fr") return baseMetadata;
+  const title = "InvestPro Trading — Trading journal, risk & multiple accounts";
+  const description = "Centralize your trading accounts, automate your journal, analyze your performance and track your discipline in one place.";
+  return {
+    ...baseMetadata,
+    title: { default: title, template: "%s | InvestPro Trading" },
+    description,
+    openGraph: { ...baseMetadata.openGraph, description: "Trade better. Improve every day.", locale: "en_US" },
+    twitter: { ...baseMetadata.twitter, description: "Trade better. Improve every day." },
+  };
+}
+
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
@@ -40,17 +56,20 @@ export const viewport: Viewport = {
   themeColor: "#07070a",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getRequestLocale();
   return (
-    <html lang="fr" className="dark" suppressHydrationWarning>
+    <html lang={locale} className="dark" suppressHydrationWarning>
       <body>
-        <PwaRegister />
-        <InstallAppExperience />
-        {children}
+        <LocaleProvider initialLocale={locale}>
+          <PwaRegister />
+          <InstallAppExperience />
+          {children}
+        </LocaleProvider>
       </body>
     </html>
   );

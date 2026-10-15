@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
@@ -81,26 +82,26 @@ type HostedConnection = {
 
 type Tone = "ok" | "warn" | "danger" | "neutral";
 
-function relativeDate(value?: string | null) {
-  if (!value) return "Jamais";
+function relativeDate(value?: string | null, locale: "fr" | "en" = "fr") {
+  if (!value) return locale === "en" ? "Never" : "Jamais";
   const time = new Date(value).getTime();
   if (!Number.isFinite(time)) return "—";
 
   const seconds = Math.max(0, Math.floor((Date.now() - time) / 1000));
-  if (seconds < 60) return "À l’instant";
+  if (seconds < 60) return locale === "en" ? "Just now" : "À l’instant";
   const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `Il y a ${minutes} min`;
+  if (minutes < 60) return locale === "en" ? minutes + " min ago" : "Il y a " + minutes + " min";
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `Il y a ${hours} h`;
+  if (hours < 24) return locale === "en" ? hours + " h ago" : "Il y a " + hours + " h";
   const days = Math.floor(hours / 24);
-  return `Il y a ${days} j`;
+  return locale === "en" ? days + " d ago" : "Il y a " + days + " j";
 }
 
-function exactDate(value?: string | null) {
-  if (!value) return "Aucune synchronisation";
+function exactDate(value?: string | null, locale: "fr" | "en" = "fr") {
+  if (!value) return locale === "en" ? "No synchronisation" : "Aucune synchronisation";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleString("fr-FR", {
+  return date.toLocaleString(locale === "en" ? "en-GB" : "fr-FR", {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -174,6 +175,8 @@ function toneClasses(tone: Tone) {
 }
 
 export default function ConnectionsPage() {
+  const { t: translate, locale } = useLocale();
+
   const supabase = useMemo(() => createClient(), []);
 
   const [loading, setLoading] = useState(true);
@@ -338,7 +341,7 @@ export default function ConnectionsPage() {
       }
 
       setNotice(
-        `ProjectX synchronisé : ${Number(json.updated || 0)} compte(s) mis à jour · ${Number(json.imported || 0)} trade(s) traité(s).`
+        translate("ProjectX synchronisé : {accounts} compte(s) mis à jour · {trades} trade(s) traité(s).").replace("{accounts}", String(Number(json.updated || 0))).replace("{trades}", String(Number(json.imported || 0)))
       );
 
       await load();
@@ -366,18 +369,16 @@ export default function ConnectionsPage() {
         <div className="relative grid gap-6 xl:grid-cols-[1.35fr_.65fr] xl:items-end">
           <div>
             <h1 className="text-3xl font-semibold text-white md:text-4xl">
-              Ton trading, <span className="text-[color:var(--gold)]">connecté à InvestPro</span>
+              {translate("Ton trading,")}{" "}<span className="text-[color:var(--gold)]">{translate("connecté à InvestPro")}</span>
             </h1>
 
             <p className="mt-3 max-w-3xl text-sm leading-6 text-[color:var(--muted)]">
-              Connecte MT4, MT5, TradeLocker, cTrader ou ProjectX une seule fois. InvestPro centralise les comptes,
-              surveille la synchronisation et alimente progressivement le Journal et les Rapports.
-            </p>
+              {translate("Connecte MT4, MT5, TradeLocker, cTrader ou ProjectX une seule fois. InvestPro centralise les comptes, surveille la synchronisation et alimente progressivement le Journal et les Rapports.")}</p>
 
             <div className="mt-5 flex flex-wrap gap-2">
-              <SecurityPill icon={<ShieldCheck size={12} />} text="Lecture seule côté InvestPro" />
-              <SecurityPill icon={<LockKeyhole size={12} />} text="Identifiants chiffrés côté serveur" />
-              <SecurityPill icon={<Database size={12} />} text="Journal connecté" />
+              <SecurityPill icon={<ShieldCheck size={12} />} text={translate("Lecture seule côté InvestPro")} />
+              <SecurityPill icon={<LockKeyhole size={12} />} text={translate("Identifiants chiffrés côté serveur")} />
+              <SecurityPill icon={<Database size={12} />} text={translate("Journal connecté")} />
             </div>
           </div>
 
@@ -385,10 +386,9 @@ export default function ConnectionsPage() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <div className="text-[9px] uppercase tracking-[0.12em] text-white/30">
-                  État global
-                </div>
+                  {translate("État global")}</div>
                 <div className="mt-1 text-xl font-semibold text-white">
-                  {health.label}
+                  {translate(health.label)}
                 </div>
               </div>
 
@@ -402,10 +402,10 @@ export default function ConnectionsPage() {
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-2">
-              <MiniStat label="Connexions" value={String(connectedCount)} />
-              <MiniStat label="Auto-sync" value={String(autoAccounts.length)} />
-              <MiniStat label="Dernière sync" value={relativeDate(latestSync)} />
-              <MiniStat label="Alertes" value={String(metaWarnings)} />
+              <MiniStat label={translate("Connexions")} value={String(connectedCount)} />
+              <MiniStat label={translate("Auto-sync")} value={String(autoAccounts.length)} />
+              <MiniStat label={translate("Dernière sync")} value={relativeDate(latestSync, locale)} />
+              <MiniStat label={translate("Alertes")} value={String(metaWarnings)} />
             </div>
           </div>
         </div>
@@ -413,41 +413,41 @@ export default function ConnectionsPage() {
 
       {error ? (
         <div className="rounded-2xl border border-red-500/20 bg-red-500/[0.06] px-4 py-3 text-xs text-red-300">
-          {error}
+          {translate(error)}
         </div>
       ) : null}
 
       {notice ? (
         <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] px-4 py-3 text-xs text-emerald-300">
-          {notice}
+          {translate(notice)}
         </div>
       ) : null}
 
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat
           icon={<Cable size={17} />}
-          label="Connexions actives"
+          label={translate("Connexions actives")}
           value={String(connectedCount)}
-          sub="MT4 / MT5 / TradeLocker / cTrader / Futures"
+          sub={translate("MT4 / MT5 / TradeLocker / cTrader / Futures")}
         />
         <Stat
           icon={<WalletCards size={17} />}
-          label="Comptes InvestPro"
+          label={translate("Comptes InvestPro")}
           value={String(accounts.length)}
-          sub={`${autoAccounts.length} automatique${autoAccounts.length > 1 ? "s" : ""}`}
+          sub={translate("{count} automatique(s)").replace("{count}", String(autoAccounts.length))}
         />
         <Stat
           icon={<Clock3 size={17} />}
-          label="Dernière activité"
-          value={relativeDate(latestSync)}
-          sub={exactDate(latestSync)}
+          label={translate("Dernière activité")}
+          value={relativeDate(latestSync, locale)}
+          sub={exactDate(latestSync, locale)}
           tone={health.tone}
         />
         <Stat
           icon={<ShieldCheck size={17} />}
-          label="Sécurité"
+          label={translate("Sécurité")}
           value="Lecture seule"
-          sub="Aucun ordre envoyé"
+          sub={translate("Aucun ordre envoyé")}
           tone="ok"
         />
       </section>
@@ -456,11 +456,9 @@ export default function ConnectionsPage() {
         <div className="mb-3 flex items-end justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-white">
-              Plateformes disponibles
-            </h2>
+              {translate("Plateformes disponibles")}</h2>
             <p className="mt-1 text-[10px] text-white/35">
-              Choisis une plateforme pour connecter ou gérer tes comptes.
-            </p>
+              {translate("Choisis une plateforme pour connecter ou gérer tes comptes.")}</p>
           </div>
 
           <button
@@ -469,16 +467,15 @@ export default function ConnectionsPage() {
             className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 text-[10px] font-semibold text-white/55 hover:text-white"
           >
             <RefreshCw size={12} />
-            Actualiser
-          </button>
+            {translate("Actualiser")}</button>
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           <ProviderCard
-            eyebrow="CFD / FOREX"
-            title="MetaTrader 5"
-            subtitle={`${activeMeta.filter((x) => x.platform === "MT5").length} compte(s) actif(s)`}
-            description="Balance, equity et historique vers InvestPro via le connecteur MetaSync."
+            eyebrow={translate("CFD / FOREX")}
+            title={translate("MetaTrader 5")}
+            subtitle={translate("{count} compte(s) actif(s)").replace("{count}", String(activeMeta.filter((x) => x.platform === "MT5").length))}
+            description={translate("Balance, equity et historique vers InvestPro via le connecteur MetaSync.")}
             icon={<Server size={22} />}
             status={
               activeMeta.some((x) => x.platform === "MT5") ? "connected" : "ready"
@@ -486,16 +483,16 @@ export default function ConnectionsPage() {
             href="/dashboard/connexions/metatrader?platform=mt5"
             cta={
               activeMeta.some((x) => x.platform === "MT5")
-                ? "Gérer MT5"
-                : "Connecter MT5"
+                ? translate("Gérer MT5")
+                : translate("Connecter MT5")
             }
           />
 
           <ProviderCard
-            eyebrow="CFD / FOREX"
-            title="MetaTrader 4"
-            subtitle={`${activeMeta.filter((x) => x.platform === "MT4").length} compte(s) actif(s)`}
-            description="Même expérience InvestPro pour les brokers et prop firms encore sur MT4."
+            eyebrow={translate("CFD / FOREX")}
+            title={translate("MetaTrader 4")}
+            subtitle={translate("{count} compte(s) actif(s)").replace("{count}", String(activeMeta.filter((x) => x.platform === "MT4").length))}
+            description={translate("Même expérience InvestPro pour les brokers et prop firms encore sur MT4.")}
             icon={<Server size={22} />}
             status={
               activeMeta.some((x) => x.platform === "MT4") ? "connected" : "ready"
@@ -503,16 +500,16 @@ export default function ConnectionsPage() {
             href="/dashboard/connexions/metatrader?platform=mt4"
             cta={
               activeMeta.some((x) => x.platform === "MT4")
-                ? "Gérer MT4"
-                : "Connecter MT4"
+                ? translate("Gérer MT4")
+                : translate("Connecter MT4")
             }
           />
 
           <ProviderCard
-            eyebrow="CFD / MULTI-ASSETS"
-            title="TradeLocker"
-            subtitle="API officielle REST"
-            description="Connexion sécurisée TradeLocker avec détection des comptes et stockage chiffré côté serveur."
+            eyebrow={translate("CFD / MULTI-ASSETS")}
+            title={translate("TradeLocker")}
+            subtitle={translate("API officielle REST")}
+            description={translate("Connexion sécurisée TradeLocker avec détection des comptes et stockage chiffré côté serveur.")}
             icon={<ServerCog size={22} />}
             status="ready"
             href="/dashboard/comptes?connect=tradelocker"
@@ -520,10 +517,10 @@ export default function ConnectionsPage() {
           />
 
           <ProviderCard
-            eyebrow="CFD / FOREX"
-            title="cTrader"
-            subtitle="Open API · OAuth 2.0"
-            description="Autorisation lecture seule via cTrader Open API. Synchronisation continue préparée pour worker dédié."
+            eyebrow={translate("CFD / FOREX")}
+            title={translate("cTrader")}
+            subtitle={translate("Open API · OAuth 2.0")}
+            description={translate("Autorisation lecture seule via cTrader Open API. Synchronisation continue préparée pour worker dédié.")}
             icon={<Cable size={22} />}
             status="ready"
             href="/dashboard/comptes?connect=ctrader"
@@ -531,14 +528,14 @@ export default function ConnectionsPage() {
           />
 
           <ProviderCard
-            eyebrow="FUTURES"
-            title="ProjectX / TopstepX"
-            subtitle={`${projectXRows.length} connexion(s)`}
-            description="Comptes Futures, balance et import des trades clôturés dans le Journal."
+            eyebrow={translate("FUTURES")}
+            title={translate("ProjectX / TopstepX")}
+            subtitle={String(projectXRows.length) + " " + translate("connexion(s)")}
+            description={translate("Comptes Futures, balance et import des trades clôturés dans le Journal.")}
             icon={<Zap size={22} />}
             status={projectXRows.length ? "connected" : "ready"}
             href="/dashboard/comptes?connect=projectx"
-            cta={projectXRows.length ? "Gérer ProjectX" : "Connecter ProjectX"}
+            cta={projectXRows.length ? translate("Gérer ProjectX") : translate("Connecter ProjectX")}
             extra={
               projectXRows.length ? (
                 <button
@@ -552,17 +549,16 @@ export default function ConnectionsPage() {
                   ) : (
                     <RefreshCw size={12} />
                   )}
-                  Synchroniser maintenant
-                </button>
+                  {translate("Synchroniser maintenant")}</button>
               ) : null
             }
           />
 
           <ProviderCard
-            eyebrow="FUTURES"
-            title="Tradovate / Rithmic"
-            subtitle="Préparation API"
-            description="Le design et le parcours sont prêts. L’activation dépend des accès API disponibles."
+            eyebrow={translate("FUTURES")}
+            title={translate("Tradovate / Rithmic")}
+            subtitle={translate("Préparation API")}
+            description={translate("Le design et le parcours sont prêts. L’activation dépend des accès API disponibles.")}
             icon={<Activity size={22} />}
             status="waiting"
             href="/dashboard/comptes?connect=futures"
@@ -577,19 +573,16 @@ export default function ConnectionsPage() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-sm font-semibold text-white">
-                  Comptes connectés
-                </h2>
+                  {translate("Comptes connectés")}</h2>
                 <p className="mt-1 text-[9px] text-white/30">
-                  Vue consolidée de tes connexions automatiques.
-                </p>
+                  {translate("Vue consolidée de tes connexions automatiques.")}</p>
               </div>
 
               <Link
                 href="/dashboard/comptes"
                 className="inline-flex items-center gap-2 text-[10px] font-semibold text-[color:var(--gold)] no-underline"
               >
-                Mes comptes
-                <ArrowRight size={12} />
+                {translate("Mes comptes")}<ArrowRight size={12} />
               </Link>
             </div>
           </div>
@@ -614,11 +607,10 @@ export default function ConnectionsPage() {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <div className="truncate text-xs font-semibold text-white">
-                          {account.name || `Compte ${account.id}`}
+                          {account.name || (translate("Compte ") + (account.id) + "")}
                         </div>
                         <span className="rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-2 py-0.5 text-[8px] font-semibold text-[color:var(--gold)]">
-                          AUTO-SYNC
-                        </span>
+                          {translate("AUTO-SYNC")}</span>
                       </div>
 
                       <div className="mt-1 text-[9px] text-white/30">
@@ -626,14 +618,13 @@ export default function ConnectionsPage() {
                           ? `ProjectX · ${px.external_account_id}`
                           : mt
                             ? `${mt.platform} · ${mt.login} · ${mt.server}`
-                            : `${account.platform || "Plateforme"} · ${account.broker || "Broker"}`}
+                            : `${account.platform || translate("Plateforme")} · ${account.broker || translate("Broker")}`}
                       </div>
                     </div>
 
                     <div>
                       <div className="text-[8px] uppercase tracking-[0.1em] text-white/25">
-                        Balance
-                      </div>
+                        {translate("Balance")}</div>
                       <div className="mt-1 text-xs font-semibold text-white">
                         {money(account.current_balance, account.currency || "USD")}
                       </div>
@@ -641,10 +632,9 @@ export default function ConnectionsPage() {
 
                     <div>
                       <div className="text-[8px] uppercase tracking-[0.1em] text-white/25">
-                        Dernière sync
-                      </div>
+                        {translate("Dernière sync")}</div>
                       <div className="mt-1 text-[10px] text-white/55">
-                        {relativeDate(lastSync)}
+                        {relativeDate(lastSync, locale)}
                       </div>
                     </div>
 
@@ -665,7 +655,7 @@ export default function ConnectionsPage() {
                                 : "bg-white/30",
                         ].join(" ")}
                       />
-                      {currentHealth.label}
+                      {translate(currentHealth.label)}
                     </span>
                   </div>
                 );
@@ -674,11 +664,9 @@ export default function ConnectionsPage() {
               <div className="p-10 text-center">
                 <Cable size={24} className="mx-auto text-[color:var(--gold)]" />
                 <div className="mt-3 text-sm font-semibold text-white">
-                  Aucun compte automatique
-                </div>
+                  {translate("Aucun compte automatique")}</div>
                 <p className="mx-auto mt-2 max-w-sm text-[10px] leading-5 text-white/35">
-                  Connecte MT4, MT5, TradeLocker, cTrader ou ProjectX pour faire apparaître tes comptes ici.
-                </p>
+                  {translate("Connecte MT4, MT5, TradeLocker, cTrader ou ProjectX pour faire apparaître tes comptes ici.")}</p>
               </div>
             )}
           </div>
@@ -689,38 +677,29 @@ export default function ConnectionsPage() {
             <div className="flex items-center gap-2">
               <Gauge size={15} className="text-[color:var(--gold)]" />
               <h2 className="text-sm font-semibold text-white">
-                Santé de la synchronisation
-              </h2>
+                {translate("Santé de la synchronisation")}</h2>
             </div>
 
             <div className="mt-4 space-y-3">
               <HealthLine
-                label="MetaTrader"
-                value={
-                  activeMeta.length
-                    ? `${activeMeta.length} connexion(s)`
-                    : "Non connecté"
-                }
+                label={translate("MetaTrader")}
+                value={activeMeta.length ? activeMeta.length + " " + translate("connexion(s)") : translate("Non connecté")}
                 tone={activeMeta.length ? syncHealth(mtLastSync).tone : "neutral"}
               />
               <HealthLine
-                label="ProjectX"
-                value={
-                  projectXRows.length
-                    ? `${projectXRows.length} connexion(s)`
-                    : "Non connecté"
-                }
+                label={translate("ProjectX")}
+                value={projectXRows.length ? projectXRows.length + " " + translate("connexion(s)") : translate("Non connecté")}
                 tone={
                   projectXRows.length ? syncHealth(pxLastSync).tone : "neutral"
                 }
               />
               <HealthLine
-                label="Warnings MT"
-                value={metaWarnings ? `${metaWarnings} alerte(s)` : "Aucune"}
+                label={translate("Warnings MT")}
+                value={metaWarnings ? metaWarnings + " " + translate("alerte(s)") : translate("Aucune")}
                 tone={metaWarnings ? "warn" : "ok"}
               />
               <HealthLine
-                label="Comptes auto"
+                label={translate("Comptes auto")}
                 value={String(autoAccounts.length)}
                 tone={autoAccounts.length ? "ok" : "neutral"}
               />
@@ -734,12 +713,9 @@ export default function ConnectionsPage() {
               </div>
               <div>
                 <div className="text-sm font-semibold text-white">
-                  Une connexion, tout InvestPro
-                </div>
+                  {translate("Une connexion, tout InvestPro")}</div>
                 <p className="mt-1 text-[10px] leading-5 text-white/45">
-                  Une fois synchronisé, le compte alimente Mes comptes, le Journal,
-                  le calendrier de performance et les Rapports sans recréer le compte manuellement.
-                </p>
+                  {translate("Une fois synchronisé, le compte alimente Mes comptes, le Journal, le calendrier de performance et les Rapports sans recréer le compte manuellement.")}</p>
               </div>
             </div>
           </section>
@@ -770,21 +746,23 @@ function ProviderCard({
   cta: string;
   extra?: React.ReactNode;
 }) {
+  const { t: translate } = useLocale();
+
   const badge =
     status === "connected"
       ? {
-          text: "CONNECTÉ",
+          text: translate("CONNECTÉ"),
           className:
             "border-emerald-500/15 bg-emerald-500/[0.06] text-emerald-400",
         }
       : status === "ready"
         ? {
-            text: "PRÊT",
+            text: translate("PRÊT"),
             className:
               "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]",
           }
         : {
-            text: "BIENTÔT",
+            text: translate("BIENTÔT"),
             className:
               "border-white/[0.07] bg-white/[0.03] text-white/35",
           };
@@ -802,25 +780,25 @@ function ProviderCard({
           <span
             className={`rounded-full border px-2.5 py-1 text-[8px] font-bold ${badge.className}`}
           >
-            {badge.text}
+            {translate(badge.text)}
           </span>
         </div>
 
         <div className="mt-5 text-[8px] font-bold uppercase tracking-[0.15em] text-[color:var(--gold)]">
           {eyebrow}
         </div>
-        <div className="mt-1 text-base font-semibold text-white">{title}</div>
+        <div className="mt-1 text-base font-semibold text-white">{translate(title)}</div>
         <div className="mt-1 text-[9px] text-white/30">{subtitle}</div>
 
         <p className="mt-3 min-h-[60px] text-[10px] leading-5 text-white/40">
-          {description}
+          {translate(description)}
         </p>
 
         <Link
           href={href}
           className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[10px] font-semibold text-[color:var(--gold)] no-underline"
         >
-          {cta}
+          {translate(cta)}
           <ArrowRight size={12} />
         </Link>
 
@@ -843,6 +821,8 @@ function Stat({
   sub: string;
   tone?: Tone;
 }) {
+  const { t: translate } = useLocale();
+
   return (
     <div className="rounded-[20px] border border-white/[0.07] bg-white/[0.02] p-4">
       <div
@@ -855,7 +835,7 @@ function Stat({
         {icon}
       </div>
       <div className="mt-3 text-lg font-semibold text-white">{value}</div>
-      <div className="mt-1 text-[9px] font-medium text-white/45">{label}</div>
+      <div className="mt-1 text-[9px] font-medium text-white/45">{translate(label)}</div>
       <div className="mt-1 truncate text-[8px] text-white/25" title={sub}>
         {sub}
       </div>
@@ -864,10 +844,12 @@ function Stat({
 }
 
 function MiniStat({ label, value }: { label: string; value: string }) {
+  const { t: translate } = useLocale();
+
   return (
     <div className="rounded-xl border border-white/[0.06] bg-black/20 p-3">
       <div className="text-[8px] uppercase tracking-[0.1em] text-white/25">
-        {label}
+        {translate(label)}
       </div>
       <div className="mt-1 truncate text-[11px] font-semibold text-white">
         {value}
@@ -883,10 +865,12 @@ function SecurityPill({
   icon: React.ReactNode;
   text: string;
 }) {
+  const { t: translate } = useLocale();
+
   return (
     <span className="inline-flex items-center gap-2 rounded-full border border-white/[0.07] bg-black/20 px-3 py-1.5 text-[9px] text-white/45">
       <span className="text-[color:var(--gold)]">{icon}</span>
-      {text}
+      {translate(text)}
     </span>
   );
 }
@@ -900,9 +884,11 @@ function HealthLine({
   value: string;
   tone: Tone;
 }) {
+  const { t: translate } = useLocale();
+
   return (
     <div className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-black/20 px-3 py-3">
-      <span className="text-[10px] text-white/45">{label}</span>
+      <span className="text-[10px] text-white/45">{translate(label)}</span>
       <span
         className={`rounded-full border px-2 py-1 text-[8px] font-semibold ${toneClasses(
           tone

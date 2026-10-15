@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
@@ -106,7 +107,7 @@ const categoryConfig = [
   },
 ];
 
-function formatDuration(totalMinutes: number) {
+function formatDuration(totalMinutes: number, locale: "fr" | "en" = "fr") {
   if (totalMinutes <= 0) return "0 min";
 
   const hours = Math.floor(totalMinutes / 60);
@@ -120,10 +121,12 @@ function formatDuration(totalMinutes: number) {
     return `${hours}h`;
   }
 
-  return `${hours}h ${String(minutes).padStart(2, "0")}`;
+  return locale === "en" ? `${hours}h ${String(minutes).padStart(2, "0")} min` : `${hours}h ${String(minutes).padStart(2, "0")}`;
 }
 
 export default function AcademyPage() {
+  const { t: translate } = useLocale();
+
   const supabase = useMemo(() => createClient(), []);
 
   const [profile, setProfile] = useState<Profile>({
@@ -493,8 +496,7 @@ export default function AcademyPage() {
     return (
       <div className="min-h-[70vh] flex items-center justify-center">
         <div className="text-sm text-[color:var(--muted)]">
-          Chargement de l’Academy…
-        </div>
+          {translate("Chargement de l’Academy…")}</div>
       </div>
     );
   }
@@ -763,13 +765,10 @@ export default function AcademyPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-white">
-            Academy
-          </h1>
+            {translate("Academy")}</h1>
 
           <p className="mt-1 text-sm text-[color:var(--muted)]">
-            Progresse module par module et
-            deviens le trader que tu vises.
-          </p>
+            {translate("Progresse module par module et deviens le trader que tu vises.")}</p>
         </div>
 
         <div
@@ -788,8 +787,7 @@ export default function AcademyPage() {
           />
 
           <span className="text-xs text-[color:var(--muted)]">
-            Plan
-          </span>
+            {translate("Plan")}</span>
 
           <span className="text-xs font-bold text-[color:var(--gold)]">
             {profile.plan.toUpperCase()}
@@ -812,8 +810,7 @@ export default function AcademyPage() {
           "
         >
           <div className="text-sm text-[color:var(--muted)]">
-            Progression globale
-          </div>
+            {translate("Progression globale")}</div>
 
           <div className="mt-3 flex items-center justify-between">
             <div>
@@ -823,9 +820,7 @@ export default function AcademyPage() {
 
               <div className="mt-2 text-xs text-[color:var(--muted)]">
                 {completedLessonsTotal} /{" "}
-                {lessons.length} leçons
-                terminées
-              </div>
+                {lessons.length} {" "}{translate("leçons terminées")}</div>
             </div>
 
             <div
@@ -878,8 +873,7 @@ export default function AcademyPage() {
               transition
             "
           >
-            Continuer
-            <ArrowRight size={14} />
+            {translate("Continuer")}<ArrowRight size={14} />
           </Link>
         </div>
 
@@ -914,8 +908,8 @@ export default function AcademyPage() {
             <div className="relative z-10">
               <div className="text-xs text-[color:var(--muted)]">
                 {resumeCourse.progress > 0
-                  ? "Reprendre le cours"
-                  : "Prochain cours"}
+                  ? translate("Reprendre le cours")
+                  : translate("Prochain cours")}
               </div>
 
               <h2 className="mt-2 text-xl font-semibold text-white">
@@ -923,7 +917,7 @@ export default function AcademyPage() {
               </h2>
 
               <p className="mt-1 text-sm text-[color:var(--muted)]">
-                {resumeCourse.category}
+                {translate(resumeCourse.category)}
               </p>
 
               <div className="mt-6 flex items-center gap-4">
@@ -946,13 +940,9 @@ export default function AcademyPage() {
                   <Play size={13} />
 
                   {resumeLessons.length > 0
-                    ? `Leçon ${
-                        currentLessonNumber ||
-                        1
-                      } sur ${
-                        resumeLessons.length
-                      }`
-                    : "Aucune leçon"}
+                    ? (translate("Leçon ") + (currentLessonNumber ||
+                        1) + translate(" sur ") + (resumeLessons.length) + "")
+                    : translate("Aucune leçon")}
                 </span>
 
                 <span className="flex items-center gap-1.5">
@@ -961,8 +951,7 @@ export default function AcademyPage() {
                   {Math.ceil(
                     remainingMinutes
                   )}{" "}
-                  min restantes
-                </span>
+                  {translate("min restantes")}</span>
               </div>
 
               <Link
@@ -981,17 +970,15 @@ export default function AcademyPage() {
                 "
               >
                 {resumeCourse.progress > 0
-                  ? "Reprendre le cours"
-                  : "Commencer le cours"}
+                  ? translate("Reprendre le cours")
+                  : translate("Commencer le cours")}
 
                 <ArrowRight size={14} />
               </Link>
             </div>
           ) : (
             <div className="relative z-10 flex h-full items-center justify-center text-sm text-[color:var(--muted)]">
-              Aucun cours publié pour le
-              moment.
-            </div>
+              {translate("Aucun cours publié pour le moment.")}</div>
           )}
         </div>
 
@@ -1013,22 +1000,19 @@ export default function AcademyPage() {
             />
 
             <h3 className="text-sm font-semibold text-white">
-              Mon niveau
-            </h3>
+              {translate("Mon niveau")}</h3>
           </div>
 
           <div className="mt-5">
             <div className="text-xs text-[color:var(--muted)]">
-              Niveau actuel
-            </div>
+              {translate("Niveau actuel")}</div>
 
             <div className="mt-1 text-lg font-semibold text-[color:var(--gold)]">
               {currentLevel}
             </div>
 
             <div className="mt-1 text-2xl font-semibold text-white">
-              {profile.xp} XP
-            </div>
+              {profile.xp} {" "}{translate("XP")}</div>
 
             <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/5">
               <div
@@ -1041,27 +1025,22 @@ export default function AcademyPage() {
 
             <div className="mt-2 flex items-center justify-between text-[10px] text-[color:var(--muted)]">
               <span>
-                {profile.xp} XP
-              </span>
+                {profile.xp} {" "}{translate("XP")}</span>
 
               <span>
-                {nextLevelXp} XP
-              </span>
+                {nextLevelXp} {" "}{translate("XP")}</span>
             </div>
           </div>
 
           <div className="mt-5 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-3">
             <div className="text-xs font-semibold text-[color:var(--gold)]">
-              {completedThisWeek} leçon
-              {completedThisWeek > 1
-                ? "s"
+              {completedThisWeek} {" "}{translate("leçon")}{completedThisWeek > 1
+                ? translate("s")
                 : ""}{" "}
-              cette semaine
-            </div>
+              {translate("cette semaine")}</div>
 
             <div className="mt-1 text-[10px] text-[color:var(--muted)]">
-              Continue comme ça.
-            </div>
+              {translate("Continue comme ça.")}</div>
           </div>
         </div>
       </section>
@@ -1120,12 +1099,11 @@ export default function AcademyPage() {
 
                   <div>
                     <div className="text-sm font-semibold text-white">
-                      {category.name}
+                      {translate(category.name)}
                     </div>
 
                     <div className="mt-0.5 text-[10px] text-[color:var(--muted)]">
-                      {category.count} cours
-                    </div>
+                      {category.count} {" "}{translate("cours")}</div>
                   </div>
                 </div>
               </button>
@@ -1159,13 +1137,10 @@ export default function AcademyPage() {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-base font-semibold text-white">
-                Cours et leçons
-              </h3>
+                {translate("Cours et leçons")}</h3>
 
               <p className="mt-1 text-xs text-[color:var(--muted)]">
-                Continue ton parcours étape
-                par étape.
-              </p>
+                {translate("Continue ton parcours étape par étape.")}</p>
             </div>
 
             <div
@@ -1211,14 +1186,10 @@ export default function AcademyPage() {
               />
 
               <div className="mt-3 text-sm font-semibold text-white">
-                Aucun cours dans cette
-                catégorie
-              </div>
+                {translate("Aucun cours dans cette catégorie")}</div>
 
               <div className="mt-1 text-xs text-[color:var(--muted)]">
-                De nouveaux contenus seront
-                ajoutés prochainement.
-              </div>
+                {translate("De nouveaux contenus seront ajoutés prochainement.")}</div>
             </div>
           )}
         </div>
@@ -1236,8 +1207,7 @@ export default function AcademyPage() {
               />
 
               <h3 className="text-sm font-semibold text-white">
-                Objectif de la semaine
-              </h3>
+                {translate("Objectif de la semaine")}</h3>
             </div>
 
             <div className="mt-5 flex items-center justify-between">
@@ -1248,8 +1218,7 @@ export default function AcademyPage() {
                 </div>
 
                 <div className="mt-1 text-[10px] text-[color:var(--muted)]">
-                  leçons complétées
-                </div>
+                  {translate("leçons complétées")}</div>
               </div>
 
               <div
@@ -1281,26 +1250,23 @@ export default function AcademyPage() {
                 </div>
 
                 <div className="mt-1 text-[10px] text-[color:var(--muted)]">
-                  objectif
-                </div>
+                  {translate("objectif")}</div>
               </div>
             </div>
 
             <div className="mt-5 rounded-xl bg-[color:var(--gold-soft)] p-3 text-center text-[10px] text-[color:var(--gold)]">
               {completedThisWeek >=
               weeklyGoal
-                ? "Objectif de la semaine atteint !"
-                : `Encore ${Math.max(
+                ? translate("Objectif de la semaine atteint !")
+                : (translate("Encore ") + (Math.max(
                     weeklyGoal -
                       completedThisWeek,
                     0
-                  )} leçon${
-                    weeklyGoal -
+                  )) + translate(" leçon") + (weeklyGoal -
                       completedThisWeek >
                     1
-                      ? "s"
-                      : ""
-                  } pour atteindre ton objectif.`}
+                      ? translate("s")
+                      : "") + translate(" pour atteindre ton objectif."))}
             </div>
           </SideCard>
 
@@ -1315,42 +1281,30 @@ export default function AcademyPage() {
                 />
 
                 <h3 className="text-sm font-semibold text-white">
-                  Ressources
-                </h3>
+                  {translate("Ressources")}</h3>
               </div>
 
               <Link
                 href="/dashboard/academy/bibliotheque"
                 className="text-[10px] text-[color:var(--gold)] no-underline"
               >
-                Voir tout
-              </Link>
+                {translate("Voir tout")}</Link>
             </div>
 
             <div className="mt-4 space-y-2">
               <ResourceRow
-                label="Guides PDF"
-                count={`${pdfCount} fichier${
-                  pdfCount > 1 ? "s" : ""
-                }`}
+                label={translate("Guides PDF")}
+                count={translate(pdfCount > 1 ? "{count} fichiers" : "{count} fichier").replace("{count}", String(pdfCount))}
               />
 
               <ResourceRow
-                label="Vidéos / replay"
-                count={`${replayCount} vidéo${
-                  replayCount > 1
-                    ? "s"
-                    : ""
-                }`}
+                label={translate("Vidéos / replay")}
+                count={translate(replayCount > 1 ? "{count} vidéos" : "{count} vidéo").replace("{count}", String(replayCount))}
               />
 
               <ResourceRow
-                label="Checklists"
-                count={`${checklistCount} checklist${
-                  checklistCount > 1
-                    ? "s"
-                    : ""
-                }`}
+                label={translate("Checklists")}
+                count={translate(checklistCount > 1 ? "{count} checklists" : "{count} checklist").replace("{count}", String(checklistCount))}
               />
             </div>
           </SideCard>
@@ -1365,24 +1319,18 @@ export default function AcademyPage() {
               />
 
               <h3 className="text-sm font-semibold text-white">
-                Quiz de certification
-              </h3>
+                {translate("Quiz de certification")}</h3>
             </div>
 
             <div className="mt-5">
               <div className="text-[10px] text-[color:var(--muted)]">
-                Fonctionnalité en préparation
-              </div>
+                {translate("Fonctionnalité en préparation")}</div>
 
               <div className="mt-1 text-sm font-semibold text-white">
-                Certifications InvestPro
-              </div>
+                {translate("Certifications InvestPro")}</div>
 
               <div className="mt-3 text-[10px] leading-5 text-[color:var(--muted)]">
-                Valide tes connaissances après
-                certains modules et débloque
-                des badges.
-              </div>
+                {translate("Valide tes connaissances après certains modules et débloque des badges.")}</div>
 
               <button
                 type="button"
@@ -1400,8 +1348,7 @@ export default function AcademyPage() {
                   cursor-not-allowed
                 "
               >
-                Bientôt disponible
-              </button>
+                {translate("Bientôt disponible")}</button>
             </div>
           </SideCard>
         </div>
@@ -1421,6 +1368,8 @@ function CourseCard({
 }: {
   course: Course;
 }) {
+  const { locale, t: translate } = useLocale();
+
   const statusClass =
     course.status === "Terminé"
       ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
@@ -1478,17 +1427,16 @@ function CourseCard({
                 size={10}
                 className="inline mr-1"
               />
-              Terminé
-            </>
+              {translate("Terminé")}</>
           ) : (
-            course.status
+            translate(course.status)
           )}
         </span>
       </div>
 
       <div className="p-4">
         <div className="text-[10px] uppercase tracking-wide text-[color:var(--gold)] mb-2">
-          Module {course.position}
+          {translate("Module")}{" "}{course.position}
         </div>
 
         <div className="text-sm font-semibold text-white">
@@ -1503,14 +1451,13 @@ function CourseCard({
 
         <div className="mt-3 flex items-center gap-3 text-[10px] text-[color:var(--muted)]">
           <span>
-            {course.lessons} leçon
-            {course.lessons !== 1
-              ? "s"
+            {course.lessons} {" "}{translate("leçon")}{course.lessons !== 1
+              ? translate("s")
               : ""}
           </span>
 
           <span>
-            {course.duration}
+            {formatDuration(course.durationMinutes, locale)}
           </span>
         </div>
 
@@ -1564,6 +1511,8 @@ function ResourceRow({
   label: string;
   count: string;
 }) {
+  const { t: translate } = useLocale();
+
   return (
     <div
       className="
@@ -1575,7 +1524,7 @@ function ResourceRow({
       "
     >
       <span className="text-xs text-white">
-        {label}
+        {translate(label)}
       </span>
 
       <span className="text-[10px] text-[color:var(--muted)]">

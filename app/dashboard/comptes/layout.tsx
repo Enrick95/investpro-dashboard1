@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
+
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
@@ -113,6 +115,7 @@ function setPlatformInsidePanel(panel: HTMLElement, platform: "MT4" | "MT5") {
 
 
 export default function ComptesMotionLayout({ children }: { children: ReactNode }) {
+  const { t: translate } = useLocale();
   const reduceMotion = useReducedMotion();
   const [chooserOpen, setChooserOpen] = useState(false);
   const [choice, setChoice] = useState<Choice>(null);
@@ -513,7 +516,7 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
             <motion.div
               role="dialog"
               aria-modal="true"
-              aria-label="Ajouter un compte"
+              aria-label={translate("Ajouter un compte")}
               className="relative flex h-[calc(100dvh-env(safe-area-inset-top))] max-h-[100dvh] w-full max-w-[920px] flex-col overflow-hidden rounded-none border border-[color:var(--gold-border)] bg-[#0b0d0b] shadow-[0_30px_120px_rgba(0,0,0,.72)] sm:h-auto sm:max-h-[90dvh] sm:rounded-[28px]"
               initial={reduceMotion ? false : { opacity: 0, y: 18, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -532,19 +535,18 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
                   <div className="min-w-0">
                     <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1 text-[9px] font-bold uppercase tracking-[0.14em] text-[color:var(--gold)] sm:text-[10px]">
                       <Sparkles size={12} />
-                      Connexion InvestPro
-                    </div>
+                      {translate("Connexion InvestPro")}</div>
                     <h2 className="mt-3 text-lg font-semibold text-white sm:text-xl md:text-2xl">
                       {choice === "futures" ? (
-                        <>Ajouter un compte <span className="text-[color:var(--gold)]">Futures</span></>
+                        <>{translate("Ajouter un compte")}{" "}<span className="text-[color:var(--gold)]">{translate("Futures")}</span></>
                       ) : (
-                        <>Ajouter un <span className="text-[color:var(--gold)]">compte</span></>
+                        <>{translate("Ajouter un")}{" "}<span className="text-[color:var(--gold)]">{translate("compte")}</span></>
                       )}
                     </h2>
                     <p className="mt-1.5 max-w-xl text-[10px] leading-4 text-white/45 sm:text-xs sm:leading-5 md:text-sm">
                       {choice === "futures"
-                        ? "Choisis la plateforme Futures utilisée par ton compte."
-                        : "Choisis comment tu souhaites ajouter ton compte de trading."}
+                        ? translate("Choisis la plateforme Futures utilisée par ton compte.")
+                        : translate("Choisis comment tu souhaites ajouter ton compte de trading.")}
                     </p>
                   </div>
 
@@ -570,80 +572,80 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
                       className="grid grid-cols-1 gap-2.5 sm:gap-4 md:grid-cols-2 xl:grid-cols-3"
                     >
                       <ChoiceCard
-                        title="MetaTrader 5"
-                        subtitle="MT5"
-                        text="Synchronisation automatique du compte, de la balance et de l’historique."
+                        title={translate("MetaTrader 5")}
+                        subtitle={translate("MT5")}
+                        text={translate("Synchronisation automatique du compte, de la balance et de l’historique.")}
                         icon={<MonitorCog size={24} />}
                         onClick={chooseMt5}
                       />
 
                       <ChoiceCard
-                        title="MetaTrader 4"
-                        subtitle="MT4"
-                        text="Synchronisation automatique du compte, de la balance et de l’historique."
+                        title={translate("MetaTrader 4")}
+                        subtitle={translate("MT4")}
+                        text={translate("Synchronisation automatique du compte, de la balance et de l’historique.")}
                         icon={<MonitorCog size={24} />}
                         onClick={chooseMt4}
                       />
 
                       <ChoiceCard
-                        title="Futures"
-                        subtitle="FUTURES"
-                        text="Connecte une plateforme Futures pour alimenter ton journal et tes statistiques."
+                        title={translate("Futures")}
+                        subtitle={translate("FUTURES")}
+                        text={translate("Connecte une plateforme Futures pour alimenter ton journal et tes statistiques.")}
                         icon={<CandlestickChart size={24} />}
                         onClick={openFutures}
                       />
 
                       <ChoiceCard
-                        title="TradeLocker"
-                        subtitle="TRADELOCKER"
-                        text="Connecte un compte TradeLocker via l’API officielle REST."
+                        title={translate("TradeLocker")}
+                        subtitle={translate("TRADELOCKER")}
+                        text={translate("Connecte un compte TradeLocker via l’API officielle REST.")}
                         icon={<ServerCog size={24} />}
                         onClick={() => { setChoice("tradelocker"); setTlError(null); }}
                       />
 
                       <ChoiceCard
-                        title="cTrader"
-                        subtitle="CTRADER"
-                        text="Autorisation sécurisée via cTrader Open API en lecture seule."
+                        title={translate("cTrader")}
+                        subtitle={translate("CTRADER")}
+                        text={translate("Autorisation sécurisée via cTrader Open API en lecture seule.")}
                         icon={<ServerCog size={24} />}
                         onClick={() => { setChoice("ctrader"); setCtraderMessage(null); }}
                       />
 
                       <ChoiceCard
-                        title="Compte manuel"
-                        subtitle="MANUEL"
-                        text="Ajoute un compte sans synchronisation et renseigne toi-même le capital."
+                        title={translate("Compte manuel")}
+                        subtitle={translate("MANUEL")}
+                        text={translate("Ajoute un compte sans synchronisation et renseigne toi-même le capital.")}
                         icon={<WalletCards size={24} />}
                         onClick={chooseManual}
                       />
                     </motion.div>
                   ) : choice === "tradelocker" ? (
                     <motion.div key="tradelocker" initial={reduceMotion ? false : { opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 12 }} transition={{ duration: 0.2 }}>
-                      <button type="button" onClick={() => setChoice(null)} className="mb-4 inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-[11px] font-semibold text-white/70 hover:border-[color:var(--gold-border)] hover:text-[color:var(--gold)]"><ArrowLeft size={14}/>Retour</button>
+                      <button type="button" onClick={() => setChoice(null)} className="mb-4 inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-[11px] font-semibold text-white/70 hover:border-[color:var(--gold-border)] hover:text-[color:var(--gold)]"><ArrowLeft size={14}/>{translate("Retour")}</button>
                       <div className="rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4 sm:p-5">
-                        <div className="text-sm font-semibold text-white">Connecter TradeLocker</div>
-                        <p className="mt-1 text-[10px] leading-5 text-white/45">InvestPro teste l’API officielle puis chiffre les identifiants côté serveur. L’intention est lecture seule : aucun ordre n’est envoyé par ce connecteur.</p>
+                        <div className="text-sm font-semibold text-white">{translate("Connecter TradeLocker")}</div>
+                        <p className="mt-1 text-[10px] leading-5 text-white/45">{translate("InvestPro teste l’API officielle puis chiffre les identifiants côté serveur. L’intention est lecture seule : aucun ordre n’est envoyé par ce connecteur.")}</p>
                         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                          <label><span className="mb-1.5 block text-[10px] text-white/65">Environnement</span><select value={tlEnvironment} onChange={e=>setTlEnvironment(e.target.value as "live"|"demo")} className="h-11 w-full rounded-xl border border-white/[.08] bg-black/30 px-3 text-sm text-white"><option value="live">Live</option><option value="demo">Demo</option></select></label>
-                          <label><span className="mb-1.5 block text-[10px] text-white/65">Serveur TradeLocker</span><input value={tlServer} onChange={e=>setTlServer(e.target.value)} placeholder="Nom exact du serveur" className="h-11 w-full rounded-xl border border-white/[.08] bg-black/30 px-3 text-sm text-white outline-none placeholder:text-white/25 focus:border-[color:var(--gold-border)]"/></label>
-                          <label><span className="mb-1.5 block text-[10px] text-white/65">E-mail TradeLocker</span><input type="email" value={tlEmail} onChange={e=>setTlEmail(e.target.value)} placeholder="trader@email.com" autoComplete="username" className="h-11 w-full rounded-xl border border-white/[.08] bg-black/30 px-3 text-sm text-white outline-none placeholder:text-white/25 focus:border-[color:var(--gold-border)]"/></label>
-                          <label><span className="mb-1.5 block text-[10px] text-white/65">Mot de passe</span><input type="password" value={tlPassword} onChange={e=>setTlPassword(e.target.value)} placeholder="Mot de passe TradeLocker" autoComplete="current-password" className="h-11 w-full rounded-xl border border-white/[.08] bg-black/30 px-3 text-sm text-white outline-none placeholder:text-white/25 focus:border-[color:var(--gold-border)]"/></label>
+                          <label><span className="mb-1.5 block text-[10px] text-white/65">{translate("Environnement")}</span><select value={tlEnvironment} onChange={e=>setTlEnvironment(e.target.value as "live"|"demo")} className="h-11 w-full rounded-xl border border-white/[.08] bg-black/30 px-3 text-sm text-white"><option value="live">{translate("Live")}</option><option value="demo">{translate("Demo")}</option></select></label>
+                          <label><span className="mb-1.5 block text-[10px] text-white/65">{translate("Serveur TradeLocker")}</span><input value={tlServer} onChange={e=>setTlServer(e.target.value)} placeholder={translate("Nom exact du serveur")} className="h-11 w-full rounded-xl border border-white/[.08] bg-black/30 px-3 text-sm text-white outline-none placeholder:text-white/25 focus:border-[color:var(--gold-border)]"/></label>
+                          <label><span className="mb-1.5 block text-[10px] text-white/65">{translate("E-mail TradeLocker")}</span><input type="email" value={tlEmail} onChange={e=>setTlEmail(e.target.value)} placeholder={translate("trader@email.com")} autoComplete="username" className="h-11 w-full rounded-xl border border-white/[.08] bg-black/30 px-3 text-sm text-white outline-none placeholder:text-white/25 focus:border-[color:var(--gold-border)]"/></label>
+                          <label><span className="mb-1.5 block text-[10px] text-white/65">{translate("Mot de passe")}</span><input type="password" value={tlPassword} onChange={e=>setTlPassword(e.target.value)} placeholder={translate("Mot de passe TradeLocker")} autoComplete="current-password" className="h-11 w-full rounded-xl border border-white/[.08] bg-black/30 px-3 text-sm text-white outline-none placeholder:text-white/25 focus:border-[color:var(--gold-border)]"/></label>
                         </div>
-                        <button type="button" onClick={testTradeLocker} disabled={tlBusy} className="mt-4 inline-flex h-10 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-4 text-xs font-bold text-black disabled:opacity-50">{tlBusy?"Connexion...":"Tester la connexion"}<ArrowRight size={14}/></button>
-                        {tlError?<div className="mt-3 rounded-xl border border-red-500/20 bg-red-500/[.06] px-3 py-2 text-[10px] text-red-300">{tlError}</div>:null}
-                        {tlAccounts.length?<div className="mt-4 space-y-2"><div className="text-[10px] font-semibold uppercase tracking-[.12em] text-[color:var(--gold)]">Choisis ton compte</div>{tlAccounts.map(account=><button key={`${account.accountId}:${account.accNum}`} type="button" onClick={()=>setTlSelected(`${account.accountId}:${account.accNum}`)} className={["flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-3 text-left",tlSelected===`${account.accountId}:${account.accNum}`?"border-[color:var(--gold-border)] bg-black/30":"border-white/[.07] bg-black/15"].join(" ")}><div><div className="text-xs font-semibold text-white">{account.name}</div><div className="mt-1 text-[9px] text-white/35">ID {account.accountId} · {account.type} · {account.status}</div></div><div className="text-[10px] font-semibold text-white">{account.currency}</div></button>)}<button type="button" onClick={connectTradeLocker} disabled={tlBusy||!tlSelected} className="mt-2 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[color:var(--gold)] text-xs font-bold text-black disabled:opacity-50">{tlConnected?"Compte ajouté ✓":"Ajouter ce compte à InvestPro"}<ArrowRight size={14}/></button></div>:null}
+                        <button type="button" onClick={testTradeLocker} disabled={tlBusy} className="mt-4 inline-flex h-10 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-4 text-xs font-bold text-black disabled:opacity-50">{tlBusy?translate("Connexion..."):translate("Tester la connexion")}<ArrowRight size={14}/></button>
+                        {tlError?<div className="mt-3 rounded-xl border border-red-500/20 bg-red-500/[.06] px-3 py-2 text-[10px] text-red-300">{translate(tlError)}</div>:null}
+                        {tlAccounts.length?<div className="mt-4 space-y-2"><div className="text-[10px] font-semibold uppercase tracking-[.12em] text-[color:var(--gold)]">{translate("Choisis ton compte")}</div>{tlAccounts.map(account=><button key={`${account.accountId}:${account.accNum}`} type="button" onClick={()=>setTlSelected(`${account.accountId}:${account.accNum}`)} className={["flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-3 text-left",tlSelected===`${account.accountId}:${account.accNum}`?"border-[color:var(--gold-border)] bg-black/30":"border-white/[.07] bg-black/15"].join(" ")}><div><div className="text-xs font-semibold text-white">{account.name}</div><div className="mt-1 text-[9px] text-white/35">{translate("ID")}{" "}{account.accountId} · {account.type} · {account.status}</div></div><div className="text-[10px] font-semibold text-white">{account.currency}</div></button>)}<button type="button" onClick={connectTradeLocker} disabled={tlBusy||!tlSelected} className="mt-2 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[color:var(--gold)] text-xs font-bold text-black disabled:opacity-50">{tlConnected?translate("Compte ajouté ✓"):translate("Ajouter ce compte à InvestPro")}<ArrowRight size={14}/></button></div>:null}
                       </div>
                     </motion.div>
                   ) : choice === "ctrader" ? (
                     <motion.div key="ctrader" initial={reduceMotion ? false : { opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 12 }} transition={{ duration: 0.2 }}>
-                      <button type="button" onClick={() => setChoice(null)} className="mb-4 inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-[11px] font-semibold text-white/70 hover:border-[color:var(--gold-border)] hover:text-[color:var(--gold)]"><ArrowLeft size={14}/>Retour</button>
+                      <button type="button" onClick={() => setChoice(null)} className="mb-4 inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-[11px] font-semibold text-white/70 hover:border-[color:var(--gold-border)] hover:text-[color:var(--gold)]"><ArrowLeft size={14}/>{translate("Retour")}</button>
                       <div className="rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-5">
-                        <div className="text-sm font-semibold text-white">Connecter cTrader</div>
-                        <p className="mt-2 text-[10px] leading-5 text-white/45">cTrader utilise OAuth 2.0. InvestPro demande uniquement le scope <b className="text-white/70">accounts</b> (lecture seule), donc le connecteur ne peut pas envoyer d’ordres.</p>
-                        <div className="mt-4 rounded-xl border border-white/[.07] bg-black/20 p-3 text-[10px] leading-5 text-white/45">La première autorisation nécessite une application cTrader Open API approuvée et trois variables Vercel. Après l’autorisation, les tokens sont chiffrés avec la clé serveur déjà utilisée pour les connexions Futures.</div>
-                        {ctraderMessage?<div className="mt-3 rounded-xl border border-[color:var(--gold-border)] bg-black/20 px-3 py-2 text-[10px] text-[color:var(--gold)]">{ctraderMessage}</div>:null}
-                        <button type="button" onClick={startCTrader} disabled={ctraderBusy} className="mt-4 inline-flex h-11 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-4 text-xs font-bold text-black disabled:opacity-50">{ctraderBusy?"Ouverture...":"Autoriser cTrader"}<ArrowRight size={14}/></button>
-                        <p className="mt-3 text-[9px] leading-4 text-white/30">L’autorisation OAuth est incluse dans ce pack. La synchro historique temps réel cTrader utilise un WebSocket persistant (port JSON 5036) et sera activée lorsque le worker cTrader sera déployé.</p>
+                        <div className="text-sm font-semibold text-white">{translate("Connecter cTrader")}</div>
+                        <p className="mt-2 text-[10px] leading-5 text-white/45">{translate("cTrader utilise OAuth 2.0. InvestPro demande uniquement le scope")}{" "}<b className="text-white/70">{translate("accounts")}</b> {translate("(lecture seule), donc le connecteur ne peut pas envoyer d’ordres.")}</p>
+                        <div className="mt-4 rounded-xl border border-white/[.07] bg-black/20 p-3 text-[10px] leading-5 text-white/45">{translate("La première autorisation nécessite une application cTrader Open API approuvée et trois variables Vercel. Après l’autorisation, les tokens sont chiffrés avec la clé serveur déjà utilisée pour les connexions Futures.")}</div>
+                        {ctraderMessage?<div className="mt-3 rounded-xl border border-[color:var(--gold-border)] bg-black/20 px-3 py-2 text-[10px] text-[color:var(--gold)]">{translate(ctraderMessage)}</div>:null}
+                        <button type="button" onClick={startCTrader} disabled={ctraderBusy} className="mt-4 inline-flex h-11 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-4 text-xs font-bold text-black disabled:opacity-50">{ctraderBusy?translate("Ouverture..."):translate("Autoriser cTrader")}<ArrowRight size={14}/></button>
+                        <p className="mt-3 text-[9px] leading-4 text-white/30">{translate("L’autorisation OAuth est incluse dans ce pack. La synchro historique temps réel cTrader utilise un WebSocket persistant (port JSON 5036) et sera activée lorsque le worker cTrader sera déployé.")}</p>
                       </div>
                     </motion.div>
                   ) : (
@@ -663,35 +665,34 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
                         className="mb-3 inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-[11px] font-semibold text-white/70 hover:border-[color:var(--gold-border)] hover:text-[color:var(--gold)] sm:mb-5"
                       >
                         <ArrowLeft size={14} />
-                        Retour
-                      </button>
+                        {translate("Retour")}</button>
 
                       <div className="grid grid-cols-1 gap-2.5 sm:gap-4 md:grid-cols-2">
                         <FuturePlatformCard
-                          title="ProjectX"
-                          subtitle="PROJECTX"
-                          text="Pour les environnements compatibles ProjectX et certaines prop firms Futures."
+                          title={translate("ProjectX")}
+                          subtitle={translate("PROJECTX")}
+                          text={translate("Pour les environnements compatibles ProjectX et certaines prop firms Futures.")}
                           selected={futurePlatform === "projectx"}
                           onClick={() => selectFuturePlatform("projectx")}
                         />
                         <FuturePlatformCard
-                          title="Tradovate"
-                          subtitle="TRADOVATE"
-                          text="Connexion Futures Tradovate pour récupérer l’activité du compte."
+                          title={translate("Tradovate")}
+                          subtitle={translate("TRADOVATE")}
+                          text={translate("Connexion Futures Tradovate pour récupérer l’activité du compte.")}
                           selected={futurePlatform === "tradovate"}
                           onClick={() => selectFuturePlatform("tradovate")}
                         />
                         <FuturePlatformCard
-                          title="Rithmic"
-                          subtitle="RITHMIC"
-                          text="Pour les comptes et prop firms utilisant l’infrastructure Rithmic."
+                          title={translate("Rithmic")}
+                          subtitle={translate("RITHMIC")}
+                          text={translate("Pour les comptes et prop firms utilisant l’infrastructure Rithmic.")}
                           selected={futurePlatform === "rithmic"}
                           onClick={() => selectFuturePlatform("rithmic")}
                         />
                         <FuturePlatformCard
-                          title="Autre plateforme"
-                          subtitle="AUTRE"
-                          text="Prépare ton compte pour une plateforme Futures qui n’est pas encore listée."
+                          title={translate("Autre plateforme")}
+                          subtitle={translate("AUTRE")}
+                          text={translate("Prépare ton compte pour une plateforme Futures qui n’est pas encore listée.")}
                           selected={futurePlatform === "other"}
                           onClick={() => selectFuturePlatform("other")}
                         />
@@ -708,32 +709,31 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
                               <ServerCog size={18} />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <div className="text-sm font-semibold text-white">Connecter ProjectX</div>
+                              <div className="text-sm font-semibold text-white">{translate("Connecter ProjectX")}</div>
                               <p className="mt-1 text-[10px] leading-4 text-white/50 sm:text-[11px] sm:leading-5">
-                                Utilise ton username de plateforme ProjectX et une clé API. Le mot de passe de trading n’est pas demandé.
-                              </p>
+                                {translate("Utilise ton username de plateforme ProjectX et une clé API. Le mot de passe de trading n’est pas demandé.")}</p>
                             </div>
                           </div>
 
                           <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
                             <label className="block">
-                              <span className="mb-1.5 block text-[10px] font-medium text-white/65">Username ProjectX</span>
+                              <span className="mb-1.5 block text-[10px] font-medium text-white/65">{translate("Username ProjectX")}</span>
                               <input
                                 value={pxUsername}
                                 onChange={(event) => setPxUsername(event.target.value)}
-                                placeholder="Ex. enrick95"
+                                placeholder={translate("Ex. enrick95")}
                                 autoComplete="username"
                                 className="h-11 w-full rounded-xl border border-white/[0.08] bg-black/30 px-3 text-sm text-white outline-none placeholder:text-white/25 focus:border-[color:var(--gold-border)]"
                               />
                             </label>
 
                             <label className="block">
-                              <span className="mb-1.5 block text-[10px] font-medium text-white/65">Clé API ProjectX</span>
+                              <span className="mb-1.5 block text-[10px] font-medium text-white/65">{translate("Clé API ProjectX")}</span>
                               <input
                                 type="password"
                                 value={pxApiKey}
                                 onChange={(event) => setPxApiKey(event.target.value)}
-                                placeholder="Colle ta clé API"
+                                placeholder={translate("Colle ta clé API")}
                                 autoComplete="off"
                                 className="h-11 w-full rounded-xl border border-white/[0.08] bg-black/30 px-3 text-sm text-white outline-none placeholder:text-white/25 focus:border-[color:var(--gold-border)]"
                               />
@@ -747,21 +747,21 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
                               disabled={pxBusy}
                               className="inline-flex h-10 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-4 text-xs font-bold text-black disabled:cursor-not-allowed disabled:opacity-50"
                             >
-                              {pxBusy ? "Connexion..." : "Tester la connexion"}
+                              {pxBusy ? translate("Connexion...") : translate("Tester la connexion")}
                               <ArrowRight size={14} />
                             </button>
-                            <span className="text-[9px] leading-4 text-white/35">Lecture seule côté InvestPro · aucun ordre n’est envoyé.</span>
+                            <span className="text-[9px] leading-4 text-white/35">{translate("Lecture seule côté InvestPro · aucun ordre n’est envoyé.")}</span>
                           </div>
 
                           {pxError ? (
                             <div className="mt-3 rounded-xl border border-red-500/20 bg-red-500/[0.06] px-3 py-2 text-[10px] leading-4 text-red-300">
-                              {pxError}
+                              {translate(pxError)}
                             </div>
                           ) : null}
 
                           {pxAccounts.length > 0 ? (
                             <div className="mt-4">
-                              <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gold)]">Choisis ton compte</div>
+                              <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gold)]">{translate("Choisis ton compte")}</div>
                               <div className="space-y-2">
                                 {pxAccounts.map((account) => (
                                   <button
@@ -777,11 +777,11 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
                                   >
                                     <div className="min-w-0">
                                       <div className="truncate text-xs font-semibold text-white">{account.name}</div>
-                                      <div className="mt-0.5 text-[9px] text-white/40">ID {account.id} · {account.canTrade ? "Actif" : "Lecture seule"}</div>
+                                      <div className="mt-0.5 text-[9px] text-white/40">{translate("ID")}{" "}{account.id} · {account.canTrade ? translate("Activé") : translate("Lecture seule")}</div>
                                     </div>
                                     <div className="shrink-0 text-right">
                                       <div className="text-xs font-semibold text-white">{Number(account.balance || 0).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} $</div>
-                                      <div className="mt-0.5 text-[8px] text-white/35">Balance</div>
+                                      <div className="mt-0.5 text-[8px] text-white/35">{translate("Balance")}</div>
                                     </div>
                                   </button>
                                 ))}
@@ -793,7 +793,7 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
                                 disabled={pxBusy || !pxSelectedId}
                                 className="mt-3 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[color:var(--gold)] px-4 text-xs font-bold text-black disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                               >
-                                {pxConnected ? "Compte ajouté ✓" : pxBusy ? "Ajout..." : "Ajouter ce compte à InvestPro"}
+                                {pxConnected ? translate("Compte ajouté ✓") : pxBusy ? translate("Ajout...") : translate("Ajouter ce compte à InvestPro")}
                                 {!pxConnected ? <ArrowRight size={14} /> : null}
                               </button>
                             </div>
@@ -810,10 +810,9 @@ export default function ComptesMotionLayout({ children }: { children: ReactNode 
                               <ServerCog size={18} />
                             </div>
                             <div>
-                              <div className="text-sm font-semibold text-white">Connexion en préparation</div>
+                              <div className="text-sm font-semibold text-white">{translate("Connexion en préparation")}</div>
                               <p className="mt-1 text-[10px] leading-4 text-white/50 sm:text-[11px] sm:leading-5">
-                                ProjectX est le premier connecteur Futures activé. Tradovate sera branché ensuite ; Rithmic et les autres plateformes restent disponibles pour la suite.
-                              </p>
+                                {translate("ProjectX est le premier connecteur Futures activé. Tradovate sera branché ensuite ; Rithmic et les autres plateformes restent disponibles pour la suite.")}</p>
                             </div>
                           </div>
                         </motion.div>
@@ -928,6 +927,7 @@ function ChoiceCard({
   eyebrow?: string;
   highlighted?: boolean;
 }) {
+  const { t: translate } = useLocale();
   return (
     <motion.button
       type="button"
@@ -951,17 +951,17 @@ function ChoiceCard({
 
           {eyebrow ? (
             <span className="rounded-full border border-[color:var(--gold-border)] bg-black/25 px-2.5 py-1 text-[8px] font-bold tracking-[0.1em] text-[color:var(--gold)]">
-              {eyebrow}
+              {translate(eyebrow)}
             </span>
           ) : null}
         </div>
 
-        <div className="col-start-2 mt-0 text-[8px] font-bold uppercase tracking-[0.16em] text-[color:var(--gold)] sm:mt-7 sm:text-[9px] sm:tracking-[0.18em]">{subtitle}</div>
-        <div className="col-start-2 mt-0 text-sm font-semibold text-white sm:mt-1 sm:text-base">{title}</div>
-        <p className="col-start-2 mt-0 line-clamp-2 text-[10px] leading-4 text-white/45 sm:mt-3 sm:flex-1 sm:text-[11px] sm:leading-5">{text}</p>
+        <div className="col-start-2 mt-0 text-[8px] font-bold uppercase tracking-[0.16em] text-[color:var(--gold)] sm:mt-7 sm:text-[9px] sm:tracking-[0.18em]">{translate(subtitle)}</div>
+        <div className="col-start-2 mt-0 text-sm font-semibold text-white sm:mt-1 sm:text-base">{translate(title)}</div>
+        <p className="col-start-2 mt-0 line-clamp-2 text-[10px] leading-4 text-white/45 sm:mt-3 sm:flex-1 sm:text-[11px] sm:leading-5">{translate(text)}</p>
 
         <div className="col-start-3 row-span-4 row-start-1 mt-0 flex items-center gap-1 text-[11px] font-semibold text-white transition-colors group-hover:text-[color:var(--gold)] sm:mt-5 sm:gap-2 sm:text-xs">
-          {subtitle === "MANUEL" ? "Ajouter" : "Connecter"}
+          {subtitle === "MANUEL" ? translate("Ajouter") : translate("Connecter")}
           <ArrowRight size={14} className="transition-transform group-hover:translate-x-1" />
         </div>
       </div>
@@ -982,6 +982,7 @@ function FuturePlatformCard({
   selected: boolean;
   onClick: () => void;
 }) {
+  const { t: translate } = useLocale();
   return (
     <motion.button
       type="button"
@@ -1001,9 +1002,9 @@ function FuturePlatformCard({
           <CandlestickChart size={20} />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-[8px] font-bold uppercase tracking-[0.16em] text-[color:var(--gold)]">{subtitle}</div>
-          <div className="mt-0.5 text-sm font-semibold text-white sm:text-base">{title}</div>
-          <p className="mt-1 text-[10px] leading-4 text-white/45 sm:text-[11px] sm:leading-5">{text}</p>
+          <div className="text-[8px] font-bold uppercase tracking-[0.16em] text-[color:var(--gold)]">{translate(subtitle)}</div>
+          <div className="mt-0.5 text-sm font-semibold text-white sm:text-base">{translate(title)}</div>
+          <p className="mt-1 text-[10px] leading-4 text-white/45 sm:text-[11px] sm:leading-5">{translate(text)}</p>
         </div>
         <ArrowRight size={15} className="shrink-0 text-white/45 transition-transform group-hover:translate-x-1 group-hover:text-[color:var(--gold)]" />
       </div>

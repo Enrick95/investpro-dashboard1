@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import React, { useMemo } from "react";
 
 type Props = {
@@ -46,6 +47,7 @@ export default function MaintenanceTicker({
   maintTerminal = false,
   maintCopier = false,
 }: Props) {
+  const { t: translate } = useLocale();
   const msgs = useMemo(
     () => buildMessages(!!maintTerminal, !!maintCopier),
     [maintTerminal, maintCopier]
@@ -69,7 +71,7 @@ export default function MaintenanceTicker({
                            text-[color:var(--gold)]"
                 style={{ textShadow: "0 0 10px rgba(255,200,90,.25)" }}
               >
-                {t}
+                {translate(t)}
               </span>
             ))}
           </div>

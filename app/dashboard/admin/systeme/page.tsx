@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import {
   Activity,
   AlertTriangle,
@@ -60,9 +61,9 @@ type Payload = {
   connections: Connection[];
 };
 
-function dateLabel(value: string | null) {
-  if (!value) return "Jamais";
-  return new Date(value).toLocaleString("fr-FR", {
+function dateLabel(value: string | null, locale: "fr" | "en" = "fr") {
+  if (!value) return locale === "en" ? "Never" : "Jamais";
+  return new Date(value).toLocaleString((locale === "en" ? "en-US" : "fr-FR"), {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -116,6 +117,7 @@ function statusClass(status: string, connected: boolean) {
 }
 
 export default function AdminSystemPage() {
+  const { t: tr, locale } = useLocale();
   const supabase = useMemo(() => createClient(), []);
   const [data, setData] = useState<Payload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -147,12 +149,12 @@ export default function AdminSystemPage() {
       const json = await response.json();
 
       if (!response.ok) {
-        throw new Error(json?.error || "Impossible de charger l’état système.");
+        throw new Error(json?.error || tr("Impossible de charger l’état système."));
       }
 
       setData(json);
     } catch (e: any) {
-      setError(e?.message || "Impossible de charger l’état système.");
+      setError(e?.message || tr("Impossible de charger l’état système."));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -183,9 +185,7 @@ export default function AdminSystemPage() {
 
   if (loading) {
     return (
-      <div className="py-16 text-center text-sm text-[color:var(--muted)]">
-        Analyse des connexions InvestPro…
-      </div>
+      <div className="py-16 text-center text-sm text-[color:var(--muted)]">{tr("Analyse des connexions InvestPro…")}</div>
     );
   }
 
@@ -193,24 +193,19 @@ export default function AdminSystemPage() {
     <div className="w-full pb-10">
       {error ? (
         <div className="mb-4 rounded-2xl border border-red-500/20 bg-red-500/[0.05] p-4 text-sm text-red-200">
-          {error}
+          {tr(error)}
         </div>
       ) : null}
 
       <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gold)]">
-            <Server size={11} />
-            Admin V5
-          </div>
+            <Server size={11} />{tr("Admin V5")}</div>
 
-          <h1 className="mt-3 text-2xl font-semibold text-white">
-            Système & <span className="text-[color:var(--gold)]">Connexions</span>
+          <h1 className="mt-3 text-2xl font-semibold text-white">{tr("Système & ")}<span className="text-[color:var(--gold)]">{tr("Connexions")}</span>
           </h1>
 
-          <p className="mt-1 text-sm text-[color:var(--muted)]">
-            Surveille ProjectX, MetaTrader et l’état des synchronisations depuis un seul écran.
-          </p>
+          <p className="mt-1 text-sm text-[color:var(--muted)]">{tr("Surveille ProjectX, MetaTrader et l’état des synchronisations depuis un seul écran.")}</p>
         </div>
 
         <button
@@ -219,56 +214,48 @@ export default function AdminSystemPage() {
           disabled={refreshing}
           className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 text-xs font-semibold text-[color:var(--gold)] disabled:opacity-50"
         >
-          <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
-          Actualiser
-        </button>
+          <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />{tr("Actualiser")}</button>
       </div>
 
       {data ? (
         <>
           <section className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
-            <Stat icon={<Database size={16} />} label="Connexions" value={data.stats.connections_total} />
-            <Stat icon={<Wifi size={16} />} label="Connectées" value={data.stats.connected_total} />
-            <Stat icon={<WalletCards size={16} />} label="ProjectX" value={data.stats.projectx_total} />
-            <Stat icon={<Server size={16} />} label="MetaTrader" value={data.stats.metatrader_total} />
-            <Stat icon={<RefreshCw size={16} />} label="Auto-sync" value={data.stats.automatic_accounts_total} />
-            <Stat icon={<Clock3 size={16} />} label="Sync ancienne" value={data.stats.stale_total} warn={data.stats.stale_total > 0} />
-            <Stat icon={<Activity size={16} />} label="Jamais sync" value={data.stats.never_synced_total} warn={data.stats.never_synced_total > 0} />
-            <Stat icon={<TriangleAlert size={16} />} label="Warnings" value={data.stats.warning_total} warn={data.stats.warning_total > 0} />
+            <Stat icon={<Database size={16} />} label={tr("Connexions")} value={data.stats.connections_total} />
+            <Stat icon={<Wifi size={16} />} label={tr("Connectées")} value={data.stats.connected_total} />
+            <Stat icon={<WalletCards size={16} />} label={tr("ProjectX")} value={data.stats.projectx_total} />
+            <Stat icon={<Server size={16} />} label={tr("MetaTrader")} value={data.stats.metatrader_total} />
+            <Stat icon={<RefreshCw size={16} />} label={tr("Auto-sync")} value={data.stats.automatic_accounts_total} />
+            <Stat icon={<Clock3 size={16} />} label={tr("Sync ancienne")} value={data.stats.stale_total} warn={data.stats.stale_total > 0} />
+            <Stat icon={<Activity size={16} />} label={tr("Jamais sync")} value={data.stats.never_synced_total} warn={data.stats.never_synced_total > 0} />
+            <Stat icon={<TriangleAlert size={16} />} label={tr("Warnings")} value={data.stats.warning_total} warn={data.stats.warning_total > 0} />
           </section>
 
           <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[1fr_1.35fr]">
             <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
               <div className="flex items-center gap-2 font-semibold text-white">
-                <ShieldCheck size={15} className="text-[color:var(--gold)]" />
-                Configuration serveur
-              </div>
+                <ShieldCheck size={15} className="text-[color:var(--gold)]" />{tr("Configuration serveur")}</div>
 
               <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <Health label="Supabase serveur" ok={data.environment.supabase_service_role} />
-                <Health label="Chiffrement Futures" ok={data.environment.futures_credentials_key} />
-                <Health label="API ProjectX" ok={data.environment.projectx_api} />
-                <Health label="MetaSync Origin" ok={data.environment.metasync_site_origin} />
-                <Health label="Pilotes MetaSync" ok={data.environment.metasync_pilot_users} />
-                <Health label="Worker hébergé" ok={data.environment.metasync_hosted_worker} optional />
+                <Health label={tr("Supabase serveur")} ok={data.environment.supabase_service_role} />
+                <Health label={tr("Chiffrement Futures")} ok={data.environment.futures_credentials_key} />
+                <Health label={tr("API ProjectX")} ok={data.environment.projectx_api} />
+                <Health label={tr("MetaSync Origin")} ok={data.environment.metasync_site_origin} />
+                <Health label={tr("Pilotes MetaSync")} ok={data.environment.metasync_pilot_users} />
+                <Health label={tr("Worker hébergé")} ok={data.environment.metasync_hosted_worker} optional />
               </div>
 
-              <div className="mt-4 rounded-xl border border-white/[0.06] bg-black/20 p-3 text-[10px] leading-5 text-white/35">
-                Aucun secret n’est affiché ici : le back-office montre uniquement si les variables nécessaires sont configurées.
-              </div>
+              <div className="mt-4 rounded-xl border border-white/[0.06] bg-black/20 p-3 text-[10px] leading-5 text-white/35">{tr("Aucun secret n’est affiché ici : le back-office montre uniquement si les variables nécessaires sont configurées.")}</div>
             </section>
 
             <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
-              <div className="font-semibold text-white">Disponibilité des services</div>
-              <div className="mt-1 text-[10px] text-white/30">
-                Vérification des tables utilisées par les connecteurs actuels.
-              </div>
+              <div className="font-semibold text-white">{tr("Disponibilité des services")}</div>
+              <div className="mt-1 text-[10px] text-white/30">{tr("Vérification des tables utilisées par les connecteurs actuels.")}</div>
 
               <div className="mt-4 grid grid-cols-2 gap-2">
-                <Health label="ProjectX / Futures" ok={data.availability.futures_connections} />
-                <Health label="MetaTrader" ok={data.availability.metatrader_connections} />
-                <Health label="MetaTrader hébergé" ok={data.availability.metatrader_hosted} optional />
-                <Health label="Comptes InvestPro" ok={data.availability.trading_accounts} />
+                <Health label={tr("ProjectX / Futures")} ok={data.availability.futures_connections} />
+                <Health label={tr("MetaTrader")} ok={data.availability.metatrader_connections} />
+                <Health label={tr("MetaTrader hébergé")} ok={data.availability.metatrader_hosted} optional />
+                <Health label={tr("Comptes InvestPro")} ok={data.availability.trading_accounts} />
               </div>
 
               {(data.stats.stale_total > 0 ||
@@ -277,20 +264,14 @@ export default function AdminSystemPage() {
                 <div className="mt-4 flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/[0.05] p-3">
                   <AlertTriangle size={15} className="mt-0.5 shrink-0 text-amber-300" />
                   <div>
-                    <div className="text-xs font-semibold text-amber-200">
-                      Attention requise
-                    </div>
-                    <div className="mt-1 text-[10px] leading-5 text-white/40">
-                      Utilise le filtre « Alertes » ci-dessous pour retrouver rapidement les connexions à vérifier.
-                    </div>
+                    <div className="text-xs font-semibold text-amber-200">{tr("Attention requise")}</div>
+                    <div className="mt-1 text-[10px] leading-5 text-white/40">{tr("Utilise le filtre « Alertes » ci-dessous pour retrouver rapidement les connexions à vérifier.")}</div>
                   </div>
                 </div>
               ) : (
                 <div className="mt-4 flex items-start gap-3 rounded-xl border border-emerald-500/15 bg-emerald-500/[0.04] p-3">
                   <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-emerald-400" />
-                  <div className="text-[10px] leading-5 text-emerald-300">
-                    Aucun avertissement de synchronisation détecté.
-                  </div>
+                  <div className="text-[10px] leading-5 text-emerald-300">{tr("Aucun avertissement de synchronisation détecté.")}</div>
                 </div>
               )}
             </section>
@@ -300,10 +281,8 @@ export default function AdminSystemPage() {
             <div className="border-b border-white/[0.06] p-4">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <div className="font-semibold text-white">Connexions utilisateurs</div>
-                  <div className="mt-1 text-[10px] text-white/30">
-                    ProjectX et MetaTrader actuellement connus par InvestPro.
-                  </div>
+                  <div className="font-semibold text-white">{tr("Connexions utilisateurs")}</div>
+                  <div className="mt-1 text-[10px] text-white/30">{tr("ProjectX et MetaTrader actuellement connus par InvestPro.")}</div>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
@@ -311,7 +290,7 @@ export default function AdminSystemPage() {
                     ["all", "Toutes"],
                     ["projectx", "ProjectX"],
                     ["metatrader", "MetaTrader"],
-                    ["alerts", "Alertes"],
+                    ["alerts", tr("Alertes")],
                   ] as const).map(([value, label]) => (
                     <button
                       key={value}
@@ -335,13 +314,13 @@ export default function AdminSystemPage() {
               <table className="w-full min-w-[1120px] border-collapse text-left">
                 <thead>
                   <tr className="border-b border-white/[0.05] text-[9px] uppercase tracking-[0.1em] text-white/25">
-                    <th className="px-4 py-3 font-semibold">Membre</th>
-                    <th className="px-4 py-3 font-semibold">Connexion</th>
-                    <th className="px-4 py-3 font-semibold">Compte</th>
-                    <th className="px-4 py-3 font-semibold">Balance</th>
-                    <th className="px-4 py-3 font-semibold">Statut</th>
-                    <th className="px-4 py-3 font-semibold">Dernière sync</th>
-                    <th className="px-4 py-3 font-semibold">Alertes</th>
+                    <th className="px-4 py-3 font-semibold">{tr("Membre")}</th>
+                    <th className="px-4 py-3 font-semibold">{tr("Connexion")}</th>
+                    <th className="px-4 py-3 font-semibold">{tr("Compte")}</th>
+                    <th className="px-4 py-3 font-semibold">{tr("Balance")}</th>
+                    <th className="px-4 py-3 font-semibold">{tr("Statut")}</th>
+                    <th className="px-4 py-3 font-semibold">{tr("Dernière sync")}</th>
+                    <th className="px-4 py-3 font-semibold">{tr("Alertes")}</th>
                   </tr>
                 </thead>
 
@@ -393,12 +372,12 @@ export default function AdminSystemPage() {
                               statusClass(connection.status, connection.connected),
                             ].join(" ")}
                           >
-                            {statusLabel(connection.status, connection.connected)}
+                            {tr(statusLabel(connection.status, connection.connected))}
                           </span>
                         </td>
 
                         <td className="px-4 py-3 text-[10px] text-white/45">
-                          {dateLabel(connection.last_sync_at)}
+                          {dateLabel(connection.last_sync_at, locale)}
                         </td>
 
                         <td className="px-4 py-3">
@@ -409,23 +388,17 @@ export default function AdminSystemPage() {
                             </div>
                           ) : connection.connected && !connection.last_sync_at ? (
                             <div className="inline-flex items-center gap-1.5 text-[10px] text-amber-300">
-                              <Clock3 size={12} />
-                              En attente
-                            </div>
+                              <Clock3 size={12} />{tr("En attente")}</div>
                           ) : (
                             <div className="inline-flex items-center gap-1.5 text-[10px] text-emerald-400">
-                              <CheckCircle2 size={12} />
-                              OK
-                            </div>
+                              <CheckCircle2 size={12} />{tr("OK")}</div>
                           )}
                         </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={7} className="px-4 py-12 text-center text-sm text-white/25">
-                        Aucune connexion pour ce filtre.
-                      </td>
+                      <td colSpan={7} className="px-4 py-12 text-center text-sm text-white/25">{tr("Aucune connexion pour ce filtre.")}</td>
                     </tr>
                   )}
                 </tbody>

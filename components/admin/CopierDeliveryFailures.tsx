@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { AlertTriangle, Archive, ArchiveRestore, RefreshCw } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -17,6 +18,7 @@ type Delivery = {
 };
 
 export default function CopierDeliveryFailures() {
+  const { t: tr, locale } = useLocale();
   const supabase = useMemo(() => createClient(), []);
   const [rows, setRows] = useState<Delivery[]>([]);
   const [busy, setBusy] = useState("");
@@ -37,12 +39,12 @@ export default function CopierDeliveryFailures() {
         cache: "no-store",
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Chargement impossible.");
+      if (!response.ok) throw new Error(data.error || tr("Chargement impossible."));
       setRows(data.deliveries || []);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Chargement impossible.");
+      setError(cause instanceof Error ? cause.message : tr("Chargement impossible."));
     }
-  }, [headers, showArchived]);
+  }, [headers, showArchived, tr]);
 
   useEffect(() => {
     void load();
@@ -59,18 +61,18 @@ export default function CopierDeliveryFailures() {
         body: JSON.stringify({ action, ...(row ? { id: row.id } : {}) }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Mise à jour impossible.");
+      if (!response.ok) throw new Error(data.error || tr("Mise à jour impossible."));
 
       if (action === "retry") {
-        setMessage(data.ok ? "Notification envoyée." : `Non envoyée : ${data.reason || "vérifie la configuration"}.`);
+        setMessage(data.ok ? tr("Notification envoyée.") : (tr("Non envoyée : ") + (data.reason || tr("vérifie la configuration")) + "."));
       } else if (action === "archive_all") {
-        setMessage("Les notifications visibles ont été archivées.");
+        setMessage(tr("Les notifications visibles ont été archivées."));
       } else {
-        setMessage(action === "archive" ? "Notification archivée." : "Notification restaurée.");
+        setMessage(action === "archive" ? tr("Notification archivée.") : tr("Notification restaurée."));
       }
       await load();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Mise à jour impossible.");
+      setError(cause instanceof Error ? cause.message : tr("Mise à jour impossible."));
     } finally {
       setBusy("");
     }
@@ -83,32 +85,29 @@ export default function CopierDeliveryFailures() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="flex items-center gap-2 text-sm font-semibold text-white">
-            <AlertTriangle size={16} className="text-amber-300" />
-            Suivi des notifications
-            <span className="rounded-full bg-amber-400/10 px-2 py-0.5 text-[10px] text-amber-200">{rows.length}</span>
+            <AlertTriangle size={16} className="text-amber-300" />{tr("Suivi des notifications")}<span className="rounded-full bg-amber-400/10 px-2 py-0.5 text-[10px] text-amber-200">{rows.length}</span>
           </h2>
-          <p className="mt-1 text-xs text-white/45">Les envois ignorés sont classés automatiquement dans l’historique. Archive les échecs traités pour vider cette liste ; ils restent consultables.</p>
+          <p className="mt-1 text-xs text-white/45">{tr("Les envois ignorés sont classés automatiquement dans l’historique. Archive les échecs traités pour vider cette liste ; ils restent consultables.")}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {!showArchived && rows.length > 0 ? (
             <button type="button" disabled={isBusy} onClick={() => void mutate("archive_all")} className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-white/10 px-3 text-xs font-semibold text-white/60 disabled:opacity-50">
-              <Archive size={14} /> Tout archiver
-            </button>
+              <Archive size={14} />{tr(" Tout archiver")}</button>
           ) : null}
           <button type="button" onClick={() => setShowArchived((value) => !value)} className="min-h-9 rounded-lg border border-white/10 px-3 text-xs font-semibold text-white/60">
-            {showArchived ? "Voir les notifications" : "Historique"}
+            {showArchived ? tr("Voir les notifications") : tr("Historique")}
           </button>
-          <button type="button" onClick={() => void load()} aria-label="Actualiser" className="rounded-lg border border-white/10 p-2 text-white/60">
+          <button type="button" onClick={() => void load()} aria-label={tr("Actualiser")} className="rounded-lg border border-white/10 p-2 text-white/60">
             <RefreshCw size={15} />
           </button>
         </div>
       </div>
 
-      {error ? <p role="status" className="mt-3 text-xs text-red-300">{error}</p> : null}
+      {error ? <p role="status" className="mt-3 text-xs text-red-300">{tr(error)}</p> : null}
       {message ? <p role="status" className="mt-3 text-xs text-emerald-300">{message}</p> : null}
       {!rows.length && !error ? (
         <p className="mt-4 rounded-xl border border-white/[0.06] p-3 text-xs text-white/40">
-          {showArchived ? "Aucune notification archivée." : "Aucun échec ni envoi ignoré récent."}
+          {showArchived ? tr("Aucune notification archivée.") : tr("Aucun échec ni envoi ignoré récent.")}
         </p>
       ) : null}
 
@@ -119,14 +118,13 @@ export default function CopierDeliveryFailures() {
               <div className="text-xs font-semibold text-white/80">
                 {row.title} <span className="ml-1 font-normal text-white/40">· {row.channel === "email" ? "E-mail" : "Push"}</span>
               </div>
-              <div className="mt-1 text-[11px] text-amber-200/70">{row.status === "skipped" ? "Ignorée" : "Échec"} · {row.last_error || "raison inconnue"} · {row.attempts} tentative(s)</div>
-              <div className="mt-1 break-all text-[10px] text-white/30">{new Date(row.updated_at).toLocaleString("fr-FR")}</div>
+              <div className="mt-1 text-[11px] text-amber-200/70">{row.status === "skipped" ? tr("Ignorée") : tr("Échec")} · {row.last_error || tr("raison inconnue")} · {row.attempts}{tr(" tentative(s)")}</div>
+              <div className="mt-1 break-all text-[10px] text-white/30">{new Date(row.updated_at).toLocaleString((locale === "en" ? "en-US" : "fr-FR"))}</div>
             </div>
             <div className="flex shrink-0 flex-wrap gap-2">
               {!showArchived ? (
                 <button type="button" disabled={busy === row.id} onClick={() => void mutate("retry", row)} className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-[color:var(--gold-border)] px-3 text-xs font-semibold text-[color:var(--gold)] disabled:opacity-50">
-                  <RefreshCw size={13} className={busy === row.id ? "animate-spin" : ""} /> Relancer
-                </button>
+                  <RefreshCw size={13} className={busy === row.id ? "animate-spin" : ""} />{tr(" Relancer")}</button>
               ) : null}
               <button type="button" disabled={isBusy} onClick={() => void mutate(showArchived ? "restore" : "archive", row)} className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-white/10 px-3 text-xs font-semibold text-white/60 disabled:opacity-50">
                 {showArchived ? <ArchiveRestore size={13} /> : <Archive size={13} />}

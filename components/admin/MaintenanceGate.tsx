@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { useMaintenance } from "../../lib/adminStore";
 import { Button } from "../ui/Button";
 
@@ -19,6 +20,7 @@ export default function MaintenanceGate({
   kind: "terminal" | "copieur";
   children: React.ReactNode;
 }) {
+  const { t: tr } = useLocale();
   const { state, isActive, remainingMs } = useMaintenance(kind);
 
   const label = useMemo(() => {
@@ -32,24 +34,18 @@ export default function MaintenanceGate({
     <div className="min-h-[70vh] flex items-center justify-center">
       <div className="max-w-xl w-full rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-6 text-center shadow-soft">
         <div className="text-2xl font-semibold" style={{ color: "var(--gold)" }}>
-          {kind.toUpperCase()} • Maintenance
-        </div>
+          {kind.toUpperCase()}{tr(" • Maintenance")}</div>
 
         <div className="mt-2 opacity-85">
-          {state.message || "Cette fonctionnalité est temporairement indisponible."}
+          {state.message || tr("Cette fonctionnalité est temporairement indisponible.")}
         </div>
 
-        <div className="mt-4 text-sm opacity-80">
-          Temps restant estimé : <span className="font-semibold">{label}</span>
+        <div className="mt-4 text-sm opacity-80">{tr("Temps restant estimé : ")}<span className="font-semibold">{label}</span>
         </div>
 
         <div className="mt-5 flex justify-center gap-2">
-          <Button variant="ghost" onClick={() => history.back()}>
-            Retour
-          </Button>
-          <Button onClick={() => location.reload()}>
-            Rafraîchir
-          </Button>
+          <Button variant="ghost" onClick={() => history.back()}>{tr("Retour")}</Button>
+          <Button onClick={() => location.reload()}>{tr("Rafraîchir")}</Button>
         </div>
       </div>
     </div>

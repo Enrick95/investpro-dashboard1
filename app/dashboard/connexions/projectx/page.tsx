@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
@@ -26,6 +27,8 @@ type Account = {
 };
 
 export default function ProjectXConnectionPage() {
+  const { t: translate } = useLocale();
+
   const supabase = useMemo(() => createClient(), []);
 
   const [userName, setUserName] = useState("");
@@ -87,8 +90,7 @@ export default function ProjectXConnectionPage() {
           className="inline-flex items-center gap-2 text-sm text-[color:var(--muted)] no-underline hover:text-white"
         >
           <ArrowLeft size={14} />
-          Retour au centre des connexions
-        </Link>
+          {translate("Retour au centre des connexions")}</Link>
       </div>
 
       <section className="overflow-hidden rounded-[26px] border border-[color:var(--gold-border)] bg-[color:var(--panel)]">
@@ -96,62 +98,52 @@ export default function ProjectXConnectionPage() {
           <div className="border-b border-white/[0.06] p-5 md:p-7 lg:border-b-0 lg:border-r">
             <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gold)]">
               <Zap size={11} />
-              Futures · ProjectX
-            </div>
+              {translate("Futures · ProjectX")}</div>
 
             <h1 className="mt-4 text-2xl font-semibold text-white">
-              Connecter ton compte <span className="text-[color:var(--gold)]">TopstepX</span>
+              {translate("Connecter ton compte")}{" "}<span className="text-[color:var(--gold)]">{translate("TopstepX")}</span>
             </h1>
 
             <p className="mt-3 max-w-xl text-sm leading-6 text-[color:var(--muted)]">
-              Cette première étape teste uniquement la connexion et récupère la liste
-              de tes comptes ProjectX. Aucun ordre n’est envoyé et ta clé n’est pas
-              enregistrée.
-            </p>
+              {translate("Cette première étape teste uniquement la connexion et récupère la liste de tes comptes ProjectX. Aucun ordre n’est envoyé et ta clé n’est pas enregistrée.")}</p>
 
             <div className="mt-6 space-y-3">
               <Feature
                 icon={<ShieldCheck size={15} />}
-                title="Lecture seule pour le test"
-                text="InvestPro récupère seulement tes comptes actifs."
+                title={translate("Lecture seule pour le test")}
+                text={translate("InvestPro récupère seulement tes comptes actifs.")}
               />
               <Feature
                 icon={<KeyRound size={15} />}
-                title="Clé non stockée"
-                text="La clé API sert uniquement pendant cette requête de test."
+                title={translate("Clé non stockée")}
+                text={translate("La clé API sert uniquement pendant cette requête de test.")}
               />
               <Feature
                 icon={<Server size={15} />}
-                title="Connexion serveur à serveur"
-                text="Les identifiants ProjectX ne sont jamais placés dans l’URL."
+                title={translate("Connexion serveur à serveur")}
+                text={translate("Les identifiants ProjectX ne sont jamais placés dans l’URL.")}
               />
             </div>
 
             <div className="mt-6 rounded-2xl border border-amber-500/15 bg-amber-500/[0.05] p-4">
               <div className="text-xs font-semibold text-amber-300">
-                Avant le test
-              </div>
+                {translate("Avant le test")}</div>
               <p className="mt-2 text-[10px] leading-5 text-white/40">
-                TopstepX demande un accès API ProjectX actif et lié à ton profil.
-                Le username demandé ici est ton nom d’utilisateur de plateforme,
-                pas ton adresse e-mail.
-              </p>
+                {translate("TopstepX demande un accès API ProjectX actif et lié à ton profil. Le username demandé ici est ton nom d’utilisateur de plateforme, pas ton adresse e-mail.")}</p>
             </div>
           </div>
 
           <div className="p-5 md:p-7">
             <div className="text-sm font-semibold text-white">
-              Identifiants ProjectX
-            </div>
+              {translate("Identifiants ProjectX")}</div>
 
             <label className="mt-5 block">
               <span className="text-[10px] font-medium text-white/35">
-                Username TopstepX
-              </span>
+                {translate("Username TopstepX")}</span>
               <input
                 value={userName}
                 onChange={(e) => setUserName(e.target.value)}
-                placeholder="Ex. trader95"
+                placeholder={translate("Ex. trader95")}
                 autoComplete="username"
                 className="mt-2 h-12 w-full rounded-xl border border-white/[0.08] bg-black/20 px-4 text-sm text-white outline-none placeholder:text-white/20 focus:border-[color:var(--gold-border)]"
               />
@@ -159,15 +151,14 @@ export default function ProjectXConnectionPage() {
 
             <label className="mt-4 block">
               <span className="text-[10px] font-medium text-white/35">
-                Clé API ProjectX
-              </span>
+                {translate("Clé API ProjectX")}</span>
 
               <div className="relative mt-2">
                 <input
                   type={showKey ? "text" : "password"}
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="Colle ta clé API"
+                  placeholder={translate("Colle ta clé API")}
                   autoComplete="off"
                   className="h-12 w-full rounded-xl border border-white/[0.08] bg-black/20 px-4 pr-12 text-sm text-white outline-none placeholder:text-white/20 focus:border-[color:var(--gold-border)]"
                 />
@@ -176,7 +167,7 @@ export default function ProjectXConnectionPage() {
                   type="button"
                   onClick={() => setShowKey((v) => !v)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white"
-                  aria-label="Afficher ou masquer la clé"
+                  aria-label={translate("Afficher ou masquer la clé")}
                 >
                   {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -192,19 +183,17 @@ export default function ProjectXConnectionPage() {
               {loading ? (
                 <>
                   <Loader2 size={15} className="animate-spin" />
-                  Connexion en cours…
-                </>
+                  {translate("Connexion en cours…")}</>
               ) : (
                 <>
-                  Tester ma connexion
-                  <Zap size={14} />
+                  {translate("Tester ma connexion")}<Zap size={14} />
                 </>
               )}
             </button>
 
             {error ? (
               <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/[0.05] p-4 text-[11px] leading-5 text-red-200">
-                {error}
+                {translate(error)}
               </div>
             ) : null}
 
@@ -212,8 +201,7 @@ export default function ProjectXConnectionPage() {
               <div className="mt-5">
                 <div className="flex items-center gap-2 text-sm font-semibold text-emerald-400">
                   <CheckCircle2 size={16} />
-                  Connexion ProjectX réussie
-                </div>
+                  {translate("Connexion ProjectX réussie")}</div>
 
                 <div className="mt-4 space-y-3">
                   {accounts.length ? (
@@ -229,18 +217,17 @@ export default function ProjectXConnectionPage() {
                               {account.name}
                             </div>
                             <div className="mt-1 text-[9px] text-white/28">
-                              ID ProjectX : {account.id}
+                              {translate("ID ProjectX :")}{" "}{account.id}
                             </div>
                           </div>
 
                           <span className="rounded-full border border-emerald-500/15 bg-emerald-500/[0.05] px-2 py-1 text-[8px] font-semibold text-emerald-400">
-                            ACTIF
-                          </span>
+                            {translate("ACTIF")}</span>
                         </div>
 
                         <div className="mt-4 grid grid-cols-2 gap-2">
                           <MiniStat
-                            label="Balance"
+                            label={translate("Balance")}
                             value={
                               account.balance != null
                                 ? `${account.balance.toLocaleString("fr-FR", {
@@ -251,23 +238,20 @@ export default function ProjectXConnectionPage() {
                             }
                           />
                           <MiniStat
-                            label="Trading"
-                            value={account.canTrade ? "Autorisé" : "Non autorisé"}
+                            label={translate("Trading")}
+                            value={account.canTrade ? translate("Autorisé") : translate("Non autorisé")}
                           />
                         </div>
                       </div>
                     ))
                   ) : (
                     <div className="rounded-xl border border-white/[0.07] bg-black/20 p-4 text-[11px] text-white/40">
-                      Connexion valide, mais aucun compte actif trouvé.
-                    </div>
+                      {translate("Connexion valide, mais aucun compte actif trouvé.")}</div>
                   )}
                 </div>
 
                 <div className="mt-4 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4 text-[10px] leading-5 text-[color:var(--gold)]">
-                  Test validé. L’étape suivante permettra d’enregistrer la connexion
-                  de façon chiffrée et de synchroniser automatiquement le compte dans InvestPro.
-                </div>
+                  {translate("Test validé. L’étape suivante permettra d’enregistrer la connexion de façon chiffrée et de synchroniser automatiquement le compte dans InvestPro.")}</div>
               </div>
             ) : null}
           </div>
@@ -286,24 +270,28 @@ function Feature({
   title: string;
   text: string;
 }) {
+  const { t: translate } = useLocale();
+
   return (
     <div className="flex items-start gap-3">
       <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]">
         {icon}
       </div>
       <div>
-        <div className="text-xs font-semibold text-white">{title}</div>
-        <div className="mt-1 text-[10px] leading-5 text-white/35">{text}</div>
+        <div className="text-xs font-semibold text-white">{translate(title)}</div>
+        <div className="mt-1 text-[10px] leading-5 text-white/35">{translate(text)}</div>
       </div>
     </div>
   );
 }
 
 function MiniStat({ label, value }: { label: string; value: string }) {
+  const { t: translate } = useLocale();
+
   return (
     <div className="rounded-xl border border-white/[0.05] bg-black/20 p-3">
       <div className="text-[8px] uppercase tracking-[0.1em] text-white/25">
-        {label}
+        {translate(label)}
       </div>
       <div className="mt-1 text-xs font-semibold text-white">{value}</div>
     </div>

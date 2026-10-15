@@ -1,5 +1,6 @@
 'use client';
 import {Fragment,useEffect,useMemo,useState} from 'react';
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import {ChevronLeft,ChevronRight} from 'lucide-react';
 import {isClosed,tradeDay,performanceSummary,type PerformanceAccount,type PerformanceTrade} from '@/lib/performance';
 
@@ -7,6 +8,7 @@ const signed=(value:number,suffix:string)=>`${value>0?'+':''}${value.toLocaleStr
 const tone=(value:number|null)=>value===null?'':value>0?'positive':value<0?'negative':'';
 
 export default function PerformanceCalendar({trades,accounts,accountId='all',accountPicker=false}:{trades:PerformanceTrade[];accounts:PerformanceAccount[];accountId?:number|'all';accountPicker?:boolean}){
+  const { t: tr, locale } = useLocale();
  const [localAccount,setLocalAccount]=useState('all');
  const scope=accountPicker?localAccount:String(accountId);
  const scopedAccounts=useMemo(()=>accounts.filter(a=>scope==='all'||String(a.id)===scope),[accounts,scope]);
@@ -36,7 +38,7 @@ export default function PerformanceCalendar({trades,accounts,accountId='all',acc
  };
  const money=(value:number|null)=>{
   if(value===null||!currency)return '—';
-  try{return new Intl.NumberFormat('fr-FR',{style:'currency',currency,currencyDisplay:'narrowSymbol',signDisplay:'exceptZero',minimumFractionDigits:2,maximumFractionDigits:2}).format(value);}
+  try{return new Intl.NumberFormat((locale === "en" ? "en-US" : "fr-FR"),{style:'currency',currency,currencyDisplay:'narrowSymbol',signDisplay:'exceptZero',minimumFractionDigits:2,maximumFractionDigits:2}).format(value);}
   catch{return signed(value,` ${currency}`);}
  };
  const total=summary(monthly);
@@ -50,32 +52,32 @@ export default function PerformanceCalendar({trades,accounts,accountId='all',acc
  const weeks=Array.from({length:days.length/7},(_,i)=>days.slice(i*7,i*7+7));
  const move=(delta:number)=>{const date=new Date(year,m-1+delta,1,12);setMonth(`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`);};
  const today=tradeDay(new Date().toISOString());
- return <section className="perf-calendar" aria-label="Calendrier de performance">
-  <header><div><h2>Calendrier de performance</h2><p>Résultat net · montant et pourcentage{currency?` · ${currency}`:''}</p></div>
+ return <section className="perf-calendar" aria-label={tr("Calendrier de performance")}>
+  <header><div><h2>{tr("Calendrier de performance")}</h2><p>{tr("Résultat net · montant et pourcentage")}{currency?` · ${currency}`:''}</p></div>
    <div className="controls">
-    {accountPicker&&<select aria-label="Compte du calendrier" value={localAccount} onChange={e=>setLocalAccount(e.target.value)}><option value="all">Tous les comptes</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select>}
-    <button type="button" onClick={()=>move(-1)} aria-label="Mois précédent"><ChevronLeft size={18}/></button>
-    <input aria-label="Mois du calendrier" type="month" value={month} onChange={e=>{if(/^\d{4}-\d{2}$/.test(e.target.value)&&Number(e.target.value.slice(0,4))>=1000)setMonth(e.target.value);}}/>
-    <button type="button" onClick={()=>move(1)} aria-label="Mois suivant"><ChevronRight size={18}/></button>
+    {accountPicker&&<select aria-label={tr("Compte du calendrier")} value={localAccount} onChange={e=>setLocalAccount(e.target.value)}><option value="all">{tr("Tous les comptes")}</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select>}
+    <button type="button" onClick={()=>move(-1)} aria-label={tr("Mois précédent")}><ChevronLeft size={18}/></button>
+    <input aria-label={tr("Mois du calendrier")} type="month" value={month} onChange={e=>{if(/^\d{4}-\d{2}$/.test(e.target.value)&&Number(e.target.value.slice(0,4))>=1000)setMonth(e.target.value);}}/>
+    <button type="button" onClick={()=>move(1)} aria-label={tr("Mois suivant")}><ChevronRight size={18}/></button>
    </div>
   </header>
-  <div className={`monthly ${tone(total.amount)}`}><div><span>Bilan du mois</span><small>{first.toLocaleDateString('fr-FR',{month:'long',year:'numeric'})}</small></div><div className="monthly-value"><strong>{money(total.amount)}</strong><b>{total.percent===null?'— %':signed(total.percent,' %')}</b></div></div>
-  <div className="grid-scroll" role="region" aria-label="Performances quotidiennes et hebdomadaires" tabIndex={0}><div className="grid">
-   {['Lun','Mar','Mer','Jeu','Ven','Sam','Dim','Semaine'].map(day=><div key={day} className="weekday">{day}</div>)}
+  <div className={`monthly ${tone(total.amount)}`}><div><span>{tr("Bilan du mois")}</span><small>{first.toLocaleDateString((locale === "en" ? "en-US" : "fr-FR"),{month:'long',year:'numeric'})}</small></div><div className="monthly-value"><strong>{money(total.amount)}</strong><b>{total.percent===null?'— %':signed(total.percent,' %')}</b></div></div>
+  <div className="grid-scroll" role="region" aria-label={tr("Performances quotidiennes et hebdomadaires")} tabIndex={0}><div className="grid">
+   {[tr("Lun"),tr("Mar"),tr("Mer"),tr("Jeu"),tr("Ven"),tr("Sam"),tr("Dim"),tr("Semaine")].map(day=><div key={day} className="weekday">{day}</div>)}
    {weeks.map((week,index)=>{
     const weekly=summary(week.flatMap(day=>day.items));
     return <Fragment key={week[0].key}>{week.map(({key,date,inMonth,items})=>{
      const result=summary(items);
-     return <div key={key} className={`day ${inMonth?'':'outside'} ${items.length?tone(result.amount):''}`} aria-label={inMonth?`${date.toLocaleDateString('fr-FR')}, ${items.length?money(result.amount):'aucun résultat'}`:undefined}>
+     return <div key={key} className={`day ${inMonth?'':'outside'} ${items.length?tone(result.amount):''}`} aria-label={inMonth?`${date.toLocaleDateString((locale === "en" ? "en-US" : "fr-FR"))}, ${items.length?money(result.amount):tr("aucun résultat")}`:undefined}>
       <span className={key===today?'today':''}>{date.getDate()}</span>
       {inMonth&&result.count>0?<div className="values"><strong>{money(result.amount)}</strong><b>{result.percent===null?'— %':signed(result.percent,' %')}</b></div>:<span className="empty">—</span>}
      </div>;
-    })}<div className={`day week-total ${weekly.count?tone(weekly.amount):''}`}><span>S{index+1}</span>{weekly.count?<div className="values"><strong>{money(weekly.amount)}</strong><b>{weekly.percent===null?'— %':signed(weekly.percent,' %')}</b></div>:<span className="empty">—</span>}</div></Fragment>;
+    })}<div className={`day week-total ${weekly.count?tone(weekly.amount):''}`}><span>{locale === "en" ? "W" : "S"}{index+1}</span>{weekly.count?<div className="values"><strong>{money(weekly.amount)}</strong><b>{weekly.percent===null?'— %':signed(weekly.percent,' %')}</b></div>:<span className="empty">—</span>}</div></Fragment>;
    })}
   </div></div>
-  {!monthly.length&&<p className="note">Aucun trade clôturé pour ce mois avec les filtres actuels.</p>}
-  <p className="note">% calculé sur le capital de départ{scope==='all'?' total des comptes sélectionnés':''}. Les filtres de la page s’appliquent au calendrier.</p>
-  {total.amount===null?<p className="note">Sélectionnez un compte pour afficher les montants et pourcentages. Les devises différentes ne sont pas additionnées et chaque trade doit être associé à un compte.</p>:total.percent===null&&<p className="note">Renseignez un capital de départ positif ou synchronisez une balance valide pour afficher les pourcentages.</p>}
+  {!monthly.length&&<p className="note">{tr("Aucun trade clôturé pour ce mois avec les filtres actuels.")}</p>}
+  <p className="note">{tr("% calculé sur le capital de départ")}{scope==='all'?tr(" total des comptes sélectionnés"):''}{tr(". Les filtres de la page s’appliquent au calendrier.")}</p>
+  {total.amount===null?<p className="note">{tr("Sélectionnez un compte pour afficher les montants et pourcentages. Les devises différentes ne sont pas additionnées et chaque trade doit être associé à un compte.")}</p>:total.percent===null&&<p className="note">{tr("Renseignez un capital de départ positif ou synchronisez une balance valide pour afficher les pourcentages.")}</p>}
   <style jsx>{`
    .perf-calendar{border:1px solid var(--border,#655537);background:var(--panel,#111210);border-radius:20px;padding:24px;margin:20px 0;color:#eee;min-width:0}
    header,.controls{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}h2{font-size:18px;font-weight:650;margin:0}p{font-size:12px;color:#a6aaa6;line-height:1.6;margin:6px 0}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
@@ -178,6 +179,8 @@ function tradeDateLabel(value: string) {
 }
 
 export default function TradingPlanPage() {
+  const { t } = useLocale();
+
   const supabase = useMemo(() => createClient(), []);
 
   const [userId, setUserId] = useState<string | null>(null);
@@ -313,7 +316,7 @@ export default function TradingPlanPage() {
       }
     } catch {
       setLoadError(true);
-      setMessage({ type: "error", text: "Impossible de charger toutes les données. Réessayez avant de modifier votre plan." });
+      setMessage({ type: "error", text: t("Impossible de charger toutes les données. Réessayez avant de modifier votre plan.") });
     } finally {
       setLoading(false);
     }
@@ -357,13 +360,13 @@ export default function TradingPlanPage() {
       setHasStoredPlan(true);
       setMessage({
         type: "success",
-        text: "Ton plan de trading a bien été enregistré.",
+        text: t("Ton plan de trading a bien été enregistré."),
       });
     } catch (error) {
       console.error(error);
       setMessage({
         type: "error",
-        text: "Impossible d’enregistrer ton plan.",
+        text: t("Impossible d’enregistrer ton plan."),
       });
     } finally {
       setSavingPlan(false);
@@ -416,8 +419,8 @@ export default function TradingPlanPage() {
       setMessage({
         type: "success",
         text: allValidated
-          ? "Checklist validée. Ton trade respecte tous les critères."
-          : "Checklist enregistrée, mais certains critères ne sont pas validés.",
+          ? t("Checklist validée. Ton trade respecte tous les critères.")
+          : t("Checklist enregistrée, mais certains critères ne sont pas validés."),
       });
 
       setChecklist(DEFAULT_CHECKLIST);
@@ -427,7 +430,7 @@ export default function TradingPlanPage() {
       console.error(error);
       setMessage({
         type: "error",
-        text: "Impossible d’enregistrer la checklist.",
+        text: t("Impossible d’enregistrer la checklist."),
       });
     } finally {
       setSavingChecklist(false);
@@ -530,7 +533,7 @@ export default function TradingPlanPage() {
         const ok = risk <= Number(savedPlan.max_risk_percent);
         if (ok) riskValid += 1;
         checks.push(ok);
-        if (!ok) reasons.push(`Risque ${risk}% > ${savedPlan.max_risk_percent}%`);
+        if (!ok) reasons.push((t("Risque ") + (risk) + "% > " + (savedPlan.max_risk_percent) + "%"));
       }
 
       const rr = calculateRR(trade);
@@ -556,7 +559,7 @@ export default function TradingPlanPage() {
         const ok = allowed.includes(normalizeSession(trade.session));
         if (ok) sessionValid += 1;
         checks.push(ok);
-        if (!ok) reasons.push(`${trade.session} non autorisée`);
+        if (!ok) reasons.push(("" + (trade.session) + t(" non autorisée")));
       }
 
       if (savedPlan.allowed_setups.length > 0 && trade.setup) {
@@ -609,7 +612,7 @@ export default function TradingPlanPage() {
       pnlNonCompliantByCurrency,
       recent,
     };
-  }, [trades, savedPlan, accountCurrencies]);
+  }, [trades, savedPlan, accountCurrencies, t]);
 
   if (loading) {
     return (
@@ -625,16 +628,14 @@ export default function TradingPlanPage() {
         <div>
           <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gold)]">
             <ShieldCheck size={12} />
-            Discipline InvestPro
-          </div>
+            {t("Discipline InvestPro")}</div>
 
           <h1 className="text-2xl font-semibold text-white">
-            Plan de <span className="text-[color:var(--gold)]">trading</span>
+            {t("Plan de trading").split(" ").slice(0, -1).join(" ")}{" "}<span className="text-[color:var(--gold)]">{t("Plan de trading").split(" ").slice(-1).join(" ")}</span>
           </h1>
 
           <p className="mt-1 text-sm text-[color:var(--muted)]">
-            Un cadre clair pour vos marchés, votre risque et chaque prise de décision.
-          </p>
+            {t("Un cadre clair pour vos marchés, votre risque et chaque prise de décision.")}</p>
         </div>
 
         <button
@@ -648,7 +649,7 @@ export default function TradingPlanPage() {
           ) : (
             <Save size={15} />
           )}
-          {savingPlan ? "Enregistrement…" : "Enregistrer mon plan"}
+          {savingPlan ? t("Enregistrement…") : t("Enregistrer mon plan")}
         </button>
       </div>
 
@@ -671,39 +672,39 @@ export default function TradingPlanPage() {
       ) : null}
 
 
-      <section aria-label="Mon bilan de discipline">
-        <div className="mb-3 flex flex-wrap justify-between gap-2 text-xs text-white/50"><span>Mon bilan de discipline</span><span>Calculé à partir de votre plan enregistré</span></div>
+      <section aria-label={t("Mon bilan de discipline")}>
+        <div className="mb-3 flex flex-wrap justify-between gap-2 text-xs text-white/50"><span>{t("Mon bilan de discipline")}</span><span>{t("Calculé à partir de votre plan enregistré")}</span></div>
         <div className="grid gap-3 lg:grid-cols-3">
-          <div className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5"><SectionTitle icon={<Gauge size={17} />} title="Score de discipline" /><div className="mt-4 flex items-center gap-4"><DisciplineRing score={discipline.score} /><p className="text-xs leading-5 text-white/50">Risque · RR · actifs<br />Sessions · setups</p></div></div>
-          <ResultCompareCard title="Trades conformes" count={discipline.compliantTrades} pnlByCurrency={discipline.pnlCompliantByCurrency} positive />
-          <ResultCompareCard title="Trades hors plan" count={discipline.nonCompliantTrades} pnlByCurrency={discipline.pnlNonCompliantByCurrency} positive={false} />
+          <div className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5"><SectionTitle icon={<Gauge size={17} />} title={t("Score de discipline")} /><div className="mt-4 flex items-center gap-4"><DisciplineRing score={discipline.score} /><p className="text-xs leading-5 text-white/50">{t("Risque · RR · actifs")}<br />{t("Sessions · setups")}</p></div></div>
+          <ResultCompareCard title={t("Trades conformes")} count={discipline.compliantTrades} pnlByCurrency={discipline.pnlCompliantByCurrency} positive />
+          <ResultCompareCard title={t("Trades hors plan")} count={discipline.nonCompliantTrades} pnlByCurrency={discipline.pnlNonCompliantByCurrency} positive={false} />
         </div>
       </section>
       <details className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--panel)] p-4">
-        <summary className="cursor-pointer text-xs font-medium text-white/75">Voir le détail du score et les derniers trades</summary>
+        <summary className="cursor-pointer text-xs font-medium text-white/75">{t("Voir le détail du score et les derniers trades")}</summary>
         <div className="mt-4">      <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
         <div className="rounded-[24px] border border-[color:var(--gold-border)] bg-[color:var(--panel)] p-5 xl:col-span-5">
-          <SectionTitle icon={<Gauge size={17} />} title="Score de discipline" />
+          <SectionTitle icon={<Gauge size={17} />} title={t("Score de discipline")} />
 
           <div className="mt-5 flex flex-col gap-5 sm:flex-row sm:items-center">
 
 
             <div className="min-w-0 flex-1 space-y-3">
               <ProgressMetric
-                label="Risque respecté"
+                label={t("Risque respecté")}
                 value={discipline.riskPct}
               />
-              <ProgressMetric label="RR respecté" value={discipline.rrPct} />
+              <ProgressMetric label={t("RR respecté")} value={discipline.rrPct} />
               <ProgressMetric
-                label="Instruments autorisés"
+                label={t("Instruments autorisés")}
                 value={discipline.assetPct}
               />
               <ProgressMetric
-                label="Sessions respectées"
+                label={t("Sessions respectées")}
                 value={discipline.sessionPct}
               />
               <ProgressMetric
-                label="Setups respectés"
+                label={t("Setups respectés")}
                 value={discipline.setupPct}
               />
             </div>
@@ -714,13 +715,13 @@ export default function TradingPlanPage() {
           <div className="flex items-center justify-between gap-3">
             <SectionTitle
               icon={<ClipboardCheck size={17} />}
-              title="Conformité des derniers trades"
+              title={t("Conformité des derniers trades")}
             />
             <Link
               href="/dashboard/journal"
               className="inline-flex items-center gap-1 text-[10px] font-semibold text-[color:var(--gold)]"
             >
-              Journal <ChevronRight size={13} />
+              {t("Journal")}<ChevronRight size={13} />
             </Link>
           </div>
 
@@ -737,13 +738,13 @@ export default function TradingPlanPage() {
                         {trade.symbol}
                       </span>
                       <span className="text-[8px] uppercase text-white/35">
-                        {trade.direction === "buy" ? "Achat" : "Vente"}
+                        {trade.direction === "buy" ? t("Achat") : t("Vente")}
                       </span>
                     </div>
                     <div className="mt-1 truncate text-[9px] text-white/30">
                       {reasons.length
                         ? reasons.join(" • ")
-                        : "Toutes les règles disponibles sont respectées"}
+                        : t("Toutes les règles disponibles sont respectées")}
                     </div>
                   </div>
 
@@ -755,12 +756,12 @@ export default function TradingPlanPage() {
                         : "border-amber-500/20 bg-amber-500/[0.07] text-amber-300",
                     ].join(" ")}
                   >
-                    {compliant ? "Conforme" : "À vérifier"}
+                    {compliant ? t("Conforme") : t("À vérifier")}
                   </span>
                 </div>
               ))
             ) : (
-              <EmptyState text="Pas encore assez de données de trades pour mesurer la conformité." />
+              <EmptyState text={t("Pas encore assez de données de trades pour mesurer la conformité.")} />
             )}
           </div>
         </div>
@@ -768,77 +769,77 @@ export default function TradingPlanPage() {
 
 </div>
       </details>
-      <div role="tablist" aria-label="Plan de trading" className="flex flex-wrap gap-5 border-b border-white/10">
-        {([["plan", "Mon plan"], ["discipline", "Ma discipline"], ["checklist", "Avant un trade"]] as const).map(([value, label]) => <button key={value} id={`plan-tab-${value}`} type="button" role="tab" aria-selected={activeTab === value} aria-controls={`plan-panel-${value}`} onClick={() => setActiveTab(value)} className={`min-h-12 border-b-2 text-xs font-medium transition ${activeTab === value ? "border-[color:var(--gold)] text-[color:var(--gold)]" : "border-transparent text-white/50 hover:text-white"}`}>{label}</button>)}
+      <div role="tablist" aria-label={t("Plan de trading")} className="flex flex-wrap gap-5 border-b border-white/10">
+        {([["plan", "Mon plan"], ["discipline", "Ma discipline"], ["checklist", "Avant un trade"]] as const).map(([value, label]) => <button key={value} id={`plan-tab-${value}`} type="button" role="tab" aria-selected={activeTab === value} aria-controls={`plan-panel-${value}`} onClick={() => setActiveTab(value)} className={`min-h-12 border-b-2 text-xs font-medium transition ${activeTab === value ? "border-[color:var(--gold)] text-[color:var(--gold)]" : "border-transparent text-white/50 hover:text-white"}`}>{t(label)}</button>)}
       </div>
 
       <div id="plan-panel-plan" role="tabpanel" aria-labelledby="plan-tab-plan" hidden={activeTab !== "plan"} className="space-y-4">
         <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6">
-          <PlanSection number="01" title="Mes limites de risque" description="Des plafonds, pas des objectifs à atteindre." />
+          <PlanSection number="01" title={t("Mes limites de risque")} description={t("Des plafonds, pas des objectifs à atteindre.")} />
           <div className="mt-5 grid gap-4 sm:grid-cols-3">
-            <NumberField label="Risque maximum par trade" value={plan.max_risk_percent} suffix="%" step="0.1" onChange={value => setPlan(current => ({ ...current, max_risk_percent: value }))} />
-            <NumberField label="Maximum de trades par jour" value={plan.max_trades_per_day} step="1" onChange={value => setPlan(current => ({ ...current, max_trades_per_day: value }))} />
-            <NumberField label="RR minimum" value={plan.minimum_rr} suffix="R" step="0.1" onChange={value => setPlan(current => ({ ...current, minimum_rr: value }))} />
+            <NumberField label={t("Risque maximum par trade")} value={plan.max_risk_percent} suffix="%" step="0.1" onChange={value => setPlan(current => ({ ...current, max_risk_percent: value }))} />
+            <NumberField label={t("Maximum de trades par jour")} value={plan.max_trades_per_day} step="1" onChange={value => setPlan(current => ({ ...current, max_trades_per_day: value }))} />
+            <NumberField label={t("RR minimum")} value={plan.minimum_rr} suffix="R" step="0.1" onChange={value => setPlan(current => ({ ...current, minimum_rr: value }))} />
           </div>
-          <p className="mt-2 text-xs text-white/45">Pour le nombre de trades, 0 conserve votre réglage actuel.</p>
-          <div className="mt-5"><FieldLabel>Sessions autorisées</FieldLabel><div className="mt-2 flex flex-wrap gap-2">
+          <p className="mt-2 text-xs text-white/45">{t("Pour le nombre de trades, 0 conserve votre réglage actuel.")}</p>
+          <div className="mt-5"><FieldLabel>{t("Sessions autorisées")}</FieldLabel><div className="mt-2 flex flex-wrap gap-2">
             {SESSION_OPTIONS.map(session => <button type="button" key={session} aria-pressed={plan.allowed_sessions.includes(session)} onClick={() => toggleSession(session)}
               className={`min-h-11 rounded-xl border px-4 text-xs transition ${plan.allowed_sessions.includes(session) ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]" : "border-[color:var(--border)] text-white/60"}`}>
-              {session === "Asian" ? "Asie" : session === "London" ? "Londres" : session}
+              {session === "Asian" ? t("Asie") : session === "London" ? t("Londres") : session}
             </button>)}
           </div></div>
         </section>
         <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6">
-          <PlanSection number="02" title="Mes marchés & instruments" description="Autorisez une famille entière, des symboles précis, ou combinez les deux." />
+          <PlanSection number="02" title={t("Mes marchés & instruments")} description={t("Autorisez une famille entière, des symboles précis, ou combinez les deux.")} />
           <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {ASSET_GROUPS.map(group => {
               const selected = plan.allowed_assets.some(value => value.toUpperCase() === group.value.toUpperCase());
               return <button key={group.value} type="button" aria-pressed={selected} onClick={() => toggleAssetGroup(group.value)}
                 className={`flex min-h-24 items-start justify-between gap-3 rounded-xl border p-4 text-left transition ${selected ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]" : "border-[color:var(--border)] bg-black/20 hover:border-white/25"}`}>
-                <span><span className="block text-sm font-medium text-white">{group.label}</span><span className="mt-1 block text-xs text-white/50">{group.description}</span></span>
+                <span><span className="block text-sm font-medium text-white">{t(group.label)}</span><span className="mt-1 block text-xs text-white/50">{t(group.description)}</span></span>
                 <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${selected ? "border-[color:var(--gold)] bg-[color:var(--gold)] text-black" : "border-white/20 text-transparent"}`}><Check size={13} /></span>
               </button>;
             })}
           </div>
-          <p className="mt-3 text-xs leading-5 text-white/50">Les catégories couvrent les symboles reconnus. Pour un nom propre à votre broker ou une action non reconnue, ajoutez son symbole exact ci-dessous. Le Forex n’inclut pas les métaux.</p>
-          <div className="mt-5 border-t border-white/10 pt-5"><label htmlFor="plan-assets" className="text-xs text-white/65">Ajouter des instruments précis</label>
+          <p className="mt-3 text-xs leading-5 text-white/50">{t("Les catégories couvrent les symboles reconnus. Pour un nom propre à votre broker ou une action non reconnue, ajoutez son symbole exact ci-dessous. Le Forex n’inclut pas les métaux.")}</p>
+          <div className="mt-5 border-t border-white/10 pt-5"><label htmlFor="plan-assets" className="text-xs text-white/65">{t("Ajouter des instruments précis")}</label>
             <div className="mt-2 flex flex-col gap-2 sm:flex-row"><input id="plan-assets" className={inputClass} value={assetInput} onChange={event => setAssetInput(event.target.value)}
-              onKeyDown={event => { if(event.key === "Enter") { event.preventDefault(); addAsset(); } }} placeholder="XAUUSD, EURUSD, NAS100…" />
-              <button type="button" onClick={addAsset} className="min-h-11 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-5 text-xs text-[color:var(--gold)]">Ajouter</button></div>
-            <p className="mt-2 text-xs text-white/45">Plusieurs symboles à la fois, séparés par une virgule. GOLD est reconnu comme XAUUSD.</p>
+              onKeyDown={event => { if(event.key === "Enter") { event.preventDefault(); addAsset(); } }} placeholder={t("XAUUSD, EURUSD, NAS100…")} />
+              <button type="button" onClick={addAsset} className="min-h-11 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-5 text-xs text-[color:var(--gold)]">{t("Ajouter")}</button></div>
+            <p className="mt-2 text-xs text-white/45">{t("Plusieurs symboles à la fois, séparés par une virgule. GOLD est reconnu comme XAUUSD.")}</p>
             <TagList values={plan.allowed_assets.filter(value => !isAssetGroup(value))} onRemove={value => setPlan(current => ({ ...current, allowed_assets: current.allowed_assets.filter(item => item !== value) }))} />
           </div>
           <div role="status" className="mt-4 flex gap-2 rounded-xl bg-[color:var(--gold-soft)] p-3 text-xs leading-5 text-[color:var(--gold)]"><CheckCircle2 size={15} className="mt-0.5 shrink-0" />
-            <span>{plan.allowed_assets.length ? "Autorisé : " + plan.allowed_assets.map(assetGroupLabel).join(" + ") : "Aucune restriction d’actif : tous les instruments sont autorisés, comme sur votre plan actuel."}</span>
+            <span>{plan.allowed_assets.length ? t("Autorisé : ") + plan.allowed_assets.map(value => isAssetGroup(value) ? t(assetGroupLabel(value)) : value).join(" + ") : t("Aucune restriction d’actif : tous les instruments sont autorisés, comme sur votre plan actuel.")}</span>
           </div>
         </section>
         <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6">
-          <PlanSection number="03" title="Mes conditions d’entrée" description="Gardez une liste courte de setups que vous maîtrisez." />
+          <PlanSection number="03" title={t("Mes conditions d’entrée")} description={t("Gardez une liste courte de setups que vous maîtrisez.")} />
           <div className="mt-4 flex flex-wrap gap-2">{["SMC", "Breakout", "Pullback"].map(setup => <button key={setup} type="button" aria-pressed={plan.allowed_setups.includes(setup)} onClick={() => setPlan(current => ({ ...current, allowed_setups: current.allowed_setups.includes(setup) ? current.allowed_setups.filter(item => item !== setup) : [...current.allowed_setups, setup] }))}
             className={`min-h-11 rounded-xl border px-4 text-xs ${plan.allowed_setups.includes(setup) ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]" : "border-[color:var(--border)] text-white/60"}`}>{setup}</button>)}</div>
-          <label htmlFor="plan-setup" className="mt-4 block text-xs text-white/65">Mon setup personnalisé</label><div className="mt-2 flex flex-col gap-2 sm:flex-row"><input id="plan-setup" className={inputClass} value={setupInput} onChange={event => setSetupInput(event.target.value)} onKeyDown={event => { if(event.key === "Enter") {event.preventDefault();addSetup();} }} placeholder="Ex. OTE + OB, CHoCH…" /><button type="button" onClick={addSetup} className="min-h-11 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-5 text-xs text-[color:var(--gold)]">Ajouter</button></div>
+          <label htmlFor="plan-setup" className="mt-4 block text-xs text-white/65">{t("Mon setup personnalisé")}</label><div className="mt-2 flex flex-col gap-2 sm:flex-row"><input id="plan-setup" className={inputClass} value={setupInput} onChange={event => setSetupInput(event.target.value)} onKeyDown={event => { if(event.key === "Enter") {event.preventDefault();addSetup();} }} placeholder={t("Ex. OTE + OB, CHoCH…")} /><button type="button" onClick={addSetup} className="min-h-11 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-5 text-xs text-[color:var(--gold)]">{t("Ajouter")}</button></div>
           <TagList values={plan.allowed_setups.filter(value => !["SMC", "Breakout", "Pullback"].includes(value))} onRemove={value => setPlan(current => ({ ...current, allowed_setups: current.allowed_setups.filter(item => item !== value) }))} />
         </section>
         <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6">
-          <PlanSection number="04" title="Mes engagements personnels" description="Une règle claire pour chaque moment où la discipline compte." />
-          <div className="mt-5 grid gap-4 md:grid-cols-2"><TextareaField label="Après une perte" value={plan.rule_after_one_loss} onChange={value => setPlan(current => ({ ...current, rule_after_one_loss: value }))} /><TextareaField label="Après deux pertes" value={plan.rule_after_two_losses} onChange={value => setPlan(current => ({ ...current, rule_after_two_losses: value }))} /></div>
-          <div className="mt-4"><TextField label="Mon objectif de la semaine" value={plan.weekly_goal} onChange={value => setPlan(current => ({ ...current, weekly_goal: value }))} /></div>
-          <details className="mt-5"><summary className="cursor-pointer text-xs text-white/60">Règles complémentaires</summary><div className="mt-3"><TextareaField label="Mes autres règles" value={plan.general_rules} onChange={value => setPlan(current => ({ ...current, general_rules: value }))} placeholder="Ne pas déplacer le stop-loss, pas de revenge trading…" /></div></details>
+          <PlanSection number="04" title={t("Mes engagements personnels")} description={t("Une règle claire pour chaque moment où la discipline compte.")} />
+          <div className="mt-5 grid gap-4 md:grid-cols-2"><TextareaField label={t("Après une perte")} value={plan.rule_after_one_loss} onChange={value => setPlan(current => ({ ...current, rule_after_one_loss: value }))} /><TextareaField label={t("Après deux pertes")} value={plan.rule_after_two_losses} onChange={value => setPlan(current => ({ ...current, rule_after_two_losses: value }))} /></div>
+          <div className="mt-4"><TextField label={t("Mon objectif de la semaine")} value={plan.weekly_goal} onChange={value => setPlan(current => ({ ...current, weekly_goal: value }))} /></div>
+          <details className="mt-5"><summary className="cursor-pointer text-xs text-white/60">{t("Règles complémentaires")}</summary><div className="mt-3"><TextareaField label={t("Mes autres règles")} value={plan.general_rules} onChange={value => setPlan(current => ({ ...current, general_rules: value }))} placeholder={t("Ne pas déplacer le stop-loss, pas de revenge trading…")} /></div></details>
         </section>
-        <div className="flex flex-wrap items-center justify-between gap-3"><span role="status" className="text-xs text-white/50">{hasChanges ? "Modifications non enregistrées · le bilan utilise votre plan enregistré." : "Votre plan est enregistré."}</span><button type="button" onClick={savePlan} disabled={savingPlan || loadError || !hasChanges} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-xs font-semibold text-black disabled:opacity-40">{savingPlan ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}Enregistrer mon plan</button></div>
+        <div className="flex flex-wrap items-center justify-between gap-3"><span role="status" className="text-xs text-white/50">{hasChanges ? t("Modifications non enregistrées · le bilan utilise votre plan enregistré.") : t("Votre plan est enregistré.")}</span><button type="button" onClick={savePlan} disabled={savingPlan || loadError || !hasChanges} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-xs font-semibold text-black disabled:opacity-40">{savingPlan ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}{t("Enregistrer mon plan")}</button></div>
       </div>
 
       <div id="plan-panel-discipline" role="tabpanel" aria-labelledby="plan-tab-discipline" hidden={activeTab !== "discipline"} className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--panel)] p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3"><SectionTitle icon={<ClipboardCheck size={17} />} title="Mes trades face à mon plan" /><Link href="/dashboard/journal" className="text-xs text-[color:var(--gold)]">Ouvrir le journal →</Link></div>
-        <p className="mt-2 text-xs text-white/50">Contrôle des règles disponibles sur les trades clôturés. Les données manquantes ne sont pas évaluées. Affichage des 100 derniers trades maximum.</p>
-        <div className="my-4 flex flex-wrap gap-2">{([["all", "Tous"], ["compliant", "Conformes"], ["outside", "Hors plan"]] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={tradeFilter === value} onClick={() => setTradeFilter(value)} className={`min-h-10 rounded-lg border px-3 text-xs ${tradeFilter === value ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]" : "border-[color:var(--border)] text-white/60"}`}>{label}</button>)}</div>
-        <div className="space-y-2">{discipline.recent.filter(item => tradeFilter === "all" || (tradeFilter === "compliant" ? item.compliant : !item.compliant)).map(({trade, compliant, reasons}) => <div key={trade.id} className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-white/10 p-3"><div><div className="text-sm font-medium text-white">{trade.symbol} <span className="text-xs font-normal text-white/50">· {trade.direction === "buy" ? "Achat" : "Vente"} · {tradeDateLabel(trade.trade_date)}</span></div><p className="mt-1 text-xs text-white/50">{reasons.length ? reasons.join(" · ") : "Toutes les règles disponibles sont respectées."}</p></div><span className={`text-xs ${compliant ? "text-emerald-400" : "text-amber-300"}`}>{compliant ? "Conforme" : "À vérifier"}</span></div>)}</div>
-        {!discipline.recent.filter(item => tradeFilter === "all" || (tradeFilter === "compliant" ? item.compliant : !item.compliant)).length ? <EmptyState text="Aucun trade dans cette sélection." /> : null}
+        <div className="flex flex-wrap items-center justify-between gap-3"><SectionTitle icon={<ClipboardCheck size={17} />} title={t("Mes trades face à mon plan")} /><Link href="/dashboard/journal" className="text-xs text-[color:var(--gold)]">{t("Ouvrir le journal →")}</Link></div>
+        <p className="mt-2 text-xs text-white/50">{t("Contrôle des règles disponibles sur les trades clôturés. Les données manquantes ne sont pas évaluées. Affichage des 100 derniers trades maximum.")}</p>
+        <div className="my-4 flex flex-wrap gap-2">{([["all", "Tous"], ["compliant", "Conformes"], ["outside", "Hors plan"]] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={tradeFilter === value} onClick={() => setTradeFilter(value)} className={`min-h-10 rounded-lg border px-3 text-xs ${tradeFilter === value ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]" : "border-[color:var(--border)] text-white/60"}`}>{t(label)}</button>)}</div>
+        <div className="space-y-2">{discipline.recent.filter(item => tradeFilter === "all" || (tradeFilter === "compliant" ? item.compliant : !item.compliant)).map(({trade, compliant, reasons}) => <div key={trade.id} className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-white/10 p-3"><div><div className="text-sm font-medium text-white">{trade.symbol} <span className="text-xs font-normal text-white/50">· {trade.direction === "buy" ? t("Achat") : t("Vente")} · {tradeDateLabel(trade.trade_date)}</span></div><p className="mt-1 text-xs text-white/50">{reasons.length ? reasons.join(" · ") : t("Toutes les règles disponibles sont respectées.")}</p></div><span className={`text-xs ${compliant ? "text-emerald-400" : "text-amber-300"}`}>{compliant ? t("Conforme") : t("À vérifier")}</span></div>)}</div>
+        {!discipline.recent.filter(item => tradeFilter === "all" || (tradeFilter === "compliant" ? item.compliant : !item.compliant)).length ? <EmptyState text={t("Aucun trade dans cette sélection.")} /> : null}
       </div>
       <div id="plan-panel-checklist" role="tabpanel" aria-labelledby="plan-tab-checklist" hidden={activeTab !== "checklist"} className="space-y-4">
       <section className="rounded-[22px] border border-[color:var(--gold-border)] bg-[color:var(--panel)] p-5">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <SectionTitle icon={<ClipboardCheck size={18} />} title="Checklist avant trade" />
+          <SectionTitle icon={<ClipboardCheck size={18} />} title={t("Checklist avant trade")} />
 
           <div className="flex items-center gap-3">
             <div className="text-right">
@@ -846,8 +847,7 @@ export default function TradingPlanPage() {
                 {validatedCount} / {checklistItems.length}
               </div>
               <div className="text-[9px] text-[color:var(--muted)]">
-                critères validés
-              </div>
+                {t("critères validés")}</div>
             </div>
 
             <div
@@ -870,15 +870,15 @@ export default function TradingPlanPage() {
           />
         </div>
 
-        <p className="mt-2 text-xs text-white/50">Contrôle basé sur votre plan enregistré : risque ≤ {savedPlan.max_risk_percent}% · RR ≥ 1:{savedPlan.minimum_rr}.</p>
+        <p className="mt-2 text-xs text-white/50">{t("Contrôle basé sur votre plan enregistré : risque ≤")}{" "}{savedPlan.max_risk_percent}{t("% · RR ≥ 1:")}{savedPlan.minimum_rr}.</p>
         {checklist.symbol.trim() ? (
           <div role="status" className="mt-4 rounded-xl border border-[color:var(--border)] p-3 text-xs text-white/70">
-            {planAllowsAsset(savedPlan.allowed_assets, checklist.symbol) ? "Instrument autorisé dans votre plan enregistré." : "Cet instrument est hors de votre plan enregistré."}
+            {planAllowsAsset(savedPlan.allowed_assets, checklist.symbol) ? t("Instrument autorisé dans votre plan enregistré.") : t("Cet instrument est hors de votre plan enregistré.")}
           </div>
         ) : null}
         <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-4">
           <TextField
-            label="Actif"
+            label={t("Actif")}
             value={checklist.symbol}
             onChange={(value) =>
               setChecklist((current) => ({
@@ -886,11 +886,11 @@ export default function TradingPlanPage() {
                 symbol: value.toUpperCase(),
               }))
             }
-            placeholder="XAUUSD"
+            placeholder={t("XAUUSD")}
           />
 
           <SelectField
-            label="Sens"
+            label={t("Sens")}
             value={checklist.direction}
             onChange={(value) =>
               setChecklist((current) => ({
@@ -899,12 +899,12 @@ export default function TradingPlanPage() {
               }))
             }
           >
-            <option value="buy">Achat</option>
-            <option value="sell">Vente</option>
+            <option value="buy">{t("Achat")}</option>
+            <option value="sell">{t("Vente")}</option>
           </SelectField>
 
           <TextField
-            label="Timeframe"
+            label={t("Timeframe")}
             value={checklist.timeframe}
             onChange={(value) =>
               setChecklist((current) => ({
@@ -912,11 +912,11 @@ export default function TradingPlanPage() {
                 timeframe: value,
               }))
             }
-            placeholder="H4 / M15..."
+            placeholder={t("H4 / M15...")}
           />
 
           <SelectField
-            label="Session"
+            label={t("Session")}
             value={checklist.session}
             onChange={(value) =>
               setChecklist((current) => ({
@@ -925,18 +925,18 @@ export default function TradingPlanPage() {
               }))
             }
           >
-            <option value="">Sélectionner</option>
-            <option value="asian">Asian</option>
-            <option value="london">London</option>
-            <option value="new_york">New York</option>
+            <option value="">{t("Sélectionner")}</option>
+            <option value="asian">{t("Asian")}</option>
+            <option value="london">{t("London")}</option>
+            <option value="new_york">{t("New York")}</option>
           </SelectField>
         </div>
 
         <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
           <ChecklistItem
             checked={checklist.trend_validated}
-            label="Tendance validée"
-            description="Le sens du trade est cohérent avec ton analyse."
+            label={t("Tendance validée")}
+            description={t("Le sens du trade est cohérent avec ton analyse.")}
             onChange={() =>
               setChecklist((current) => ({
                 ...current,
@@ -946,8 +946,8 @@ export default function TradingPlanPage() {
           />
           <ChecklistItem
             checked={checklist.zone_validated}
-            label="Zone validée"
-            description="Le prix se trouve dans ta zone de travail."
+            label={t("Zone validée")}
+            description={t("Le prix se trouve dans ta zone de travail.")}
             onChange={() =>
               setChecklist((current) => ({
                 ...current,
@@ -957,8 +957,8 @@ export default function TradingPlanPage() {
           />
           <ChecklistItem
             checked={checklist.setup_validated}
-            label="Setup présent"
-            description="Ton setup d’entrée est clairement identifié."
+            label={t("Setup présent")}
+            description={t("Ton setup d’entrée est clairement identifié.")}
             onChange={() =>
               setChecklist((current) => ({
                 ...current,
@@ -968,8 +968,8 @@ export default function TradingPlanPage() {
           />
           <ChecklistItem
             checked={checklist.rr_validated}
-            label="RR respecté"
-            description={`Le trade respecte au minimum ton RR 1:${savedPlan.minimum_rr}.`}
+            label={t("RR respecté")}
+            description={t("Le trade respecte au minimum ton RR 1:") + savedPlan.minimum_rr + "."}
             onChange={() =>
               setChecklist((current) => ({
                 ...current,
@@ -979,8 +979,8 @@ export default function TradingPlanPage() {
           />
           <ChecklistItem
             checked={checklist.risk_validated}
-            label="Risque respecté"
-            description={`Le risque ne dépasse pas ${savedPlan.max_risk_percent}% du capital.`}
+            label={t("Risque respecté")}
+            description={(t("Le risque ne dépasse pas ") + (savedPlan.max_risk_percent) + t("% du capital."))}
             onChange={() =>
               setChecklist((current) => ({
                 ...current,
@@ -990,8 +990,8 @@ export default function TradingPlanPage() {
           />
           <ChecklistItem
             checked={checklist.news_checked}
-            label="News vérifiées"
-            description="Aucune annonce importante imminente n’a été oubliée."
+            label={t("News vérifiées")}
+            description={t("Aucune annonce importante imminente n’a été oubliée.")}
             onChange={() =>
               setChecklist((current) => ({
                 ...current,
@@ -1001,8 +1001,8 @@ export default function TradingPlanPage() {
           />
           <ChecklistItem
             checked={checklist.plan_respected}
-            label="Conforme à mon plan"
-            description="Le trade respecte l’ensemble de tes règles personnelles."
+            label={t("Conforme à mon plan")}
+            description={t("Le trade respecte l’ensemble de tes règles personnelles.")}
             onChange={() =>
               setChecklist((current) => ({
                 ...current,
@@ -1014,7 +1014,7 @@ export default function TradingPlanPage() {
 
         <div className="mt-5">
           <TextareaField
-            label="Notes avant trade"
+            label={t("Notes avant trade")}
             value={checklist.notes}
             onChange={(value) =>
               setChecklist((current) => ({
@@ -1022,7 +1022,7 @@ export default function TradingPlanPage() {
                 notes: value,
               }))
             }
-            placeholder="Pourquoi je souhaite prendre ce trade ?"
+            placeholder={t("Pourquoi je souhaite prendre ce trade ?")}
           />
         </div>
 
@@ -1043,12 +1043,12 @@ export default function TradingPlanPage() {
 
             <div>
               <div className="text-sm font-semibold text-white">
-                {allValidated ? "Checklist complète" : "Checklist incomplète"}
+                {allValidated ? t("Checklist complète") : t("Checklist incomplète")}
               </div>
               <p className="mt-1 text-[10px] text-[color:var(--muted)]">
                 {allValidated
-                  ? "Tous les critères de ton plan sont validés."
-                  : "Vérifie les critères restants avant ton entrée."}
+                  ? t("Tous les critères de ton plan sont validés.")
+                  : t("Vérifie les critères restants avant ton entrée.")}
               </p>
             </div>
           </div>
@@ -1064,17 +1064,15 @@ export default function TradingPlanPage() {
             ) : (
               <ClipboardCheck size={14} />
             )}
-            Enregistrer la checklist
-          </button>
+            {t("Enregistrer la checklist")}</button>
         </div>
       </section>
 
       <section className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5">
         <div className="flex items-center justify-between gap-3">
-          <SectionTitle icon={<BarChart3 size={17} />} title="Historique des checklists" />
+          <SectionTitle icon={<BarChart3 size={17} />} title={t("Historique des checklists")} />
           <span className="text-[9px] text-white/30">
-            {checklistHistory.length} récente(s)
-          </span>
+            {checklistHistory.length} {t("récente(s)")}</span>
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -1101,12 +1099,12 @@ export default function TradingPlanPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="text-xs font-semibold text-white">
-                        {item.symbol || "Trade sans actif"}
+                        {item.symbol || t("Trade sans actif")}
                       </div>
                       <div className="mt-1 text-[9px] text-white/30">
                         {item.created_at
                           ? tradeDateLabel(item.created_at)
-                          : "Date indisponible"}
+                          : t("Date indisponible")}
                         {item.session ? ` • ${item.session}` : ""}
                       </div>
                     </div>
@@ -1132,7 +1130,7 @@ export default function TradingPlanPage() {
               );
             })
           ) : (
-            <EmptyState text="Tes prochaines checklists enregistrées apparaîtront ici." />
+            <EmptyState text={t("Tes prochaines checklists enregistrées apparaîtront ici.")} />
           )}
         </div>
       </section>
@@ -1148,17 +1146,18 @@ const inputClass = `
 `;
 
 function DisciplineRing({ score }: { score: number | null }) {
+  const { t } = useLocale();
   const safe = score ?? 0;
   const label =
     score == null
-      ? "À mesurer"
+      ? t("À mesurer")
       : score >= 85
       ? "Excellent"
       : score >= 70
-      ? "Bon"
+      ? t("Bon")
       : score >= 50
-      ? "À renforcer"
-      : "Hors plan";
+      ? t("À renforcer")
+      : t("Hors plan");
 
   return (
     <div className="relative flex h-28 w-28 shrink-0 items-center justify-center rounded-full border border-[color:var(--gold-border)] bg-black/25">
@@ -1175,7 +1174,7 @@ function DisciplineRing({ score }: { score: number | null }) {
           {score != null ? <span className="text-sm text-white/35">/100</span> : null}
         </div>
         <div className="mt-1 text-[9px] font-semibold text-[color:var(--gold)]">
-          {label}
+          {t(label)}
         </div>
       </div>
     </div>
@@ -1189,12 +1188,14 @@ function ProgressMetric({
   label: string;
   value: number | null;
 }) {
+  const { t } = useLocale();
+
   return (
     <div>
       <div className="flex items-center justify-between gap-3">
         <span className="text-[9px] text-white/40">{label}</span>
         <span className="text-[9px] font-semibold text-white/65">
-          {value == null ? "N/D" : pct(value)}
+          {value == null ? t("N/D") : pct(value)}
         </span>
       </div>
       <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/5">
@@ -1218,6 +1219,8 @@ function ResultCompareCard({
   pnlByCurrency: Record<string, number>;
   positive: boolean;
 }) {
+  const { t } = useLocale();
+
   const totals = formatCurrencyTotals(pnlByCurrency);
 
   return (
@@ -1231,10 +1234,10 @@ function ResultCompareCard({
             )) : <span className="text-white/45">—</span>}
           </div>
           {Object.hasOwn(pnlByCurrency, "UNKNOWN") ? (
-            <div className="mt-1 text-[9px] text-amber-300">Devise indisponible pour certains trades</div>
+            <div className="mt-1 text-[9px] text-amber-300">{t("Devise indisponible pour certains trades")}</div>
           ) : null}
           <div className="mt-1 text-[9px] text-white/30">
-            {count} trade{count !== 1 ? "s" : ""}
+            {count} {t("trade")}{count !== 1 ? t("s") : ""}
           </div>
         </div>
 
@@ -1388,8 +1391,10 @@ function TagList({
   values: string[];
   onRemove: (value: string) => void;
 }) {
+  const { t } = useLocale();
+
   if (values.length === 0) {
-    return <div className="mt-3 text-[10px] text-white/25">Aucun élément ajouté.</div>;
+    return <div className="mt-3 text-[10px] text-white/25">{t("Aucun élément ajouté.")}</div>;
   }
 
   return (

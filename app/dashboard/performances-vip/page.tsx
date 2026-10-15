@@ -1,6 +1,7 @@
 "use client";
 
 import type {Trade as TelegramTrade} from "@/lib/telegram/engine";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import VipTelegram from "@/components/telegram/VipTelegram";
 
 import {
@@ -189,12 +190,12 @@ function numberOrZero(
 }
 
 function formatDate(
-  value: string
+  value: string, locale: "fr" | "en" = "fr"
 ) {
   return new Date(
     value
   ).toLocaleDateString(
-    "fr-FR",
+    (locale === "en" ? "en-US" : "fr-FR"),
     {
       day: "2-digit",
       month: "short",
@@ -328,6 +329,7 @@ function startOfPeriod(
 ========================================================= */
 
 export default function PerformancesVipPage() {
+  const { t: tr, locale } = useLocale();
   const [telegramTrades,setTelegramTrades]=useState<TelegramTrade[]>([]);
   const [manualError,setManualError]=useState('');
   const [source,setSource]=useState<'all'|'telegram'|'manual'>('all');
@@ -474,7 +476,7 @@ export default function PerformancesVipPage() {
       if (
         tradesResult.error
       ) {
-        setManualError("Historique manuel indisponible : les totaux affichés peuvent être incomplets.");
+        setManualError(tr("Historique manuel indisponible : les totaux affichés peuvent être incomplets."));
         console.error(
           "Erreur trades VIP :",
           tradesResult.error
@@ -564,12 +566,12 @@ export default function PerformancesVipPage() {
     ];
 
     if (!allowed.includes(file.type)) {
-      alert("Utilise une image PNG, JPG/JPEG ou WEBP.");
+      alert(tr("Utilise une image PNG, JPG/JPEG ou WEBP."));
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      alert("La capture ne doit pas dépasser 5 Mo.");
+      alert(tr("La capture ne doit pas dépasser 5 Mo."));
       return;
     }
 
@@ -597,7 +599,7 @@ export default function PerformancesVipPage() {
 
   async function uploadVipScreenshot(file: File) {
     if (!userId) {
-      throw new Error("Utilisateur non connecté.");
+      throw new Error(tr("Utilisateur non connecté."));
     }
 
     const extension =
@@ -672,11 +674,11 @@ export default function PerformancesVipPage() {
       direction:t.side.toLowerCase() as Direction,entry_price:t.entry,stop_loss:t.sl,
       take_profit:t.target?t.targets[t.target-1]:t.targets[0]??null,
       status:(t.status==='be'?'breakeven':t.status==='pending'?'open':t.status) as TradeStatus,
-      result_r:t.r??0,pips:0,setup:`Telegram · ${t.target?'TP'+t.target:'Signal'}`,
+      result_r:t.r??0,pips:0,setup:`Telegram · ${t.target?'TP'+t.target:tr("Signal")}`,
       timeframe:null,session:null,comment:null,screenshot_url:null,created_by:null,
       created_at:t.date,updated_at:t.date
     }))
-  ].sort((a,b)=>b.trade_date.localeCompare(a.trade_date)||a.id-b.id),[trades,telegramTrades]);
+  ].sort((a,b)=>b.trade_date.localeCompare(a.trade_date)||a.id-b.id),[trades,telegramTrades, tr]);
 
   const filteredTrades =
     useMemo(() => {
@@ -1134,7 +1136,7 @@ export default function PerformancesVipPage() {
 
     if (!symbol) {
       alert(
-        "Renseigne l'actif."
+        tr("Renseigne l'actif.")
       );
 
       return;
@@ -1301,7 +1303,7 @@ export default function PerformancesVipPage() {
 
       alert(
         error?.message ||
-          "Impossible d'enregistrer le trade."
+          tr("Impossible d'enregistrer le trade.")
       );
     } finally {
       setSaving(false);
@@ -1321,7 +1323,7 @@ export default function PerformancesVipPage() {
 
     const confirmed =
       window.confirm(
-        `Supprimer le trade ${trade.symbol} ?`
+        (tr("Supprimer le trade ") + (trade.symbol) + " ?")
       );
 
     if (!confirmed) {
@@ -1343,7 +1345,7 @@ export default function PerformancesVipPage() {
 
     if (error) {
       alert(
-        "Impossible de supprimer le trade."
+        tr("Impossible de supprimer le trade.")
       );
 
       return;
@@ -1372,9 +1374,7 @@ export default function PerformancesVipPage() {
   if (loading) {
     return (
       <div className="min-h-[70vh] flex items-center justify-center">
-        <div className="text-sm text-[color:var(--muted)]">
-          Chargement des performances VIP…
-        </div>
+        <div className="text-sm text-[color:var(--muted)]">{tr("Chargement des performances VIP…")}</div>
       </div>
     );
   }
@@ -1415,18 +1415,11 @@ export default function PerformancesVipPage() {
             >
               <Activity
                 size={12}
-              />
+              />{tr("Groupe privé InvestPro")}</div>
 
-              Groupe privé InvestPro
-            </div>
+            <h1 className="text-2xl font-semibold text-white">{tr("Performances VIP")}</h1>
 
-            <h1 className="text-2xl font-semibold text-white">
-              Performances VIP
-            </h1>
-
-            <p className="mt-1 text-sm text-[color:var(--muted)]">
-              Signaux Telegram et trades manuels réunis. Résultats en R ; Telegram suit le meilleur TP annoncé.
-            </p>
+            <p className="mt-1 text-sm text-[color:var(--muted)]">{tr("Signaux Telegram et trades manuels réunis. Résultats en R ; Telegram suit le meilleur TP annoncé.")}</p>
           </div>
 
           {isAdmin ? (
@@ -1453,10 +1446,7 @@ export default function PerformancesVipPage() {
             >
               <Plus
                 size={16}
-              />
-
-              Ajouter un trade manuel
-            </button>
+              />{tr("Ajouter un trade manuel")}</button>
           ) : null}
         </div>
 
@@ -1492,22 +1482,11 @@ export default function PerformancesVipPage() {
 
           <div className="relative z-10 flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
             <div>
-              <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--gold)]">
-                Bilan du groupe VIP
-              </div>
+              <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--gold)]">{tr("Bilan du groupe VIP")}</div>
 
-              <h2 className="mt-2 text-xl font-semibold text-white lg:text-2xl">
-                Suivi transparent des
-                performances
-              </h2>
+              <h2 className="mt-2 text-xl font-semibold text-white lg:text-2xl">{tr("Suivi transparent des performances")}</h2>
 
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-[color:var(--muted)]">
-                Chaque trade publié dans
-                le groupe est enregistré
-                ici afin de conserver un
-                historique clair des
-                résultats.
-              </p>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-[color:var(--muted)]">{tr("Chaque trade publié dans le groupe est enregistré ici afin de conserver un historique clair des résultats.")}</p>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -1521,9 +1500,7 @@ export default function PerformancesVipPage() {
                     "7d"
                   )
                 }
-              >
-                7 jours
-              </PeriodButton>
+              >{tr("7 jours")}</PeriodButton>
 
               <PeriodButton
                 active={
@@ -1535,9 +1512,7 @@ export default function PerformancesVipPage() {
                     "month"
                   )
                 }
-              >
-                Ce mois
-              </PeriodButton>
+              >{tr("Ce mois")}</PeriodButton>
 
               <PeriodButton
                 active={
@@ -1549,9 +1524,7 @@ export default function PerformancesVipPage() {
                     "3m"
                   )
                 }
-              >
-                3 mois
-              </PeriodButton>
+              >{tr("3 mois")}</PeriodButton>
 
               <PeriodButton
                 active={
@@ -1563,9 +1536,7 @@ export default function PerformancesVipPage() {
                     "year"
                   )
                 }
-              >
-                Cette année
-              </PeriodButton>
+              >{tr("Cette année")}</PeriodButton>
 
               <PeriodButton
                 active={
@@ -1577,18 +1548,16 @@ export default function PerformancesVipPage() {
                     "all"
                   )
                 }
-              >
-                Tout
-              </PeriodButton>
+              >{tr("Tout")}</PeriodButton>
             </div>
           </div>
         </section>
 
         <div className="flex flex-wrap items-center gap-3">
-          <label>Source <select className="rounded-xl border border-white/20 bg-black p-3" value={source} onChange={e=>setSource(e.target.value as typeof source)}>
-            <option value="all">Tous les trades</option><option value="telegram">Telegram</option><option value="manual">Manuel</option>
+          <label>{tr("Source ")}<select className="rounded-xl border border-white/20 bg-black p-3" value={source} onChange={e=>setSource(e.target.value as typeof source)}>
+            <option value="all">{tr("Tous les trades")}</option><option value="telegram">{tr("Telegram")}</option><option value="manual">{tr("Manuel")}</option>
           </select></label>
-          <span className="text-sm text-[color:var(--muted)]">{filteredTrades.filter(t=>t.status==='open').length} en attente · {filteredTrades.filter(t=>t.status==='review').length} à vérifier · {filteredTrades.filter(t=>t.status==='cancelled').length} annulé(s)</span>
+          <span className="text-sm text-[color:var(--muted)]">{filteredTrades.filter(t=>t.status==='open').length}{tr(" en attente · ")}{filteredTrades.filter(t=>t.status==='review').length}{tr(" à vérifier · ")}{filteredTrades.filter(t=>t.status==='cancelled').length}{tr(" annulé(s)")}</span>
         </div>
         {/* KPI */}
 
@@ -1607,7 +1576,7 @@ export default function PerformancesVipPage() {
                 size={17}
               />
             }
-            label="Trades clôturés"
+            label={tr("Trades clôturés")}
             value={String(
               stats.total
             )}
@@ -1619,7 +1588,7 @@ export default function PerformancesVipPage() {
                 size={17}
               />
             }
-            label="Wins"
+            label={tr("Wins")}
             value={String(
               stats.wins
             )}
@@ -1632,7 +1601,7 @@ export default function PerformancesVipPage() {
                 size={17}
               />
             }
-            label="Losses"
+            label={tr("Losses")}
             value={String(
               stats.losses
             )}
@@ -1645,7 +1614,7 @@ export default function PerformancesVipPage() {
                 size={17}
               />
             }
-            label="BE"
+            label={tr("BE")}
             value={String(
               stats.breakevens
             )}
@@ -1657,7 +1626,7 @@ export default function PerformancesVipPage() {
                 size={17}
               />
             }
-            label="Winrate hors BE"
+            label={tr("Winrate hors BE")}
             value={`${stats.winrate.toFixed(
               1
             )}%`}
@@ -1669,7 +1638,7 @@ export default function PerformancesVipPage() {
                 size={17}
               />
             }
-            label="Résultat"
+            label={tr("Résultat")}
             value={`${stats.totalR >= 0 ? "+" : ""}${stats.totalR.toFixed(
               2
             )}R`}
@@ -1681,7 +1650,7 @@ export default function PerformancesVipPage() {
               stats.totalR <
               0
             }
-            sub={filteredTrades.some(t=>t.source==='telegram')?'Telegram + saisies manuelles':`${stats.totalPips.toFixed(0)} pips`}
+            sub={filteredTrades.some(t=>t.source==='telegram')?tr("Telegram + saisies manuelles"):`${stats.totalPips.toFixed(0)} pips`}
           />
         </section>
 
@@ -1698,14 +1667,9 @@ export default function PerformancesVipPage() {
         >
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h2 className="text-sm font-semibold text-white">
-                Évolution de la performance
-              </h2>
+              <h2 className="text-sm font-semibold text-white">{tr("Évolution de la performance")}</h2>
 
-              <p className="mt-1 text-xs text-[color:var(--muted)]">
-                Résultat cumulé en R sur
-                la période sélectionnée.
-              </p>
+              <p className="mt-1 text-xs text-[color:var(--muted)]">{tr("Résultat cumulé en R sur la période sélectionnée.")}</p>
             </div>
 
             <div className="text-right">
@@ -1728,9 +1692,7 @@ export default function PerformancesVipPage() {
                   : ""}
                 {stats.totalR.toFixed(
                   2
-                )}
-                R
-              </div>
+                )}{tr("R")}</div>
             </div>
           </div>
 
@@ -1801,12 +1763,8 @@ export default function PerformancesVipPage() {
                   <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]">
                     <BarChart3 size={20} aria-hidden="true" />
                   </span>
-                  <span className="text-sm font-semibold text-white">
-                    Votre courbe commencera ici
-                  </span>
-                  <span className="mt-1 text-xs leading-5 text-[color:var(--muted)]">
-                    Ajoutez un trade VIP pour suivre votre résultat cumulé en R sur cette période.
-                  </span>
+                  <span className="text-sm font-semibold text-white">{tr("Votre courbe commencera ici")}</span>
+                  <span className="mt-1 text-xs leading-5 text-[color:var(--muted)]">{tr("Ajoutez un trade VIP pour suivre votre résultat cumulé en R sur cette période.")}</span>
                 </div>
               </div>
             )}
@@ -1838,18 +1796,13 @@ export default function PerformancesVipPage() {
             "
           >
             <div>
-              <h2 className="text-sm font-semibold text-white">
-                Historique des trades VIP
-              </h2>
+              <h2 className="text-sm font-semibold text-white">{tr("Historique des trades VIP")}</h2>
 
               <p className="mt-1 text-xs text-[color:var(--muted)]">
-                {filteredTrades.length} trade
-                {filteredTrades.length !==
+                {filteredTrades.length}{tr(" trade")}{filteredTrades.length !==
                 1
                   ? "s"
-                  : ""}{" "}
-                affiché
-                {filteredTrades.length !==
+                  : ""}{" "}{tr("affiché")}{filteredTrades.length !==
                 1
                   ? "s"
                   : ""}
@@ -1889,7 +1842,7 @@ export default function PerformancesVipPage() {
                       .value
                   )
                 }
-                placeholder="Rechercher GOLD, setup..."
+                placeholder={tr("Rechercher GOLD, setup...")}
                 className="
                   w-full
                   bg-transparent
@@ -1922,11 +1875,11 @@ export default function PerformancesVipPage() {
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-semibold text-white">{trade.symbol}</span>
                           <span className={["rounded-lg border px-2 py-1 text-[9px] font-bold", statusClass(trade.status)].join(" ")}>
-                            {statusLabel(trade.status)}
+                            {tr(statusLabel(trade.status))}
                           </span>
                         </div>
                         <div className="mt-1 text-[10px] text-[color:var(--muted)]">
-                          {formatDate(trade.trade_date)} • {trade.setup || "Manuel"}
+                          {formatDate(trade.trade_date, locale)} • {trade.setup || tr("Manuel")}
                         </div>
                       </div>
                     </div>
@@ -1937,7 +1890,7 @@ export default function PerformancesVipPage() {
 
                   <div className="mt-4 grid grid-cols-1 gap-2">
                     <div className="rounded-xl border border-white/[0.06] bg-black/20 p-3">
-                      <div className="text-[8px] text-white/30">Entrée</div>
+                      <div className="text-[8px] text-white/30">{tr("Entrée")}</div>
                       <div className="mt-1 truncate text-[10px] font-semibold text-white">{trade.entry_price ?? "—"}</div>
                     </div>
 
@@ -1946,7 +1899,7 @@ export default function PerformancesVipPage() {
 
                   <div className="mt-3 flex items-center justify-between gap-3 border-t border-white/[0.05] pt-3">
                     <div className="text-[10px] text-[color:var(--muted)]">
-                      {trade.source==='telegram'?'Telegram · synchronisé':`Manuel · ${trade.pips} pips`}
+                      {trade.source==='telegram'?tr("Telegram · synchronisé"):`Manuel · ${trade.pips} pips`}
                     </div>
                     <div className="flex items-center gap-2">
                       {screenshotUrls[trade.id] ? (
@@ -1970,48 +1923,28 @@ export default function PerformancesVipPage() {
               <table className="w-full min-w-[1000px]">
                 <thead>
                   <tr className="border-b border-white/[0.05]">
-                    <TableHead>
-                      Date
-                    </TableHead>
+                    <TableHead>{tr("Date")}</TableHead>
 
-                    <TableHead>
-                      Actif
-                    </TableHead>
+                    <TableHead>{tr("Actif")}</TableHead>
 
-                    <TableHead>
-                      Direction
-                    </TableHead>
+                    <TableHead>{tr("Direction")}</TableHead>
 
-                    <TableHead>
-                      Statut
-                    </TableHead>
+                    <TableHead>{tr("Statut")}</TableHead>
 
-                    <TableHead>
-                      Entrée
-                    </TableHead>
+                    <TableHead>{tr("Entrée")}</TableHead>
 
 
 
-                    <TableHead>
-                      Résultat
-                    </TableHead>
+                    <TableHead>{tr("Résultat")}</TableHead>
 
-                    <TableHead>
-                      Pips
-                    </TableHead>
+                    <TableHead>{tr("Pips")}</TableHead>
 
-                    <TableHead>
-                      Setup
-                    </TableHead>
+                    <TableHead>{tr("Setup")}</TableHead>
 
-                    <TableHead>
-                      Graphique
-                    </TableHead>
+                    <TableHead>{tr("Graphique")}</TableHead>
 
                     {isAdmin ? (
-                      <TableHead>
-                        Actions
-                      </TableHead>
+                      <TableHead>{tr("Actions")}</TableHead>
                     ) : null}
                   </tr>
                 </thead>
@@ -2043,7 +1976,7 @@ export default function PerformancesVipPage() {
                             />
 
                             {formatDate(
-                              trade.trade_date
+                              trade.trade_date, locale
                             )}
                           </div>
                         </TableCell>
@@ -2083,9 +2016,9 @@ export default function PerformancesVipPage() {
                               " "
                             )}
                           >
-                            {statusLabel(
+                            {tr(statusLabel(
                               trade.status
-                            )}
+                            ))}
                           </span>
                         </TableCell>
 
@@ -2129,7 +2062,7 @@ export default function PerformancesVipPage() {
                         </TableCell>
 
                         <TableCell>
-                          {trade.source==='telegram'?trade.setup:`Manuel · ${trade.setup||"Sans setup"}`}
+                          {trade.source==='telegram'?trade.setup:`Manuel · ${trade.setup||tr("Sans setup")}`}
                         </TableCell>
 
                         <TableCell>
@@ -2156,15 +2089,13 @@ export default function PerformancesVipPage() {
                                 text-[color:var(--gold)]
                               "
                             >
-                              <Eye size={12} />
-                              Voir
-                            </button>
+                              <Eye size={12} />{tr("Voir")}</button>
                           ) : (
                             "—"
                           )}
                         </TableCell>
 
-                        {isAdmin && trade.source==="telegram" ? <TableCell>Synchronisé</TableCell> : isAdmin ? (
+                        {isAdmin && trade.source==="telegram" ? <TableCell>{tr("Synchronisé")}</TableCell> : isAdmin ? (
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <button
@@ -2241,14 +2172,9 @@ export default function PerformancesVipPage() {
                 className="mx-auto text-white/15"
               />
 
-              <div className="mt-4 text-sm font-semibold text-white">
-                Aucun trade VIP
-              </div>
+              <div className="mt-4 text-sm font-semibold text-white">{tr("Aucun trade VIP")}</div>
 
-              <div className="mt-1 text-xs text-[color:var(--muted)]">
-                Aucun trade ne correspond
-                à la période sélectionnée.
-              </div>
+              <div className="mt-1 text-xs text-[color:var(--muted)]">{tr("Aucun trade ne correspond à la période sélectionnée.")}</div>
             </div>
           )}
         </section>
@@ -2304,15 +2230,11 @@ export default function PerformancesVipPage() {
               <div>
                 <h2 className="text-lg font-semibold text-white">
                   {editingTrade
-                    ? "Modifier le trade VIP"
-                    : "Ajouter un trade manuel"}
+                    ? tr("Modifier le trade VIP")
+                    : tr("Ajouter un trade manuel")}
                 </h2>
 
-                <p className="mt-1 text-xs text-[color:var(--muted)]">
-                  Ce trade sera visible
-                  dans les performances
-                  officielles du groupe.
-                </p>
+                <p className="mt-1 text-xs text-[color:var(--muted)]">{tr("Ce trade sera visible dans les performances officielles du groupe.")}</p>
               </div>
 
               <button
@@ -2345,7 +2267,7 @@ export default function PerformancesVipPage() {
 
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <Field
-                  label="Date"
+                  label={tr("Date")}
                 >
                   <input
                     type="date"
@@ -2370,7 +2292,7 @@ export default function PerformancesVipPage() {
                 </Field>
 
                 <Field
-                  label="Actif"
+                  label={tr("Actif")}
                 >
                   <input
                     value={
@@ -2388,7 +2310,7 @@ export default function PerformancesVipPage() {
                             .toUpperCase(),
                       })
                     }
-                    placeholder="GOLD, EURUSD..."
+                    placeholder={tr("GOLD, EURUSD...")}
                     className={
                       inputClass
                     }
@@ -2396,7 +2318,7 @@ export default function PerformancesVipPage() {
                 </Field>
 
                 <Field
-                  label="Direction"
+                  label={tr("Direction")}
                 >
                   <select
                     value={
@@ -2417,18 +2339,14 @@ export default function PerformancesVipPage() {
                       inputClass
                     }
                   >
-                    <option value="buy">
-                      BUY
-                    </option>
+                    <option value="buy">{tr("BUY")}</option>
 
-                    <option value="sell">
-                      SELL
-                    </option>
+                    <option value="sell">{tr("SELL")}</option>
                   </select>
                 </Field>
 
                 <Field
-                  label="Résultat"
+                  label={tr("Résultat")}
                 >
                   <select
                     value={
@@ -2447,32 +2365,22 @@ export default function PerformancesVipPage() {
                       inputClass
                     }
                   >
-                    <option value="open">
-                      OUVERT
-                    </option>
+                    <option value="open">{tr("OUVERT")}</option>
 
-                    <option value="win">
-                      WIN
-                    </option>
+                    <option value="win">{tr("WIN")}</option>
 
-                    <option value="loss">
-                      LOSS
-                    </option>
+                    <option value="loss">{tr("LOSS")}</option>
 
-                    <option value="breakeven">
-                      BREAKEVEN
-                    </option>
+                    <option value="breakeven">{tr("BREAKEVEN")}</option>
 
-                    <option value="cancelled">
-                      ANNULÉ
-                    </option>
+                    <option value="cancelled">{tr("ANNULÉ")}</option>
                   </select>
                 </Field>
               </div>
 
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                 <Field
-                  label="Prix d'entrée"
+                  label={tr("Prix d'entrée")}
                 >
                   <input
                     value={
@@ -2489,7 +2397,7 @@ export default function PerformancesVipPage() {
                             .value,
                       })
                     }
-                    placeholder="3375.50"
+                    placeholder={tr("3375.50")}
                     className={
                       inputClass
                     }
@@ -2497,7 +2405,7 @@ export default function PerformancesVipPage() {
                 </Field>
 
                 <Field
-                  label="Stop Loss"
+                  label={tr("Stop Loss")}
                 >
                   <input
                     value={
@@ -2514,7 +2422,7 @@ export default function PerformancesVipPage() {
                             .value,
                       })
                     }
-                    placeholder="3385.00"
+                    placeholder={tr("3385.00")}
                     className={
                       inputClass
                     }
@@ -2522,7 +2430,7 @@ export default function PerformancesVipPage() {
                 </Field>
 
                 <Field
-                  label="Take Profit"
+                  label={tr("Take Profit")}
                 >
                   <input
                     value={
@@ -2539,7 +2447,7 @@ export default function PerformancesVipPage() {
                             .value,
                       })
                     }
-                    placeholder="3355.00"
+                    placeholder={tr("3355.00")}
                     className={
                       inputClass
                     }
@@ -2549,7 +2457,7 @@ export default function PerformancesVipPage() {
 
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <Field
-                  label="Résultat en R"
+                  label={tr("Résultat en R")}
                 >
                   <input
                     value={
@@ -2566,7 +2474,7 @@ export default function PerformancesVipPage() {
                             .value,
                       })
                     }
-                    placeholder="+2"
+                    placeholder={tr("+2")}
                     className={
                       inputClass
                     }
@@ -2574,7 +2482,7 @@ export default function PerformancesVipPage() {
                 </Field>
 
                 <Field
-                  label="Pips"
+                  label={tr("Pips")}
                 >
                   <input
                     value={
@@ -2591,7 +2499,7 @@ export default function PerformancesVipPage() {
                             .value,
                       })
                     }
-                    placeholder="+180"
+                    placeholder={tr("+180")}
                     className={
                       inputClass
                     }
@@ -2601,7 +2509,7 @@ export default function PerformancesVipPage() {
 
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                 <Field
-                  label="Setup"
+                  label={tr("Setup")}
                 >
                   <input
                     value={
@@ -2618,7 +2526,7 @@ export default function PerformancesVipPage() {
                             .value,
                       })
                     }
-                    placeholder="Fibo / SMC..."
+                    placeholder={tr("Fibo / SMC...")}
                     className={
                       inputClass
                     }
@@ -2626,7 +2534,7 @@ export default function PerformancesVipPage() {
                 </Field>
 
                 <Field
-                  label="Timeframe"
+                  label={tr("Timeframe")}
                 >
                   <input
                     value={
@@ -2643,7 +2551,7 @@ export default function PerformancesVipPage() {
                             .value,
                       })
                     }
-                    placeholder="H4 / M1..."
+                    placeholder={tr("H4 / M1...")}
                     className={
                       inputClass
                     }
@@ -2651,7 +2559,7 @@ export default function PerformancesVipPage() {
                 </Field>
 
                 <Field
-                  label="Session"
+                  label={tr("Session")}
                 >
                   <select
                     value={
@@ -2676,23 +2584,17 @@ export default function PerformancesVipPage() {
                       —
                     </option>
 
-                    <option value="Asian">
-                      Asian
-                    </option>
+                    <option value="Asian">{tr("Asian")}</option>
 
-                    <option value="London">
-                      London
-                    </option>
+                    <option value="London">{tr("London")}</option>
 
-                    <option value="New York">
-                      New York
-                    </option>
+                    <option value="New York">{tr("New York")}</option>
                   </select>
                 </Field>
               </div>
 
               <Field
-                label="Commentaire"
+                label={tr("Commentaire")}
               >
                 <textarea
                   value={
@@ -2709,7 +2611,7 @@ export default function PerformancesVipPage() {
                           .value,
                     })
                   }
-                  placeholder="Contexte du trade, TP partiel, remarque..."
+                  placeholder={tr("Contexte du trade, TP partiel, remarque...")}
                   rows={4}
                   className={`${inputClass} resize-none py-3`}
                 />
@@ -2739,13 +2641,9 @@ export default function PerformancesVipPage() {
                   </div>
 
                   <div>
-                    <div className="text-sm font-semibold text-white">
-                      Capture TradingView
-                    </div>
+                    <div className="text-sm font-semibold text-white">{tr("Capture TradingView")}</div>
 
-                    <div className="mt-1 text-[10px] text-[color:var(--muted)]">
-                      Ajoute la preuve graphique du trade VIP.
-                    </div>
+                    <div className="mt-1 text-[10px] text-[color:var(--muted)]">{tr("Ajoute la preuve graphique du trade VIP.")}</div>
                   </div>
                 </div>
 
@@ -2762,7 +2660,7 @@ export default function PerformancesVipPage() {
                     >
                       <img
                         src={currentScreenshotPreview}
-                        alt="Capture TradingView VIP"
+                        alt={tr("Capture TradingView VIP")}
                         className="max-h-[330px] w-full object-contain"
                       />
                     </button>
@@ -2771,7 +2669,7 @@ export default function PerformancesVipPage() {
                       <div className="text-[10px] text-[color:var(--muted)]">
                         {screenshotFile
                           ? screenshotFile.name
-                          : "Capture enregistrée"}
+                          : tr("Capture enregistrée")}
                       </div>
 
                       <div className="flex gap-2">
@@ -2785,10 +2683,7 @@ export default function PerformancesVipPage() {
                             text-[color:var(--gold)]
                           "
                         >
-                          <Upload size={12} />
-                          Remplacer
-
-                          <input
+                          <Upload size={12} />{tr("Remplacer")}<input
                             type="file"
                             accept="image/png,image/jpeg,image/webp"
                             className="hidden"
@@ -2810,9 +2705,7 @@ export default function PerformancesVipPage() {
                             px-3 text-[10px] font-semibold
                             text-red-400
                           "
-                        >
-                          Retirer
-                        </button>
+                        >{tr("Retirer")}</button>
                       </div>
                     </div>
                   </div>
@@ -2842,17 +2735,11 @@ export default function PerformancesVipPage() {
                       className="text-[color:var(--gold)]"
                     />
 
-                    <div className="mt-3 text-xs font-semibold text-white">
-                      Ajouter une capture
-                    </div>
+                    <div className="mt-3 text-xs font-semibold text-white">{tr("Ajouter une capture")}</div>
 
-                    <div className="mt-1 text-[10px] text-[color:var(--muted)]">
-                      Clique ou dépose l'image ici
-                    </div>
+                    <div className="mt-1 text-[10px] text-[color:var(--muted)]">{tr("Clique ou dépose l'image ici")}</div>
 
-                    <div className="mt-1 text-[9px] text-white/25">
-                      PNG, JPG, WEBP • 5 Mo max
-                    </div>
+                    <div className="mt-1 text-[9px] text-white/25">{tr("PNG, JPG, WEBP • 5 Mo max")}</div>
 
                     <input
                       type="file"
@@ -2898,9 +2785,7 @@ export default function PerformancesVipPage() {
                     font-medium
                     text-white
                   "
-                >
-                  Annuler
-                </button>
+                >{tr("Annuler")}</button>
 
                 <button
                   type="button"
@@ -2926,8 +2811,8 @@ export default function PerformancesVipPage() {
                   {saving
                     ? "Enregistrement..."
                     : editingTrade
-                    ? "Enregistrer les modifications"
-                    : "Ajouter le trade VIP"}
+                    ? tr("Enregistrer les modifications")
+                    : tr("Ajouter le trade VIP")}
                 </button>
               </div>
             </div>
@@ -2963,9 +2848,7 @@ export default function PerformancesVipPage() {
                   className="text-[color:var(--gold)]"
                 />
 
-                <span className="text-xs font-semibold text-white">
-                  Preuve graphique du trade VIP
-                </span>
+                <span className="text-xs font-semibold text-white">{tr("Preuve graphique du trade VIP")}</span>
               </div>
 
               <button
@@ -2986,7 +2869,7 @@ export default function PerformancesVipPage() {
             <div className="flex max-h-[calc(94vh-62px)] items-center justify-center overflow-auto bg-black p-3">
               <img
                 src={viewingScreenshot}
-                alt="Preuve graphique VIP"
+                alt={tr("Preuve graphique VIP")}
                 className="max-h-[calc(94vh-90px)] max-w-full object-contain"
               />
             </div>

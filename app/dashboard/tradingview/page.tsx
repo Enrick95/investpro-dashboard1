@@ -1,4 +1,5 @@
 "use client";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import MarketWidget from "@/components/markets/MarketWidget";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -37,6 +38,8 @@ function cx(...c: Array<string | false | undefined | null>) {
 }
 
 function TradingViewPage() {
+  const { t: translate, locale } = useLocale();
+
   const [symbol, setSymbol] = useState("BTCUSD");
   const [tf, setTf] = useState<string>("15");
   const [query, setQuery] = useState("");
@@ -57,7 +60,7 @@ function TradingViewPage() {
       hideideas: "1",
       theme: "dark", // chart = indépendant
       style: "1",
-      locale: "fr",
+      locale,
       toolbarbg: "rgba(0,0,0,0)",
       enable_publishing: "0",
       hide_side_toolbar: "0",
@@ -68,7 +71,7 @@ function TradingViewPage() {
     });
 
     return "https://s.tradingview.com/widgetembed/?" + params.toString();
-  }, [symbol, tf]);
+  }, [symbol, tf, locale]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -77,15 +80,15 @@ function TradingViewPage() {
         inputRef.current?.focus();
         pushNotif({
           kind: "info",
-          title: "Recherche symbole",
-          message: "Tape un symbole puis Entrée pour l’ajouter",
+          title: translate("Recherche symbole"),
+          message: translate("Tape un symbole puis Entrée pour l’ajouter"),
           ttlMs: 1800,
         });
       }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [translate]);
 
   function setSymbolSafe(v: string) {
     const s = v.toUpperCase().replace(/\s+/g, "");
@@ -100,7 +103,7 @@ function TradingViewPage() {
       if (prev.includes(s)) {
         pushNotif({
           kind: "warning",
-          title: "Déjà dans la watchlist",
+          title: translate("Déjà dans la watchlist"),
           message: s,
           ttlMs: 1600,
         });
@@ -108,7 +111,7 @@ function TradingViewPage() {
       }
       pushNotif({
         kind: "success",
-        title: "Ajouté à la watchlist",
+        title: translate("Ajouté à la watchlist"),
         message: s,
         ttlMs: 1600,
       });
@@ -120,7 +123,7 @@ function TradingViewPage() {
     setWatchlist((prev) => prev.filter((x) => x !== s));
     pushNotif({
       kind: "warning",
-      title: "Retiré de la watchlist",
+      title: translate("Retiré de la watchlist"),
       message: s,
       ttlMs: 1600,
     });
@@ -128,8 +131,8 @@ function TradingViewPage() {
       setSymbol("BTCUSD");
       pushNotif({
         kind: "info",
-        title: "Symbole réinitialisé",
-        message: "BTCUSD",
+        title: translate("Symbole réinitialisé"),
+        message: translate("BTCUSD"),
         ttlMs: 1600,
       });
     }
@@ -142,8 +145,8 @@ function TradingViewPage() {
     setWatchlist(DEFAULT_WATCHLIST);
     pushNotif({
       kind: "info",
-      title: "Reset TradingView",
-      message: "Symbol + TF + Watchlist",
+      title: translate("Reset TradingView"),
+      message: translate("Symbol + TF + Watchlist"),
       ttlMs: 1800,
     });
   }
@@ -156,8 +159,7 @@ function TradingViewPage() {
           <CardBody className="py-4">
             <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
               <div className="text-sm font-semibold">
-                Horaires marché — Asia / London / New York
-              </div>
+                {translate("Horaires marché — Asia / London / New York")}</div>
               <MarketSessionsInline />
             </div>
           </CardBody>
@@ -166,15 +168,13 @@ function TradingViewPage() {
         {/* ===== Ligne 2 : Reset + Symbol + Timeframes ===== */}
         <div className="mb-4 grid grid-cols-1 gap-3 lg:grid-cols-[160px_1fr_1fr]">
           <Button variant="secondary" onClick={onReset} className="h-[52px]">
-            Reset
-          </Button>
+            {translate("Reset")}</Button>
 
           <Card>
             <CardBody className="py-3">
               <div className="flex h-[52px] items-center gap-3">
                 <div className="text-xs font-semibold text-[color:var(--muted)]">
-                  SYMBOL
-                </div>
+                  {translate("SYMBOL")}</div>
                 <input
                   ref={inputRef}
                   value={symbol}
@@ -184,20 +184,20 @@ function TradingViewPage() {
                       addToWatchlist(symbol);
                       pushNotif({
                         kind: "info",
-                        title: "Symbole chargé",
+                        title: translate("Symbole chargé"),
                         message: symbol,
                         ttlMs: 1400,
                       });
                     }
                   }}
-                  placeholder="Ex: XAUUSD"
+                  placeholder={translate("Ex: XAUUSD")}
                   className="w-full bg-transparent text-sm text-[color:var(--text)] outline-none placeholder:text-[color:var(--muted)]"
                 />
                 <Button
                   variant="secondary"
                   onClick={() => addToWatchlist(symbol)}
                   className="h-10 px-4 rounded-2xl"
-                  title="Ajouter à la watchlist"
+                  title={translate("Ajouter à la watchlist")}
                 >
                   +
                 </Button>
@@ -217,7 +217,7 @@ function TradingViewPage() {
                         setTf(t.value);
                         pushNotif({
                           kind: "info",
-                          title: "Timeframe",
+                          title: translate("Timeframe"),
                           message: t.label,
                           ttlMs: 1200,
                         });
@@ -244,17 +244,16 @@ function TradingViewPage() {
           <Card>
             <CardBody>
               <div className="mb-2">
-                <div className="text-sm font-semibold">Watchlist</div>
+                <div className="text-sm font-semibold">{translate("Watchlist")}</div>
                 <div className="text-[11px] text-[color:var(--muted)]">
-                  Clique pour charger
-                </div>
+                  {translate("Clique pour charger")}</div>
               </div>
 
               <CardSubCard className="mb-3">
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Rechercher…"
+                  placeholder={translate("Rechercher…")}
                   className="w-full bg-transparent text-sm text-[color:var(--text)] outline-none placeholder:text-[color:var(--muted)]"
                 />
               </CardSubCard>
@@ -263,8 +262,7 @@ function TradingViewPage() {
                 {filtered.length === 0 ? (
                   <CardSubCard>
                     <div className="text-sm text-[color:var(--muted)]">
-                      Aucun résultat.
-                    </div>
+                      {translate("Aucun résultat.")}</div>
                   </CardSubCard>
                 ) : (
                   <ul className="space-y-2">
@@ -286,7 +284,7 @@ function TradingViewPage() {
                               setSymbol(s);
                               pushNotif({
                                 kind: "info",
-                                title: "Symbole chargé",
+                                title: translate("Symbole chargé"),
                                 message: s,
                                 ttlMs: 1400,
                               });
@@ -294,14 +292,14 @@ function TradingViewPage() {
                           >
                             <div className="text-sm font-semibold">{s}</div>
                             <div className="text-[11px] text-[color:var(--muted)]">
-                              TF: {tf === "D" ? "1D" : `${tf}m`}
+                              {translate("TF:")}{" "}{tf === "D" ? translate("1D") : `${tf}m`}
                             </div>
                           </button>
 
                           <button
                             onClick={() => removeFromWatchlist(s)}
                             className="ml-2 rounded-xl border border-[color:var(--border)] bg-black/5 dark:bg-white/5 px-2 py-1 text-[11px] text-[color:var(--muted)] opacity-0 hover:bg-black/10 dark:hover:bg-white/10 group-hover:opacity-100"
-                            title="Retirer"
+                            title={translate("Retirer")}
                           >
                             ✕
                           </button>
@@ -314,8 +312,7 @@ function TradingViewPage() {
 
               <CardSubCard className="mt-3">
                 <div className="text-[11px] text-[color:var(--muted)]">
-                  Entrée dans SYMBOL = ajoute à la watchlist. (Ctrl/⌘ + K)
-                </div>
+                  {translate("Entrée dans SYMBOL = ajoute à la watchlist. (Ctrl/⌘ + K)")}</div>
               </CardSubCard>
             </CardBody>
           </Card>
@@ -329,15 +326,15 @@ function TradingViewPage() {
                     {symbol}
                   </div>
                   <div className="text-xs text-[color:var(--muted)]">
-                    {tf === "D" ? "1D" : `${tf} minutes`}
+                    {tf === "D" ? translate("1D") : `${tf} minutes`}
                   </div>
                 </div>
-                <div className="text-xs text-[color:var(--muted)]">TradingView</div>
+                <div className="text-xs text-[color:var(--muted)]">{translate("TradingView")}</div>
               </div>
 
               <div className="overflow-hidden rounded-3xl border border-[color:var(--border)] bg-[color:var(--panel-2)]">
                 <iframe
-                  title="TradingView"
+                  title={translate("TradingView")}
                   src={src}
                   className="h-[58vh] min-h-[420px] w-full border-0 lg:h-[78vh] lg:min-h-[640px]"
                   loading="lazy"
@@ -357,6 +354,8 @@ function TradingViewPage() {
 =========================== */
 
 function MarketSessionsInline() {
+  const { t: translate } = useLocale();
+
   const [now, setNow] = useState(new Date());
 
   useEffect(() => {
@@ -401,8 +400,7 @@ function MarketSessionsInline() {
     <div className="flex flex-wrap items-center gap-2">
       {isWeekend && (
         <span className="rounded-2xl border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-600 dark:text-red-300">
-          WEEKEND — fermé (Ven 23:00 → Lun 00:00)
-        </span>
+          {translate("WEEKEND — fermé (Ven 23:00 → Lun 00:00)")}</span>
       )}
 
       {sessions.map((s) => {
@@ -418,7 +416,7 @@ function MarketSessionsInline() {
             )}
             title={`${s.name} ${fmt(s.open)}–${fmt(s.close)} (Paris)`}
           >
-            {s.name} {fmt(s.open)}–{fmt(s.close)} • {active ? "ACTIVE" : "CLOSED"}
+            {s.name} {fmt(s.open)}–{fmt(s.close)} • {active ? translate("ACTIVE") : translate("CLOSED")}
           </span>
         );
       })}
@@ -426,4 +424,6 @@ function MarketSessionsInline() {
   );
 }
 
-export default function MarketPage(){return <><MarketWidget kind="tradingview"/><details className="mt-6"><summary className="cursor-pointer text-sm text-[color:var(--gold)]">Outils et affichage InvestPro</summary><div className="mt-5"><TradingViewPage/></div></details></>;}
+export default function MarketPage(){
+  const { t: translate } = useLocale();
+return <><MarketWidget kind="tradingview"/><details className="mt-6"><summary className="cursor-pointer text-sm text-[color:var(--gold)]">{translate("Outils et affichage InvestPro")}</summary><div className="mt-5"><TradingViewPage/></div></details></>;}
