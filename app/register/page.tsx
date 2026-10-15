@@ -101,7 +101,7 @@ export default function RegisterPage() {
       setMessage({
         kind: "success",
         text: destination === "/vip/deja-membre"
-          ? "Ton compte est créé. Confirme ton adresse e-mail, puis retrouve la page « Déjà membre VIP » pour choisir affiliation avec ton broker ou abonnement. L’équipe vérifiera ensuite ton accès."
+          ? "Ton compte est créé. Confirme ton adresse e-mail, puis retourne sur la page « Déjà membre VIP » pour choisir affiliation avec ton broker ou abonnement. L’équipe vérifiera ensuite ton accès."
           : destination.startsWith("/vip")
           ? "Ton compte est créé. Vérifie maintenant ta boîte e-mail pour confirmer ton adresse, puis retrouve ton espace VIP."
           : "Ton compte est créé. Vérifie maintenant ta boîte e-mail pour confirmer ton adresse, puis tu seras dirigé vers l’onboarding InvestPro.",
