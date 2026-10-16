@@ -758,7 +758,7 @@ export default function PerformancesVipPage() {
   const reportReady = !loading && (source === 'telegram' || !manualError) && (source === 'manual' || telegramStatus === 'ready');
   const reportDayLabel = (day: string) => new Date(`${day}T12:00:00Z`).toLocaleDateString(locale === 'en' ? 'en-US' : 'fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: 'short', year: 'numeric' });
   const reportPeriod = `${{ '7d': locale === 'en' ? 'Last 7 days' : '7 derniers jours', month: locale === 'en' ? 'This month' : 'Ce mois', '3m': locale === 'en' ? 'Last 3 months' : '3 derniers mois', year: locale === 'en' ? 'This year' : 'Cette année', all: locale === 'en' ? 'All history' : 'Tout l’historique' }[period]}${selectedRange.start ? ` · ${reportDayLabel(selectedRange.start)}` : ''} → ${reportDayLabel(selectedRange.end)} · ${locale === 'en' ? 'Paris time' : 'Heure de Paris'}`;
-  const reportFilter = `${source === 'all' ? (locale === 'en' ? 'Telegram + manual records' : 'Telegram + saisies manuelles') : source === 'telegram' ? 'Telegram' : (locale === 'en' ? 'Manual records' : 'Saisies manuelles')}${search.trim() ? ` · ${locale === 'en' ? 'Search' : 'Recherche'} : ${search.trim()}` : ''}`;
+  const reportFilter = `${source === 'all' || source === 'telegram' ? (locale === 'en' ? 'Telegram automatic synchronization' : 'Telegram synchronisation automatique') : (locale === 'en' ? 'Manual records' : 'Saisies manuelles')}${search.trim() ? ` · ${locale === 'en' ? 'Search' : 'Recherche'} : ${search.trim()}` : ''}`;
 
   const stats =
     useMemo(() => {
@@ -1672,7 +1672,7 @@ export default function PerformancesVipPage() {
               stats.totalR <
               0
             }
-            sub={filteredTrades.some(t=>t.source==='telegram')?tr("Telegram + saisies manuelles"):`${stats.totalPips.toFixed(0)} pips`}
+            sub={filteredTrades.some(t=>t.source==='telegram')?(locale === 'en' ? 'Telegram automatic synchronization' : 'Telegram synchronisation automatique'):`${stats.totalPips.toFixed(0)} pips`}
           />
         </section>
 
