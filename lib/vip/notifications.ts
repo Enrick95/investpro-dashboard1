@@ -5,6 +5,8 @@ import {validPushEndpoint} from "./push-validation";
 import {isCurrentVipRenewalNotice,isVipMembershipActive} from "./membership";
 import type {VipMembership} from "./types";
 import {formatVipPublicationNotice,publicationPostId,type VipNoticePost} from "./publication-notice";
+import {canAdmin} from "../admin/permissions";
+import {vipAdminActivityHref} from "./admin-activity";
 
 export function vipPushConfig() {
   // The shared service-worker registration must use the same VAPID identity as Copier.
@@ -23,7 +25,7 @@ export async function deliverVipNotifications(db:SupabaseClient, limit=20) {
   webpush.setVapidDetails(config.subject,config.publicKey,config.privateKey);
   const claimLimit=Number.isFinite(limit)?Math.max(1,Math.min(Math.trunc(limit),20)):20;
   const counts={sent:0,failed:0,skipped:0};
-  type QueuedNotice={id:string;kind:string;user_id:string;title:string;message:string;event_key:string};
+  type QueuedNotice={id:string;kind:string;user_id:string;title:string;message:string;event_key:string;href?:string};
   const startedAt=performance.now();
   let remaining=false;
   while(true) {
@@ -44,6 +46,12 @@ export async function deliverVipNotifications(db:SupabaseClient, limit=20) {
       else if (row.kind === "renewal" && !isCurrentVipRenewalNotice(row.event_key,row.user_id,member as VipMembership|null)) lastError="stale_renewal_reminder";
       else if (row.kind === "publication" && !isVipMembershipActive(member as VipMembership|null)) lastError="membership_inactive";
       else status="sent";
+    } else if(row.kind==="admin_event") {
+      if(!vipAdminActivityHref(row.event_key,row.user_id,row.href))lastError="invalid_admin_event";
+      else {
+        try { if(await canAdmin(row.user_id,"users_write"))status="sent";else lastError="admin_permission_revoked"; }
+        catch {status="failed";lastError="admin_permission_lookup_failed";}
+      }
     } else lastError="unsupported_notification_kind";
     if(status==="sent") {
       const {data:subscriptions,error:subscriptionError}=await db.from("vip_push_subscriptions").select("id,endpoint,p256dh,auth").eq("user_id",row.user_id).limit(10);
@@ -63,7 +71,7 @@ export async function deliverVipNotifications(db:SupabaseClient, limit=20) {
           }
         }
         if(status==="sent") {
-        const payload=JSON.stringify({...notice,url:"/dashboard/vip",tag:row.event_key});
+        const payload=JSON.stringify({...notice,url:row.kind==="admin_event"?vipAdminActivityHref(row.event_key,row.user_id,row.href):"/dashboard/vip",tag:row.event_key});
         const outcomes=await Promise.all(subscriptions.map(async subscription=>{
           if (!validPushEndpoint(subscription.endpoint)) return false;
           try {

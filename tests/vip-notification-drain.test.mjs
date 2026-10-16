@@ -52,6 +52,7 @@ async function run({ count = 65, preview = false, exhaustBudget = false, failTra
   };
   const worker = compile("lib/vip/notifications.ts", {
     "server-only": {}, "./membership": membership, "./push-validation": validation, "./publication-notice": notices,
+    "../admin/permissions": { canAdmin: async () => false }, "./admin-activity": { vipAdminActivityHref: () => null },
     "web-push": { setVapidDetails() {}, async sendNotification(_subscription, payload) {
       if (kind === "publication") { const postId = JSON.parse(payload).tag.split(":")[2]; assert(checked.has(postId)); assert(published); }
       payloads.push(JSON.parse(payload));

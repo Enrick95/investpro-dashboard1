@@ -45,7 +45,8 @@ function fixture({ authorized = true, adminAuthorized = true, confirmed = true, 
       function result(single = false) {
         if (query.operation) return { data: { id: requestId, ...query.operation.value }, error: databaseError };
         calls.reads.push({ ...query, filters: [...query.filters] });
-        const row = table === "vip_memberships" ? existingMembership : existingRequest;
+        const isAdminReviewRead = query.filters.some(([column]) => column === "id");
+        const row = table === "vip_memberships" ? existingMembership : (existingRequest ?? (isAdminReviewRead ? { id: requestId, status: "pending", request_kind: "existing", type: "affiliation", copy_requested: false } : null));
         return { data: single ? row : row ? [row] : [], error: databaseError };
       }
       const chain = {
@@ -72,6 +73,9 @@ function fixture({ authorized = true, adminAuthorized = true, confirmed = true, 
     constructor(message, status = 400) { super(message); this.status = status; }
   }
   const modules = {
+    "next/server": { after() { /* Deferred work is separately fixture-tested; never contacts providers. */ } },
+    "@/lib/vip/admin-activity": { async queueVipAdminActivity() { return { queued: 0 }; } },
+    "@/lib/vip/notifications": { async deliverVipNotifications() { return { sent: 0 }; } },
     "@/lib/admin/permissions": { async authenticateAdmin(_request, permission) {
       calls.permissions.push(permission);
       return adminAuthorized ? { user: { id: adminId }, admin: db } : { error: "Accès refusé", status: 403 };
@@ -417,4 +421,135 @@ test("preview deployments reject member submissions and admin decisions before a
     assert.equal(response.status, 403);
     assert.equal(api.calls.auth.length + api.calls.permissions.length + api.calls.reads.length + api.calls.writes.length + api.calls.rpcs.length, 0);
   }
+});
+
+const newDeclaration = {
+  ...declaration, requestKind: "new", brokerAccountKind: "new", brokerAccountId: "LIVE-12345",
+  brokerEmail: "broker@example.invalid", declaredDepositUsd: 300, copyRequested: false,
+};
+
+test("new affiliation intake supports each broker and stores only declarations, never verification", async () => {
+  for (const affiliationBroker of ["raise_fx", "vantage", "puprime", "axi"]) {
+    const api = fixture();
+    const response = await api.post({ ...newDeclaration, affiliationBroker, verified_deposit_usd: 5000, verified_broker_linked: true, verified_payment: true, status: "approved", paymentVerified: true, brokerLinkedVerified: true, verifiedDepositUsd: 5000 });
+    assert.equal(response.status, 201);
+    const value = api.calls.writes[0].value;
+    assert.equal(value.request_kind, "new");
+    assert.equal(value.affiliation_broker, affiliationBroker);
+    assert.equal(value.broker_account_id, "LIVE-12345");
+    assert.equal(value.broker_account_kind, "new");
+    assert.equal(value.broker_email, "broker@example.invalid");
+    assert.equal(value.declared_deposit_usd, 300);
+    assert.equal(value.status, "pending");
+    assert.equal(value.copy_requested, false);
+    for (const key of ["verified_deposit_usd", "verified_broker_linked", "verified_payment", "paymentVerified", "brokerLinkedVerified", "verifiedDepositUsd"]) assert.equal(Object.hasOwn(value, key), false, key);
+    assert.equal(api.calls.rpcs.length, 0);
+  }
+});
+
+test("new intake validates broker account details, funding precision and Copy threshold", () => {
+  for (const changes of [
+    { requestKind: "grant" }, { affiliationBroker: "unknown" }, { brokerAccountKind: "other" },
+    { brokerAccountId: "" }, { brokerAccountId: "Account\n123" }, { brokerAccountId: "x".repeat(81) },
+    { brokerEmail: "not-an-email" }, { brokerEmail: "a@b.invalid\nattack" }, { brokerEmail: {} },
+    { declaredDepositUsd: 299.99 }, { declaredDepositUsd: "300" }, { declaredDepositUsd: 300.001 },
+    { declaredDepositUsd: Infinity }, { declaredDepositUsd: 100000001 }, { copyRequested: "true" },
+    { copyRequested: true, declaredDepositUsd: 499.99 },
+  ]) assert.equal(validators.validateVipAccessRequest({ ...newDeclaration, ...changes }).ok, false, JSON.stringify(changes));
+  const valid = validators.validateVipAccessRequest({ ...newDeclaration, brokerAccountKind: "existing", brokerEmail: "  BROKER@Example.Invalid  ", copyRequested: true, declaredDepositUsd: 500 });
+  assert.equal(valid.ok, true);
+  assert.equal(valid.value.broker_email, "broker@example.invalid");
+  assert.equal(valid.value.broker_account_kind, "existing");
+  assert.equal(valid.value.copy_requested, true);
+});
+
+test("new subscription declarations require a real payment date and clear unrelated broker input", async () => {
+  const api = fixture();
+  const response = await api.post({ ...newDeclaration, type: "abonnement", paidOn: parisToday(), copyRequested: true, verified_payment: true });
+  assert.equal(response.status, 201);
+  const value = api.calls.writes[0].value;
+  assert.equal(value.request_kind, "new");
+  assert.equal(value.type, "abonnement");
+  assert.equal(value.paid_on, parisToday());
+  assert.equal(value.affiliation_broker, null);
+  for (const key of ["broker_account_kind", "broker_account_id", "broker_email", "declared_deposit_usd"]) assert.equal(value[key], null);
+  assert.equal(value.copy_requested, false);
+  assert.equal(value.status, "pending");
+  assert.equal(Object.hasOwn(value, "verified_payment"), false);
+  assert.equal(api.calls.rpcs.length, 0);
+  assert.equal((await fixture().post({ ...newDeclaration, type: "abonnement" })).status, 400);
+});
+
+test("old member declarations ignore new intake and verification fields unless the new path is selected", async () => {
+  const api = fixture();
+  assert.equal((await api.post({ ...newDeclaration, requestKind: "existing" })).status, 201);
+  for (const key of ["request_kind", "broker_account_kind", "broker_account_id", "broker_email", "declared_deposit_usd", "copy_requested"]) assert.equal(Object.hasOwn(api.calls.writes[0].value, key), false, key);
+});
+
+test("administrators must verify actual broker linkage and funding for a new request from the stored row", async () => {
+  const existingRequest = { id: requestId, request_kind: "new", status: "pending", type: "affiliation", copy_requested: false };
+  for (const changes of [{}, { brokerLinkedVerified: false, verifiedDepositUsd: 300 }, { brokerLinkedVerified: true, verifiedDepositUsd: 299.99 }, { brokerLinkedVerified: true, verifiedDepositUsd: "300" }, { brokerLinkedVerified: true, verifiedDepositUsd: 300.001 }]) {
+    const api = fixture({ existingRequest });
+    assert.equal((await api.adminPost({ id: requestId, action: "approve", ...declaration, requestKind: "existing", ...changes })).status, 400);
+    assert.equal(api.calls.rpcs.length, 0);
+    assert.ok(api.calls.reads.some(read => read.table === "vip_access_requests" && read.filters.some(([column, value]) => column === "id" && value === requestId)));
+  }
+  const api = fixture({ existingRequest });
+  assert.equal((await api.adminPost({ id: requestId, action: "approve", ...declaration, brokerLinkedVerified: true, verifiedDepositUsd: 300 })).status, 200);
+  const args = api.calls.rpcs[0].args;
+  assert.equal(api.calls.rpcs[0].name, "vip_review_access_request_checked");
+  assert.equal(args.p_verified_deposit_usd, 300);
+  assert.equal(args.p_broker_linked_verified, true);
+  assert.equal(args.p_payment_verified, false);
+});
+
+test("a Copy request never blocks VIP at a verified 300 USD or activates Copy automatically", async () => {
+  const api = fixture({ existingRequest: { id: requestId, request_kind: "new", status: "pending", type: "affiliation", copy_requested: true } });
+  assert.equal((await api.adminPost({ id: requestId, action: "approve", ...declaration, brokerLinkedVerified: true, verifiedDepositUsd: 300 })).status, 200);
+  assert.equal(api.calls.rpcs[0].args.p_verified_deposit_usd, 300);
+  assert.equal(Object.hasOwn(api.calls.rpcs[0].args, "p_copy_active"), false);
+  assert.equal(api.calls.writes.length, 0);
+});
+
+test("new subscriptions require an explicit administrator Stripe check independent of member-declared payment", async () => {
+  const existingRequest = { id: requestId, request_kind: "new", status: "pending", type: "abonnement", copy_requested: false, verified_payment: false };
+  for (const paymentVerified of [undefined, false, "true", 1]) {
+    const api = fixture({ existingRequest });
+    assert.equal((await api.adminPost({ id: requestId, action: "approve", ...declaration, type: "abonnement", paidOn: parisToday(), paymentVerified })).status, 400);
+    assert.equal(api.calls.rpcs.length, 0);
+  }
+  const api = fixture({ existingRequest });
+  assert.equal((await api.adminPost({ id: requestId, action: "approve", ...declaration, type: "abonnement", paidOn: parisToday(), paymentVerified: true, verifiedDepositUsd: 500, brokerLinkedVerified: true })).status, 200);
+  assert.equal(api.calls.rpcs[0].args.p_payment_verified, true);
+  assert.equal(api.calls.rpcs[0].args.p_broker_linked_verified, false);
+  assert.equal(api.calls.rpcs[0].args.p_verified_deposit_usd, null);
+});
+
+test("new application approval cannot switch the member's stored access origin", async () => {
+  for (const type of ["affiliation", "abonnement"]) {
+    const api = fixture({ existingRequest: { id: requestId, request_kind: "new", status: "pending", type, copy_requested: false } });
+    assert.equal((await api.adminPost({ id: requestId, action: "approve", ...declaration, type: type === "affiliation" ? "abonnement" : "affiliation", paidOn: parisToday(), paymentVerified: true, verifiedDepositUsd: 300, brokerLinkedVerified: true })).status, 400);
+    assert.equal(api.calls.rpcs.length, 0);
+  }
+});
+
+test("new application denial skips verification and sends no payment or deposit confirmation", async () => {
+  const api = fixture({ existingRequest: { id: requestId, request_kind: "new", status: "pending", type: "affiliation", copy_requested: true } });
+  assert.equal((await api.adminPost({ id: requestId, action: "deny", verifiedDepositUsd: 900, brokerLinkedVerified: true, paymentVerified: true })).status, 200);
+  assert.equal(api.calls.rpcs[0].args.p_verified_deposit_usd, null);
+  assert.equal(api.calls.rpcs[0].args.p_broker_linked_verified, false);
+  assert.equal(api.calls.rpcs[0].args.p_payment_verified, false);
+});
+
+test("an already reviewed source is rejected before the atomic review RPC", async () => {
+  const api = fixture({ existingRequest: { id: requestId, request_kind: "new", status: "approved", type: "affiliation", copy_requested: false } });
+  assert.equal((await api.adminPost({ id: requestId, action: "approve", ...declaration, brokerLinkedVerified: true, verifiedDepositUsd: 300 })).status, 409);
+  assert.equal(api.calls.rpcs.length, 0);
+});
+
+test("an unavailable request source fails closed before any access-grant RPC", async () => {
+  const api = fixture({ databaseError: { code: "42501" } });
+  assert.equal((await api.adminPost({ id: requestId, action: "approve", ...declaration, brokerLinkedVerified: true, verifiedDepositUsd: 300 })).status, 503);
+  assert.equal(api.calls.rpcs.length, 0);
+  assert.equal(api.calls.writes.length, 0);
 });

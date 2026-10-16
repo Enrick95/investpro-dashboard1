@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useAdminPreviewNavigation } from "@/components/admin/AdminPreviewNavigation";
 import {
   Activity,
   ArrowLeft,
@@ -81,6 +82,8 @@ function logLabel(action: string) {
 export default function AdminMemberPage() {
   const { t: tr, locale } = useLocale();
   const params = useParams<{ id: string }>();
+  const previewNavigation = useAdminPreviewNavigation();
+  const memberId = previewNavigation ? previewNavigation.memberId : params.id;
   const supabase = useMemo(() => createClient(), []);
 
   const [data, setData] = useState<Payload | null>(null);
@@ -110,10 +113,14 @@ export default function AdminMemberPage() {
       silent ? setRefreshing(true) : setLoading(true);
       setError("");
 
+      if (!memberId || (previewNavigation && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(memberId))) {
+        throw new Error(tr("Identifiant membre invalide."));
+      }
+
       const token = await getToken();
       if (!token) return;
 
-      const response = await fetch(`/api/admin/member/${params.id}`, {
+      const response = await fetch(`/api/admin/member/${encodeURIComponent(memberId)}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -133,7 +140,7 @@ export default function AdminMemberPage() {
   }
 
   async function runAction() {
-    if (!confirmAction) return;
+    if (!confirmAction || !memberId) return;
 
     try {
       setActionLoading(true);
@@ -148,7 +155,7 @@ export default function AdminMemberPage() {
           ? { action: "change_plan", plan: confirmAction.plan }
           : { action: confirmAction.kind };
 
-      const response = await fetch(`/api/admin/member/${params.id}/actions`, {
+      const response = await fetch(`/api/admin/member/${encodeURIComponent(memberId)}/actions`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -176,7 +183,7 @@ export default function AdminMemberPage() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.id]);
+  }, [memberId]);
 
   if (loading) {
     return (
@@ -189,6 +196,11 @@ export default function AdminMemberPage() {
       <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <Link
           href="/dashboard/admin/utilisateurs"
+          onNavigate={(event) => {
+            if (!previewNavigation) return;
+            event.preventDefault();
+            previewNavigation.onNavigate("/dashboard/admin/utilisateurs");
+          }}
           className="inline-flex items-center gap-2 text-sm text-[color:var(--muted)] no-underline hover:text-white"
         >
           <ArrowLeft size={14} />{tr("Retour aux utilisateurs")}</Link>

@@ -92,4 +92,13 @@ export type VipAccessRequest = {
   verified_affiliation_broker: VipAffiliationBroker | null;
   verified_paid_on: string | null;
   verified_expires_at: string | null;
+  request_kind: "existing" | "new";
+  broker_account_kind: "new" | "existing" | null;
+  broker_account_id: string | null;
+  broker_email: string | null;
+  declared_deposit_usd: number | null;
+  copy_requested: boolean;
+  verified_deposit_usd: number | null;
+  verified_broker_linked: boolean;
+  verified_payment: boolean;
 };

@@ -1,9 +1,13 @@
 import { authenticateVip, readVipJson, readVipMembership, vipErrorResponse, vipJson } from "@/lib/vip/membership-server";
 import { isVipMembershipActive } from "@/lib/vip/membership";
 import { validateVipAccessRequest, VIP_ACCESS_REQUEST_COLUMNS } from "@/lib/vip/access-requests";
+import { after } from "next/server";
+import { queueVipAdminActivity } from "@/lib/vip/admin-activity";
+import { deliverVipNotifications } from "@/lib/vip/notifications";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
 export async function GET(request: Request) {
   const context = await authenticateVip(request);
@@ -33,6 +37,10 @@ export async function POST(request: Request) {
     }).select(VIP_ACCESS_REQUEST_COLUMNS).single();
     if (error?.code === "23505") return vipJson({ error: "Votre demande est déjà en attente de vérification." }, 409);
     if (error) throw error;
+    after(async () => {
+      try { await queueVipAdminActivity(context.db); await deliverVipNotifications(context.db); }
+      catch { console.error("VIP_ADMIN_ACTIVITY_DEFERRED_FAILED"); }
+    });
     return vipJson({ request: data }, 201);
   } catch (error) { return vipErrorResponse(error); }
 }

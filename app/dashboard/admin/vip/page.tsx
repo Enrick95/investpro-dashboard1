@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useAdminPreviewNavigation } from "@/components/admin/AdminPreviewNavigation";
 import { ArrowUpRight, Check, Copy, KeyRound, MessageCircle, Pencil, Plus, RefreshCw, Send, Settings, ShieldCheck, Users } from "lucide-react";
 import { vipDate, vipRequest, type VipMembership } from "@/lib/vip/client";
 import type { VipAccessRequest, VipInvitation } from "@/lib/vip/types";
@@ -33,7 +34,8 @@ function accessStatus(member: VipMembership, asOf: number) {
 export default function VipAdminPage() {
   const { t: tr, locale } = useLocale();
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>("members");
+  const previewNavigation = useAdminPreviewNavigation();
+  const [tab, setTab] = useState<Tab>(() => previewNavigation?.vipView === "requests" ? "requests" : previewNavigation?.vipView === "settings" ? "settings" : "members");
   const [data, setData] = useState<MembersPayload | null>(null);
   const [requests, setRequests] = useState<VipAccessRequest[] | null>(null);
   const [requestsError, setRequestsError] = useState("");
@@ -50,7 +52,7 @@ export default function VipAdminPage() {
   const [copied, setCopied] = useState(false);
   const [telegramUrl, setTelegramUrl] = useState("");
   const [search, setSearch] = useState("");
-  const [originFilter, setOriginFilter] = useState("all");
+  const [originFilter, setOriginFilter] = useState(() => previewNavigation?.vipView === "subscriptions" ? "abonnement" : previewNavigation?.vipView === "affiliation" ? "affiliation" : "all");
   const [editing, setEditing] = useState<{ userId: string; firstName: string; lastName: string; affiliationBroker: Broker | "" } | null>(null);
   const load = useCallback(async (signal?: AbortSignal, includeSettings = false) => {
     try {
@@ -113,7 +115,7 @@ export default function VipAdminPage() {
   }
   const query = searchable(search.trim());
   const members = data?.members.filter((member) => {
-    const matchesOrigin = originFilter === "all" || (originFilter === "abonnement" ? member.type === "abonnement" : originFilter === "unknown" ? member.type === "affiliation" && !member.affiliation_broker : member.type === "affiliation" && member.affiliation_broker === originFilter);
+    const matchesOrigin = originFilter === "all" || (originFilter === "abonnement" ? member.type === "abonnement" : originFilter === "affiliation" ? member.type === "affiliation" : originFilter === "unknown" ? member.type === "affiliation" && !member.affiliation_broker : member.type === "affiliation" && member.affiliation_broker === originFilter);
     return matchesOrigin && searchable(`${memberName(member, tr)} ${member.email} ${originLabel(member, tr)} ${member.affiliation_broker || ""}`).includes(query);
   }) || [];
   return <div className={s.admin}>
@@ -121,7 +123,7 @@ export default function VipAdminPage() {
     {loading ? <div className={s.empty} role="status">{tr("Chargement de l’administration VIP…")}</div> : <>
       {error && <p className={s.error} role="alert">{tr(error)}</p>}{message && <p className={s.message} role="status">{message}</p>}
       {data ? <>
-        <nav className={s.tabs} aria-label={tr("Administration VIP")}>{[{ key: "members", title: tr("Membres"), Icon: Users }, { key: "requests", title: (tr("À vérifier") + (requests ? ` · ${requests.length}` : "")), Icon: ShieldCheck }, { key: "posts", title: tr("Publications"), Icon: Send }, { key: "settings", title: tr("Paramètres"), Icon: Settings }].map(({ key, title, Icon }) => <button type="button" aria-pressed={tab === key} key={key} onClick={() => key === "posts" ? router.push("/dashboard/vip?mode=admin") : setTab(key as Tab)}><Icon size={16} />{title}</button>)}<button type="button" className={s.reload} aria-label={tr("Actualiser les accès")} onClick={() => void load()} disabled={Boolean(busy)}><RefreshCw size={16} /></button></nav>
+        <nav className={s.tabs} aria-label={tr("Administration VIP")}>{[{ key: "members", title: tr("Membres"), Icon: Users }, { key: "requests", title: (tr("À vérifier") + (requests ? ` · ${requests.length}` : "")), Icon: ShieldCheck }, { key: "posts", title: tr("Publications"), Icon: Send }, { key: "settings", title: tr("Paramètres"), Icon: Settings }].map(({ key, title, Icon }) => <button type="button" aria-pressed={tab === key} key={key} onClick={() => key === "posts" ? (previewNavigation ? previewNavigation.onNavigate("/dashboard/vip?mode=admin") : router.push("/dashboard/vip?mode=admin")) : setTab(key as Tab)}><Icon size={16} />{title}</button>)}<button type="button" className={s.reload} aria-label={tr("Actualiser les accès")} onClick={() => void load()} disabled={Boolean(busy)}><RefreshCw size={16} /></button></nav>
         {tab === "requests" && <VipAccessRequestsAdmin requests={requests} error={requestsError} onRefresh={() => load()} />}
         {tab === "members" && <>
           <div className={s.summary}><div><span>{tr("Membres")}</span><b>{data.members.length}</b></div><div><span>{tr("À renouveler")}</span><b>{data.members.filter((member) => member.renewal_requested_at).length}</b></div><div><span>{tr("Invitations en attente")}</span><b>{data.invitations.filter((invitation) => !invitation.redeemed_at && !invitation.revoked_at && new Date(invitation.expires_at).getTime() > asOf).length}</b></div></div>
@@ -141,7 +143,7 @@ export default function VipAdminPage() {
             {generated && <div className={s.generated}><b>{tr("Invitation prête pour ")}{memberName(generated.invitation, tr)}</b><span className={s.identityMeta}>{generated.invitation.email} · {originLabel(generated.invitation, tr)}</span><label>{tr("Lien d’activation")}<input value={generated.activationUrl} readOnly onFocus={(event) => event.target.select()} /></label><code>{generated.code}</code><button type="button" className={s.secondary} onClick={copyInvitation}>{copied ? <Check size={16} /> : <Copy size={16} />}{copied ? tr("Lien copié") : tr("Copier le lien personnel")}</button><small>{tr("Validité : ")}{vipDate(generated.invitation.expires_at, locale)}{tr(". Conservez ce lien pour le transmettre au membre.")}</small></div>}
           </section>
           <section className={s.card}>
-            <div className={s.listHeading}><h2>{tr("Les accès de vos membres")}</h2><div className={s.listFilters}><label className={s.search}><span className={s.srOnly}>{tr("Rechercher un membre par nom, prénom, e-mail ou broker")}</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tr("Nom, e-mail ou broker…")} type="search" /></label><label className={s.originFilter}><span className={s.srOnly}>{tr("Filtrer les membres par origine de l’accès")}</span><select value={originFilter} onChange={(event) => setOriginFilter(event.target.value)}><option value="all">{tr("Toutes les origines")}</option>{brokers.map((broker) => <option value={broker.value} key={broker.value}>{tr("Affiliation · ")}{broker.label}</option>)}<option value="abonnement">{tr("Abonnement mensuel")}</option><option value="unknown">{tr("Affiliation · Broker à renseigner")}</option></select></label></div></div>
+            <div className={s.listHeading}><h2>{tr("Les accès de vos membres")}</h2><div className={s.listFilters}><label className={s.search}><span className={s.srOnly}>{tr("Rechercher un membre par nom, prénom, e-mail ou broker")}</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tr("Nom, e-mail ou broker…")} type="search" /></label><label className={s.originFilter}><span className={s.srOnly}>{tr("Filtrer les membres par origine de l’accès")}</span><select value={originFilter} onChange={(event) => setOriginFilter(event.target.value)}><option value="all">{tr("Toutes les origines")}</option><option value="affiliation">{tr("Affiliation")}</option>{brokers.map((broker) => <option value={broker.value} key={broker.value}>{tr("Affiliation · ")}{broker.label}</option>)}<option value="abonnement">{tr("Abonnement mensuel")}</option><option value="unknown">{tr("Affiliation · Broker à renseigner")}</option></select></label></div></div>
             <div className={s.members}>{members.length ? members.map((member) => <article className={s.member} key={member.user_id}>
               <div className={s.memberHeading}><div><h3>{memberName(member, tr)}</h3><span className={s.memberEmail}>{member.email}</span><small>{originLabel(member, tr)}</small></div><span className={s.badge} data-status={accessStatus(member, asOf)}>{tr(accessStatus(member, asOf))}</span></div>
               <dl className={s.dates}><div><dt>{tr("Activation")}</dt><dd>{vipDate(member.started_at, locale)}</dd></div><div><dt>{tr("Fin d’accès")}</dt><dd>{vipDate(member.expires_at, locale)}</dd></div></dl>

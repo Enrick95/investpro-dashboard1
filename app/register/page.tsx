@@ -30,7 +30,7 @@ function requestedNextPath() {
 function serverNextPath() { return null; }
 
 export default function RegisterPage() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
@@ -103,7 +103,11 @@ export default function RegisterPage() {
 
       setMessage({
         kind: "success",
-        text: destination === "/vip/deja-membre"
+        text: destination.startsWith("/vip/rejoindre")
+          ? locale === "en"
+            ? "Check your email if confirmation is required, then return to the VIP application page to complete your broker steps or payment and submit your application. If you already have an account with this address, sign in directly."
+            : "Vérifie ta boîte e-mail si une confirmation est nécessaire, puis retourne sur la page d’adhésion VIP pour terminer tes démarches broker ou ton paiement et envoyer ta demande. Si tu as déjà un compte avec cette adresse, connecte-toi directement."
+          : destination === "/vip/deja-membre"
           ? "Vérifie ta boîte e-mail si une confirmation est nécessaire, puis retourne sur la page « Déjà membre VIP » pour renseigner ton accès. Si tu as déjà un compte avec cette adresse, connecte-toi directement."
           : destination.startsWith("/vip")
           ? "Vérifie ta boîte e-mail si une confirmation est nécessaire, puis retrouve ton espace VIP. Si tu as déjà un compte avec cette adresse, connecte-toi directement."

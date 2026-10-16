@@ -1,168 +1,23 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-import { useLocale } from "@/components/i18n/LocaleProvider";
-import { useRouter, usePathname } from "next/navigation";
-import { ShieldCheck, Loader2 } from "lucide-react";
+import { Suspense, useEffect, type ReactNode } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { adminToolPreviewHref, parseCurrentAdminPath } from "@/app/admin-preview/admin-tool-access";
 
-import AdminTopTabs from "../../../components/admin/AdminTopTabs";
-import { createClient } from "@/lib/supabase/client";
-
-type AdminState = "checking" | "allowed" | "denied";
-
-export default function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const { t: tr } = useLocale();
+function LegacyAdminRedirect() {
   const router = useRouter();
   const pathname = usePathname();
-  const [permissions,setPermissions]=useState<string[]>([]);
-  const [owner,setOwner]=useState(false);
-  const supabase = useMemo(() => createClient(), []);
-
-  const [adminState, setAdminState] = useState<AdminState>("checking");
-
+  const query = useSearchParams();
   useEffect(() => {
-    let cancelled = false;
+    const target = parseCurrentAdminPath(pathname + "?" + query.toString()) || { tool: "overview-current" as const };
+    router.replace(adminToolPreviewHref(target.tool, target.memberId, "/dashboard/admin", target.vipView));
+  }, [pathname, query, router]);
+  return <div role="status" style={{ minHeight: "100dvh", padding: 32, background: "#07100b", color: "#a7b99c" }}>InvestPro · Administration…</div>;
+}
 
-    async function verifyAdmin() {
-      try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-
-        if (!session?.access_token) {
-          router.replace("/login");
-          return;
-        }
-
-        // On utilise l'API admin existante : elle vérifie réellement
-        // l'utilisateur Supabase côté serveur via INVESTPRO_ADMIN_USER_IDS.
-        const response = await fetch("/api/admin/me", {
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          cache: "no-store",
-        });
-
-        if (cancelled) return;
-
-        if (response.status === 403) {
-          setAdminState("denied");
-          return;
-        }
-
-        if (!response.ok) {
-          throw new Error("Vérification administrateur impossible.");
-        }
-
-        const info=await response.json();
-        if(cancelled)return;
-        setPermissions(info.permissions||[]);
-        setOwner(info.owner===true);
-        setAdminState("allowed");
-      } catch (error) {
-        console.error("Admin auth:", error);
-
-        if (!cancelled) {
-          setAdminState("denied");
-        }
-      }
-    }
-
-    verifyAdmin();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [router, supabase]);
-  const section=pathname.includes("/vip")?"users_write":pathname.includes("/staff")?"staff":pathname.includes("/finance")?"finance":pathname.includes("/copieur")?"copier":pathname.includes("/navigation")?"navigation":pathname.includes("/systeme")?"system":pathname.includes("/moderation")?"moderation":pathname.includes("/inbox")?"inbox":pathname.includes("/utilisateurs")?"users":pathname.includes("/analytics")?"analytics":pathname.includes("/feedback")?"feedback":"overview";
-  const sectionAllowed=owner||permissions.includes(section);
-
-  if (adminState === "checking") {
-    return (
-      <div className="min-h-[calc(100vh-64px)] px-6 py-6">
-        <div className="mx-auto flex min-h-[60vh] w-full max-w-[1600px] items-center justify-center">
-          <div
-            className="flex items-center gap-3 rounded-2xl border px-5 py-4"
-            style={{
-              borderColor: "rgba(255,255,255,.08)",
-              background: "rgba(255,255,255,.03)",
-              color: "var(--muted)",
-            }}
-          >
-            <Loader2 className="h-4 w-4 animate-spin text-[color:var(--gold)]" />
-            <span className="text-sm">{tr("Vérification de l’accès administrateur…")}</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (adminState === "denied") {
-    return (
-      <div className="min-h-[calc(100vh-64px)] px-6 py-6">
-        <div className="mx-auto flex min-h-[60vh] w-full max-w-[1600px] items-center justify-center">
-          <div
-            className="w-full max-w-md rounded-2xl border p-6 text-center"
-            style={{
-              borderColor: "rgba(239,68,68,.22)",
-              background: "rgba(239,68,68,.05)",
-            }}
-          >
-            <div className="mx-auto grid h-11 w-11 place-items-center rounded-xl border border-red-500/20 bg-red-500/[0.06] text-red-300">
-              <ShieldCheck size={19} />
-            </div>
-
-            <div className="mt-4 text-lg font-semibold" style={{ color: "var(--text)" }}>{tr("Accès administrateur refusé")}</div>
-
-            <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>{tr("Ce compte n’est pas présent dans la liste des administrateurs InvestPro.")}</p>
-
-            <button
-              type="button"
-              onClick={() => router.replace("/dashboard")}
-              className="mt-5 rounded-xl px-4 py-2 text-sm font-semibold"
-              style={{
-                background: "var(--gold)",
-                color: "#050605",
-              }}
-            >{tr("Retour au dashboard")}</button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if(!sectionAllowed)return <div className="p-8 text-red-300">{tr("Accès refusé : vous ne disposez pas des permissions pour cette rubrique.")}</div>;
-  return (
-    <div className="min-h-[calc(100vh-64px)] px-6 py-6">
-      <div className="mx-auto w-full max-w-[1600px]">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="text-3xl font-bold" style={{ color: "var(--text)" }}>{tr("Admin — Overview")}</div>
-
-            <div className="mt-1 text-sm" style={{ color: "var(--muted)" }}>{tr("InvestPro — accès administrateur sécurisé")}</div>
-          </div>
-
-          <div
-            className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm"
-            style={{
-              borderColor: "rgba(16,185,129,.18)",
-              background: "rgba(16,185,129,.06)",
-              color: "#34d399",
-            }}
-          >
-            <ShieldCheck size={14} />{tr("Session admin vérifiée")}</div>
-        </div>
-
-        <div className="mt-4">
-          <AdminTopTabs permissions={permissions} />
-        </div>
-
-        <div className="mt-5">{children}</div>
-      </div>
-    </div>
-  );
+export default function AdminLayout({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  if (pathname === "/dashboard/admin") return children;
+  // Legacy children remain unmounted; the selected workspace tool performs its own server-verified permission check.
+  return <Suspense fallback={null}><LegacyAdminRedirect /></Suspense>;
 }
