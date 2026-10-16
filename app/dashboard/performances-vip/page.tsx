@@ -3,10 +3,16 @@
 import type {Trade as TelegramTrade} from "@/lib/telegram/engine";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import VipTelegram from "@/components/telegram/VipTelegram";
+import VipPerformanceReport from "@/components/vip/VipPerformanceReport";
+import type { ReportTrade } from "@/lib/vip/performance-report";
+import { containsReportDay, reportPeriodRange } from "@/lib/vip/performance-report-period";
+import { tradeDay } from "@/lib/performance";
 
 import {
+  useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -269,61 +275,6 @@ function statusClass(
   }
 }
 
-function startOfPeriod(
-  period: Period
-) {
-  const now =
-    new Date();
-
-  if (period === "all") {
-    return null;
-  }
-
-  const start =
-    new Date(now);
-
-  if (period === "7d") {
-    start.setDate(
-      start.getDate() - 6
-    );
-
-    start.setHours(
-      0,
-      0,
-      0,
-      0
-    );
-
-    return start;
-  }
-
-  if (
-    period === "month"
-  ) {
-    return new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      1
-    );
-  }
-
-  if (
-    period === "3m"
-  ) {
-    return new Date(
-      now.getFullYear(),
-      now.getMonth() - 2,
-      1
-    );
-  }
-
-  return new Date(
-    now.getFullYear(),
-    0,
-    1
-  );
-}
-
 /* =========================================================
    PAGE
 ========================================================= */
@@ -331,6 +282,10 @@ function startOfPeriod(
 export default function PerformancesVipPage() {
   const { t: tr, locale } = useLocale();
   const [telegramTrades,setTelegramTrades]=useState<TelegramTrade[]>([]);
+  const [telegramStatus,setTelegramStatus]=useState<'loading'|'ready'|'error'>('loading');
+  const [canReport,setCanReport]=useState(false);
+  const loadVersion=useRef(0);
+  const activeUserId=useRef<string|null>(null);
   const [manualError,setManualError]=useState('');
   const [source,setSource]=useState<'all'|'telegram'|'manual'>('all');
   const supabase =
@@ -428,7 +383,20 @@ export default function PerformancesVipPage() {
   ======================================================= */
 
   useEffect(() => {
-    loadPage();
+    void loadPage();
+    let reload: ReturnType<typeof setTimeout> | undefined;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const nextId = session?.user.id ?? null;
+      if (nextId === activeUserId.current) return;
+      activeUserId.current = nextId;
+      loadVersion.current++;
+      setCanReport(false); setIsAdmin(false); setTrades([]); setTelegramTrades([]);
+      setTelegramStatus('loading'); setUserId(null);
+      if (reload) clearTimeout(reload);
+      if (nextId) reload = setTimeout(() => { void loadPage(); }, 0);
+      else setLoading(false);
+    });
+    return () => { loadVersion.current++; subscription.unsubscribe(); if (reload) clearTimeout(reload); };
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -442,8 +410,10 @@ export default function PerformancesVipPage() {
   }, [screenshotPreview]);
 
   async function loadPage() {
+    const version = ++loadVersion.current;
     try {
       setLoading(true);
+      setCanReport(false);
 
       const {
         data: {
@@ -454,6 +424,7 @@ export default function PerformancesVipPage() {
           .auth
           .getUser();
 
+      if (version !== loadVersion.current) return;
       if (!user) {
         window.location.href =
           "/login";
@@ -464,14 +435,37 @@ export default function PerformancesVipPage() {
       setUserId(
         user.id
       );
+      activeUserId.current = user.id;
 
-      const tradesResult =
-        await supabase
-          .from("vip_trades")
-          .select("*")
-          .order("trade_date", {
-            ascending: false,
-          });
+      const adminAccess = (async () => {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) return false;
+          const response = await fetch('/api/admin/me', { headers: { Authorization: `Bearer ${session.access_token}` }, cache: 'no-store' });
+          if (!response.ok) return false;
+          const access = await response.json();
+          return access.owner === true || (Array.isArray(access.permissions) && access.permissions.includes('users_write'));
+        } catch { return false; }
+      })();
+      // Fetch every page so an export cannot silently omit older losses at 1,000 rows.
+      const manualTrades = (async () => {
+        const data: VipTrade[] = [];
+        let cursor: number | null = null;
+        for (let offset = 0; offset < 100000; offset += 1000) {
+          let query = supabase.from('vip_trades').select('*').order('id', { ascending: false }).limit(1000);
+          if (cursor !== null) query = query.lt('id', cursor);
+          const page = await query;
+          if (page.error) return { data: null, error: page.error };
+          data.push(...(page.data as VipTrade[]));
+          if (page.data.length < 1000) return { data, error: null };
+          cursor = Number(page.data[page.data.length - 1].id);
+          if (!Number.isSafeInteger(cursor)) return { data: null, error: new Error('Invalid history cursor') };
+        }
+        return { data: null, error: new Error('History limit reached') };
+      })();
+      const [tradesResult, reportAccess] = await Promise.all([manualTrades, adminAccess]);
+      if (version !== loadVersion.current) return;
+      setCanReport(reportAccess);
 
       if (
         tradesResult.error
@@ -490,6 +484,7 @@ export default function PerformancesVipPage() {
         await loadScreenshotUrls(loadedTrades);
       }
 
+      if (version !== loadVersion.current) return;
       setIsAdmin(
         user.email?.toLowerCase() ===
           "louisiusenrick@gmail.com"
@@ -497,14 +492,32 @@ export default function PerformancesVipPage() {
     } catch (
       error
     ) {
+      if (version !== loadVersion.current) return;
+      setManualError(tr("Historique manuel indisponible : les totaux affichés peuvent être incomplets."));
+      setCanReport(false);
       console.error(
         "Erreur performances VIP :",
         error
       );
     } finally {
-      setLoading(false);
+      if (version === loadVersion.current) setLoading(false);
     }
   }
+
+  const verifyReportAccess = useCallback(async (): Promise<boolean> => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session || session.user.id !== activeUserId.current) return false;
+      const response = await fetch('/api/admin/me', { headers: { Authorization: `Bearer ${session.access_token}` }, cache: 'no-store' });
+      if (!response.ok) return false;
+      const access = await response.json();
+      return session.user.id === activeUserId.current && (access.owner === true || (Array.isArray(access.permissions) && access.permissions.includes('users_write')));
+    } catch { return false; }
+  }, [supabase]);
+  const handleTelegramStatus = useCallback((next: 'loading'|'ready'|'error') => {
+    // Keep the last successfully loaded snapshot during a background refresh.
+    setTelegramStatus(current => next === 'loading' && current === 'ready' ? 'ready' : next);
+  }, []);
 
   /* =======================================================
      SCREENSHOTS VIP
@@ -680,13 +693,9 @@ export default function PerformancesVipPage() {
     }))
   ].sort((a,b)=>b.trade_date.localeCompare(a.trade_date)||a.id-b.id),[trades,telegramTrades, tr]);
 
+  const selectedRange = reportPeriodRange(period);
   const filteredTrades =
     useMemo(() => {
-      const start =
-        startOfPeriod(
-          period
-        );
-
       const query =
         search
           .trim()
@@ -695,12 +704,7 @@ export default function PerformancesVipPage() {
       return combinedTrades.filter(
         (trade) => {
           if(source!=='all'&&trade.source!==source)return false;
-          if (
-            start &&
-            trade.trade_date.slice(0,10) < `${start.getFullYear()}-${String(start.getMonth()+1).padStart(2,"0")}-${String(start.getDate()).padStart(2,"0")}`
-          ) {
-            return false;
-          }
+          if (!containsReportDay(trade.trade_date, { start: selectedRange.start, end: selectedRange.end })) return false;
 
           if (!query) {
             return true;
@@ -730,13 +734,31 @@ export default function PerformancesVipPage() {
     }, [
       combinedTrades,
       source,
-      period,
+      selectedRange.start,
+      selectedRange.end,
       search,
     ]);
 
   /* =======================================================
      STATS
   ======================================================= */
+
+  const reportTrades = useMemo<ReportTrade[]>(() => {
+    const telegramById = new Map(telegramTrades.map(trade => [trade.id, trade]));
+    return filteredTrades.map(trade => {
+      const original = trade.source === 'telegram' ? telegramById.get(-trade.id) : null;
+      return {
+        id: `${trade.source}:${trade.id}`, date: tradeDay(trade.trade_date), symbol: trade.symbol,
+        direction: trade.direction, status: trade.status, source: trade.source === 'telegram' ? 'telegram' : 'manual',
+        resultR: original ? original.r : trade.result_r == null ? null : Number(trade.result_r),
+        target: original?.target ?? null,
+      };
+    });
+  }, [filteredTrades, telegramTrades]);
+  const reportReady = !loading && (source === 'telegram' || !manualError) && (source === 'manual' || telegramStatus === 'ready');
+  const reportDayLabel = (day: string) => new Date(`${day}T12:00:00Z`).toLocaleDateString(locale === 'en' ? 'en-US' : 'fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: 'short', year: 'numeric' });
+  const reportPeriod = `${{ '7d': locale === 'en' ? 'Last 7 days' : '7 derniers jours', month: locale === 'en' ? 'This month' : 'Ce mois', '3m': locale === 'en' ? 'Last 3 months' : '3 derniers mois', year: locale === 'en' ? 'This year' : 'Cette année', all: locale === 'en' ? 'All history' : 'Tout l’historique' }[period]}${selectedRange.start ? ` · ${reportDayLabel(selectedRange.start)}` : ''} → ${reportDayLabel(selectedRange.end)} · ${locale === 'en' ? 'Paris time' : 'Heure de Paris'}`;
+  const reportFilter = `${source === 'all' ? (locale === 'en' ? 'Telegram + manual records' : 'Telegram + saisies manuelles') : source === 'telegram' ? 'Telegram' : (locale === 'en' ? 'Manual records' : 'Saisies manuelles')}${search.trim() ? ` · ${locale === 'en' ? 'Search' : 'Recherche'} : ${search.trim()}` : ''}`;
 
   const stats =
     useMemo(() => {
@@ -1289,7 +1311,7 @@ export default function PerformancesVipPage() {
 
       await loadPage();
     } catch (
-      error: any
+      error: unknown
     ) {
       console.error(
         error
@@ -1302,7 +1324,7 @@ export default function PerformancesVipPage() {
       }
 
       alert(
-        error?.message ||
+        (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string' ? error.message : '') ||
           tr("Impossible d'enregistrer le trade.")
       );
     } finally {
@@ -1386,7 +1408,7 @@ export default function PerformancesVipPage() {
   return (
     <>
       <div className="investpro-mobile-page space-y-4 pb-4 lg:space-y-5 lg:pb-10">
-        <VipTelegram connectionOnly onTrades={setTelegramTrades} />
+        <VipTelegram key={userId ?? 'guest'} connectionOnly onTrades={setTelegramTrades} onStatus={handleTelegramStatus} />
         <div className="space-y-5 pt-5">
         {manualError&&<p role="alert" className="text-amber-400">{manualError}</p>}
 
@@ -1808,6 +1830,11 @@ export default function PerformancesVipPage() {
                   : ""}
               </p>
             </div>
+
+            {canReport && <div className="flex flex-col gap-1">
+              <VipPerformanceReport trades={reportTrades} periodLabel={reportPeriod} filterLabel={reportFilter} locale={locale} disabled={!reportReady} authorize={verifyReportAccess} />
+              {!reportReady && <p className="max-w-xs text-xs text-amber-300" role="status">{locale === 'en' ? 'The selected sources must load successfully before exporting.' : 'Les sources sélectionnées doivent être chargées sans erreur avant l’export.'}</p>}
+            </div>}
 
             <div
               className="

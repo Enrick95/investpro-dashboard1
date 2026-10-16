@@ -1,20 +1,24 @@
 'use client';
-import {useEffect,useState,useCallback} from 'react';
+import {useEffect,useState,useCallback,useRef} from 'react';
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import type {Trade} from '@/lib/telegram/engine';
 type Data={trades:Trade[];issues:{message:number;reason:string}[];reviewCount:number;lastReceived:string|null;admin:boolean;preview?:boolean};
-export default function VipTelegram({onTrades,connectionOnly=false}:{onTrades?:(trades:Trade[])=>void;connectionOnly?:boolean}){
+export default function VipTelegram({onTrades,onStatus,connectionOnly=false}:{onTrades?:(trades:Trade[])=>void;onStatus?:(status:'loading'|'ready'|'error')=>void;connectionOnly?:boolean}){
   const { t: tr, locale } = useLocale();
+ const requestVersion=useRef(0);
  const [preview,setPreview]=useState(false),[checked,setChecked]=useState<string|null>(null),[refreshing,setRefreshing]=useState(false);
  const [data,setData]=useState<Data|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[notice,setNotice]=useState(''),[connection,setConnection]=useState(''),[month,setMonth]=useState(()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Paris',year:'numeric',month:'2-digit'}).format(new Date()));
- const load=useCallback(async()=>{setRefreshing(true);try{
- const r=await fetch('/api/telegram/stats',{cache:'no-store'}),j=await r.json();setPreview(Boolean(j.preview));
+ const load=useCallback(async()=>{const version=++requestVersion.current;setRefreshing(true);onStatus?.('loading');try{
+ const r=await fetch('/api/telegram/stats',{cache:'no-store'}),j=await r.json();if(version!==requestVersion.current)return;setPreview(Boolean(j.preview));
  if(!r.ok)throw Error(j.error||tr("Lecture des statistiques indisponible"));
- setData(j);onTrades?.(j.trades);setError('');setChecked(new Date().toISOString());
- if(j.admin){try{const response=await fetch('/api/telegram/manage',{cache:'no-store'});const status=await response.json();setConnection(!response.ok?tr("Configuration impossible à vérifier"):status.configured?(tr("Adresse de réception enregistrée · ") + (status.pending??0) + tr(" message(s) en attente") + (status.lastErrorAt?tr(' · une erreur de livraison a été signalée'):'')):tr("Adresse de réception non connectée à ce site"));}catch{setConnection(tr("Vérification de la connexion indisponible"));}}
+ if(!Array.isArray(j.trades))throw Error(tr("Lecture des statistiques indisponible"));
+ setData(j);onTrades?.(j.trades);onStatus?.('ready');setError('');setChecked(new Date().toISOString());
+ if(j.admin){try{const response=await fetch('/api/telegram/manage',{cache:'no-store'});const status=await response.json();if(version!==requestVersion.current)return;setConnection(!response.ok?tr("Configuration impossible à vérifier"):status.configured?(tr("Adresse de réception enregistrée · ") + (status.pending??0) + tr(" message(s) en attente") + (status.lastErrorAt?tr(' · une erreur de livraison a été signalée'):'')):tr("Adresse de réception non connectée à ce site"));}catch{if(version===requestVersion.current)setConnection(tr("Vérification de la connexion indisponible"));}}
  else setConnection(tr("Vérification de la connexion réservée à l’administrateur"));
- }catch(e){setError((e as Error).message||tr("Connexion indisponible"));setConnection(tr("État non vérifié"));}finally{setRefreshing(false);}},[onTrades, tr]);
- useEffect(()=>{void load();const id=setInterval(()=>{void load();},30000);return()=>clearInterval(id);},[load]);
+ }catch(e){if(version!==requestVersion.current)return;onStatus?.('error');setError((e as Error).message||tr("Connexion indisponible"));setConnection(tr("État non vérifié"));}finally{if(version===requestVersion.current)setRefreshing(false);}},[onTrades,onStatus, tr]);
+ // This effect starts external reads and announces their pending status to the parent.
+ // eslint-disable-next-line react-hooks/set-state-in-effect
+ useEffect(()=>{void load();const id=setInterval(()=>{void load();},30000);return()=>{requestVersion.current++;clearInterval(id);};},[load]);
  async function connect(){setBusy(true);setNotice('');try{const r=await fetch('/api/telegram/manage',{method:'POST'}),j=await r.json();if(!r.ok)throw Error(j.error);setNotice(j.message);await load();}catch(e){setNotice((e as Error).message);}finally{setBusy(false);}}
  const rows=(data?.trades??[]).filter(t=>t.date.startsWith(month)),wins=rows.filter(t=>t.status==='win'),losses=rows.filter(t=>t.status==='loss'),closed=wins.length+losses.length,total=rows.reduce((n,t)=>n+(t.r??0),0);
  return <section className="tg-vip" aria-label={tr("Statistiques Telegram")}>{!connectionOnly&&<div className="tg-head"><div><small>{tr("TELEGRAM · SUIVI AUTOMATIQUE")}</small><h2>{tr("Les signaux du VIP")}</h2><p>{tr("Performance théorique au meilleur TP annoncé.")}</p></div><label>{tr("Mois du signal")}<input aria-label={tr("Mois des statistiques Telegram")} type="month" value={month} onChange={e=>setMonth(e.target.value)}/></label></div>}
