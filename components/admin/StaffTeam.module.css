@@ -9,7 +9,7 @@
 .searchRow { display: flex; gap: 10px; margin-top: 13px; }
 .inputWrap { display: flex; align-items: center; gap: 10px; border: 1px solid #465139; border-radius: 12px; padding: 0 14px; background: #0b120b; flex: 1; min-width: 0; color: #d5b96b; }
 .inputWrap:focus-within { outline: 2px solid #ffcf78; outline-offset: 2px; }
-.inputWrap input { width: 100%; min-width: 0; height: 48px; border: 0; background: transparent; color: #f2f1e6; font: inherit; font-size: 15px; outline: 0; }
+.inputWrap input { width: 100%; min-width: 0; height: 48px; border: 0; background: transparent; color: #f2f1e6; font: inherit; font-size: 16px; outline: 0; }
 .inputWrap input::placeholder { color: #89937e; }
 .primary, .secondary { border: 1px solid #665936; border-radius: 12px; min-height: 44px; padding: 11px 17px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; }
 .secondary { background: #242a19; color: #ffd079; }
@@ -30,7 +30,7 @@
 .permissions { border: 0; margin: 0; padding: 0; min-width: 0; }
 .permissions legend { font-size: 16px; font-weight: 650; margin-bottom: 8px; }
 .permissionsGrid { margin-top: 16px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px 20px; }
-.checkbox { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; line-height: 1.5; cursor: pointer; }
+.checkbox { display: flex; align-items: flex-start; gap: 10px; min-height: 44px; padding: 10px 0; font-size: 13px; line-height: 1.5; cursor: pointer; }
 .checkbox input { width: 16px; height: 16px; flex-shrink: 0; margin: 2px 0 0; accent-color: #ffcf78; }
 .actions { border-top: 1px solid #34402c; padding-top: 21px; display: grid; justify-items: start; gap: 15px; }
 .error { border: 1px solid #7d3c35; border-radius: 12px; padding: 12px 14px; color: #ffb1a5; font-size: 13px; line-height: 1.5; background: #271612; }

@@ -158,7 +158,7 @@ export default function AdminPage() {
 
   return (
     <main className="min-h-screen bg-[#050605] text-white">
-      <div className="mx-auto max-w-[1500px] px-4 py-6 md:px-6 lg:px-8">
+      <div className="mx-auto min-w-0 max-w-[1500px] px-0 py-4 sm:px-4 sm:py-6 md:px-6 lg:px-8">
         <div className="flex flex-col gap-4 border-b border-white/[0.06] pb-5 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.13em] text-[color:var(--gold)]">
@@ -214,13 +214,13 @@ export default function AdminPage() {
                 </div>
 
                 <div className="flex flex-col gap-2 sm:flex-row">
-                  <div className="relative">
+                  <div className="relative min-w-0 w-full sm:w-auto">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
                     <input
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
                       placeholder={tr("Pseudo ou e-mail…")}
-                      className="h-10 w-full min-w-[250px] rounded-xl border border-white/[0.07] bg-black/20 pl-9 pr-3 text-xs text-white outline-none placeholder:text-white/20 focus:border-[color:var(--gold-border)]"
+                      className="h-10 w-full min-w-0 sm:min-w-[250px] rounded-xl border border-white/[0.07] bg-black/20 pl-9 pr-3 text-base sm:text-xs text-white outline-none placeholder:text-white/20 focus:border-[color:var(--gold-border)]"
                     />
                   </div>
 

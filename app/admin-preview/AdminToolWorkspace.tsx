@@ -2,8 +2,8 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { Component, useEffect, useState, type MouseEvent, type ReactNode } from "react";
-import { ArrowRight, Loader2, LockKeyhole, RefreshCw, ShieldCheck } from "lucide-react";
+import { Component, useEffect, useId, useState, type MouseEvent, type ReactNode } from "react";
+import { ArrowRight, Bell, ChevronDown, Loader2, LockKeyhole, RefreshCw, ShieldCheck } from "lucide-react";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { AdminPreviewNavigationProvider } from "@/components/admin/AdminPreviewNavigation";
 import AdminPhoneAlerts from "@/components/admin/AdminPhoneAlerts";
@@ -55,6 +55,8 @@ export default function AdminToolWorkspace({ tool, memberId, vipView, basePath =
   const tr = (fr: string, en: string) => english ? en : fr;
   const key = `${tool}:${memberId || "list"}:${vipView || "default"}`;
   const [attempt, setAttempt] = useState(0);
+  const [alertsOpen, setAlertsOpen] = useState(false);
+  const alertsId = useId();
   const [gate, setGate] = useState<Gate>({ key, status: "checking" });
 
   useEffect(() => {
@@ -117,8 +119,8 @@ export default function AdminToolWorkspace({ tool, memberId, vipView, basePath =
     event.stopPropagation();
     onNavigate(path);
   }
-  return <section className={s.toolSection}>
-    {basePath === "/dashboard/admin" && <div className="mb-5 flex flex-wrap items-start gap-3"><AdminActivityBell onNavigate={onNavigate} /><AdminPhoneAlerts /></div>}
+  return <section className={s.toolSection + (basePath === "/dashboard/admin" ? " " + s.productionTool : "")}>
+    {basePath === "/dashboard/admin" && <div className={s.adminAlerts}><button type="button" className={s.alertsToggle} aria-expanded={alertsOpen} aria-controls={alertsId} onClick={() => setAlertsOpen(value => !value)}><Bell size={17} aria-hidden="true" /><span>{tr("Notifications & téléphone", "Notifications & phone")}</span><ChevronDown size={16} aria-hidden="true" /></button><div id={alertsId} className={s.alertsContent + (alertsOpen ? " " + s.alertsExpanded : "")}><AdminActivityBell onNavigate={onNavigate} /><AdminPhoneAlerts /></div></div>}
     <div className={s.liveNotice}><ShieldCheck size={19} aria-hidden="true" /><div><b>{tr("Outil actuel · données et actions réelles", "Current tool · real data and actions")}</b><span>{basePath === "/dashboard/admin" ? tr("Votre compte et vos permissions sont vérifiés avant le chargement de cette rubrique.", "Your account and permissions are verified before this section loads.") : tr("Cette rubrique conserve vos droits et son fonctionnement actuel. Les vues d’exemple restent séparées dans le menu.", "This section keeps your permissions and its existing behavior. Example views remain separate in the menu.")}</span></div></div>
     <ToolBoundary key={`${key}:${attempt}`} retry={retry} english={english}><AdminPreviewNavigationProvider onNavigate={onNavigate} memberId={memberId} vipView={vipView}><div className={s.currentTool} data-current-admin-tool={tool} onClickCapture={captureAdminLink}><CurrentTool key={`${key}:${attempt}`} /></div></AdminPreviewNavigationProvider></ToolBoundary>
   </section>;

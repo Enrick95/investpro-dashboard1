@@ -98,6 +98,8 @@
 @media (max-width: 600px) {
   .editor { width: 100%; height: calc(100dvh - 170px); max-height: none; min-height: 430px; border-radius: 16px; }
   .actions { padding-bottom: 13px; }
+  .postActions { flex: 1 1 100%; flex-wrap: wrap; margin-left: 0; }
+  .editor .publishedBottom .postActions button { flex: 1 1 100px; min-width: 0; }
   .scroll { scrollbar-width: none; }
   .scroll::-webkit-scrollbar { display: none; }
 }
