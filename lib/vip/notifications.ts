@@ -4,12 +4,7 @@ import webpush from "web-push";
 import {validPushEndpoint} from "./push-validation";
 import {isCurrentVipRenewalNotice,isVipMembershipActive} from "./membership";
 import type {VipMembership} from "./types";
-
-function publicationPostId(eventKey:string, userId:string) {
-  const uuid="[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
-  const match=new RegExp(`^vip:post:(${uuid}):(${uuid})$`,"i").exec(eventKey);
-  return match && match[2].toLowerCase()===userId.toLowerCase()?match[1]:null;
-}
+import {formatVipPublicationNotice,publicationPostId,type VipNoticePost} from "./publication-notice";
 
 export function vipPushConfig() {
   // The shared service-worker registration must use the same VAPID identity as Copier.
@@ -55,18 +50,20 @@ export async function deliverVipNotifications(db:SupabaseClient, limit=20) {
       if(subscriptionError){status="failed";lastError="subscription_lookup_failed";}
       else if(!subscriptions?.length){status="skipped";lastError="no_push_subscription";}
       else {
+        let notice={title:row.title,body:row.message};
         if(row.kind==="publication") {
           const postId=publicationPostId(row.event_key,row.user_id);
           if(!postId){status="skipped";lastError="invalid_publication_event";}
           else {
             // Check after claiming and immediately before delivery: withdrawn posts stay silent.
-            const {data:post,error:postError}=await db.from("vip_posts").select("id").eq("id",postId).eq("published",true).maybeSingle();
+            const {data:post,error:postError}=await db.from("vip_posts").select("id,category,title,body,symbol,direction,levels").eq("id",postId).eq("published",true).maybeSingle();
             if(postError){status="failed";lastError="publication_lookup_failed";}
             else if(!post){status="skipped";lastError="publication_unpublished";}
+            else notice=formatVipPublicationNotice(post as VipNoticePost);
           }
         }
         if(status==="sent") {
-        const payload=JSON.stringify({title:row.title,body:row.message,url:"/dashboard/vip",tag:row.event_key});
+        const payload=JSON.stringify({...notice,url:"/dashboard/vip",tag:row.event_key});
         const outcomes=await Promise.all(subscriptions.map(async subscription=>{
           if (!validPushEndpoint(subscription.endpoint)) return false;
           try {
