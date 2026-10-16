@@ -1,30 +1,107 @@
 "use client";
-import {useCallback,useEffect,useMemo,useState} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale } from "@/components/i18n/LocaleProvider";
-import {createClient} from "@/lib/supabase/client";
-const definitions=[
-["overview","Tableau de bord"],["users","Consulter les membres"],["users_write","Modifier les membres"],
-["moderation","Modération"],["inbox","Consulter les messages"],["inbox_write","Traiter les messages"],
-["copier","Voir les demandes InvestPro Copier (données sensibles)"],["copier_write","Gérer InvestPro Copier"],
-["announcements_write","Envoyer des annonces aux membres"],
-["finance","Finances"],["analytics","Statistiques"],["feedback","Consulter les avis"],["feedback_write","Gérer les avis"],
-["system","Système / maintenance"],["navigation","Modifier la navigation"]
+import StaffMemberPicker, { staffMatches, type StaffMember } from "@/components/admin/StaffMemberPicker";
+import { createClient } from "@/lib/supabase/client";
+import s from "@/components/admin/StaffTeam.module.css";
+
+const definitions = [
+  ["overview", "Tableau de bord", "Dashboard"], ["users", "Consulter les membres", "View members"], ["users_write", "Modifier les membres", "Manage members"],
+  ["moderation", "Modération", "Moderation"], ["inbox", "Consulter les messages", "View messages"], ["inbox_write", "Traiter les messages", "Manage messages"],
+  ["copier", "Voir les demandes InvestPro Copier (données sensibles)", "View InvestPro Copier requests (sensitive data)"], ["copier_write", "Gérer InvestPro Copier", "Manage InvestPro Copier"],
+  ["announcements_write", "Envoyer des annonces aux membres", "Send member announcements"], ["finance", "Finances", "Finance"], ["analytics", "Statistiques", "Statistics"],
+  ["feedback", "Consulter les avis", "View feedback"], ["feedback_write", "Gérer les avis", "Manage feedback"], ["system", "Système / maintenance", "System / maintenance"], ["navigation", "Modifier la navigation", "Manage navigation"],
 ] as const;
-type Item={user_id:string;permissions:string[];enabled:boolean;updated_at:string};
-export default function StaffPage(){
-  const { t: tr } = useLocale();
- const supabase=useMemo(()=>createClient(),[]);
- const [items,setItems]=useState<Item[]>([]),[userId,setUserId]=useState(""),[selected,setSelected]=useState<string[]>([]),[enabled,setEnabled]=useState(true),[error,setError]=useState(""),[info,setInfo]=useState(""),[saving,setSaving]=useState(false);
- const headers=useCallback(async()=>{const {data}=await supabase.auth.getSession();if(!data.session?.access_token)throw Error(tr("Connexion requise"));return {Authorization:`Bearer ${data.session.access_token}`}},[supabase, tr]);
- const reload=useCallback(async()=>{try{const r=await fetch("/api/admin/staff",{headers:await headers(),cache:"no-store"});const j=await r.json();if(!r.ok)throw Error(j.error);setItems(j.items||[])}catch(e:any){setError(e.message)}},[headers]);
- useEffect(()=>{void reload()},[reload]);
- function choose(item:Item){setUserId(item.user_id);setSelected(item.permissions);setEnabled(item.enabled);setInfo("");setError("")}
- async function save(){setError("");setInfo("");setSaving(true);try{const r=await fetch("/api/admin/staff",{method:"POST",headers:{...(await headers()),"Content-Type":"application/json"},body:JSON.stringify({user_id:userId.trim(),permissions:selected,enabled})});const j=await r.json();if(!r.ok)throw Error(j.error||tr("Enregistrement impossible"));setInfo(tr("Permissions enregistrées. Les prochains appels API utilisent ces droits."));await reload()}catch(e:any){setError(e.message)}finally{setSaving(false)}}
- return <div className="max-w-4xl space-y-5"><h2 className="text-xl font-bold">{tr("Gestion de l’équipe")}</h2><p className="text-sm text-white/60">{tr("Le propriétaire est défini par INVESTPRO_ADMIN_USER_IDS et ne peut pas être modifié ici. Saisissez l’UUID Supabase du membre (pas son e-mail).")}</p>
- {error&&<p className="rounded-lg border border-red-700 p-3 text-red-300">{tr(error)}</p>}{info&&<p className="text-emerald-400">{tr(info)}</p>}
- <div className="rounded-2xl border border-white/10 p-5 space-y-4"><label className="block text-sm">{tr("UUID du membre")}<input value={userId} onChange={e=>setUserId(e.target.value)} placeholder={tr("UUID Supabase")} className="mt-2 w-full rounded-lg border border-white/20 bg-black p-3 text-white"/></label>
- <div className="grid gap-3 sm:grid-cols-2">{definitions.map(([key,label])=><label key={key} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={selected.includes(key)} onChange={e=>setSelected(prev=>e.target.checked?[...prev,key]:prev.filter(v=>v!==key))}/>{tr(label)}</label>)}</div>
- <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={enabled} onChange={e=>setEnabled(e.target.checked)}/>{tr("Accès actif")}</label>
- <button disabled={saving||!userId} onClick={()=>void save()} className="rounded-xl bg-amber-400 px-5 py-3 font-semibold text-black disabled:opacity-50">{saving?tr("Enregistrement…"):tr("Enregistrer les permissions")}</button><p className="text-xs text-white/50">{tr("Pour retirer l’accès : décochez « Accès actif » et enregistrez.")}</p></div>
- <div className="space-y-2"><h3 className="font-bold">{tr("Membres autorisés")}</h3>{items.map(item=><button key={item.user_id} onClick={()=>choose(item)} className="block w-full rounded-xl border border-white/10 p-3 text-left text-sm"><span className="font-mono">{item.user_id}</span> — {item.enabled?tr("Activé"):tr("Désactivé")} — {item.permissions.join(", ")||tr("Aucune permission")}</button>)}</div></div>
+type Item = { user_id: string; permissions: string[]; enabled: boolean; updated_at: string };
+const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export default function StaffPage() {
+  const { locale } = useLocale();
+  const english = locale === "en";
+  const tr = useCallback((fr: string, en: string) => english ? en : fr, [english]);
+  const supabase = useMemo(() => createClient(), []);
+  const [items, setItems] = useState<Item[]>([]);
+  const [member, setMember] = useState<StaffMember | null>(null);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [enabled, setEnabled] = useState(true);
+  const [query, setQuery] = useState("");
+  const [matches, setMatches] = useState<StaffMember[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searched, setSearched] = useState(false);
+  const [searchError, setSearchError] = useState("");
+  const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
+  const [saving, setSaving] = useState(false);
+  const searchController = useRef<AbortController | null>(null);
+  const headers = useCallback(async () => {
+    const { data } = await supabase.auth.getSession();
+    if (!data.session?.access_token) throw new Error(tr("Connexion requise", "Sign in required"));
+    return { Authorization: "Bearer " + data.session.access_token };
+  }, [supabase, tr]);
+  const reload = useCallback(async (signal?: AbortSignal) => {
+    const response = await fetch("/api/admin/staff", { headers: await headers(), cache: "no-store", signal });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || tr("Chargement impossible", "Could not load the team"));
+    return (data.items || []) as Item[];
+  }, [headers, tr]);
+  useEffect(() => {
+    const controller = new AbortController();
+    void reload(controller.signal).then(nextItems => { if (!controller.signal.aborted) setItems(nextItems); }).catch((cause: unknown) => { if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : tr("Chargement impossible", "Could not load the team")); });
+    return () => { controller.abort(); searchController.current?.abort(); };
+  }, [reload, tr]);
+  function clearMember() {
+    searchController.current?.abort(); setMember(null); setSelected([]); setEnabled(true); setMatches([]); setQuery(""); setSearched(false); setSearching(false); setSearchError(""); setError(""); setInfo("");
+  }
+  function changeQuery(value: string) {
+    searchController.current?.abort(); setQuery(value); setMatches([]); setSearched(false); setSearching(false); setSearchError("");
+  }
+  async function search() {
+    if (query.trim().length < 2 || saving) return;
+    searchController.current?.abort();
+    const controller = new AbortController(); searchController.current = controller;
+    setSearching(true); setSearched(false); setSearchError(""); setMatches([]);
+    try {
+      const response = await fetch("/api/admin/staff?search=" + encodeURIComponent(query.trim()), { headers: await headers(), cache: "no-store", signal: controller.signal });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || tr("Recherche impossible", "Search failed"));
+      if (!controller.signal.aborted) { setMatches(staffMatches(data.matches)); setSearched(true); }
+    } catch (cause: unknown) { if (!controller.signal.aborted) setSearchError(cause instanceof Error ? cause.message : tr("Recherche impossible", "Search failed")); }
+    finally { if (!controller.signal.aborted) setSearching(false); }
+  }
+  function choose(match: StaffMember) {
+    if (match.is_owner || saving) return;
+    searchController.current?.abort();
+    const current = items.find(item => item.user_id === match.user_id);
+    setMember(match); setSelected(current?.permissions || []); setEnabled(current?.enabled ?? true); setMatches([]); setSearched(false); setSearching(false); setError(""); setInfo("");
+  }
+  function chooseExisting(item: Item) { choose({ user_id: item.user_id, name: item.user_id, email: "", is_owner: false }); }
+  async function save() {
+    if (!member || member.is_owner || saving || !uuid.test(member.user_id)) return;
+    setError(""); setInfo(""); setSaving(true);
+    try {
+      const response = await fetch("/api/admin/staff", { method: "POST", headers: { ...(await headers()), "Content-Type": "application/json" }, body: JSON.stringify({ user_id: member.user_id, permissions: selected, enabled }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || tr("Enregistrement impossible", "Could not save permissions"));
+      setInfo(tr("Permissions enregistrées pour " + member.name + ".", "Permissions saved for " + member.name + "."));
+      setItems(await reload());
+    } catch (cause: unknown) { setError(cause instanceof Error ? cause.message : tr("Enregistrement impossible", "Could not save permissions")); }
+    finally { setSaving(false); }
+  }
+  return <div className={s.page}>
+    <header className={s.heading}><h2>{tr("Gestion de l’équipe", "Team management")}</h2><p className={s.hint}>{tr("Choisissez un compte InvestPro, puis les rubriques que cette personne pourra gérer.", "Select an InvestPro account, then choose which sections they can manage.")}</p></header>
+    {error ? <p className={s.error} role="alert">{error}</p> : null}
+    {info ? <p className={s.success} role="status">{info}</p> : null}
+    <section className={s.panel} aria-label={tr("Accès de l’équipe", "Team access")}>
+      <StaffMemberPicker english={english} query={query} matches={matches} member={member} searching={searching} searched={searched} error={searchError} disabled={saving} onQuery={changeQuery} onSearch={() => void search()} onChoose={choose} onClear={clearMember} />
+      <fieldset className={s.permissions} disabled={!member || saving}><legend>{tr("Droits d’administration", "Administration permissions")}</legend>
+        <p className={s.hint}>{tr("Pour gérer les demandes et publications VIP, cochez « Consulter les membres » et « Modifier les membres ».", "To manage VIP requests and posts, select “View members” and “Manage members”.")}</p>
+        <div className={s.permissionsGrid}>{definitions.map(([key, fr, en]) => <label key={key} className={s.checkbox}><input type="checkbox" checked={selected.includes(key)} onChange={event => setSelected(previous => event.target.checked ? [...previous, key] : previous.filter(value => value !== key))} />{tr(fr, en)}</label>)}</div>
+      </fieldset>
+      <div className={s.actions}><label className={s.checkbox}><input type="checkbox" checked={enabled} disabled={!member || saving} onChange={event => setEnabled(event.target.checked)} />{tr("Accès actif", "Access enabled")}</label>
+        <button type="button" disabled={saving || !member || member.is_owner || (enabled && selected.length === 0)} onClick={() => void save()} className={s.primary}>{saving ? tr("Enregistrement…", "Saving…") : tr("Enregistrer les permissions", "Save permissions")}</button>
+        <p className={s.hint}>{tr("Pour retirer l’accès, sélectionnez le membre, décochez « Accès actif » et enregistrez. La gestion de l’équipe reste réservée au propriétaire.", "To remove access, select the member, uncheck “Access enabled” and save. Team management remains owner-only.")}</p>
+      </div>
+    </section>
+    <section className={s.authorized}><h3>{tr("Membres autorisés", "Authorized team members")}</h3>{items.length ? items.map(item => <button key={item.user_id} type="button" disabled={saving} onClick={() => chooseExisting(item)} className={s.staffEntry}><span>{item.user_id}<br /><small>{item.permissions.length} {tr("permission(s)", "permission(s)")}</small></span><span>{item.enabled ? tr("Activé", "Enabled") : tr("Désactivé", "Disabled")}</span></button>) : <p className={s.hint}>{tr("Les membres de votre équipe apparaîtront ici après l’enregistrement de leurs droits.", "Your team members will appear here after their permissions are saved.")}</p>}</section>
+  </div>;
 }

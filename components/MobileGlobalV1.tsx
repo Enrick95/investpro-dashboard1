@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { defaultVisibility, type NavigationKey } from "@/lib/navigation/config";
 import {useVipNavigation} from "@/components/vip/useVipNavigation";
+import { useAdminNavigation } from "@/components/mobile/useAdminNavigation";
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -30,6 +31,7 @@ import {
   Newspaper,
   Smartphone,
   Settings,
+  ShieldCheck,
   Target,
   TrendingUp,
   Trophy,
@@ -114,11 +116,12 @@ function InstallMenuTile({ onClick }: { onClick: (event: MouseEvent<HTMLButtonEl
 }
 
 export default function MobileGlobalV1() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
 
   const pathname = usePathname();
   const vipVisible=useVipNavigation(pathname);
   const [moreOpen, setMoreOpen] = useState(false);
+  const adminDestination = useAdminNavigation(pathname, moreOpen);
   const moreTriggerRef = useRef<HTMLButtonElement>(null);
   const [visibility, setVisibility] = useState<Record<NavigationKey, boolean>>(defaultVisibility());
 
@@ -508,6 +511,9 @@ export default function MobileGlobalV1() {
             </div>
 
             <div className="ip-more-scroll">
+              {adminDestination && <MenuGroup title={locale === "en" ? "Team" : "Équipe"}>
+                <MenuTile href={adminDestination} label="Administration" icon={<ShieldCheck size={20} />} onClick={() => setMoreOpen(false)} />
+              </MenuGroup>}
               {tradingTiles.length ? <MenuGroup title={t("Trading")}>
                 {tradingTiles.map((item) => (
                   <MenuTile key={item.href} {...item} onClick={() => setMoreOpen(false)} />
