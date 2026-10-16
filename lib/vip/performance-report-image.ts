@@ -151,20 +151,22 @@ function drawTrades(ctx: CanvasRenderingContext2D, page: Page, report: Report, o
   for (const line of period) { text(ctx, line, 64, y, 22, colors.gold, 500); y += 26; }
   y += 3;
   for (const line of page.context) { text(ctx, line, 64, y, 16, colors.muted); y += 23; }
-  const metrics = [
+  const metrics: { label: string; value: string; color: string; detail?: string; featured?: boolean }[] = [
     { label: "WIN / TP", value: String(report.counts.wins), color: colors.green },
     { label: "LOSS", value: String(report.counts.losses), color: colors.red },
     { label: "BREAKEVEN", value: String(report.counts.breakevens), color: colors.gold },
     { label: "WINRATE", value: report.winrate === null ? "—" : `${number(report.winrate, 1)} %`, color: colors.text },
-    { label: english ? "CUMULATIVE R" : "R CUMULÉ", value: r(report.totalR), color: report.totalR !== null && report.totalR < 0 ? colors.red : colors.gold },
-    { label: english ? "AVERAGE R/R" : "R/R MOYEN", value: report.rewardRiskRatio === null ? "—" : number(report.rewardRiskRatio), color: colors.text },
+    { label: english ? "CLOSED TRADES" : "TRADES CLÔTURÉS", value: String(report.counts.closed), color: colors.text },
+    { label: english ? "RESULT" : "RÉSULTAT", value: r(report.totalR), color: report.totalR !== null && report.totalR < 0 ? colors.red : colors.gold, featured: true,
+      detail: `${english ? 'Average R/R' : 'R/R moyen'} : ${report.rewardRiskRatio === null ? '—' : number(report.rewardRiskRatio)}` },
   ];
   const metricY = y + 17, gap = 14, width = (952 - gap * 2) / 3;
   metrics.forEach((metric, index) => {
     const x = 64 + index % 3 * (width + gap), top = metricY + Math.floor(index / 3) * 106;
-    rounded(ctx, x, top, width, 94, 16, colors.panel, colors.line);
-    text(ctx, metric.label, x + 19, top + 24, 12, colors.muted, 500);
-    fit(ctx, metric.value, x + 19, top + 68, width - 38, 35, metric.color, 600);
+    rounded(ctx, x, top, width, 94, 16, metric.featured ? '#25271a' : colors.panel, metric.featured ? '#8c7548' : colors.line);
+    text(ctx, metric.label, x + 19, top + 24, 12, metric.featured ? colors.gold : colors.muted, 500);
+    fit(ctx, metric.value, x + 19, top + (metric.detail ? 62 : 68), width - 38, metric.featured ? 42 : 35, metric.color, 600);
+    if (metric.detail) fit(ctx, metric.detail, x + 19, top + 83, width - 38, 12, colors.muted);
   });
   y = metricY + 228;
   text(ctx, english ? `${report.counts.total} trades · ${report.counts.closed} closed` : `${report.counts.total} trades · ${report.counts.closed} clôturés`, 64, y, 17, colors.text, 500);

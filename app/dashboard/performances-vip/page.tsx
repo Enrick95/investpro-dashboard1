@@ -4,7 +4,7 @@ import type {Trade as TelegramTrade} from "@/lib/telegram/engine";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import VipTelegram from "@/components/telegram/VipTelegram";
 import VipPerformanceReport from "@/components/vip/VipPerformanceReport";
-import type { ReportTrade } from "@/lib/vip/performance-report";
+import { buildVipPerformanceReport, type ReportTrade } from "@/lib/vip/performance-report";
 import { containsReportDay, reportPeriodRange } from "@/lib/vip/performance-report-period";
 import { tradeDay } from "@/lib/performance";
 
@@ -755,6 +755,7 @@ export default function PerformancesVipPage() {
       };
     });
   }, [filteredTrades, telegramTrades]);
+  const performanceReport = useMemo(() => buildVipPerformanceReport(reportTrades), [reportTrades]);
   const reportReady = !loading && (source === 'telegram' || !manualError) && (source === 'manual' || telegramStatus === 'ready');
   const reportDayLabel = (day: string) => new Date(`${day}T12:00:00Z`).toLocaleDateString(locale === 'en' ? 'en-US' : 'fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: 'short', year: 'numeric' });
   const reportPeriod = `${{ '7d': locale === 'en' ? 'Last 7 days' : '7 derniers jours', month: locale === 'en' ? 'This month' : 'Ce mois', '3m': locale === 'en' ? 'Last 3 months' : '3 derniers mois', year: locale === 'en' ? 'This year' : 'Cette année', all: locale === 'en' ? 'All history' : 'Tout l’historique' }[period]}${selectedRange.start ? ` · ${reportDayLabel(selectedRange.start)}` : ''} → ${reportDayLabel(selectedRange.end)} · ${locale === 'en' ? 'Paris time' : 'Heure de Paris'}`;
@@ -1661,18 +1662,10 @@ export default function PerformancesVipPage() {
               />
             }
             label={tr("Résultat")}
-            value={`${stats.totalR >= 0 ? "+" : ""}${stats.totalR.toFixed(
-              2
-            )}R`}
-            positive={
-              stats.totalR >
-              0
-            }
-            negative={
-              stats.totalR <
-              0
-            }
-            sub={filteredTrades.some(t=>t.source==='telegram')?(locale === 'en' ? 'Telegram automatic synchronization' : 'Telegram synchronisation automatique'):`${stats.totalPips.toFixed(0)} pips`}
+            value={performanceReport.totalR === null ? '—' : `${performanceReport.totalR > 0 ? '+' : ''}${new Intl.NumberFormat(locale === 'en' ? 'en-US' : 'fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(performanceReport.totalR)} R`}
+            positive={performanceReport.totalR !== null && performanceReport.totalR > 0}
+            negative={performanceReport.totalR !== null && performanceReport.totalR < 0}
+            sub={`${locale === 'en' ? 'Average R/R' : 'R/R moyen'} : ${performanceReport.rewardRiskRatio === null ? '—' : new Intl.NumberFormat(locale === 'en' ? 'en-US' : 'fr-FR', { maximumFractionDigits: 2 }).format(performanceReport.rewardRiskRatio)}`}
           />
         </section>
 
