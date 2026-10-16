@@ -64,6 +64,18 @@ function signalFields(body: string): Record<string, string> {
   return fields;
 }
 
+function signalOrder(fields: Record<string, string>, fallback?: string | null) {
+  const label = (Object.hasOwn(fields, "direction") ? fields.direction : plain(fallback || "")).toUpperCase();
+  const match = /^(BUY|SELL|ACHAT|VENTE)(?:\s+(?:LIMIT|STOP(?:\s+LIMIT)?))?$/.exec(label);
+  const side = match ? (match[1] === "BUY" || match[1] === "ACHAT" ? "buy" : "sell") : null;
+  return { label, side } as { label: string; side: "buy" | "sell" | null };
+}
+
+/** Only explicit orders get a direction colour; empty/conflicting text overrides legacy metadata. */
+export function vipSignalOrder(post: VipNoticePost) {
+  return post.category === "signal" ? signalOrder(signalFields(post.body || ""), post.direction) : null;
+}
+
 export function formatVipPublicationNotice(post: VipNoticePost): { title: string; body: string } {
   const heading = titles[post.category] || "Nouvelle publication VIP";
   const customTitle = plain(post.title || "");
@@ -73,11 +85,12 @@ export function formatVipPublicationNotice(post: VipNoticePost): { title: string
     // Visible text takes priority over legacy structured metadata preserved by the editor.
     const field = (key: string, fallback = "") => Object.hasOwn(fields, key) ? fields[key] : fallback;
     const asset = field("asset", plain(post.symbol || ""));
-    const direction = field("direction", plain(post.direction || "").toUpperCase());
+    const order = signalOrder(fields, post.direction);
+    const direction = order.label;
     const levels = post.levels || {};
     const numeric = (key: string) => typeof levels[key] === "number" && Number.isFinite(levels[key]) && (levels[key] as number) > 0 ? String(levels[key]) : "";
     const parts = [
-      direction && direction.toUpperCase(),
+      direction && `${order.side === "buy" ? "🟢 " : order.side === "sell" ? "🔴 " : ""}${direction}`,
       field("entry", numeric("entry")) && `Entrée : ${field("entry", numeric("entry"))}`,
       field("sl", numeric("stopLoss")) && `SL : ${field("sl", numeric("stopLoss"))}`,
       field("tp1", numeric("takeProfit")) && `TP1 : ${field("tp1", numeric("takeProfit"))}`,

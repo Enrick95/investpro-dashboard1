@@ -73,7 +73,7 @@ async function run({ count = 65, preview = false, exhaustBudget = false, failTra
   assert.equal(drained.remainingRows, 0);
   assert.equal(drained.claims, 5);
   assert.ok(drained.peak <= 10);
-  assert(drained.payloads.every(payload => payload.title === "Nouveau signal · XAUUSD" && payload.body === "SELL · Entrée : 2670–2672 · SL : 2680 · TP1 : 2660 · TP2 : 2650 · TP3 : OPEN" && payload.url === "/dashboard/vip"));
+  assert(drained.payloads.every(payload => payload.title === "Nouveau signal · XAUUSD" && payload.body === "🔴 SELL · Entrée : 2670–2672 · SL : 2680 · TP1 : 2660 · TP2 : 2650 · TP3 : OPEN" && payload.url === "/dashboard/vip"));
 
   const budget = await run({ exhaustBudget: true });
   assert.equal(budget.result.sent, 20);

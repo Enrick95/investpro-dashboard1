@@ -29,8 +29,12 @@
 .levels > div { min-width: 0; }
 .levels dt { color: #acb6a4; font-size: 9px; }
 .levels dd { color: #efefe5; font-size: 11px; margin: 3px 0 0; overflow-wrap: anywhere; }
-.signalHeading { display: flex; align-items: center; gap: 9px; margin: 0 0 8px; }
+.signalHeading { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; margin: 0 0 8px; }
 .post .signalHeading h2 { color: #8be3ad; margin: 0; }
+.post .sellHeading h2 { color: #ffb1a7; }
+.orderBadge { display: inline-flex; align-items: center; gap: 8px; padding: 5px 9px; border: 1px solid currentColor; font-size: 10px; font-weight: 650; line-height: 1.3; }
+.orderDot { position: relative; display: inline-block; flex-shrink: 0; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.orderPulse::after { content: ""; position: absolute; inset: -3px; border: 1px solid currentColor; border-radius: 50%; animation: signalPulse 2.8s ease-out infinite; }
 .post .signalSubtitle { font-size: 12px; font-weight: 550; line-height: 1.45; margin: 0 0 8px; color: #e3ebda; overflow-wrap: anywhere; }
 .signalDot, .signalHistory { position: relative; display: inline-block; width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%; background: #6cdb96; box-shadow: 0 0 8px #6cdb9638; }
 .signalHistory { background: #829278; box-shadow: none; }
@@ -63,4 +67,4 @@
 .viewer > p { font-size: 11px; text-align: center; color: #acb6a4; margin: 12px 0 0; }
 @keyframes signalPulse { 0% { transform: scale(.7); opacity: .8; } 70%, 100% { transform: scale(1.65); opacity: 0; } }
 @media (max-width: 370px) { .copy { padding: 11px 10px 9px; } .badge { font-size: 8px; } .reactions { padding: 8px 7px 10px; gap: 4px; } .post .reaction { min-width: 45px; padding: 8px; } }
-@media (prefers-reduced-motion: reduce) { .signalDot::after { animation: none; opacity: .5; } }
+@media (prefers-reduced-motion: reduce) { .signalDot::after, .orderPulse::after { animation: none; opacity: .5; } }

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowUpRight, Calculator, Crown, Expand, X } from "lucide-react";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { safeHttps, vipDate, vipRequest, type VipPost, type VipPostReactions, type VipReaction } from "@/lib/vip/client";
+import { vipSignalOrder } from "@/lib/vip/publication-notice";
 import s from "./VipPostCard.module.css";
 
 const categories: Record<string, string> = {
@@ -46,6 +47,7 @@ export default function VipPostCard({ post, preview = false, imagePreviewUrl }: 
   const created = Date.parse(post.created_at);
   const isRecentSignal = preview || (Number.isFinite(created) && now >= created && now - created < recentSignalDuration);
   const signalLabel = t(isRecentSignal ? "Nouveau signal" : "Signal");
+  const signalOrder = vipSignalOrder(post);
   const titleIsSignalLabel = post.category === "signal" && (post.title === signalLabel || post.title === "Nouveau signal" || post.title === "New signal");
   const edited = Boolean(post.updated_at && Date.parse(post.updated_at) > created + 1000);
   const levels = [["Entrée", post.levels?.entry], ["Stop loss", post.levels?.stopLoss], ["Objectif 1", post.levels?.takeProfit], ["Objectif 2", post.levels?.takeProfit2]] as const;
@@ -82,9 +84,15 @@ export default function VipPostCard({ post, preview = false, imagePreviewUrl }: 
         <div className={s.author}><b>InvestPro</b><small>{preview && !post.created_at ? t("À l’instant") : vipDate(post.created_at, locale)}{edited && <span className={s.edited}> · {t("Modifié")}</span>}</small></div>
         <span className={s.badge}>{t(categories[post.category] || "Publication")}</span>
       </div>
-      {post.category === "signal" && <div className={s.signalHeading}><span className={isRecentSignal ? s.signalDot : s.signalHistory} aria-hidden="true" /><h2>{signalLabel}</h2></div>}
+      {post.category === "signal" && <div className={`${s.signalHeading} ${signalOrder?.side === "sell" ? s.sellHeading : ""}`}>
+        {!signalOrder?.side && <span className={isRecentSignal ? s.signalDot : s.signalHistory} aria-hidden="true" />}
+        <h2>{signalLabel}</h2>
+        {signalOrder?.side && <span className={`${s.orderBadge} ${signalOrder.side === "buy" ? s.buy : s.sell}`}>
+          <span className={`${s.orderDot} ${isRecentSignal ? s.orderPulse : ""}`} aria-hidden="true" />{signalOrder.label}
+        </span>}
+      </div>}
       {post.title && !titleIsSignalLabel && (post.category === "signal" ? <h3 className={s.signalSubtitle}>{post.title}</h3> : <h2>{post.title}</h2>)}
-      {post.symbol && <div className={s.symbol}>{post.symbol}{post.direction && <span className={post.direction === "buy" ? s.buy : s.sell}>{post.direction === "buy" ? t("Achat") : t("Vente")}</span>}</div>}
+      {post.symbol && <div className={s.symbol}>{post.symbol}{post.category !== "signal" && post.direction && <span className={post.direction === "buy" ? s.buy : s.sell}>{post.direction === "buy" ? t("Achat") : t("Vente")}</span>}</div>}
       {post.body && <p className={s.body}>{post.body}</p>}
       {availableLevels.length > 0 && <dl className={s.levels}>{availableLevels.map(([label, value]) => <div key={label}><dt>{t(label)}</dt><dd>{value?.toLocaleString(locale === "en" ? "en-US" : "fr-FR", { maximumFractionDigits: 8 })}</dd></div>)}</dl>}
       {post.category === "signal" && !includesRiskReminder && <p className={s.riskReminder}>{t("⚠️ Respectez votre gestion du risque.")}</p>}
