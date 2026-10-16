@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { Bell, BellRing, Smartphone } from "lucide-react";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { vipRequest, type VipAccess } from "@/lib/vip/client";
+import { activateConfiguredPush } from "@/lib/push/activation-client";
+import { PushSetupError, pushSetupErrorText } from "@/lib/push/setup";
 
 /** Explicit opt-in only: opening administration never prompts for notifications. */
 export default function AdminPhoneAlerts() {
@@ -37,20 +39,10 @@ export default function AdminPhoneAlerts() {
       // Invoke synchronously from the click before any network await, including on iOS.
       const permission = await Notification.requestPermission();
       if (permission !== "granted") throw new Error(tr("Notifications non autorisées. Vous pouvez les activer dans les réglages de votre appareil.", "Notifications were not allowed. You can enable them in your device settings."));
-      const push = await vipRequest<{ publicKey: string | null }>("/api/vip/push");
-      if (!push.publicKey) throw new Error(tr("Les alertes sont temporairement indisponibles.", "Alerts are temporarily unavailable."));
-      const registration = await navigator.serviceWorker.getRegistration("/") || await navigator.serviceWorker.register("/sw.js");
-      const ready = registration.active ? registration : await Promise.race([
-        navigator.serviceWorker.ready,
-        new Promise<never>((_, reject) => window.setTimeout(() => reject(new Error(tr("L’application prépare les alertes. Réessayez dans un instant.", "The app is preparing alerts. Try again in a moment."))), 10000)),
-      ]);
-      const padding = "=".repeat((4 - push.publicKey.length % 4) % 4);
-      const bytes = atob((push.publicKey + padding).replace(/-/g, "+").replace(/_/g, "/"));
-      const key = Uint8Array.from(bytes, value => value.charCodeAt(0));
-      const subscription = await ready.pushManager.getSubscription() || await ready.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
-      await vipRequest("/api/vip/push", { method: "POST", body: JSON.stringify({ subscription: subscription.toJSON() }) });
+      const setup = await activateConfiguredPush();
+      if (!setup.channels.includes("vip")) throw new PushSetupError("unavailable");
       setActive(true); setMessage(tr("Alertes administrateur activées sur cet appareil : nouvelles demandes et validations VIP. La cloche InvestPro reste disponible sur le site.", "Admin alerts are enabled on this device for new VIP applications and approvals. The InvestPro notification bell remains available on the site."));
-    } catch (cause) { setMessage(cause instanceof Error ? t(cause.message) : tr("Impossible d’activer les alertes.", "Could not enable alerts.")); }
+    } catch (cause) { setMessage(cause instanceof PushSetupError ? pushSetupErrorText(cause, locale === "en") : cause instanceof Error ? t(cause.message) : tr("Impossible d’activer les alertes.", "Could not enable alerts.")); }
     finally { setBusy(false); }
   }
 

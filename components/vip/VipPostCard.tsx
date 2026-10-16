@@ -7,6 +7,7 @@ import { ArrowUpRight, Calculator, Crown, Expand, X } from "lucide-react";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { safeHttps, vipDate, vipRequest, type VipPost, type VipPostReactions, type VipReaction } from "@/lib/vip/client";
 import { vipSignalOrder } from "@/lib/vip/publication-notice";
+import { riskSignalHref } from "@/lib/vip/signal-risk-preset";
 import s from "./VipPostCard.module.css";
 
 const categories: Record<string, string> = {
@@ -108,7 +109,7 @@ export default function VipPostCard({ post, preview = false, imagePreviewUrl }: 
         <p>{t("L’image entière, sans recadrage.")}</p>
       </dialog>
     </>}
-    {post.category === "signal" && <Link className={s.riskLink} href="/dashboard/simulateur" aria-label={t("Calculer mon lot avec le simulateur de risque")}><span className={s.riskIcon}><Calculator size={16} aria-hidden="true" /></span><span><strong>{t("Calculer mon lot")}</strong><small>{t("Préparer mon risque avant le trade")}</small></span><ArrowUpRight size={13} aria-hidden="true" /></Link>}
+    {post.category === "signal" && <Link className={s.riskLink} href={riskSignalHref(post.id, preview)} aria-label={t("Calculer mon lot avec le simulateur de risque")}><span className={s.riskIcon}><Calculator size={16} aria-hidden="true" /></span><span><strong>{t("Calculer mon lot")}</strong><small>{locale === "en" ? "Entry & Stop Loss prefilled" : "Entrée & Stop Loss préremplis"}</small></span><ArrowUpRight size={13} aria-hidden="true" /></Link>}
     <div className={s.reactions} role="group" aria-label={t("Réactions à la publication")} aria-busy={reactionBusy}>
       {reactions.map(({ key, emoji, label }) => <button type="button" key={key} className={s.reaction} disabled={preview || reactionBusy} onClick={() => void react(key)} aria-pressed={reactionState.mine === key} aria-label={`${t(label)} · ${reactionState.counts[key]}`}><span aria-hidden="true">{emoji}</span><span>{reactionState.counts[key]}</span></button>)}
     </div>

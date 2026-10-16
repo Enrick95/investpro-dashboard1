@@ -11,6 +11,8 @@ import "./VipPortalShell.css";
 import { Activity, ArrowRight, ArrowUpRight, Bell, BookOpen, Calculator, ChartColumn, ChartNoAxesCombined, ChevronDown, Crown, GitBranch, GraduationCap, Handshake, LockKeyhole, MessageCircle, PenLine, Radio, RefreshCw, Send, Settings, ShieldCheck, Smartphone, UserRound } from "lucide-react";
 import { safeHttps, VipApiError, vipDate, vipRequest, type VipAccess, type VipPost } from "@/lib/vip/client";
 import s from "./VipPortal.module.css";
+import { activateConfiguredPush } from "@/lib/push/activation-client";
+import { PushSetupError, pushSetupErrorText } from "@/lib/push/setup";
 
 const views = [
   { key: "analysis", label: "Analyses", Icon: ChartNoAxesCombined },
@@ -103,15 +105,10 @@ export default function VipPortal({ initialAdminMode = false }: { initialAdminMo
     try {
       const permission = Notification.requestPermission();
       if (await permission !== "granted") throw new Error("Les notifications ne sont pas autorisées. Vous pouvez modifier ce choix dans les réglages du téléphone.");
-      const registration = await navigator.serviceWorker.getRegistration("/") || await navigator.serviceWorker.register("/sw.js");
-      const ready = registration.active ? registration : await Promise.race([navigator.serviceWorker.ready, new Promise<never>((_, reject) => window.setTimeout(() => reject(new Error("L’application prépare les alertes. Réessayez dans un instant.")), 10000))]);
-      const padding = "=".repeat((4 - publicKey.length % 4) % 4);
-      const raw = atob((publicKey + padding).replace(/-/g, "+").replace(/_/g, "/"));
-      const key = Uint8Array.from(raw, (char) => char.charCodeAt(0));
-      const subscription = await ready.pushManager.getSubscription() || await ready.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
-      await vipRequest("/api/vip/push", { method: "POST", body: JSON.stringify({ subscription: subscription.toJSON() }) });
+      const setup = await activateConfiguredPush();
+      if (!setup.channels.includes("vip")) throw new PushSetupError("unavailable");
       setAlertsOn(true); setMessage("Les alertes VIP sont activées sur cet appareil.");
-    } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Impossible d’activer les alertes."); }
+    } catch (cause) { setMessage(cause instanceof PushSetupError ? pushSetupErrorText(cause, locale === "en") : cause instanceof Error ? cause.message : "Impossible d’activer les alertes."); }
     finally { setBusy(false); }
   }
   const membership = access?.membership;

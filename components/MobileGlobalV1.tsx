@@ -11,6 +11,7 @@ import { useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode }
 import { createPortal } from "react-dom";
 import {
   BarChart3,
+  Bell,
   Bug,
   BookOpen,
   CalendarDays,
@@ -131,6 +132,12 @@ export default function MobileGlobalV1() {
     moreTriggerRef.current?.focus({ preventScroll: true });
     // Open the guide before removing the menu so a tap cannot hit the page underneath.
     window.dispatchEvent(new Event("investpro:open-install-guide"));
+    setMoreOpen(false);
+  }
+
+  function openPushSettings(event: MouseEvent<HTMLButtonElement>) {
+    event.preventDefault(); event.stopPropagation();
+    window.dispatchEvent(new Event("investpro:open-push-settings"));
     setMoreOpen(false);
   }
 
@@ -556,6 +563,7 @@ export default function MobileGlobalV1() {
 
               <MenuGroup title={t("Application")}>
                 <InstallMenuTile onClick={openInstallGuide} />
+                <button type="button" onClick={openPushSettings} className="ip-more-tile"><span className="ip-more-tile-icon"><Bell size={20} aria-hidden="true" /></span><span>{t("Notifications")}</span></button>
               </MenuGroup>
             </div>
           </div>
