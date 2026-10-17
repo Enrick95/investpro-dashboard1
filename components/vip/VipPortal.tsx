@@ -7,6 +7,8 @@ import Link from "next/link";
 import LanguageSwitcher from "@/components/i18n/LanguageSwitcher";
 import VipPostCard from "./VipPostCard";
 import VipPublicationsEditor from "./VipPublicationsEditor";
+import VipChat from "./VipChat";
+import { createClient } from "@/lib/supabase/client";
 import "./VipPortalShell.css";
 import { Activity, ArrowRight, ArrowUpRight, Bell, BookOpen, Calculator, ChartColumn, ChartNoAxesCombined, ChevronDown, Crown, GitBranch, GraduationCap, Handshake, LockKeyhole, MessageCircle, PenLine, Radio, RefreshCw, Send, Settings, ShieldCheck, Smartphone, UserRound } from "lucide-react";
 import { safeHttps, VipApiError, vipDate, vipRequest, type VipAccess, type VipPost } from "@/lib/vip/client";
@@ -23,6 +25,7 @@ const views = [
   { key: "training", label: "Bientôt", Icon: GraduationCap },
   { key: "partnership", label: "Partenariats", Icon: Handshake },
   { key: "telegram", label: "Telegram", Icon: Send },
+  { key: "chat", label: "Chat", Icon: MessageCircle },
 ] as const;
 export type VipView = typeof views[number]["key"];
 const headings: Record<VipView, [string, string]> = {
@@ -32,6 +35,7 @@ const headings: Record<VipView, [string, string]> = {
   risk: ["Simulateur de risque.", "Préparer son lot avant la prise de position."],
   partnership: ["Partenariats.", "Les présentations et avantages des partenaires."], performance: ["Bilan.", "Le récapitulatif partagé avec le groupe."],
   training: ["Formation & coaching.", "Les prochaines expériences du cercle."], telegram: ["Telegram.", "Le lien avec ton canal privé."],
+  chat: ["Chat.", "Les échanges entre membres du VIP."],
 };
 export default function VipPortal({ initialAdminMode = false }: { initialAdminMode?: boolean }) {
   const { t, locale } = useLocale();
@@ -70,6 +74,23 @@ export default function VipPortal({ initialAdminMode = false }: { initialAdminMo
   // The initial authenticated fetch updates state after network I/O, with cancellation on unmount.
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { const controller = new AbortController(); void refresh(controller.signal); return () => controller.abort(); }, [refresh]);
+  useEffect(() => {
+    let currentUser: string | null | undefined;
+    let pending: number | undefined;
+    const { data } = createClient().auth.onAuthStateChange((_event, session) => {
+      const nextUser = session?.user.id ?? null;
+      if (currentUser === undefined) { currentUser = nextUser; return; }
+      if (nextUser === currentUser) return;
+      currentUser = nextUser;
+      ++requestVersion.current;
+      setAccess(null); setPosts([]); setPublicKey(null); setAlertsOn(false);
+      setMessage(""); setError(""); setLoading(Boolean(nextUser));
+      window.clearTimeout(pending);
+      // Keep authenticated network calls outside Supabase's auth callback.
+      if (nextUser) pending = window.setTimeout(() => { void refresh(); }, 0);
+    });
+    return () => { data.subscription.unsubscribe(); window.clearTimeout(pending); };
+  }, [refresh]);
   useEffect(() => {
     let lastRefresh = 0;
     const onFocus = () => {
@@ -112,6 +133,7 @@ export default function VipPortal({ initialAdminMode = false }: { initialAdminMo
     finally { setBusy(false); }
   }
   const membership = access?.membership;
+  const effectiveAdminMode = adminMode && access?.admin === true;
   const telegramUrl = access?.active ? safeHttps(access.telegramUrl) : null;
   const membershipCard = membership && <div className={s.membership}>
     <div><b>{membership.type === "abonnement" ? t("Abonnement") : t("Affiliation")} · {membership.email}</b>
@@ -121,7 +143,7 @@ export default function VipPortal({ initialAdminMode = false }: { initialAdminMo
     {membership.type === "abonnement" && <button type="button" className={s.secondary} onClick={renewal} disabled={busy || Boolean(membership.renewal_requested_at)}>{membership.renewal_requested_at ? t("Demande transmise") : t("Demander mon renouvellement")}</button>}
   </div>;
 
-  return <VipPortalFrame view={view} onSelect={setView} admin={access?.admin === true} adminMode={adminMode && access?.admin === true} onModeChange={setAdminMode} onRefresh={() => void refresh()} loading={loading} editor={access?.admin === true ? <VipPublicationsEditor active={adminMode} embedded onPublished={() => void refresh()} /> : undefined}>
+  return <VipPortalFrame view={view} onSelect={setView} admin={access?.admin === true} adminMode={effectiveAdminMode} onModeChange={setAdminMode} onRefresh={() => void refresh()} loading={loading} editor={access?.admin === true ? <VipPublicationsEditor active={adminMode} embedded onPublished={() => void refresh()} /> : undefined}>
         {loading ? <div className={s.empty} role="status">{t("Chargement de votre espace privé…")}</div> : <>
           {error && <div className={s.notice} role="alert">{t(error)}{!access && <Link href="/login?next=%2Fdashboard%2Fvip">{t("Me connecter")}{" "}<ArrowRight size={15} /></Link>}</div>}
           {message && <p className={s.notice} role="status">{t(message)}</p>}
@@ -141,7 +163,7 @@ export default function VipPortal({ initialAdminMode = false }: { initialAdminMo
                 <Link className={s.helpLink} href="/dashboard/contact"><MessageCircle size={15} aria-hidden="true" />{t("Contacter le support")}</Link>
               </div>
             </details>
-            <VipViewContent view={view} posts={posts} telegramUrl={telegramUrl} />
+            {view === "chat" ? !effectiveAdminMode && <VipChat key={access.user.id} userId={access.user.id} admin={access.admin} locale={locale === "en" ? "en" : "fr"} /> : <VipViewContent view={view} posts={posts} telegramUrl={telegramUrl} />}
           </>}
         </>}
   </VipPortalFrame>;
@@ -210,6 +232,7 @@ function VipViewContent({ view, posts, telegramUrl, preview = false }: { view: V
     {view === "risk" && <section className={s.feature}><span className={s.trainingIcon}><Calculator size={20} aria-hidden="true" /></span><h2>{t("Calculer mon lot.")}</h2><p>{t("Retrouve le simulateur InvestPro pour préparer ton risque avant de prendre position.")}</p><Link className={s.primary} href="/dashboard/simulateur"><Calculator size={15} aria-hidden="true" />{t("Ouvrir le simulateur")}{" "}<ArrowUpRight size={16} /></Link></section>}
     {view === "training" && <section className={`${s.feature} ${s.trainingFeature}`}><span className={s.trainingIcon}><GraduationCap size={20} aria-hidden="true" /></span><span className={s.trainingSoon}>{t("Bientôt")}</span><h2>{t("Formation & coaching")}</h2><p>{t("Un nouvel espace pour apprendre et progresser avec le cercle privé.")}</p></section>}
     {view === "telegram" && <section className={s.feature}><Send size={31} /><h2>{t("Retrouvez votre communauté.")}</h2><p>{t("Votre espace InvestPro est actif. Demandez à rejoindre InvestPro Trading VIP ™ ; l’équipe vérifie et valide votre entrée manuellement.")}</p>{telegramUrl ? <a className={s.primary} href={telegramUrl} target="_blank" rel="noopener noreferrer">{t("Rejoindre Telegram")}{" "}<ArrowUpRight size={16} /></a> : <p className={s.notice}>{t("Le lien du canal sera disponible ici dès sa configuration par l’équipe.")}</p>}<small>{t("L’adhésion au canal et son renouvellement restent gérés par l’équipe sur Telegram.")}</small></section>}
+    {view === "chat" && preview && <section className={s.feature}><MessageCircle size={30} /><h2>{t("Le chat des membres VIP.")}</h2><p>{t("Un espace pour échanger avec la communauté depuis InvestPro.")}</p><small>{t("Aperçu en lecture seule · les messages sont réservés aux membres connectés.")}</small></section>}
   </>;
 }
 

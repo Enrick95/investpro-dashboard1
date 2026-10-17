@@ -1,7 +1,7 @@
 "use client";
 
 import { vipRequest } from "@/lib/vip/client";
-import { ensurePushSubscription, loadPushSetup, pushReminderKey, pushSetupFingerprint, readyPushRegistration, savePushChannels, type PushSetup, type PushSetupRequest } from "./setup";
+import { activatePushChannels, loadPushSetup, pushReminderKey, pushSetupFingerprint, readyPushRegistration, type PushSetup, type PushSetupRequest } from "./setup";
 
 export const pushSetupRequest: PushSetupRequest = (path, init) => vipRequest<unknown>(path, init);
 
@@ -9,8 +9,7 @@ export const pushSetupRequest: PushSetupRequest = (path, init) => vipRequest<unk
 export async function activateConfiguredPush(): Promise<PushSetup> {
   const setup = await loadPushSetup(pushSetupRequest);
   const registration = await readyPushRegistration(navigator.serviceWorker);
-  const subscription = await ensurePushSubscription(registration, setup.publicKey);
-  await savePushChannels(subscription, setup, pushSetupRequest);
+  await activatePushChannels(registration, setup, pushSetupRequest);
   try { localStorage.setItem(pushReminderKey(setup), JSON.stringify({ confirmed: pushSetupFingerprint(setup) })); } catch { /* Storage does not determine delivery success. */ }
   window.dispatchEvent(new Event("investpro:push-setup-changed"));
   return setup;

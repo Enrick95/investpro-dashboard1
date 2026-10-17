@@ -12,16 +12,16 @@ const element = (type, props, key) => ({ type, props: props || {}, key });
 const css = { __esModule: true, default: new Proxy({}, { get: (_target, key) => String(key) }) };
 
 function compile(file, modules, extra = {}) {
-  const module = { exports: {} };
+  const cjsModule = { exports: {} };
   const output = ts.transpileModule(fs.readFileSync(path.join(root, file), "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true },
   }).outputText;
   vm.runInNewContext(output, {
-    module, exports: module.exports, URL, AbortController, Date, console, ...extra,
+    module: cjsModule, exports: cjsModule.exports, URL, AbortController, Date, console, ...extra,
     fetch() { throw Error("No real network is allowed in portal mode tests"); },
     require(name) { assert.ok(Object.hasOwn(modules, name), "Unexpected import: " + name); return modules[name]; },
   });
-  return module.exports;
+  return cjsModule.exports;
 }
 
 /* A small offline hook host executes the actual TSX and async effects. It is not a
@@ -63,7 +63,7 @@ function hookHost() {
     if (typeof node !== "object") return node;
     if (node.type === fragment) return resolve(node.props.children, location + ".fragment", seen);
     if (typeof node.type === "function") {
-      const key = location + ":" + node.type.name;
+      const key = location + ":" + node.type.name + (node.key === undefined ? "" : ":" + node.key);
       let instance = instances.get(key);
       if (!instance || instance.type !== node.type) {
         instance = { type: node.type, hooks: [], cursor: 0, key };
@@ -126,6 +126,8 @@ function access(admin = false, active = true) {
 
 function fixture(initialAdminMode = false) {
   const host = hookHost(), calls = [], listeners = new Map();
+  const accessQueue = [], timers = new Map();
+  let authCallback, nextTimer = 1;
   let resolveAccess, rejectAccess, settled = false, latestAccess, accessError;
   const accessPromise = new Promise((resolve, reject) => { resolveAccess = resolve; rejectAccess = reject; });
   class VipApiError extends Error { constructor(message, status) { super(message); this.status = status; } }
@@ -137,6 +139,7 @@ function fixture(initialAdminMode = false) {
       calls.push({ url, method: init.method || "GET" });
       assert.equal(init.method || "GET", "GET", "Tests must never invoke a write action");
       if (url === "/api/vip/access") {
+        if (accessQueue.length) return accessQueue.shift().promise;
         if (!settled) return accessPromise;
         if (accessError) throw accessError;
         return latestAccess;
@@ -147,7 +150,7 @@ function fixture(initialAdminMode = false) {
     },
   };
   const browser = {
-    window: { addEventListener: (name, callback) => listeners.set(name, callback), removeEventListener: name => listeners.delete(name), setInterval: () => 1, clearInterval() {}, setTimeout: () => 2, clearTimeout() {} },
+    window: { addEventListener: (name, callback) => listeners.set(name, callback), removeEventListener: name => listeners.delete(name), setInterval: () => 1, clearInterval() {}, setTimeout(callback) { const id = nextTimer++; timers.set(id, callback); return id; }, clearTimeout(id) { timers.delete(id); } },
     document: { visibilityState: "visible", addEventListener() {}, removeEventListener() {} },
     requestAnimationFrame(callback) { callback(); return 0; },
   };
@@ -166,6 +169,10 @@ function fixture(initialAdminMode = false) {
   const Portal = compile("components/vip/VipPortal.tsx", {
     ...common, "@/components/i18n/LanguageSwitcher": () => element("select", { "aria-label": "Language" }),
     "./VipPublicationsEditor": Editor, "./VipPortal.module.css": css, "./VipPortalShell.css": {},
+    "./VipChat": function VipChat(props) { return element("section", { "data-chat-user": props.userId, "data-chat-admin": props.admin, children: "Private chat fixture" }); },
+    "@/lib/supabase/client": { createClient: () => ({ auth: { onAuthStateChange(callback) { authCallback = callback; callback("INITIAL_SESSION", { user: { id: "offline-user" } }); return { data: { subscription: { unsubscribe() { authCallback = undefined; } } } }; } } }) },
+    "@/lib/push/activation-client": { activateConfiguredPush() { throw Error("Push activation must never run in navigation tests"); } },
+    "@/lib/push/setup": { PushSetupError: class PushSetupError extends Error {}, pushSetupErrorText: () => "Push fixture error" },
   }, browser).default;
   host.start(Portal, { initialAdminMode });
   const settle = host.settle.bind(host);
@@ -178,6 +185,15 @@ function fixture(initialAdminMode = false) {
     resolve(value) { settled = true; latestAccess = value; resolveAccess(value); },
     anonymous() { settled = true; accessError = new VipApiError("Connectez-vous", 401); rejectAccess(accessError); },
     async revoke() { latestAccess = access(false, true); listeners.get("focus")?.(); await host.settle(); },
+    auth(event, userId) { assert.ok(authCallback); authCallback(event, userId === null ? null : { user: { id: userId } }); },
+    focus() { listeners.get("focus")?.(); },
+    async runTimers() { const pending = [...timers.values()]; timers.clear(); for (const callback of pending) callback(); await host.settle(); },
+    deferNextAccess() {
+      let resolve;
+      const promise = new Promise(done => { resolve = done; });
+      const item = { promise, resolve(value) { latestAccess = value; resolve(value); } };
+      accessQueue.push(item); return item;
+    },
   };
 }
 
@@ -245,4 +261,73 @@ test("full-height workspace visibility does not rely on browser hidden defaults 
   const cssText = fs.readFileSync(path.join(root, "components/vip/VipPortal.module.css"), "utf8");
   assert.match(cssText, /\.workspace\[hidden\],\s*\.editorWorkspace\[hidden\]\s*\{\s*display:\s*none/);
   assert.match(cssText, /\.editorWorkspace\s*\{[^}]*flex:\s*1;[^}]*min-height:\s*0;/);
+});
+
+test("Chat follows Telegram in the rail and only mounts after verified active access", async () => {
+  const state = fixture();
+  const rail = nodes(state.host.tree, node => node.type === "nav" && node.props["aria-label"] === "Rubriques de l’espace VIP")[0];
+  const labels = nodes(rail, node => node.type === "button").map(text);
+  assert.equal(labels[labels.indexOf("Telegram") + 1], "Chat");
+  button(state.host, "Chat").props.onClick(); await state.host.settle();
+  assert.equal(state.host.instance("VipChat"), undefined, "Pending access never mounts private chat");
+  state.resolve(access(false, true)); await state.host.settle();
+  assert.ok(state.host.instance("VipChat"));
+  assert.equal(nodes(state.host.tree, node => node.props["data-chat-user"] === "offline-user").length, 1);
+  for (const anonymous of [false, true]) {
+    const locked = fixture(); button(locked.host, "Chat").props.onClick();
+    if (anonymous) locked.anonymous(); else locked.resolve(access(false, false));
+    await locked.host.settle();
+    assert.equal(locked.host.instance("VipChat"), undefined);
+  }
+});
+
+test("mode=admin query cannot hide Chat from an ordinary verified member", async () => {
+  const state = fixture(true); state.resolve(access(false, true)); await state.host.settle();
+  button(state.host, "Chat").props.onClick(); await state.host.settle();
+  assert.ok(state.host.instance("VipChat"));
+  assert.equal(nodes(state.host.tree, node => node.props.className === "workspace")[0].props.hidden, false);
+  assert.equal(state.calls.some(call => call.url.startsWith("/api/admin/")), false);
+});
+
+test("Chat unmounts when leaving its view or entering effective admin mode", async () => {
+  const state = fixture(); state.resolve(access(true, true)); await state.host.settle();
+  button(state.host, "Chat").props.onClick(); await state.host.settle();
+  assert.ok(state.host.instance("VipChat"));
+  button(state.host, "Telegram").props.onClick(); await state.host.settle();
+  assert.equal(state.host.instance("VipChat"), undefined);
+  button(state.host, "Chat").props.onClick(); await state.host.settle();
+  assert.ok(state.host.instance("VipChat"));
+  button(state.host, "Administrateur").props.onClick(); await state.host.settle();
+  assert.equal(state.host.instance("VipChat"), undefined, "Hidden member workspace cannot leave Chat polling mounted");
+  button(state.host, "Membre").props.onClick(); await state.host.settle();
+  assert.ok(state.host.instance("VipChat"));
+});
+
+test("logout clears Chat immediately without waiting for another access request", async () => {
+  const state = fixture(); state.resolve(access(false, true)); await state.host.settle();
+  button(state.host, "Chat").props.onClick(); await state.host.settle();
+  assert.ok(state.host.instance("VipChat"));
+  const reads = state.calls.length;
+  state.auth("SIGNED_OUT", null); await state.host.settle();
+  assert.equal(state.host.instance("VipChat"), undefined);
+  assert.equal(state.calls.length, reads);
+  assert.equal(nodes(state.host.tree, node => node.props["data-chat-user"]).length, 0);
+});
+
+test("switching accounts invalidates an old pending access response before Chat can reopen", async () => {
+  const state = fixture(); state.resolve(access(false, true)); await state.host.settle();
+  button(state.host, "Chat").props.onClick(); await state.host.settle();
+  const stale = state.deferNextAccess(); state.focus(); await state.host.settle();
+  const next = state.deferNextAccess();
+  state.auth("SIGNED_IN", "second-offline-user"); await state.host.settle();
+  assert.equal(state.host.instance("VipChat"), undefined);
+  await state.runTimers();
+  stale.resolve(access(true, true)); await state.host.settle();
+  assert.equal(state.host.instance("VipChat"), undefined, "The old account's late response must stay ignored");
+  const second = access(false, true); second.user.id = "second-offline-user";
+  next.resolve(second); await state.host.settle();
+  assert.ok(state.host.instance("VipChat"));
+  assert.equal(nodes(state.host.tree, node => node.props["data-chat-user"] === "second-offline-user").length, 1);
+  assert.equal(nodes(state.host.tree, node => node.props["data-chat-user"] === "offline-user").length, 0);
+  assert.equal(nodes(state.host.tree, node => node.props["data-chat-admin"] === true).length, 0);
 });

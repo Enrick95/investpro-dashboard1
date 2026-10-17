@@ -7,7 +7,7 @@ export type { VipMembership };
 export type { VipPost, VipPostCategory, VipReaction, VipPostReactions, VipMediaUpload, VipMediaUploadPreparation } from "./types";
 export type VipAccess = VipAccessResponse;
 export class VipApiError extends Error {
-  constructor(message: string, public status: number) { super(message); }
+  constructor(message: string, public status: number, public code?: string) { super(message); }
 }
 export async function vipRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const { data, error } = await createClient().auth.getSession();
@@ -17,7 +17,7 @@ export async function vipRequest<T>(path: string, init: RequestInit = {}): Promi
   if (init.body && !(typeof FormData !== "undefined" && init.body instanceof FormData)) headers.set("Content-Type", "application/json");
   const response = await fetch(path, { ...init, headers, cache: "no-store" });
   const payload = await response.json().catch(() => null);
-  if (!response.ok) throw new VipApiError(typeof payload?.error === "string" ? payload.error : typeof payload?.message === "string" ? payload.message : "Cette action est indisponible. Réessayez dans un instant.", response.status);
+  if (!response.ok) throw new VipApiError(typeof payload?.error === "string" ? payload.error : typeof payload?.message === "string" ? payload.message : "Cette action est indisponible. Réessayez dans un instant.", response.status, typeof payload?.code === "string" && /^[a-z_]{1,60}$/.test(payload.code) ? payload.code : undefined);
   return payload as T;
 }
 export function vipDate(value: string | null | undefined, locale: "fr" | "en" = "fr") {

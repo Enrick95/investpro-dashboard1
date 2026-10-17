@@ -14,6 +14,8 @@ function iosDevice() {
   return /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 }
 function supported() { return window.isSecureContext && "Notification" in window && "PushManager" in window && "serviceWorker" in navigator; }
+function androidDevice() { return /Android/i.test(navigator.userAgent); }
+function samsungBrowser() { return /SamsungBrowser/i.test(navigator.userAgent); }
 function readReminder(setup: PushSetup) { try { return localStorage.getItem(pushReminderKey(setup)); } catch { return null; } }
 function remember(setup: PushSetup, record: { until?: number; confirmed?: string }) {
   try { localStorage.setItem(pushReminderKey(setup), JSON.stringify(record)); } catch { /* Setup also works when storage is unavailable. */ }
@@ -58,13 +60,19 @@ export default function PwaPushPrompt() {
       if (!available) {
         if (explicit) setError(iosDevice()
           ? tr("Sur iPhone, ajoutez InvestPro à l’écran d’accueil puis ouvrez son icône pour activer les alertes.", "On iPhone, add InvestPro to your Home Screen and open its icon to enable alerts.")
-          : tr("Ouvrez InvestPro dans Chrome sur Android pour activer les notifications.", "Open InvestPro in Chrome on Android to enable notifications."));
+          : androidDevice()
+            ? tr("Ouvrez InvestPro dans une version à jour de Chrome ou Samsung Internet pour activer les notifications. L’installation de l’application n’est pas obligatoire sur Android.", "Open InvestPro in an up-to-date version of Chrome or Samsung Internet to enable notifications. Installing the app is optional on Android.")
+            : tr("Ce navigateur ne propose pas les alertes Web Push. Ouvrez InvestPro dans un navigateur à jour compatible avec les notifications.", "This browser does not offer Web Push alerts. Open InvestPro in an up-to-date browser that supports notifications."));
         return;
       }
       if (Notification.permission === "denied") {
         if (explicit) setError(iosDevice()
           ? tr("Les notifications sont bloquées. Vérifiez les autorisations InvestPro dans les réglages de votre iPhone.", "Notifications are blocked. Check InvestPro permissions in your iPhone settings.")
-          : tr("Notifications bloquées. Dans Chrome : informations du site → Autorisations → Notifications → Autoriser. Vérifiez aussi les notifications de Chrome dans les réglages Android.", "Notifications are blocked. In Chrome: site information → Permissions → Notifications → Allow. Also check Chrome notifications in Android settings."));
+          : androidDevice()
+            ? samsungBrowser()
+              ? tr("Notifications bloquées. Dans Samsung Internet, autorisez les notifications pour InvestPro dans les paramètres du site. Vérifiez aussi Paramètres Android → Applications → Samsung Internet → Notifications.", "Notifications are blocked. In Samsung Internet, allow InvestPro notifications in the site settings. Also check Android Settings → Apps → Samsung Internet → Notifications.")
+              : tr("Notifications bloquées. Dans Chrome : informations du site → Autorisations → Notifications → Autoriser. Vérifiez aussi Paramètres Android → Applications → Chrome → Notifications.", "Notifications are blocked. In Chrome: site information → Permissions → Notifications → Allow. Also check Android Settings → Apps → Chrome → Notifications.")
+            : tr("Notifications bloquées. Autorisez InvestPro dans les paramètres de notifications du navigateur, puis vérifiez les notifications de ce navigateur dans les réglages de votre ordinateur.", "Notifications are blocked. Allow InvestPro in your browser’s notification settings, then check this browser’s notifications in your computer settings."));
         else setVisible(false);
         return;
       }

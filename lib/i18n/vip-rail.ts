@@ -1,4 +1,10 @@
 export const vipRailMessages: Record<string, string> = {
+  "Chat": "Chat",
+  "Chat.": "Chat.",
+  "Les échanges entre membres du VIP.": "Conversations between VIP members.",
+  "Le chat des membres VIP.": "The VIP members’ chat.",
+  "Un espace pour échanger avec la communauté depuis InvestPro.": "A place to chat with the community from InvestPro.",
+  "Aperçu en lecture seule · les messages sont réservés aux membres connectés.": "Read-only preview · messages are reserved for signed-in members.",
   "Bilan.": "Review.",
   "Le récapitulatif partagé avec le groupe.": "The review shared with the group.",
   "Vos prochains bilans apparaîtront ici.": "Your next reviews will appear here.",

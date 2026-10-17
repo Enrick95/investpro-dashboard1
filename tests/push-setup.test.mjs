@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createECDH } from "node:crypto";
-import { ensurePushSubscription, loadPushSetup, pushKeyBytes, PushSetupError, pushReminderKey, pushSetupFingerprint, readyPushRegistration, savePushChannels, shouldOfferPush } from "../lib/push/setup.ts";
+import { activatePushChannels, ensurePushSubscription, loadPushSetup, pushKeyBytes, PushSetupError, pushReminderKey, pushSetupFingerprint, pushSetupErrorText, readyPushRegistration, savePushChannels, shouldOfferPush } from "../lib/push/setup.ts";
 
 const curve = createECDH("prime256v1"); curve.generateKeys();
 const publicKey = curve.getPublicKey().toString("base64url");
@@ -99,4 +99,58 @@ test("reminders expire after their date, old permanent dismissal is ignored, and
 
 test("invalid application keys never reach the native subscription API", () => {
   for (const key of ["", "not-a-key", "A".repeat(87)]) assert.throws(() => pushKeyBytes(key), PushSetupError);
+});
+
+test("explicit repair replaces an endpoint owned by another account and retries both channels once", async () => {
+  const old = { ...subscription(publicKey), endpoint: "https://fcm.googleapis.com/old-fixture" };
+  const replacement = { ...subscription(publicKey), endpoint: "https://fcm.googleapis.com/new-fixture", toJSON: () => ({ endpoint: "https://fcm.googleapis.com/new-fixture", keys: { p256dh: "fixture", auth: "fixture" } }) };
+  let resets = 0, creates = 0;
+  old.unsubscribe = async () => { resets++; return true; };
+  const registration = { pushManager: { getSubscription: async () => old, subscribe: async () => { creates++; return replacement; } } };
+  const calls = [];
+  await activatePushChannels(registration, settings, async (path, options) => {
+    const body = JSON.parse(options.body); calls.push([path, body.subscription.endpoint]);
+    if (path === "/api/vip/push" && calls.length <= 2) throw { status: 409, code: "push_endpoint_owned" };
+    return { ok: true };
+  });
+  assert.equal(resets, 1); assert.equal(creates, 1); assert.equal(calls.length, 4);
+  assert.deepEqual(calls.slice(2).map(([path]) => path), ["/api/copier/push", "/api/vip/push"]);
+  assert.ok(calls.slice(2).every(([, endpoint]) => endpoint === replacement.endpoint));
+});
+
+test("background reconciliation never replaces a subscription or hides an ownership conflict", async () => {
+  let resets = 0;
+  const existing = subscription(publicKey); existing.unsubscribe = async () => { resets++; return true; };
+  await assert.rejects(savePushChannels(existing, settings, async () => { throw { status: 409, code: "push_endpoint_owned" }; }), error => error.code === "saving_failed" && error.failures.every(failure => failure.code === "push_endpoint_owned"));
+  assert.equal(resets, 0);
+});
+
+test("unrelated server/session/limit errors never reset the native device subscription", async () => {
+  for (const reason of [{ status: 401, code: "push_auth_required" }, { status: 409, code: "push_device_limit" }, { status: 503, code: "push_save_unavailable" }, { status: 409 }]) {
+    let resets = 0, creates = 0;
+    const existing = subscription(publicKey); existing.unsubscribe = async () => { resets++; return true; };
+    const registration = { pushManager: { getSubscription: async () => existing, subscribe: async () => { creates++; throw Error("no reset expected"); } } };
+    await assert.rejects(activatePushChannels(registration, settings, async () => { throw reason; }), PushSetupError);
+    assert.equal(resets, 0); assert.equal(creates, 0);
+  }
+});
+
+test("a repair never resaves a revoked endpoint or loops on repeated conflicts", async () => {
+  for (const sameEndpoint of [true, false]) {
+    let creates = 0, requests = 0;
+    const existing = { ...subscription(publicKey), endpoint: "https://fcm.googleapis.com/old-fixture" };
+    const registration = { pushManager: { getSubscription: async () => existing, subscribe: async () => { creates++; return { ...subscription(publicKey), endpoint: sameEndpoint ? existing.endpoint : "https://fcm.googleapis.com/new-fixture" }; } } };
+    await assert.rejects(activatePushChannels(registration, settings, async () => { requests++; throw { status: 409, code: "push_endpoint_owned" }; }), error => error.code === (sameEndpoint ? "subscription_reset_failed" : "saving_failed"));
+    assert.equal(creates, 1); assert.equal(requests, sameEndpoint ? 2 : 4);
+  }
+});
+
+test("desktop and Android errors name the device and distinguish session, membership and ownership", () => {
+  const generic = pushSetupErrorText(new PushSetupError("saving_failed", ["vip"]));
+  assert.match(generic, /cet appareil/); assert.doesNotMatch(generic, /téléphone/);
+  const message = code => pushSetupErrorText(new PushSetupError("saving_failed", ["vip"], [{ channel: "vip", code }]));
+  assert.match(message("push_endpoint_owned"), /ancienne inscription/);
+  assert.match(message("push_device_limit"), /limite d’appareils/);
+  assert.match(message("push_auth_required"), /session a expiré/);
+  assert.match(message("push_vip_inactive"), /doit être validé/);
 });

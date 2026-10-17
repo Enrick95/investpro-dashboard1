@@ -99,5 +99,12 @@ export function safeVipTelegramUrl(value: unknown): string | null {
 export function isSameVipOrigin(request: Request): boolean {
   const origin = request.headers.get("origin");
   if (!origin || request.headers.get("sec-fetch-site") === "cross-site") return false;
-  try { return origin === new URL(request.url).origin; } catch { return false; }
+  try {
+    // Browsers serialize Origin without a path, credentials or a trailing slash.
+    // Vercel may use the other verified production alias for the request URL.
+    if (new URL(origin).origin !== origin) return false;
+    const target = new URL(request.url).origin;
+    const production = new Set(["https://investprotrading.fr", "https://www.investprotrading.fr"]);
+    return origin === target || (production.has(origin) && production.has(target));
+  } catch { return false; }
 }

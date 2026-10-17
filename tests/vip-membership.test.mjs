@@ -72,9 +72,14 @@ test("Telegram settings cannot redirect members to arbitrary or credentialed ori
   }
 });
 
-test("mutations require an exact same-origin browser request, including scheme and port", () => {
+test("mutations accept only exact browser origins and the two verified production aliases", () => {
   const request = (origin, site = "same-origin") => new Request("https://investprotrading.fr/api/vip/redeem", { method: "POST", headers: { ...(origin ? { Origin: origin } : {}), "Sec-Fetch-Site": site } });
   assert.equal(isSameVipOrigin(request("https://investprotrading.fr")), true);
-  for (const origin of [null, "null", "https://www.investprotrading.fr", "https://investprotrading.fr.evil.example", "http://investprotrading.fr", "https://investprotrading.fr:8443"]) assert.equal(isSameVipOrigin(request(origin)), false);
+  assert.equal(isSameVipOrigin(request("https://www.investprotrading.fr", "same-site")), true);
+  for (const origin of [null, "null", "https://investprotrading.fr/", "https://member@investprotrading.fr", "https://investprotrading.fr.evil.example", "http://investprotrading.fr", "https://investprotrading.fr:8443"]) assert.equal(isSameVipOrigin(request(origin)), false);
   assert.equal(isSameVipOrigin(request("https://investprotrading.fr", "cross-site")), false);
+  assert.equal(isSameVipOrigin(request("https://www.investprotrading.fr", "cross-site")), false);
+  const preview = (origin) => new Request("https://investpro-preview.vercel.app/api/vip/chat", { method: "POST", headers: { Origin: origin, "Sec-Fetch-Site": "same-site" } });
+  assert.equal(isSameVipOrigin(preview("https://investprotrading.fr")), false);
+  assert.equal(isSameVipOrigin(preview("https://investpro-preview.vercel.app")), true);
 });
