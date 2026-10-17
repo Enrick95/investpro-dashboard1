@@ -21,6 +21,8 @@ import {
 
 import { createClient } from "@/lib/supabase/client";
 import { ASSET_GROUPS, assetGroupLabel, isAssetGroup, parsePlanAssets, planAllowsAsset } from "@/lib/trading-plan-assets";
+import DisplayCurrencySelect from "@/components/currency/DisplayCurrencySelect";
+import { convertCurrency, formatDisplayCurrency, normalizeCurrency, rateDateLabel, useCurrencyRates, useDisplayCurrency, type CurrencyRates, type DisplayCurrency } from "@/lib/currency";
 
 type TradingPlan = {
   max_risk_percent: number;
@@ -142,28 +144,27 @@ function calculateRR(trade: Trade) {
   return risk > 0 ? reward / risk : null;
 }
 
-function frMoney(value: number) {
-  return Number(value || 0).toLocaleString("fr-FR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+function convertedCurrencyTotal(
+  values: Record<string, number>,
+  displayCurrency: DisplayCurrency,
+  rates: CurrencyRates | null,
+) {
+  const knownAmounts = Object.entries(values).filter(([currency]) => currency !== "UNKNOWN");
+  if (!knownAmounts.length) return null;
+
+  let total = 0;
+  for (const [currency, amount] of knownAmounts) {
+    const converted = convertCurrency(amount, currency, displayCurrency, rates);
+    // A total is useful only when every known source currency can be converted.
+    if (converted == null || !Number.isFinite(converted)) return null;
+    total += converted;
+  }
+  return Number.isFinite(total) ? total : null;
 }
 
-function formatCurrencyTotals(values: Record<string, number>) {
-  return Object.entries(values)
-    .filter(([currency]) => currency !== "UNKNOWN")
-    .map(([currency, amount]) => {
-      try {
-        return { amount, label: new Intl.NumberFormat("fr-FR", {
-          style: "currency",
-          currency,
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        }).format(amount) };
-      } catch {
-        return { amount, label: `${frMoney(amount)} ${currency}` };
-      }
-    });
+function needsSupportedCurrencyRates(values: Record<string, number>, displayCurrency: DisplayCurrency) {
+  const currencies = Object.keys(values).filter(currency => currency !== "UNKNOWN").map(normalizeCurrency);
+  return currencies.length > 0 && currencies.every(currency => currency !== null) && currencies.some(currency => currency !== displayCurrency);
 }
 
 function pct(value: number) {
@@ -179,7 +180,9 @@ function tradeDateLabel(value: string) {
 }
 
 export default function TradingPlanPage() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
+  const { displayCurrency } = useDisplayCurrency();
+  const { rates, rateDate, rateLoading } = useCurrencyRates();
 
   const supabase = useMemo(() => createClient(), []);
 
@@ -614,6 +617,16 @@ export default function TradingPlanPage() {
     };
   }, [trades, savedPlan, accountCurrencies, t]);
 
+  const compliantTotal = convertedCurrencyTotal(discipline.pnlCompliantByCurrency, displayCurrency, rates);
+  const nonCompliantTotal = convertedCurrencyTotal(discipline.pnlNonCompliantByCurrency, displayCurrency, rates);
+  const knownCurrencies = Array.from(new Set([
+    ...Object.keys(discipline.pnlCompliantByCurrency),
+    ...Object.keys(discipline.pnlNonCompliantByCurrency),
+  ])).filter(currency => currency !== "UNKNOWN");
+  const needsCurrencyConversion = knownCurrencies.some(currency => normalizeCurrency(currency) !== displayCurrency);
+  const hasUnsupportedCurrency = knownCurrencies.some(currency => normalizeCurrency(currency) === null);
+  const conversionLoading = rateLoading && needsCurrencyConversion && !hasUnsupportedCurrency;
+
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
@@ -673,15 +686,19 @@ export default function TradingPlanPage() {
 
 
       <section aria-label={t("Mon bilan de discipline")}>
-        <div className="mb-3 flex flex-wrap justify-between gap-2 text-xs text-white/50"><span>{t("Mon bilan de discipline")}</span><span>{t("Calculé à partir de votre plan enregistré")}</span></div>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="space-y-1 text-xs text-white/50"><div>{t("Mon bilan de discipline")}</div><div>{t("Calculé à partir de votre plan enregistré")}</div></div>
+          <DisplayCurrencySelect />
+        </div>
         <div className="grid gap-3 lg:grid-cols-3">
           <div className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5"><SectionTitle icon={<Gauge size={17} />} title={t("Score de discipline")} /><div className="mt-4 flex items-center gap-4"><DisciplineRing score={discipline.score} /><p className="text-xs leading-5 text-white/50">{t("Risque · RR · actifs")}<br />{t("Sessions · setups")}</p></div></div>
-          <ResultCompareCard title={t("Trades conformes")} count={discipline.compliantTrades} pnlByCurrency={discipline.pnlCompliantByCurrency} positive />
-          <ResultCompareCard title={t("Trades hors plan")} count={discipline.nonCompliantTrades} pnlByCurrency={discipline.pnlNonCompliantByCurrency} positive={false} />
+          <ResultCompareCard title={t("Trades conformes")} count={discipline.compliantTrades} total={compliantTotal} displayCurrency={displayCurrency} conversionLoading={rateLoading && needsSupportedCurrencyRates(discipline.pnlCompliantByCurrency, displayCurrency)} positive />
+          <ResultCompareCard title={t("Trades hors plan")} count={discipline.nonCompliantTrades} total={nonCompliantTotal} displayCurrency={displayCurrency} conversionLoading={rateLoading && needsSupportedCurrencyRates(discipline.pnlNonCompliantByCurrency, displayCurrency)} positive={false} />
         </div>
       </section>
       <details className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--panel)] p-4">
         <summary className="cursor-pointer text-xs font-medium text-white/75">{t("Voir le détail du score et les derniers trades")}</summary>
+        {needsCurrencyConversion && <p className="mt-3 text-xs leading-5 text-white/45">{hasUnsupportedCurrency ? t("Conversion indisponible pour une devise de compte.") : conversionLoading ? t("Chargement des taux de change…") : rates ? `${rateDateLabel(rateDate, displayCurrency, locale)} · ${t("Conversion indicative des résultats.")}` : t("Conversion momentanément indisponible. Réessaie dans un instant.")}</p>}
         {(Object.hasOwn(discipline.pnlCompliantByCurrency, "UNKNOWN") || Object.hasOwn(discipline.pnlNonCompliantByCurrency, "UNKNOWN")) && <p className="mt-3 text-xs leading-5 text-white/45">{t("Les montants affichés correspondent aux trades dont la devise du compte est connue. Le score de discipline inclut aussi les anciennes entrées sans compte.")}</p>}
         <div className="mt-4">      <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
         <div className="rounded-[24px] border border-[color:var(--gold-border)] bg-[color:var(--panel)] p-5 xl:col-span-5">
@@ -1212,17 +1229,19 @@ function ProgressMetric({
 function ResultCompareCard({
   title,
   count,
-  pnlByCurrency,
+  total,
+  displayCurrency,
+  conversionLoading,
   positive,
 }: {
   title: string;
   count: number;
-  pnlByCurrency: Record<string, number>;
+  total: number | null;
+  displayCurrency: DisplayCurrency;
+  conversionLoading: boolean;
   positive: boolean;
 }) {
-  const { t } = useLocale();
-
-  const totals = formatCurrencyTotals(pnlByCurrency);
+  const { t, locale } = useLocale();
 
   return (
     <div className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5">
@@ -1230,9 +1249,7 @@ function ResultCompareCard({
         <div>
           <div className="text-[10px] text-[color:var(--muted)]">{title}</div>
           <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-lg font-semibold">
-            {totals.length ? totals.map((total) => (
-              <span key={total.label} className={total.amount < 0 ? "text-red-400" : total.amount > 0 ? "text-emerald-400" : "text-white"}>{total.amount > 0 ? "+" : ""}{total.label}</span>
-            )) : <span className="text-white/45">—</span>}
+            {total != null ? <span className={total < 0 ? "text-red-400" : total > 0 ? "text-emerald-400" : "text-white"}>{total > 0 ? "+" : ""}{formatDisplayCurrency(total, displayCurrency, locale)}</span> : <span className="text-white/45">{conversionLoading && count > 0 ? t("Chargement…") : "—"}</span>}
           </div>
           <div className="mt-1 text-[9px] text-white/30">
             {count} {t("trade")}{count !== 1 ? t("s") : ""}
