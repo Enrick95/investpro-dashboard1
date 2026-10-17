@@ -3,9 +3,13 @@ import { createVipInvitationCode, hashVipInvitationCode, readVipJson, VIP_INVITA
 import { isValidVipEmail, isVipMembershipType, normalizeVipEmail } from "@/lib/vip/membership";
 import { validateVipIdentity } from "@/lib/vip/identity";
 import type { VipInvitation } from "@/lib/vip/types";
+import { after } from "next/server";
+import { deliverVipAccessConfirmations } from "@/lib/vip/access-confirmations";
+import { deliverVipNotifications } from "@/lib/vip/notifications";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -25,6 +29,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    if (process.env.VERCEL_ENV === "preview") return vipJson({ error: "Gérez les accès VIP depuis le site principal." }, 403);
     const body = await readVipJson(request);
     const context = await authenticateAdmin(request, "users_write");
     if ("error" in context) return vipJson({ error: context.error }, context.status);
@@ -77,6 +82,11 @@ export async function POST(request: Request) {
         if (error.message === "vip_subscription_required") return vipJson({ error: "Seuls les abonnements mensuels peuvent être renouvelés." }, 400);
         throw error;
       }
+      after(async () => {
+        if (process.env.VERCEL_ENV !== "production") return;
+        const outcomes = await Promise.allSettled([deliverVipAccessConfirmations(context.admin), deliverVipNotifications(context.admin)]);
+        if (outcomes.some(outcome => outcome.status === "rejected")) console.error("VIP_ACCESS_CONFIRMATION_DEFERRED_FAILED");
+      });
       return vipJson({ ok: true, membership: data });
     }
     return vipJson({ error: "Action VIP inconnue." }, 400);

@@ -1,12 +1,17 @@
 import "server-only";
 import type {SupabaseClient} from "@supabase/supabase-js";
 import webpush from "web-push";
-import {validPushEndpoint} from "./push-validation";
+import {validPushEndpoint,validPushKeys} from "./push-validation";
 import {isCurrentVipRenewalNotice,isVipMembershipActive} from "./membership";
 import type {VipMembership} from "./types";
 import {formatVipPublicationNotice,publicationPostId,type VipNoticePost} from "./publication-notice";
 import {canAdmin} from "../admin/permissions";
 import {vipAdminActivityHref} from "./admin-activity";
+
+type PushSubscriptionRow={id:string;endpoint:string;p256dh:string;auth:string};
+type PushSubscriptionSource={table:"vip_push_subscriptions"|"copier_push_subscriptions";id:string};
+type DeliverySubscription=PushSubscriptionRow&{sources:PushSubscriptionSource[]};
+const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function vipPushConfig() {
   // The shared service-worker registration must use the same VAPID identity as Copier.
@@ -46,6 +51,20 @@ export async function deliverVipNotifications(db:SupabaseClient, limit=20) {
       else if (row.kind === "renewal" && !isCurrentVipRenewalNotice(row.event_key,row.user_id,member as VipMembership|null)) lastError="stale_renewal_reminder";
       else if (row.kind === "publication" && !isVipMembershipActive(member as VipMembership|null)) lastError="membership_inactive";
       else status="sent";
+    } else if(row.kind==="access_confirmation") {
+      const parts=row.event_key.split(":");
+      if(parts.length!==4||parts[0]!=="vip"||parts[1]!=="access"||!uuid.test(parts[2])||!uuid.test(row.user_id)||parts[3]!==row.user_id||row.href!=="/dashboard/vip")lastError="invalid_access_confirmation";
+      else {
+        const {data:event,error:eventError}=await db.from("vip_access_confirmations").select("id,event_key,user_id").eq("id",parts[2]).eq("event_key",row.event_key).eq("user_id",row.user_id).maybeSingle();
+        if(eventError){status="failed";lastError="access_confirmation_lookup_failed";}
+        else if(!event)lastError="invalid_access_confirmation";
+        else {
+          const {data:member,error:memberError}=await db.from("vip_memberships").select("type,started_at,expires_at,status").eq("user_id",row.user_id).maybeSingle();
+          if(memberError){status="failed";lastError="membership_lookup_failed";}
+          else if(!isVipMembershipActive(member as VipMembership|null))lastError="membership_inactive";
+          else status="sent";
+        }
+      }
     } else if(row.kind==="admin_event") {
       if(!vipAdminActivityHref(row.event_key,row.user_id,row.href))lastError="invalid_admin_event";
       else {
@@ -54,9 +73,20 @@ export async function deliverVipNotifications(db:SupabaseClient, limit=20) {
       }
     } else lastError="unsupported_notification_kind";
     if(status==="sent") {
-      const {data:subscriptions,error:subscriptionError}=await db.from("vip_push_subscriptions").select("id,endpoint,p256dh,auth").eq("user_id",row.user_id).limit(10);
-      if(subscriptionError){status="failed";lastError="subscription_lookup_failed";}
-      else if(!subscriptions?.length){status="skipped";lastError="no_push_subscription";}
+      // Before approval, the member can only enroll the general account channel.
+      // Access confirmations use both own channel tables, with one push per device.
+      const tables:PushSubscriptionSource["table"][]=row.kind==="access_confirmation"?["vip_push_subscriptions","copier_push_subscriptions"]:["vip_push_subscriptions"];
+      const channelSubscriptions=await Promise.all(tables.map(async table=>({table,...await db.from(table).select("id,endpoint,p256dh,auth").eq("user_id",row.user_id).limit(10)})));
+      const byEndpoint=new Map<string,DeliverySubscription>();
+      for(const channel of channelSubscriptions)for(const subscription of (channel.data||[]) as PushSubscriptionRow[]) {
+        if(row.kind==="access_confirmation"&&(!validPushEndpoint(subscription.endpoint)||!validPushKeys(subscription)))continue;
+        const existing=byEndpoint.get(subscription.endpoint);
+        if(existing)existing.sources.push({table:channel.table,id:subscription.id});
+        else byEndpoint.set(subscription.endpoint,{...subscription,sources:[{table:channel.table,id:subscription.id}]});
+      }
+      const subscriptions=[...byEndpoint.values()];
+      if(channelSubscriptions.some(channel=>channel.error)){status="failed";lastError="subscription_lookup_failed";}
+      else if(!subscriptions.length){status="skipped";lastError="no_push_subscription";}
       else {
         let notice={title:row.title,body:row.message};
         if(row.kind==="publication") {
@@ -79,7 +109,7 @@ export async function deliverVipNotifications(db:SupabaseClient, limit=20) {
             return true;
           } catch(error) {
             const code=Number((error as {statusCode?:number})?.statusCode||0);
-            if(code===404||code===410)await db.from("vip_push_subscriptions").delete().eq("id",subscription.id).eq("user_id",row.user_id);
+            if(code===404||code===410)await Promise.all(subscription.sources.map(source=>db.from(source.table).delete().eq("id",source.id).eq("user_id",row.user_id)));
             return false;
           }
         }));

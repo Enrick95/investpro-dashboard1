@@ -1,12 +1,17 @@
 import { authenticateVip, hashVipInvitationCode, readVipJson, vipErrorResponse, vipJson } from "@/lib/vip/membership-server";
 import { isValidVipCode, normalizeVipCode } from "@/lib/vip/membership";
 import type { VipMembership } from "@/lib/vip/types";
+import { after } from "next/server";
+import { deliverVipAccessConfirmations } from "@/lib/vip/access-confirmations";
+import { deliverVipNotifications } from "@/lib/vip/notifications";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
 export async function POST(request: Request) {
   try {
+    if (process.env.VERCEL_ENV === "preview") return vipJson({ error: "Activez votre accès VIP depuis le site principal." }, 403);
     const body = await readVipJson(request);
     const context = await authenticateVip(request);
     if ("error" in context) return vipJson({ error: context.error }, context.status);
@@ -31,6 +36,11 @@ export async function POST(request: Request) {
       }
       throw error;
     }
+    after(async () => {
+      if (process.env.VERCEL_ENV !== "production") return;
+      const outcomes = await Promise.allSettled([deliverVipAccessConfirmations(context.db), deliverVipNotifications(context.db)]);
+      if (outcomes.some(outcome => outcome.status === "rejected")) console.error("VIP_ACCESS_CONFIRMATION_DEFERRED_FAILED");
+    });
     return vipJson({ membership: data as VipMembership, active: true });
   } catch (error) { return vipErrorResponse(error); }
 }

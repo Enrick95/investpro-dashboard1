@@ -118,7 +118,7 @@ export const authVipMessages: Record<string, string> = {
   "Les publications de l’équipe seront disponibles dans cette rubrique.": "The team's posts will be available in this section.",
   "L’adhésion au canal et son renouvellement restent gérés par l’équipe sur Telegram.": "Channel membership and renewals are still managed by the team on Telegram.",
   "L’équipe confirme le broker avant d’activer l’accès.": "The team confirms the broker before activating access.",
-  "L’équipe vérifie votre accès actuel. La validation apparaîtra ici ; aucun code supplémentaire n’est nécessaire.": "The team is checking your current access. Approval will appear here; no additional code is needed.",
+  "L’équipe vérifie votre accès actuel. Après validation, vous recevrez un e-mail avec le lien de votre espace VIP, ainsi qu’une notification sur cet appareil si vous avez activé les alertes. Aucun code supplémentaire n’est nécessaire.": "The team is checking your current access. Once approved, you will receive an email with a link to your VIP space, plus a notification on this device if you have enabled alerts. No additional code is needed.",
   "L’équipe vérifie votre paiement avant de valider l’accès. Le mois d’abonnement est calculé automatiquement à partir de cette date.": "The team checks your payment before approving access. Your subscription month is calculated automatically from this date.",
   "Masquer le mot de passe": "Hide password",
   "Me connecter": "Sign in",

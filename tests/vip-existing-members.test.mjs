@@ -76,6 +76,7 @@ function fixture({ authorized = true, adminAuthorized = true, confirmed = true, 
     "next/server": { after() { /* Deferred work is separately fixture-tested; never contacts providers. */ } },
     "@/lib/vip/admin-activity": { async queueVipAdminActivity() { return { queued: 0 }; } },
     "@/lib/vip/notifications": { async deliverVipNotifications() { return { sent: 0 }; } },
+    "@/lib/vip/access-confirmations": { async deliverVipAccessConfirmations() { return { sent: 0 }; } },
     "@/lib/admin/permissions": { async authenticateAdmin(_request, permission) {
       calls.permissions.push(permission);
       return adminAuthorized ? { user: { id: adminId }, admin: db } : { error: "Accès refusé", status: 403 };

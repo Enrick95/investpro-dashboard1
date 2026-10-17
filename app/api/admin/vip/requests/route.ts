@@ -4,6 +4,7 @@ import { readVipJson, vipErrorResponse, vipJson } from "@/lib/vip/membership-ser
 import { after } from "next/server";
 import { queueVipAdminActivity } from "@/lib/vip/admin-activity";
 import { deliverVipNotifications } from "@/lib/vip/notifications";
+import { deliverVipAccessConfirmations } from "@/lib/vip/access-confirmations";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -56,8 +57,16 @@ export async function POST(request: Request) {
       throw error;
     }
     after(async () => {
-      try { await queueVipAdminActivity(context.admin); await deliverVipNotifications(context.admin); }
-      catch { console.error("VIP_ADMIN_ACTIVITY_DEFERRED_FAILED"); }
+      if (process.env.VERCEL_ENV !== "production") return;
+      const outcomes = await Promise.allSettled([
+        deliverVipAccessConfirmations(context.admin),
+        (async () => {
+          try { await queueVipAdminActivity(context.admin); }
+          catch { console.error("VIP_ADMIN_ACTIVITY_DEFERRED_FAILED"); }
+          return deliverVipNotifications(context.admin);
+        })(),
+      ]);
+      if (outcomes.some(outcome => outcome.status === "rejected")) console.error("VIP_ACCESS_CONFIRMATION_DEFERRED_FAILED");
     });
     return vipJson({ ok: true, request: data });
   } catch (error) { return vipErrorResponse(error); }

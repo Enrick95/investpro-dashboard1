@@ -16,6 +16,7 @@ function compile(file, modules = {}) {
   }).outputText;
   vm.runInNewContext(output, {
     module: compiledModule, exports: compiledModule.exports, URL, Request, Response,
+    process: { env: { VERCEL_ENV: "production" } },
     require: name => {
       assert.ok(Object.hasOwn(modules, name), "Unexpected import: " + name);
       return modules[name];
@@ -49,6 +50,9 @@ function fixture({ authorized = true, membershipType = "affiliation", existingIn
     },
   };
   const route = compile("app/api/admin/vip/members/route.ts", {
+    "next/server": { after() { /* Deferred provider work is covered by vip-access-confirmations tests. */ } },
+    "@/lib/vip/access-confirmations": { async deliverVipAccessConfirmations() { return { sent: 0 }; } },
+    "@/lib/vip/notifications": { async deliverVipNotifications() { return { sent: 0 }; } },
     "@/lib/admin/permissions": { async authenticateAdmin(_request, permission) {
       calls.permissions.push(permission);
       return authorized ? { user: { id: "admin-fixture" }, admin } : { error: "Non authentifié", status: 401 };
