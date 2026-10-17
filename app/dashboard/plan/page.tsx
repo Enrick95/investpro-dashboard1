@@ -305,7 +305,7 @@ export default function TradingPlanPage() {
           Object.fromEntries(
             (accountsResult.data || []).map((account) => [
               Number(account.id),
-              String(account.currency || "").toUpperCase(),
+              String(account.currency || "").trim().toUpperCase(),
             ])
           )
         );
@@ -682,6 +682,7 @@ export default function TradingPlanPage() {
       </section>
       <details className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--panel)] p-4">
         <summary className="cursor-pointer text-xs font-medium text-white/75">{t("Voir le détail du score et les derniers trades")}</summary>
+        {(Object.hasOwn(discipline.pnlCompliantByCurrency, "UNKNOWN") || Object.hasOwn(discipline.pnlNonCompliantByCurrency, "UNKNOWN")) && <p className="mt-3 text-xs leading-5 text-white/45">{t("Les montants affichés correspondent aux trades dont la devise du compte est connue. Le score de discipline inclut aussi les anciennes entrées sans compte.")}</p>}
         <div className="mt-4">      <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
         <div className="rounded-[24px] border border-[color:var(--gold-border)] bg-[color:var(--panel)] p-5 xl:col-span-5">
           <SectionTitle icon={<Gauge size={17} />} title={t("Score de discipline")} />
@@ -1233,9 +1234,6 @@ function ResultCompareCard({
               <span key={total.label} className={total.amount < 0 ? "text-red-400" : total.amount > 0 ? "text-emerald-400" : "text-white"}>{total.amount > 0 ? "+" : ""}{total.label}</span>
             )) : <span className="text-white/45">—</span>}
           </div>
-          {Object.hasOwn(pnlByCurrency, "UNKNOWN") ? (
-            <div className="mt-1 text-[9px] text-amber-300">{t("Devise indisponible pour certains trades")}</div>
-          ) : null}
           <div className="mt-1 text-[9px] text-white/30">
             {count} {t("trade")}{count !== 1 ? t("s") : ""}
           </div>

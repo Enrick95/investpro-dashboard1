@@ -71,7 +71,7 @@ export const tradingCoreMessages: Readonly<Record<string, string>> = {
   "Date indisponible": "Date unavailable",
   "Des plafonds, pas des objectifs à atteindre.": "Limits, rather than targets to reach.",
   "Devise du compte": "Account currency",
-  "Devise indisponible pour certains trades": "Currency unavailable for some trades",
+  "Les montants affichés correspondent aux trades dont la devise du compte est connue. Le score de discipline inclut aussi les anciennes entrées sans compte.": "Displayed amounts cover trades with a known account currency. The discipline score also includes older entries without a linked account.",
   "Discipline InvestPro": "InvestPro discipline",
   "Détails disponibles": "Available details",
   "Effacer la journée": "Clear selected day",
