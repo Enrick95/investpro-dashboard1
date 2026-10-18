@@ -1,4 +1,9 @@
 export const journalOutcomeMessages: Record<string, string> = {
+  "Calculé sur {count}/{total} trades clôturés.": "Calculated from {count}/{total} closed trades.",
+  "Risque initial non disponible.": "Initial risk unavailable.",
+  "Enregistre ton plan de trading.": "Save your trading plan.",
+  "{count}/{total} trades · risque, RR, actif, session et setup.": "{count}/{total} trades · risk, RR, asset, session and setup.",
+  "Données du plan incomplètes : risque initial, SL/TP, session ou setup.": "Incomplete plan data: initial risk, SL/TP, session or setup.",
   "Classer le trade": "Classify trade",
   "Classement manuel": "Manual classification",
   "BE automatique confirmé": "Verified automatic BE",

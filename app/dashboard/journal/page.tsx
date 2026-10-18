@@ -3,6 +3,7 @@
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { planAllowsAsset, normalizePlanAsset } from "@/lib/trading-plan-assets";
 import {loadJournal as loadJournalRows} from "@/lib/metasync/loadJournal";
+import { hasCompletePlanInputs, summarizeKnownR } from "@/lib/journal-metrics";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -1691,19 +1692,7 @@ export default function JournalPage() {
           0
         );
 
-      const rTotal =
-        closed.reduce(
-          (
-            total,
-            trade
-          ) =>
-            total +
-            Number(
-              trade.result_r ||
-                0
-            ),
-          0
-        );
+      const rSummary = summarizeKnownR(closed);
 
       const winrate =
         wins + losses > 0
@@ -1713,14 +1702,10 @@ export default function JournalPage() {
             100
           : 0;
 
-      const avgR =
-        closed.length > 0
-          ? rTotal /
-            closed.length
-          : 0;
+      const avgR = rSummary.average;
 
       const evaluated =
-        trades.map(
+        closed.filter(trade => hasCompletePlanInputs(trade, tradingPlan)).map(
           (trade) =>
             evaluatePlan(
               trade,
@@ -1747,7 +1732,7 @@ export default function JournalPage() {
           ? (conforming /
               evaluatedCount) *
             100
-          : 0;
+          : null;
 
       return {
         total:
@@ -1765,7 +1750,13 @@ export default function JournalPage() {
 
         avgR,
 
+        rEvaluatedCount: rSummary.evaluatedCount,
+
+        closedCount: closed.length,
+
         discipline,
+
+        evaluatedCount,
       };
     }, [
       trades,
@@ -2883,12 +2874,15 @@ export default function JournalPage() {
             }
             label={t("R moyen")}
             value={
-              !trades.some(t=>(t.setup==='MT5 synchronisé'||t.setup==='MT4 synchronisé')) && stats.avgR !== 0
+              stats.avgR !== null
                 ? `${stats.avgR.toFixed(
                     2
                   )}R`
                 : "—"
             }
+            sub={stats.rEvaluatedCount > 0
+              ? t("Calculé sur {count}/{total} trades clôturés.").replace("{count}", String(stats.rEvaluatedCount)).replace("{total}", String(stats.closedCount))
+              : t("Risque initial non disponible.")}
           />
 
           <StatCard
@@ -2899,13 +2893,17 @@ export default function JournalPage() {
             }
             label={t("Discipline")}
             value={
-              !trades.some(t=>(t.setup==='MT5 synchronisé'||t.setup==='MT4 synchronisé')) && tradingPlan &&
-              stats.total > 0
+              stats.discipline !== null
                 ? `${stats.discipline.toFixed(
                     0
                   )}%`
                 : "—"
             }
+            sub={!tradingPlan
+              ? t("Enregistre ton plan de trading.")
+              : stats.evaluatedCount > 0
+              ? t("{count}/{total} trades · risque, RR, actif, session et setup.").replace("{count}", String(stats.evaluatedCount)).replace("{total}", String(stats.closedCount))
+              : t("Données du plan incomplètes : risque initial, SL/TP, session ou setup.")}
           />
         </section>
 
@@ -4649,11 +4647,11 @@ function TradeRow({
   const { t } = useLocale();
 
   const planResult =
-    evaluatePlan(
+    hasCompletePlanInputs(trade, plan) ? evaluatePlan(
       trade,
       plan,
       t
-    );
+    ) : { compliant: null };
 
   const currency =
     account?.currency ||

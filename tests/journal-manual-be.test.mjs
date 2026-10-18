@@ -6,6 +6,10 @@ import test from "node:test";
 import ts from "typescript";
 
 const root = path.resolve(import.meta.dirname, "..");
+const metricsModule = { exports: {} };
+vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(root, "lib/journal-metrics.ts"), "utf8"), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+}).outputText, { module: metricsModule, exports: metricsModule.exports });
 const source = fs.readFileSync(path.join(root, "app/dashboard/journal/page.tsx"), "utf8");
 const compiled = ts.transpileModule(source + "\nexport { calculateTradeResult, manualBreakevenError, emptyTradeForm };\n", {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
@@ -55,6 +59,7 @@ function fixture({ amount = "-3.25", confirmed = true, status = "breakeven", exi
       if (name === "@/components/i18n/LocaleProvider") return { useLocale: () => ({ t: value => value, locale: "fr" }) };
       if (name === "@/lib/notifyStore") return { pushNotif: notification => notifications.push(notification) };
       if (name === "@/lib/metasync/loadJournal") return { loadJournal: async () => ({ data: [], error: null }) };
+      if (name === "@/lib/journal-metrics") return metricsModule.exports;
       if (name === "@/lib/currency") return {
         useCurrencyRates: () => ({ rates: null, rateDate: null, rateLoading: false }),
         useDisplayCurrency: () => ({ displayCurrency: "USD" }),
