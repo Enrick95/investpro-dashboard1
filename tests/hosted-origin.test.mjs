@@ -16,6 +16,7 @@ function compile(file, modules, environment = {}) {
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(root, file), "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText, {
     module: cjsModule, exports: cjsModule.exports, URL, Request, Response, Headers,
     process: { env: environment },
+    console: { warn() {} },
     fetch() { throw new Error("NETWORK_FORBIDDEN_IN_ORIGIN_TEST"); },
     require: name => { assert(Object.hasOwn(modules, name), `Unexpected import ${name}`); return modules[name]; },
   });
@@ -45,6 +46,7 @@ function hostedFixture({ environment = {}, signedIn = true, authFailure = false,
     "@/lib/metasync/server": { sameOrigin: origin.sameOrigin, database() { calls.database++; throw new Error("DATABASE_FORBIDDEN_IN_ORIGIN_TEST"); }, digest() { calls.crypto++; throw new Error("CRYPTO_FORBIDDEN_IN_ORIGIN_TEST"); } },
     "@supabase/supabase-js": { createClient() { calls.database++; throw new Error("DATABASE_FORBIDDEN_IN_ORIGIN_TEST"); } },
     "@/lib/copier/requestCrypto": { decryptCopierPassword() { calls.crypto++; throw new Error("CRYPTO_FORBIDDEN_IN_ORIGIN_TEST"); } },
+    "@/lib/metasync/request-proof": { issueHostedRequestToken() { return null; }, verifyHostedRequestToken() { return false; } },
     "@/lib/metasync/hosted": {
       async hostedUser() { calls.auth++; if (authFailure) throw new Error("AUTH_FIXTURE_FAILURE"); return signedIn ? user : null; },
       async body() { calls.body++; throw new Error("INTENTIONALLY_INVALID_FIXTURE_BODY"); },

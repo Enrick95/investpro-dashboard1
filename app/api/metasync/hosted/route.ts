@@ -2,11 +2,12 @@ import { serverCatalog } from '@/lib/metasync/server-catalog';
 import { randomBytes } from 'node:crypto';
 import { database, digest, sameOrigin } from '@/lib/metasync/server';
 import { body, hostedUser, seal } from '@/lib/metasync/hosted';
+import { issueHostedRequestToken, verifyHostedRequestToken } from '@/lib/metasync/request-proof';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const headers = { 'Cache-Control': 'no-store' };
+const headers = { 'Cache-Control': 'private, no-store', Vary: 'Cookie, Origin' };
 const reply = (value: unknown, status = 200) =>
   Response.json(value, { status, headers });
 
@@ -26,10 +27,30 @@ function isCurrentPreviewOrigin(req: Request) {
   );
 }
 
-export async function GET() {
+function requestRejection(req: Request, userId: string) {
+  if (sameOrigin(req)) return null;
+  const origin = req.headers.get('origin');
+  const fetchSite = req.headers.get('sec-fetch-site');
+  // A proof never overrides an explicit foreign Origin or a cross-site request.
+  if (fetchSite === 'cross-site') return 'cross_site';
+  if (origin !== null && origin !== 'null') return 'foreign_origin';
+  if (fetchSite !== null && !['same-origin', 'same-site', 'none'].includes(fetchSite)) return 'invalid_fetch_site';
+  if (!/^application\/json(?:\s*;\s*charset\s*=\s*(?:utf-8|"utf-8"))?$/i.test(req.headers.get('content-type')?.trim() || '')) return 'invalid_content_type';
+  // Some clients omit/taint Origin. They must instead prove they could read an
+  // authenticated, private GET response with a fresh token bound to this user.
+  if (!req.headers.get('x-investpro-mt-token')) return 'missing_proof';
+  return verifyHostedRequestToken(req, userId) ? null : 'invalid_proof';
+}
+
+export async function GET(req?: Request) {
   try {
     const user = await hostedUser();
     if (!user) return reply({ enabled: false });
+    // Request validation must remain available even if the server catalog or
+    // connection list is temporarily unavailable, especially for disconnects.
+    if (req && new URL(req.url).searchParams.get('requestProof') === '1') {
+      return reply({ enabled: true, requestToken: issueHostedRequestToken(user.id) });
+    }
 
     const { data, error } = await database()
       .from('investpro_mt_hosted')
@@ -40,7 +61,7 @@ export async function GET() {
       .order('created_at');
 
     if (error) throw Error('hosted_read');
-    return reply({ enabled: true, brokers: await serverCatalog(), connections: data });
+    return reply({ enabled: true, brokers: await serverCatalog(), connections: data, requestToken: issueHostedRequestToken(user.id) });
   } catch {
     return reply(
       { error: 'Connexion hébergée indisponible. Réessaie dans quelques instants.' },
@@ -71,8 +92,16 @@ export async function POST(req: Request) {
       503
     );
   }
-  if (!sameOrigin(req)) {
-    return reply({ error: 'Cette requête ne vient pas d’une adresse InvestPro autorisée.' }, 403);
+  const rejection = requestRejection(req, user.id);
+  if (rejection) {
+    // No request body, identifiers, credentials, raw Origin or URL enter logs.
+    console.warn('METASYNC_REQUEST_REJECTED', { reason: rejection });
+    const code = rejection === 'missing_proof' ? 'MT_REQUEST_PROOF_REQUIRED'
+      : rejection === 'invalid_proof' ? 'MT_REQUEST_PROOF_EXPIRED' : 'MT_REQUEST_ORIGIN';
+    return reply({ code, error: code === 'MT_REQUEST_ORIGIN'
+      ? 'Ouvre InvestPro depuis son adresse officielle pour connecter ton compte.'
+      : 'La vérification de cette page a expiré. Recharge la page puis réessaie.',
+      recoveryUrl: 'https://investprotrading.fr/dashboard/connexions/metatrader' }, 403);
   }
 
   let v: Record<string, unknown>;

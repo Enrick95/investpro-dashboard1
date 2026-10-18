@@ -1,6 +1,7 @@
 "use client";
 
 import { useLocale } from "@/components/i18n/LocaleProvider";
+import { HostedRequestError, sendHostedMutation } from "@/lib/metasync/hosted-request-client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
@@ -56,6 +57,7 @@ export default function HostedSyncPanel({ initialPlatform = "MT5" }: { initialPl
   const [syncConsent, setSyncConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [originRejected, setOriginRejected] = useState(false);
   const [notice, setNotice] = useState("");
 
   useEffect(() => {
@@ -88,28 +90,22 @@ export default function HostedSyncPanel({ initialPlatform = "MT5" }: { initialPl
   async function send(id?: string) {
     setBusy(true);
     setError("");
+    setOriginRejected(false);
     setNotice("");
 
     try {
-      const response = await fetch("/api/metasync/hosted", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          id
-            ? { action: "stop", id }
-            : {
-                broker,
-                login,
-                password,
-                currency,
-                type,
-                syncConsent,
-              }
-        ),
-      });
-
-      const json = await response.json();
-      if (!response.ok) throw new Error(json.error);
+      await sendHostedMutation(
+        id
+          ? { action: "stop", id }
+          : {
+              broker,
+              login,
+              password,
+              currency,
+              type,
+              syncConsent,
+            }
+      );
 
       setPassword("");
       setNotice(
@@ -119,8 +115,9 @@ export default function HostedSyncPanel({ initialPlatform = "MT5" }: { initialPl
       );
 
       await load();
-    } catch (e: any) {
-      setError(e?.message || "Connexion impossible.");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Connexion impossible.");
+      setOriginRejected(e instanceof HostedRequestError && e.code === "MT_REQUEST_ORIGIN");
     } finally {
       setBusy(false);
     }
@@ -304,7 +301,12 @@ export default function HostedSyncPanel({ initialPlatform = "MT5" }: { initialPl
           {error ? (
             <div className="mt-4 flex items-start gap-2 rounded-xl border border-red-500/20 bg-red-500/[0.05] p-3 text-[10px] text-red-300">
               <AlertTriangle size={13} className="mt-0.5 shrink-0" />
-              {translate(error)}
+              <div>
+                <p>{translate(error)}</p>
+                {originRejected && <a href="https://investprotrading.fr/dashboard/connexions/metatrader" className="mt-2 inline-flex min-h-11 items-center font-semibold underline underline-offset-4">
+                  {translate("Ouvrir InvestPro officiel")}
+                </a>}
+              </div>
             </div>
           ) : null}
 
