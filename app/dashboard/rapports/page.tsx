@@ -144,10 +144,14 @@ export default function RapportsPage() {
   const [viewDate, setViewDate] = useState(new Date());
 
   useEffect(() => {
+    let disposed = false;
+    let inFlight = false;
     async function loadPage() {
+      if (disposed || inFlight) return;
+      inFlight = true;
       try {
-        setLoading(true);
         const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (disposed) return;
         if (userError || !user) {
           window.location.href = "/login";
           return;
@@ -165,6 +169,7 @@ export default function RapportsPage() {
             .order("trade_date", { ascending: true }),
           loadActiveTradingScope(supabase, user.id),
         ]);
+        if (disposed) return;
         if (!accountsResult.error) {
           setAccounts(((accountsResult.data || []) as TradingAccount[])
             .filter((a) => activeScope.activeIds.has(Number(a.id)))
@@ -186,17 +191,21 @@ export default function RapportsPage() {
             result_r: t.result_r == null ? null : Number(t.result_r),
           })));
         }
+      } catch {
+        // A background network failure must not replace the report already on screen.
       } finally {
-        setLoading(false);
+        inFlight = false;
+        if (!disposed) setLoading(false);
       }
     }
     void loadPage();
-    const timer = window.setInterval(() => void loadPage(), 30000);
     const onVisible = () => {
       if (document.visibilityState === "visible") void loadPage();
     };
+    const timer = window.setInterval(onVisible, 30000);
     document.addEventListener("visibilitychange", onVisible);
     return () => {
+      disposed = true;
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
     };

@@ -1089,12 +1089,12 @@ export default function DashboardPage() {
   ===================================================== */
 
   useEffect(() => {
+    let disposed = false;
+    let inFlight = false;
     async function loadDashboard() {
+      if (disposed || inFlight) return;
+      inFlight = true;
       try {
-        setLoading(
-          true
-        );
-
         const {
           data: {
             user,
@@ -1102,6 +1102,7 @@ export default function DashboardPage() {
         } =
           await supabase.auth.getUser();
 
+        if (disposed) return;
         if (!user) {
           window.location.href =
             "/login";
@@ -1212,6 +1213,7 @@ export default function DashboardPage() {
             loadActiveTradingScope(supabase, user.id),
           ]);
 
+        if (disposed) return;
         /* PROFILE */
 
         setProfile({
@@ -1344,19 +1346,19 @@ export default function DashboardPage() {
           error
         );
       } finally {
-        setLoading(
-          false
-        );
+        inFlight = false;
+        if (!disposed) setLoading(false);
       }
     }
 
     void loadDashboard();
-    const timer = window.setInterval(() => void loadDashboard(), 30000);
     const onVisible = () => {
       if (document.visibilityState === "visible") void loadDashboard();
     };
+    const timer = window.setInterval(onVisible, 30000);
     document.addEventListener("visibilitychange", onVisible);
     return () => {
+      disposed = true;
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
     };

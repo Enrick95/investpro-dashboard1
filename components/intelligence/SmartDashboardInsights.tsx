@@ -70,13 +70,17 @@ export default function SmartDashboardInsights() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let disposed = false;
+    let inFlight = false;
     async function load() {
+      if (disposed || inFlight) return;
+      inFlight = true;
       try {
-        setLoading(true);
         const {
           data: { user },
         } = await supabase.auth.getUser();
 
+        if (disposed) return;
         if (!user) return;
 
         const start = new Date();
@@ -99,6 +103,7 @@ export default function SmartDashboardInsights() {
           loadActiveTradingScope(supabase, user.id),
         ]);
 
+        if (disposed) return;
         if (!tradesResult.error) {
           const allTrades = (tradesResult.data || []) as Trade[];
           setTrades(scopeTradesToActiveAccounts(allTrades, activeScope.activeIds));
@@ -110,18 +115,22 @@ export default function SmartDashboardInsights() {
             max_trades_per_day: Number(planResult.data.max_trades_per_day || 0),
           });
         }
+      } catch {
+        // Keep the last loaded insights visible when a background refresh fails.
       } finally {
-        setLoading(false);
+        inFlight = false;
+        if (!disposed) setLoading(false);
       }
     }
 
     void load();
-    const timer = window.setInterval(() => void load(), 30000);
     const onVisible = () => {
       if (document.visibilityState === "visible") void load();
     };
+    const timer = window.setInterval(onVisible, 30000);
     document.addEventListener("visibilitychange", onVisible);
     return () => {
+      disposed = true;
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
     };
