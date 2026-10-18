@@ -61,7 +61,7 @@ export default function PremiumEmptyStateGuide() {
             .eq("user_id", user.id),
 
           supabase
-            .from("trading_journal")
+            .from("trading_journal_effective")
             .select("id", { count: "exact", head: true })
             .eq("user_id", user.id),
         ]);

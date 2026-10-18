@@ -74,7 +74,7 @@ export default function DashboardTemplate({
 
       const [tradesResult, planResult, accountsResult, activeScope] = await Promise.all([
         supabase
-          .from("trading_journal")
+          .from("trading_journal_effective")
           .select("id, account_id, trade_date, symbol, result_amount, result_r, status, risk_percent")
           .eq("user_id", user.id)
           .order("trade_date", { ascending: true }),
@@ -129,7 +129,7 @@ export default function DashboardTemplate({
     const routes: Record<string, string> = {
       "Capital total": "/dashboard/comptes",
       "P&L du mois": "/dashboard/rapports",
-      Winrate: "/dashboard/rapports",
+      "Winrate hors BE": "/dashboard/rapports",
       "Risque moyen": "/dashboard/plan",
       "Trades du mois": "/dashboard/journal",
     };
@@ -209,7 +209,7 @@ export default function DashboardTemplate({
             .maybeSingle(),
 
           supabase
-            .from("trading_journal")
+            .from("trading_journal_effective")
             .select("id", { count: "exact", head: true })
             .eq("user_id", user.id),
         ]);
@@ -337,8 +337,9 @@ export default function DashboardTemplate({
     const closed = todayTrades.filter((trade) =>
       ["win", "loss", "breakeven"].includes(trade.status)
     );
-    const wins = closed.filter((trade) => Number(trade.result_amount || 0) > 0).length;
-    const losses = closed.filter((trade) => Number(trade.result_amount || 0) < 0).length;
+    const wins = closed.filter((trade) => trade.status === "win").length;
+    const losses = closed.filter((trade) => trade.status === "loss").length;
+    const breakevens = closed.filter((trade) => trade.status === "breakeven").length;
     const pnl = closed.reduce((sum, trade) => sum + Number(trade.result_amount || 0), 0);
     const riskAlerts = plan?.max_risk_percent
       ? todayTrades.filter(
@@ -367,6 +368,7 @@ export default function DashboardTemplate({
       closed: closed.length,
       wins,
       losses,
+      breakevens,
       pnl,
       riskAlerts,
       status,
@@ -430,7 +432,7 @@ export default function DashboardTemplate({
 
             <div className="grid grid-cols-2 gap-px border-t border-white/[0.05] bg-white/[0.04] sm:grid-cols-4 xl:border-l xl:border-t-0">
               <PulseMetric label={t("Trades")} value={String(todaySummary.count)} />
-              <PulseMetric label={t("Wins / Loss")} value={`${todaySummary.wins} / ${todaySummary.losses}`} />
+              <PulseMetric label={t("Wins / Loss")} value={`${todaySummary.wins} / ${todaySummary.losses} · ${todaySummary.breakevens} BE`} />
               <PulseMetric
                 label={t("P&L jour")}
                 value={`${todaySummary.pnl > 0 ? "+" : ""}${todaySummary.pnl.toLocaleString(locale === "en" ? "en-US" : "fr-FR", { maximumFractionDigits: 0 })}`}

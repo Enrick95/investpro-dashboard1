@@ -109,7 +109,7 @@ export default function ActivityCenterPage() {
       const [tradesResult, accountsResult, ticketsResult, futuresResult, mtResult] =
         await Promise.all([
           supabase
-            .from("trading_journal")
+            .from("trading_journal_effective")
             .select("id,trade_date,symbol,status,result_amount,result_r,created_at")
             .eq("user_id", user.id)
             .order("trade_date", { ascending: false })

@@ -25,7 +25,7 @@ export default function DefisPage(){
    const {data:{user}}=await supabase.auth.getUser(); if(!user){window.location.href="/login";return;}
    const now=new Date(); const day=now.getDay()||7; const monday=new Date(now); monday.setHours(0,0,0,0); monday.setDate(now.getDate()-day+1);
    const [tradeResult,planResult,claimResult,profileResult]=await Promise.all([
-    supabase.from("trading_journal").select("trade_date,status,result_amount,risk_percent,notes,screenshot_url").eq("user_id",user.id).gte("trade_date",monday.toISOString()).lte("trade_date",now.toISOString()),
+    supabase.from("trading_journal_effective").select("trade_date,status,result_amount,risk_percent,notes,screenshot_url").eq("user_id",user.id).gte("trade_date",monday.toISOString()).lte("trade_date",now.toISOString()),
     supabase.from("trading_plans").select("max_risk_percent,max_trades_per_day").eq("user_id",user.id).maybeSingle(),
     supabase.from("challenge_claims").select("challenge_code,period_key").eq("user_id",user.id).eq("period_key",currentWeekKey),
     supabase.from("profiles").select("xp").eq("id",user.id).maybeSingle()

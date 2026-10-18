@@ -1,0 +1,48 @@
+MISE A JOUR DU CONNECTEUR INVESTPRO — PREUVES DE SORTIE BE SUR MT5
+
+Fichiers a remplacer/ajouter dans votre dossier WINDOWS :
+  host.py
+  mt5_exit_evidence.py
+  InvestProHostedMT5Evidence.mq5
+
+Gardez tous les autres fichiers presents. Ne relancez ni la configuration,
+ni la generation des secrets, ni l'enregistrement des brokers.
+
+Installation sur l'ordinateur qui heberge deja les connexions :
+1. Arretez l'hebergeur avec Ctrl+C dans sa fenetre habituelle, puis attendez
+   son arret. Cela suspend momentanement la synchronisation, pas vos trades.
+2. Gardez une copie de votre ancien host.py pour pouvoir revenir en arriere.
+3. Copiez les trois fichiers ci-dessus dans WINDOWS, au meme endroit que
+   votre host.py actuel.
+4. Relancez votre 4-DEMARRER.cmd habituel.
+
+Le nouveau composant se compile dans les seules instances MT5 d'InvestPro.
+Il lit l'historique et ne passe/modifie/cloture aucun ordre. Le trading
+automatique et les DLL restent desactives dans sa configuration.
+Vos mots de passe ne sont jamais ajoutes a sa configuration de lancement.
+
+Le site doit aussi avoir recu la mise a jour du journal pour exploiter ces
+preuves. La lecture peut demander un cycle supplementaire de synchronisation.
+
+Regle : une sortie n'est automatiquement BE que si l'historique confirme le
+declenchement du SL et son placement au prix d'entree. Les commissions,
+swaps, frais et ecarts d'execution restent dans le P&L reel.
+Une fermeture manuelle proche de zero ne devient pas automatiquement BE.
+
+Cas volontairement sans detection automatique : MT4, absence de preuve,
+retournement netting, cloture par position opposee, renforcement apres une
+sortie partielle, plus de 16 executions d'entree/sortie ou hors des 1000
+dernieres executions de sortie disponibles dans cet export. La correction
+manuelle dans le journal reste possible.
+
+Si le compilateur MT5 ou l'export ne fonctionne pas, l'hebergeur conserve la
+synchronisation habituelle des montants, sans deviner de BE. La ligne de
+diagnostic PREUVE SL precise si le composant a pu etre prepare.
+
+Verification effectuee : tests Python hors ligne avec donnees fictives,
+controle de la conversion USC/USD et des montants. Aucun terminal ou compte
+reel n'a ete lance pendant ces tests. Compilation MQL5 confirmee : zero erreur,
+zero avertissement. Le demarrage et le premier export restent a confirmer sur votre serveur.
+
+Retour arriere : arretez l'hebergeur, remettez votre ancien host.py, puis
+relancez 4-DEMARRER.cmd. Ne supprimez pas votre configuration existante.

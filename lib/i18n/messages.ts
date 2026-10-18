@@ -11,6 +11,7 @@ import { connectionsMarketExtraMessages } from "./connections-market-extra";
 import { vipEditorMessages } from "./vip-editor";
 import { vipRailMessages } from "./vip-rail";
 import { vipInlineMessages } from "./vip-inline";
+import { journalOutcomeMessages } from "./journal-outcomes";
 
 /** Static application copy only. Member posts, names and trading data are never sent for translation. */
 export const messages: Readonly<Record<string, string>> = {
@@ -27,4 +28,5 @@ export const messages: Readonly<Record<string, string>> = {
   ...vipEditorMessages,
   ...vipRailMessages,
   ...vipInlineMessages,
+  ...journalOutcomeMessages,
 };

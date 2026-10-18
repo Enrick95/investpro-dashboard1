@@ -93,7 +93,7 @@ export async function GET(
         .order("created_at", { ascending: false }),
 
       admin
-        .from("trading_journal")
+        .from("trading_journal_effective")
         .select("id,symbol,trade_date,status,result_amount,result_r,risk_percent")
         .eq("user_id", id)
         .order("trade_date", { ascending: false })
@@ -131,20 +131,13 @@ export async function GET(
     const trades: any[] = tradesResult.data || [];
 
     const closedTrades = trades.filter((trade) =>
-      ["closed", "win", "loss", "be"].includes(
+      ["closed", "win", "loss", "be", "breakeven"].includes(
         String(trade.status || "").toLowerCase()
       )
     );
 
-    const wins = closedTrades.filter((trade) => {
-      const r = Number(trade.result_r || 0);
-      const amount = Number(trade.result_amount || 0);
-      return (
-        r > 0 ||
-        amount > 0 ||
-        String(trade.status || "").toLowerCase() === "win"
-      );
-    }).length;
+    const wins = closedTrades.filter((trade) => trade.status === "win").length;
+    const losses = closedTrades.filter((trade) => trade.status === "loss").length;
 
     const totalR = closedTrades.reduce(
       (sum, trade) => sum + Number(trade.result_r || 0),
@@ -183,8 +176,8 @@ export async function GET(
         trades_count: trades.length,
         closed_trades_count: closedTrades.length,
         winrate:
-          closedTrades.length > 0
-            ? Math.round((wins / closedTrades.length) * 1000) / 10
+          wins + losses > 0
+            ? Math.round((wins / (wins + losses)) * 1000) / 10
             : 0,
         total_r: Math.round(totalR * 100) / 100,
       },

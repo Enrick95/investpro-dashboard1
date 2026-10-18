@@ -58,7 +58,7 @@ const screens = [
 // Run the application's compiled components and effects. Only browser timing,
 // React's hook storage, authentication and transport are replaced; the polling
 // effect, render branches, calculations and account scoping remain real code.
-function fixture(screen) {
+function fixture(screen, { trades: seededTrades } = {}) {
   const slots = [];
   const pendingEffects = [];
   const timers = new Map();
@@ -78,7 +78,9 @@ function fixture(screen) {
   const rows = {
     profiles: [{ id: userId, username: "Trader de test", plan: "pro", xp: 10 }],
     trading_accounts: [account],
-    trading_journal: [trade],
+    trading_journal_effective: seededTrades
+      ? seededTrades.map((row, index) => ({ ...trade, id: index + 1, ...row }))
+      : [trade],
     trading_plans: [{ user_id: userId, max_risk_percent: 1, max_trades_per_day: 2, minimum_rr: 1, weekly_goal: null, allowed_sessions: ["london"], allowed_assets: ["XAUUSD"], allowed_setups: [] }],
   };
   const react = {
@@ -114,6 +116,7 @@ function fixture(screen) {
       return { data: { user: { id: userId, email: "test@example.test", user_metadata: {} } }, error: null };
     } },
     from(table) {
+      assert.notEqual(table, "trading_journal", "Financial history reads must use the effective outcome view");
       assert(Object.hasOwn(rows, table), `Unexpected table ${table}`);
       const call = { table, filters: [] };
       calls.push(call);
@@ -178,12 +181,20 @@ function fixture(screen) {
     get timerCount() { return timers.size; },
     get listenerCount() { return [...listeners.values()].reduce((sum, group) => sum + group.size, 0); },
     metric(tree = render()) { const node = nodes(tree, (item) => item.props?.label === screen.metric)[0]; assert(node, `Missing ${screen.metric}`); return String(node.props.value); },
-    async mount() { const initial = render(); for (const effect of pendingEffects.splice(0)) effect(); await flush(); return { initial, loaded: render() }; },
+    async mount() {
+      const initial = render();
+      for (const effect of pendingEffects.splice(0)) effect();
+      await flush();
+      assert(calls.some((call) => call.table === "trading_journal_effective"
+        && call.columns.includes("result_amount")),
+      "Financial history must be requested from the effective outcome view");
+      return { initial, loaded: render() };
+    },
     holdNextRefresh() { const gate = deferred(); nextAuthGate = gate; return gate; },
     holdNextQuery() { const gate = deferred(); nextQueryGate = gate; return gate; },
     poll() { for (const callback of [...timers.values()]) callback(); },
     visibility(value) { document.visibilityState = value; for (const callback of [...listeners.get("visibilitychange") || []]) callback(); },
-    update(amount) { rows.trading_journal[0].result_amount = amount; rows.trading_accounts[0].current_balance = 1000 + amount; },
+    update(amount) { rows.trading_journal_effective[0].result_amount = amount; rows.trading_accounts[0].current_balance = 1000 + amount; },
     offline(value) { authFailure = value; },
     unmount() { mounted = false; for (const slot of slots) slot?.cleanup?.(); },
   };
@@ -312,5 +323,63 @@ test("reports: account, period, search, and calendar month survive background re
   assert.equal(nodes(tree, (node) => node.type === "select")[0].props.value, 1);
   assert.equal(nodes(tree, (node) => node.type === "input")[0].props.value, "XAUUSD");
   assert.equal(calendarLabel(tree), chosenMonth);
+  app.unmount();
+});
+
+test("reports: fee-negative BE trades are neutral outcomes while all costs remain in financial metrics", async () => {
+  const app = fixture(screens[1], { trades: [
+    { status: "win", result_amount: 100 },
+    { status: "breakeven", result_amount: -2, result_r: null },
+    { status: "breakeven", result_amount: -3, result_r: null },
+    { status: "loss", result_amount: -25, result_r: -1 },
+  ] });
+  const { loaded } = await app.mount();
+  const metric = (label) => nodes(loaded, (node) => node.props.label === label)[0]?.props;
+  assert.equal(metric("Winrate hors BE").value, "50,0%");
+  assert.equal(metric("Winrate hors BE").sub, "1W / 1L · 2 BE");
+  assert.equal(metric("Pire série").value, "1L", "Fee-only BE trades must not extend the loss streak");
+  assert.match(metric("P&L net").value, /70,00/);
+  assert.equal(metric("Profit Factor").value, "3,33", "BE fees remain in the financial loss side");
+  const averageLoss = nodes(loaded, (node) => node.props.title === "Perte moyenne")[0];
+  assert.match(averageLoss.props.value, /10,00/, "Financial average still includes all three negative cash flows");
+  const sessions = nodes(loaded, (node) => node.props.title === "Performance par session")[0].props.rows;
+  assert.equal(sessions[0].winrate, 50, "Grouped winrate must follow the same outcomes");
+  assert.equal(sessions[0].pnl, 70);
+  app.unmount();
+});
+
+test("reports: a selection containing only fee-negative BE trades has no winrate", async () => {
+  const app = fixture(screens[1], { trades: [{ status: "breakeven", result_amount: -4, result_r: null }] });
+  const { loaded } = await app.mount();
+  const rate = nodes(loaded, (node) => node.props.label === "Winrate hors BE")[0].props;
+  assert.equal(rate.value, "—");
+  assert.equal(rate.sub, "0W / 0L · 1 BE");
+  assert.equal(nodes(loaded, (node) => node.props.label === "Pire série")[0].props.value, "0L");
+  assert.match(app.metric(loaded), /4,00/);
+  app.unmount();
+});
+
+test("insights: BE fees do not trigger two-loss discipline alerts or extend the current losing streak", async () => {
+  const app = fixture(screens[2], { trades: [
+    { status: "loss", result_amount: -25, result_r: -1 },
+    { status: "breakeven", result_amount: -2, result_r: null },
+    { status: "breakeven", result_amount: -3, result_r: null },
+  ] });
+  const { loaded } = await app.mount();
+  assert.equal(nodes(loaded, (node) => node.props.label === "Série actuelle")[0].props.value, "1L");
+  assert.doesNotMatch(text(loaded), /Protection du capital prioritaire|Tu as déjà 2 pertes|Série de pertes détectée/);
+  assert.equal(app.metric(loaded), "-30", "The actual daily loss still includes BE fees");
+  app.unmount();
+});
+
+test("dashboard: a BE-only month has no winrate and keeps every fee in the monthly P&L", async () => {
+  const app = fixture(screens[0], { trades: [
+    { status: "breakeven", result_amount: -2, result_r: null },
+    { status: "breakeven", result_amount: -3, result_r: null },
+  ] });
+  const { loaded } = await app.mount();
+  const rate = nodes(loaded, (node) => node.props.label === "Winrate hors BE")[0].props;
+  assert.equal(rate.value, "—");
+  assert.match(app.metric(loaded), /-5,00/);
   app.unmount();
 });

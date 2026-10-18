@@ -1,5 +1,6 @@
+import { validateExecutionMetadata, type ExecutionMetadata } from './execution-metadata';
 // This pilot receives closed MT4 tickets and MT5 positions. It never executes trades.
-export type SyncTrade={external_id:string;symbol:string;direction:'buy'|'sell';entry_price:number;trade_date:string;result_amount:number};
+export type SyncTrade={external_id:string;symbol:string;direction:'buy'|'sell';entry_price:number;trade_date:string;result_amount:number;execution_metadata?:ExecutionMetadata};
 export type Snapshot={platform:'MT4'|'MT5';login:string;server:string;currency:string;balance:number;equity:number;observed_at:string;trades:SyncTrade[];warnings:string[]};
 export function validateSnapshot(x:unknown):Snapshot{
  if(!x||typeof x!=='object')throw Error('Format invalide');
@@ -18,6 +19,7 @@ export function validateSnapshot(x:unknown):Snapshot{
  const ids=new Set<string>();
  for(const t of v.trades){
   if(!t||!str(t.external_id,50)||!new RegExp('^'+platform.toLowerCase()+':\\d+$').test(t.external_id)||ids.has(t.external_id)||!str(t.symbol,40)||!['buy','sell'].includes(t.direction)||!finite(t.entry_price)||t.entry_price<=0||!finite(t.result_amount)||typeof t.trade_date!=='string'||!Number.isFinite(Date.parse(t.trade_date))||Date.parse(t.trade_date)>maxTradeStamp||(platform==='MT4'&&(!/^\d{4}-\d{2}-\d{2}$/.test(t.trade_date)||new Date(t.trade_date).toISOString().slice(0,10)!==t.trade_date)))throw Error('Trade invalide');
+  if(Object.hasOwn(t,'execution_metadata'))validateExecutionMetadata(t.execution_metadata,t,platform);
   ids.add(t.external_id);
  }
  return {...v,platform} as unknown as Snapshot;

@@ -30,6 +30,7 @@ import {
 
 import { createClient } from "@/lib/supabase/client";
 import PerformanceCalendar from '@/components/performance/PerformanceCalendar';
+import TradeOutcomeControl from '@/components/journal/TradeOutcomeControl';
 import { pushNotif } from "@/lib/notifyStore";
 import DisplayCurrencySelect from "@/components/currency/DisplayCurrencySelect";
 import { convertCurrency, formatDisplayCurrency, rateDateLabel, useCurrencyRates, useDisplayCurrency } from "@/lib/currency";
@@ -90,6 +91,10 @@ type Trade = {
   result_r: number;
 
   status: TradeStatus;
+  source_status?: TradeStatus;
+  outcome_override?: "win" | "loss" | "breakeven" | null;
+  outcome_source?: "manual" | "automatic" | "source";
+  automatic_be?: boolean;
 
   setup: string | null;
 
@@ -123,6 +128,8 @@ type TradeForm = {
   risk_percent: string;
 
   status: TradeStatus;
+
+  breakeven_net: string;
 
   setup: string;
 
@@ -187,6 +194,8 @@ const emptyTradeForm: TradeForm = {
 
   status: "open",
 
+  breakeven_net: "0",
+
   setup: "",
 
   session: "",
@@ -220,6 +229,13 @@ function numberOrNull(value: string) {
 
 function numberOrZero(value: string) {
   return numberOrNull(value) ?? 0;
+}
+
+function manualBreakevenError(status: TradeStatus, netAmount: string, confirmed: boolean) {
+  if (status !== "breakeven") return null;
+  if (numberOrNull(netAmount) === null) return "Saisis un montant net valide pour le BE.";
+  if (!confirmed) return "Confirme que le SL placé au prix d’entrée a déclenché la sortie.";
+  return null;
 }
 
 function formatNumber(value: number) {
@@ -446,6 +462,7 @@ function calculateTradeResult({
   stopLoss,
   takeProfit,
   status,
+  breakevenNet = 0,
 }: {
   balance: number;
   riskPercent: number;
@@ -453,6 +470,7 @@ function calculateTradeResult({
   stopLoss: number | null;
   takeProfit: number | null;
   status: TradeStatus;
+  breakevenNet?: number;
 }) {
   const riskMoney =
     balance > 0 &&
@@ -487,8 +505,13 @@ function calculateTradeResult({
       -riskMoney;
   }
 
+  if (status === "breakeven") {
+    resultAmount = breakevenNet;
+    const netR = riskMoney > 0 ? resultAmount / riskMoney : 0;
+    resultR = Number.isFinite(netR) ? netR : 0;
+  }
+
   if (
-    status === "breakeven" ||
     status === "open" ||
     status === "cancelled"
   ) {
@@ -841,6 +864,8 @@ export default function JournalPage() {
     useState<TradeForm>({
       ...emptyTradeForm,
     });
+
+  const [confirmedManualBE, setConfirmedManualBE] = useState(false);
 
   const [
     screenshotFile,
@@ -1650,6 +1675,8 @@ export default function JournalPage() {
             "loss"
         ).length;
 
+      const breakevens = closed.filter(trade => trade.status === "breakeven").length;
+
       const pnl =
         trades.reduce(
           (
@@ -1730,6 +1757,8 @@ export default function JournalPage() {
 
         losses,
 
+        breakevens,
+
         pnl,
 
         winrate,
@@ -1789,6 +1818,8 @@ export default function JournalPage() {
 
         status:
           form.status,
+
+        breakevenNet: numberOrNull(form.breakeven_net) ?? 0,
       });
     }, [
       form,
@@ -1861,6 +1892,7 @@ export default function JournalPage() {
   }, [loading]);
 
   function openNewTrade() {
+    setConfirmedManualBE(false);
     setEditingTrade(
       null
     );
@@ -1919,6 +1951,7 @@ export default function JournalPage() {
     trade: Trade
   ) {
     if((trade.setup==='MT5 synchronisé'||trade.setup==='MT4 synchronisé')){alert(t("Ce trade provient de MetaTrader : les données importées ne se modifient pas manuellement."));return;}
+    setConfirmedManualBE(false);
     setEditingTrade(
       trade
     );
@@ -2016,7 +2049,9 @@ export default function JournalPage() {
         ),
 
       status:
-        trade.status,
+        trade.source_status ?? trade.status,
+
+      breakeven_net: String(trade.result_amount ?? 0),
 
       setup:
         trade.setup ||
@@ -2054,6 +2089,12 @@ export default function JournalPage() {
 
   async function saveTrade() {
     if (!userId) {
+      return;
+    }
+
+    const breakevenError = manualBreakevenError(form.status, form.breakeven_net, confirmedManualBE);
+    if (breakevenError) {
+      pushNotif({ kind: "warning", title: t("Journal"), message: t(breakevenError), ttlMs: 8000 });
       return;
     }
 
@@ -2805,10 +2846,10 @@ export default function JournalPage() {
                 size={18}
               />
             }
-            label={t("Winrate")}
-            value={`${stats.winrate.toFixed(
+            label={t("Winrate hors BE")}
+            value={stats.wins + stats.losses ? `${stats.winrate.toFixed(
               1
-            )}%`}
+            )}%` : "—"}
           />
 
           <StatCard
@@ -2829,8 +2870,9 @@ export default function JournalPage() {
                 size={18}
               />
             }
-            label={t("Wins / Losses")}
-            value={`${stats.wins} / ${stats.losses}`}
+            label={t("Wins / Losses / BE")}
+            value={`${stats.wins} / ${stats.losses} / ${stats.breakevens}`}
+            sub={t("Les BE sont exclus du winrate ; leur résultat net reste dans le P&L.")}
           />
 
           <StatCard
@@ -3127,6 +3169,7 @@ export default function JournalPage() {
                         trade
                       )
                     }
+                    onOutcomeSaved={loadJournal}
                   />
                 )
               )}
@@ -3436,14 +3479,15 @@ export default function JournalPage() {
                   }
                   onChange={(
                     value
-                  ) =>
+                  ) => {
+                    setConfirmedManualBE(false);
                     setForm({
                       ...form,
 
                       status:
                         value as TradeStatus,
-                    })
-                  }
+                    });
+                  }}
                   options={[
                     {
                       value:
@@ -3486,6 +3530,26 @@ export default function JournalPage() {
                     },
                   ]}
                 />
+
+                {form.status === "breakeven" ? (
+                  <div className="space-y-3 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4 lg:col-span-2">
+                    <label className="block text-xs text-white/70">
+                      <span className="mb-2 block">{t("Résultat net du BE (frais inclus)")}{selectedAccount ? ` · ${selectedAccount.currency}` : ""}</span>
+                      <input type="number" step="any" inputMode="decimal" value={form.breakeven_net}
+                        onChange={event => setForm({ ...form, breakeven_net: event.target.value })}
+                        aria-invalid={numberOrNull(form.breakeven_net) === null}
+                        aria-describedby="manual-be-net-help"
+                        className="h-11 w-full rounded-xl border border-[color:var(--border)] bg-black/20 px-4 text-sm text-white outline-none focus:border-[color:var(--gold-border)]" />
+                    </label>
+                    <p id="manual-be-net-help" className="text-xs leading-5 text-white/55">{t("Indique le montant réellement réalisé, frais et slippage inclus. Le R utilise ce montant net lorsque le risque est connu. Le BE reste exclu du winrate.")}</p>
+                    {numberOrNull(form.breakeven_net) === null ? <p role="alert" className="text-xs text-red-400">{t("Saisis un montant net valide pour le BE.")}</p> : null}
+                    <p className="text-xs leading-5 text-white/55">{t("Un BE technique exige une sortie déclenchée par le SL à l’entrée. Les frais ou le slippage peuvent laisser un léger résultat net négatif. Une clôture manuelle en petite perte reste une LOSS.")}</p>
+                    <label className="flex cursor-pointer items-start gap-3 text-xs leading-5 text-white/90">
+                      <input type="checkbox" required checked={confirmedManualBE} onChange={event => setConfirmedManualBE(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[color:var(--gold)]" />
+                      <span>{t("Je confirme que le SL placé au prix d’entrée a déclenché la sortie.")}</span>
+                    </label>
+                  </div>
+                ) : null}
 
                 <InputField
                   label={t("Prix d’entrée")}
@@ -4016,7 +4080,7 @@ export default function JournalPage() {
                 </div>
 
                 <p className="mt-4 text-[10px] leading-5 text-[color:var(--muted)]">
-                  {t("Le capital est récupéré depuis ton compte • WIN = RR calculé avec Entrée / SL / TP • LOSS = -1R • Break-even = 0R.")}</p>
+                  {t("Le capital est récupéré depuis ton compte • WIN = RR calculé avec Entrée / SL / TP • LOSS = -1R • BE = résultat net réel, frais inclus, rapporté au risque connu.")}</p>
               </div>
 
               {/* =============================================
@@ -4149,7 +4213,8 @@ export default function JournalPage() {
                   type="button"
                   disabled={
                     saving ||
-                    !selectedAccount
+                    !selectedAccount ||
+                    manualBreakevenError(form.status, form.breakeven_net, confirmedManualBE) !== null
                   }
                   onClick={
                     saveTrade
@@ -4551,6 +4616,7 @@ function TradeRow({
   onViewScreenshot,
   onEdit,
   onDelete,
+  onOutcomeSaved,
 }: {
   trade: Trade;
 
@@ -4577,6 +4643,8 @@ function TradeRow({
 
   onDelete:
     () => void;
+
+  onOutcomeSaved: () => void | Promise<void>;
 }) {
   const { t } = useLocale();
 
@@ -4686,6 +4754,7 @@ function TradeRow({
             }
           />}
         </div>
+        <TradeOutcomeControl trade={trade} onSaved={onOutcomeSaved} />
       </div>
 
       <div className="xl:col-span-2">

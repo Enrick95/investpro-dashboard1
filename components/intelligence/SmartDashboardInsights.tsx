@@ -88,7 +88,7 @@ export default function SmartDashboardInsights() {
 
         const [tradesResult, planResult, activeScope] = await Promise.all([
           supabase
-            .from("trading_journal")
+            .from("trading_journal_effective")
             .select(
               "id,account_id,trade_date,symbol,result_amount,result_r,status,risk_percent,setup,session"
             )
@@ -156,20 +156,20 @@ export default function SmartDashboardInsights() {
       0
     );
     const lossesToday = todayClosed.filter(
-      (trade) => Number(trade.result_amount || 0) < 0
+      (trade) => trade.status === "loss"
     ).length;
 
     let lossStreak = 0;
     let winStreak = 0;
 
     for (let index = closed.length - 1; index >= 0; index -= 1) {
-      const result = Number(closed[index].result_amount || 0);
+      const status = closed[index].status;
 
-      if (result < 0 && winStreak === 0) {
+      if (status === "loss" && winStreak === 0) {
         lossStreak += 1;
-      } else if (result > 0 && lossStreak === 0) {
+      } else if (status === "win" && lossStreak === 0) {
         winStreak += 1;
-      } else if (result !== 0) {
+      } else if (status !== "breakeven") {
         break;
       }
     }
@@ -229,8 +229,8 @@ export default function SmartDashboardInsights() {
 
         row.count += 1;
         row.pnl += result;
-        if (result > 0) row.wins += 1;
-        if (result < 0) row.losses += 1;
+        if (trade.status === "win") row.wins += 1;
+        if (trade.status === "loss") row.losses += 1;
         map.set(label, row);
       });
 

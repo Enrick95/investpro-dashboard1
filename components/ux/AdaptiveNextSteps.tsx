@@ -50,7 +50,7 @@ export default function AdaptiveNextSteps() {
             .eq("user_id", user.id)
             .maybeSingle(),
           supabase
-            .from("trading_journal")
+            .from("trading_journal_effective")
             .select("id", { count: "exact", head: true })
             .eq("user_id", user.id),
           supabase

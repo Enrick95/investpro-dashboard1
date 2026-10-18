@@ -81,7 +81,7 @@ export default function OnboardingPage() {
             .maybeSingle(),
 
           supabase
-            .from("trading_journal")
+            .from("trading_journal_effective")
             .select("id, result_amount")
             .eq("user_id", user.id),
         ]);

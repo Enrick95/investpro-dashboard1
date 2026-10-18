@@ -62,7 +62,7 @@ type BreakdownRow = {
   pnl: number;
   wins: number;
   losses: number;
-  winrate: number;
+  winrate: number | null;
 };
 
 function money(value: number, currency: string) {
@@ -84,8 +84,8 @@ function nfmt(value: number, digits = 2) {
   });
 }
 
-function pct(value: number) {
-  return `${nfmt(value, 1)}%`;
+function pct(value: number | null) {
+  return value == null ? "—" : `${nfmt(value, 1)}%`;
 }
 
 function signedMoney(value: number, currency: string) {
@@ -163,7 +163,7 @@ export default function RapportsPage() {
             .eq("user_id", user.id)
             .order("created_at", { ascending: true }),
           supabase
-            .from("trading_journal")
+            .from("trading_journal_effective")
             .select("id,account_id,trade_date,symbol,direction,risk_percent,result_amount,result_r,status,setup,session,timeframe")
             .eq("user_id", user.id)
             .order("trade_date", { ascending: true }),
@@ -238,14 +238,17 @@ export default function RapportsPage() {
     const closed = filteredTrades;
     const wins = closed.filter((t) => Number(t.result_amount || 0) > 0);
     const losses = closed.filter((t) => Number(t.result_amount || 0) < 0);
-    const bes = closed.filter((t) => Number(t.result_amount || 0) === 0);
+    const outcomeWins = closed.filter((t) => t.status === "win");
+    const outcomeLosses = closed.filter((t) => t.status === "loss");
+    const bes = closed.filter((t) => t.status === "breakeven");
     const grossProfit = wins.reduce((s, t) => s + Number(t.result_amount || 0), 0);
     const grossLoss = Math.abs(losses.reduce((s, t) => s + Number(t.result_amount || 0), 0));
     const pnl = grossProfit - grossLoss;
     const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : 0;
     const avgWin = wins.length ? grossProfit / wins.length : 0;
     const avgLoss = losses.length ? grossLoss / losses.length : 0;
-    const winrate = safePct(wins.length, wins.length + losses.length);
+    const decided = outcomeWins.length + outcomeLosses.length;
+    const winrate = decided ? safePct(outcomeWins.length, decided) : null;
     const bestTrade = [...closed].sort((a, b) => Number(b.result_amount || 0) - Number(a.result_amount || 0))[0] || null;
     const worstTrade = [...closed].sort((a, b) => Number(a.result_amount || 0) - Number(b.result_amount || 0))[0] || null;
     const validR = closed.filter((t) => t.result_r != null && Number(t.result_r) !== 0);
@@ -271,13 +274,11 @@ export default function RapportsPage() {
     let currentLossStreak = 0;
 
     closed.forEach((trade) => {
-      const result = Number(trade.result_amount || 0);
-
-      if (result > 0) {
+      if (trade.status === "win") {
         currentWinStreak += 1;
         currentLossStreak = 0;
         maxWinStreak = Math.max(maxWinStreak, currentWinStreak);
-      } else if (result < 0) {
+      } else if (trade.status === "loss") {
         currentLossStreak += 1;
         currentWinStreak = 0;
         maxLossStreak = Math.max(maxLossStreak, currentLossStreak);
@@ -285,7 +286,7 @@ export default function RapportsPage() {
     });
 
     return {
-      count: closed.length, wins: wins.length, losses: losses.length, bes: bes.length,
+      count: closed.length, wins: outcomeWins.length, losses: outcomeLosses.length, bes: bes.length,
       grossProfit, grossLoss, pnl, profitFactor, avgWin, avgLoss, winrate,
       bestTrade, worstTrade, avgR, maxDrawdown, equity, expectancy, payoffRatio,
       maxWinStreak, maxLossStreak,
@@ -317,12 +318,12 @@ export default function RapportsPage() {
         const result = Number(trade.result_amount || 0);
         row.count += 1;
         row.pnl += result;
-        if (result > 0) row.wins += 1;
-        if (result < 0) row.losses += 1;
+        if (trade.status === "win") row.wins += 1;
+        if (trade.status === "loss") row.losses += 1;
         map.set(label, row);
       });
       return [...map.entries()].map(([label, row]) => ({
-        label, ...row, winrate: safePct(row.wins, row.wins + row.losses),
+        label, ...row, winrate: row.wins + row.losses ? safePct(row.wins, row.wins + row.losses) : null,
       })).sort((a, b) => b.pnl - a.pnl);
     }
 
@@ -472,7 +473,7 @@ export default function RapportsPage() {
 
       <section className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         <Kpi icon={<CircleDollarSign size={16}/>} label={tr("P&L net")} value={mixedCurrencies ? tr("Multi-devises") : signedMoney(stats.pnl, currency)} tone={stats.pnl > 0 ? "success" : stats.pnl < 0 ? "danger" : "neutral"}/>
-        <Kpi icon={<Target size={16}/>} label={tr("Winrate")} value={pct(stats.winrate)} sub={`${stats.wins}W / ${stats.losses}L`}/>
+        <Kpi icon={<Target size={16}/>} label={tr("Winrate hors BE")} value={pct(stats.winrate)} sub={`${stats.wins}W / ${stats.losses}L · ${stats.bes} BE`}/>
         <Kpi icon={<Gauge size={16}/>} label={tr("Profit Factor")} value={stats.profitFactor === Infinity ? "∞" : nfmt(stats.profitFactor)} tone="gold"/>
         <Kpi icon={<Activity size={16}/>} label={tr("Trades")} value={String(stats.count)} sub={`${stats.bes} BE`}/>
         <Kpi icon={<TrendingUp size={16}/>} label={tr("R moyen")} value={stats.avgR == null ? "—" : `${stats.avgR > 0 ? "+" : ""}${nfmt(stats.avgR)}R`}/>

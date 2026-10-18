@@ -1158,7 +1158,7 @@ export default function DashboardPage() {
 
             supabase
               .from(
-                "trading_journal"
+                "trading_journal_effective"
               )
               .select(
                 `
@@ -1705,6 +1705,7 @@ export default function DashboardPage() {
 
       return {
         winrate,
+        decidedTrades: wins + losses,
         averageRisk,
 
         tradesThisMonth:
@@ -2043,9 +2044,9 @@ export default function DashboardPage() {
               size={18}
             />
           }
-          label={tr("Winrate")}
+          label={tr("Winrate hors BE")}
           value={
-            monthTrades.length >
+            dashboardStats.decidedTrades >
             0
               ? `${dashboardStats.winrate.toFixed(
                   1

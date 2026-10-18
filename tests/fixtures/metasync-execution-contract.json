@@ -1,0 +1,269 @@
+[
+  {
+    "name": "sl_at_entry_fees_and_slippage",
+    "expected_be": true,
+    "trade": {
+      "external_id": "mt5:100",
+      "symbol": "XAUUSD",
+      "direction": "buy",
+      "entry_price": 2000.0,
+      "trade_date": "1970-01-01T00:00:20+00:00",
+      "result_amount": -5.0,
+      "execution_metadata": {
+        "version": 1,
+        "platform": "MT5",
+        "source": "mt5_history_deal_sl",
+        "position_id": "100",
+        "price_step": 0.01,
+        "entries": [
+          {
+            "ticket": "10",
+            "time_msc": 10000,
+            "price": 2000,
+            "volume": 1.0
+          }
+        ],
+        "exits": [
+          {
+            "ticket": "20",
+            "time_msc": 20000,
+            "price": 1999.98,
+            "volume": 1.0,
+            "reason": "sl",
+            "stop_loss": 2000
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "manual_small_loss_with_sl_at_entry",
+    "expected_be": false,
+    "trade": {
+      "external_id": "mt5:100",
+      "symbol": "XAUUSD",
+      "direction": "buy",
+      "entry_price": 2000.0,
+      "trade_date": "1970-01-01T00:00:20+00:00",
+      "result_amount": -5.0,
+      "execution_metadata": {
+        "version": 1,
+        "platform": "MT5",
+        "source": "mt5_history_deal_sl",
+        "position_id": "100",
+        "price_step": 0.01,
+        "entries": [
+          {
+            "ticket": "10",
+            "time_msc": 10000,
+            "price": 2000,
+            "volume": 1.0
+          }
+        ],
+        "exits": [
+          {
+            "ticket": "20",
+            "time_msc": 20000,
+            "price": 1999.98,
+            "volume": 1.0,
+            "reason": "manual",
+            "stop_loss": 2000
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "mobile_manual_small_loss",
+    "expected_be": false,
+    "trade": {
+      "external_id": "mt5:100",
+      "symbol": "XAUUSD",
+      "direction": "buy",
+      "entry_price": 2000.0,
+      "trade_date": "1970-01-01T00:00:20+00:00",
+      "result_amount": -5.0,
+      "execution_metadata": {
+        "version": 1,
+        "platform": "MT5",
+        "source": "mt5_history_deal_sl",
+        "position_id": "100",
+        "price_step": 0.01,
+        "entries": [
+          {
+            "ticket": "10",
+            "time_msc": 10000,
+            "price": 2000,
+            "volume": 1.0
+          }
+        ],
+        "exits": [
+          {
+            "ticket": "20",
+            "time_msc": 20000,
+            "price": 1999.98,
+            "volume": 1.0,
+            "reason": "manual",
+            "stop_loss": 2000
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "stop_one_adverse_tick_from_entry",
+    "expected_be": false,
+    "trade": {
+      "external_id": "mt5:100",
+      "symbol": "XAUUSD",
+      "direction": "buy",
+      "entry_price": 2000.0,
+      "trade_date": "1970-01-01T00:00:20+00:00",
+      "result_amount": -5.0,
+      "execution_metadata": {
+        "version": 1,
+        "platform": "MT5",
+        "source": "mt5_history_deal_sl",
+        "position_id": "100",
+        "price_step": 0.01,
+        "entries": [
+          {
+            "ticket": "10",
+            "time_msc": 10000,
+            "price": 2000,
+            "volume": 1.0
+          }
+        ],
+        "exits": [
+          {
+            "ticket": "20",
+            "time_msc": 20000,
+            "price": 1999.98,
+            "volume": 1.0,
+            "reason": "sl",
+            "stop_loss": 1999.99
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "normal_stop_loss",
+    "expected_be": false,
+    "trade": {
+      "external_id": "mt5:100",
+      "symbol": "XAUUSD",
+      "direction": "buy",
+      "entry_price": 2000.0,
+      "trade_date": "1970-01-01T00:00:20+00:00",
+      "result_amount": -5.0,
+      "execution_metadata": {
+        "version": 1,
+        "platform": "MT5",
+        "source": "mt5_history_deal_sl",
+        "position_id": "100",
+        "price_step": 0.01,
+        "entries": [
+          {
+            "ticket": "10",
+            "time_msc": 10000,
+            "price": 2000,
+            "volume": 1.0
+          }
+        ],
+        "exits": [
+          {
+            "ticket": "20",
+            "time_msc": 20000,
+            "price": 1999.98,
+            "volume": 1.0,
+            "reason": "sl",
+            "stop_loss": 1990
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "sell_stop_at_entry_fees_and_slippage",
+    "expected_be": true,
+    "trade": {
+      "external_id": "mt5:100",
+      "symbol": "XAUUSD",
+      "direction": "sell",
+      "entry_price": 2000.0,
+      "trade_date": "1970-01-01T00:00:20+00:00",
+      "result_amount": -5.0,
+      "execution_metadata": {
+        "version": 1,
+        "platform": "MT5",
+        "source": "mt5_history_deal_sl",
+        "position_id": "100",
+        "price_step": 0.01,
+        "entries": [
+          {
+            "ticket": "10",
+            "time_msc": 10000,
+            "price": 2000,
+            "volume": 1.0
+          }
+        ],
+        "exits": [
+          {
+            "ticket": "20",
+            "time_msc": 20000,
+            "price": 2000.02,
+            "volume": 1.0,
+            "reason": "sl",
+            "stop_loss": 2000.0
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "partial_tp_then_be_not_whole_trade_be",
+    "expected_be": false,
+    "trade": {
+      "external_id": "mt5:100",
+      "symbol": "XAUUSD",
+      "direction": "buy",
+      "entry_price": 2000.0,
+      "trade_date": "1970-01-01T00:00:30+00:00",
+      "result_amount": 494.5,
+      "execution_metadata": {
+        "version": 1,
+        "platform": "MT5",
+        "source": "mt5_history_deal_sl",
+        "position_id": "100",
+        "price_step": 0.01,
+        "entries": [
+          {
+            "ticket": "10",
+            "time_msc": 10000,
+            "price": 2000,
+            "volume": 1.0
+          }
+        ],
+        "exits": [
+          {
+            "ticket": "20",
+            "time_msc": 20000,
+            "price": 2010,
+            "volume": 0.5,
+            "reason": "tp",
+            "stop_loss": 2000.0
+          },
+          {
+            "ticket": "30",
+            "time_msc": 30000,
+            "price": 1999.98,
+            "volume": 0.5,
+            "reason": "sl",
+            "stop_loss": 2000.0
+          }
+        ]
+      }
+    }
+  }
+]

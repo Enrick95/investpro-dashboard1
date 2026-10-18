@@ -2,7 +2,7 @@
 type Trade={account_id:number|null;status:string;result_amount:number;trade_date:string};
 export default function SyncReport({trades,currency}:{trades:Trade[];currency:string|null}){
  const rows=trades.filter(t=>['win','loss','breakeven'].includes(t.status)).sort((a,b)=>a.trade_date.localeCompare(b.trade_date));
- const wins=rows.filter(t=>t.result_amount>0).length,losses=rows.filter(t=>t.result_amount<0).length,be=rows.length-wins-losses;
+ const wins=rows.filter(t=>t.status==='win').length,losses=rows.filter(t=>t.status==='loss').length,be=rows.filter(t=>t.status==='breakeven').length;
  const positive=rows.reduce((n,t)=>n+Math.max(t.result_amount,0),0),negative=rows.reduce((n,t)=>n+Math.max(-t.result_amount,0),0),pnl=positive-negative;
  const money=(n:number)=>currency?`${n.toLocaleString('fr-FR',{maximumFractionDigits:2})} ${currency}`:'Multi-devises';
  let running=0;const values=[0,...rows.map(t=>running+=t.result_amount)],min=Math.min(...values),max=Math.max(...values),span=max-min||1;

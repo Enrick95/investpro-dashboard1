@@ -78,7 +78,7 @@ export default function BackupPage() {
         .eq("user_id", user.id)
         .order("created_at", { ascending: true }),
       supabase
-        .from("trading_journal")
+        .from("trading_journal_effective")
         .select("*")
         .eq("user_id", user.id)
         .order("trade_date", { ascending: true }),

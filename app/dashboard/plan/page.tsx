@@ -237,7 +237,7 @@ export default function TradingPlanPage() {
           .maybeSingle(),
 
         supabase
-          .from("trading_journal")
+          .from("trading_journal_effective")
           .select(
             `
               id,

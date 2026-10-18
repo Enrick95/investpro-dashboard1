@@ -135,14 +135,34 @@ export default function NotificationEngine() {
         window.clearTimeout(flushTimerRef.current);
       }
 
-      flushTimerRef.current = window.setTimeout(() => {
-        const rows = [...pendingTradesRef.current];
+      flushTimerRef.current = window.setTimeout(async () => {
+        let rows = [...pendingTradesRef.current];
         pendingTradesRef.current = [];
 
         if (!rows.length) return;
 
-        const wins = rows.filter((row) => Number(row.result_amount || 0) > 0).length;
-        const losses = rows.filter((row) => Number(row.result_amount || 0) < 0).length;
+        // Realtime carries the immutable source row. The same import transaction
+        // may also have attached SL evidence, so read the effective outcomes after commit.
+        let outcomesKnown = false;
+        try {
+          const effective = new Map<number, TradeRow>();
+          const ids = [...new Set(rows.map(row => row.id))];
+          for (let offset = 0; offset < ids.length; offset += 200) {
+            const { data, error } = await supabase.from("trading_journal_effective").select("*")
+              .eq("user_id", userIdRef.current).in("id", ids.slice(offset, offset + 200));
+            if (error) throw error;
+            for (const row of data ?? []) effective.set(row.id, row as TradeRow);
+          }
+          if (ids.every(id => effective.has(id))) {
+            rows = rows.map(row => effective.get(row.id)!);
+            outcomesKnown = true;
+          }
+        } catch { /* A temporary read failure must not invent outcome counts. */ }
+        if (!mounted) return;
+
+        const wins = rows.filter((row) => row.status === "win").length;
+        const losses = rows.filter((row) => row.status === "loss").length;
+        const breakevens = rows.filter((row) => row.status === "breakeven").length;
         const pnl = rows.reduce(
           (sum, row) => sum + Number(row.result_amount || 0),
           0
@@ -161,7 +181,7 @@ export default function NotificationEngine() {
                   "fr-FR",
                   { maximumFractionDigits: 2 }
                 )} $US`
-              : `${wins} gain(s) · ${losses} perte(s) · P&L ${
+              : `${outcomesKnown ? `${wins} gain(s) · ${losses} perte(s) · ${breakevens} BE · ` : ""}P&L ${
                   pnl >= 0 ? "+" : ""
                 }${pnl.toLocaleString("fr-FR", {
                   maximumFractionDigits: 2,
@@ -220,7 +240,7 @@ export default function NotificationEngine() {
           );
 
           return supabase
-            .from("trading_journal")
+            .from("trading_journal_effective")
             .select("id", { count: "exact", head: true })
             .eq("user_id", user.id)
             .gte("trade_date", startPrevious.toISOString())
@@ -281,7 +301,7 @@ export default function NotificationEngine() {
         start.setHours(0, 0, 0, 0);
 
         const { data: todayTrades } = await supabase
-          .from("trading_journal")
+          .from("trading_journal_effective")
           .select("id,result_amount,risk_percent,status,trade_date,symbol")
           .eq("user_id", user.id)
           .gte("trade_date", start.toISOString())
@@ -294,7 +314,7 @@ export default function NotificationEngine() {
           )
         );
         const losses = closed.filter(
-          (row: any) => Number(row.result_amount || 0) < 0
+          (row: any) => row.status === "loss"
         ).length;
 
         const maxRisk = Number(planRef.current?.max_risk_percent || 0);

@@ -294,7 +294,7 @@ export default function ChallengesPage() {
 
           supabase
             .from(
-              "trading_journal"
+              "trading_journal_effective"
             )
             .select(
               `

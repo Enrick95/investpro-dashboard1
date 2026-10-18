@@ -84,7 +84,7 @@ export default function InvestProCommandPalette() {
           .eq("user_id", user.id)
           .limit(50),
         supabase
-          .from("trading_journal")
+          .from("trading_journal_effective")
           .select("id,symbol,trade_date,status,result_amount")
           .eq("user_id", user.id)
           .order("trade_date", { ascending: false })

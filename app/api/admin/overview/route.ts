@@ -90,7 +90,7 @@ export async function GET(request: Request) {
 
       userIds.length
         ? admin
-            .from("trading_journal")
+            .from("trading_journal_effective")
             .select("id,user_id,trade_date,status")
             .in("user_id", userIds)
         : Promise.resolve({ data: [], error: null } as any),

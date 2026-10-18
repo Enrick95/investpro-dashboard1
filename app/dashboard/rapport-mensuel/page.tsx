@@ -66,7 +66,7 @@ type MonthReport = {
   wins: number;
   losses: number;
   breakeven: number;
-  winrate: number;
+  winrate: number | null;
   profitFactor: number | null;
   maxDrawdown: number;
   avgWin: number;
@@ -224,7 +224,10 @@ function computeReport(
 
   const wins = closed.filter((t) => Number(t.result_amount || 0) > 0);
   const losses = closed.filter((t) => Number(t.result_amount || 0) < 0);
-  const breakeven = closed.filter((t) => Number(t.result_amount || 0) === 0);
+  const outcomeWins = closed.filter((t) => t.status === "win");
+  const outcomeLosses = closed.filter((t) => t.status === "loss");
+  const breakeven = closed.filter((t) => t.status === "breakeven");
+  const decided = outcomeWins.length + outcomeLosses.length;
 
   const pnl = closed.reduce(
     (sum, trade) => sum + Number(trade.result_amount || 0),
@@ -297,10 +300,10 @@ function computeReport(
   return {
     trades: closed,
     pnl,
-    wins: wins.length,
-    losses: losses.length,
+    wins: outcomeWins.length,
+    losses: outcomeLosses.length,
     breakeven: breakeven.length,
-    winrate: closed.length ? (wins.length / closed.length) * 100 : 0,
+    winrate: decided ? (outcomeWins.length / decided) * 100 : null,
     profitFactor:
       grossLoss > 0 ? grossWin / grossLoss : grossWin > 0 ? grossWin : null,
     maxDrawdown,
@@ -361,7 +364,7 @@ export default function MonthlyReportPage() {
 
         const [tradesResult, planResult, checklistResult] = await Promise.all([
           supabase
-            .from("trading_journal")
+            .from("trading_journal_effective")
             .select(
               `
                 id,
@@ -624,7 +627,7 @@ export default function MonthlyReportPage() {
 
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-8">
         <Metric label={tr("P&L")} value={money(report.pnl)} tone={report.pnl} icon={<TrendingUp size={15} />} />
-        <Metric label={tr("Winrate")} value={`${report.winrate.toFixed(1)}%`} icon={<Target size={15} />} />
+        <Metric label={tr("Winrate hors BE")} value={report.winrate == null ? "—" : `${report.winrate.toFixed(1)}%`} icon={<Target size={15} />} />
         <Metric label={tr("Profit Factor")} value={report.profitFactor == null ? "—" : report.profitFactor.toFixed(2)} icon={<Gauge size={15} />} />
         <Metric label={tr("Drawdown max")} value={`${report.maxDrawdown.toLocaleString((locale === "en" ? "en-US" : "fr-FR"), { maximumFractionDigits: 0 })} $`} tone={report.maxDrawdown} icon={<TrendingDown size={15} />} />
         <Metric label={tr("Trades")} value={String(report.trades.length)} icon={<BarChart3 size={15} />} />

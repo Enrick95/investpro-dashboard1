@@ -35,7 +35,7 @@ function fixture({ accounts = [], trades = [], accountsError = null, journalErro
   const db = {
     from(table) {
       // History visibility must not depend on the status of an external connection.
-      assert(["trading_accounts", "trading_journal"].includes(table), `Unexpected connection lookup ${table}`);
+      assert(["trading_accounts", "trading_journal_effective"].includes(table), `Unexpected connection lookup ${table}`);
       const call = { table, filters: [], order: [] };
       calls.push(call);
       const result = () => {
@@ -131,7 +131,7 @@ test("the journal loader preserves paginated offline-account history without mak
   assert.equal(result.error, null);
   assert.deepEqual(plain(result.data), history);
   assert.equal(f.connectionFetches, 0);
-  assert.deepEqual(f.calls.filter((call) => call.table === "trading_journal").map((call) => call.range), [[0, 999], [1000, 1999]]);
+  assert.deepEqual(f.calls.filter((call) => call.table === "trading_journal_effective").map((call) => call.range), [[0, 999], [1000, 1999]]);
 });
 
 test("journal read errors remain visible and do not trigger account or connection work", async () => {
@@ -141,5 +141,5 @@ test("journal read errors remain visible and do not trigger account or connectio
   assert.equal(result.data, null);
   assert.equal(result.error, error);
   assert.equal(f.connectionFetches, 0);
-  assert.deepEqual(f.calls.map((call) => call.table), ["trading_journal"]);
+  assert.deepEqual(f.calls.map((call) => call.table), ["trading_journal_effective"]);
 });
