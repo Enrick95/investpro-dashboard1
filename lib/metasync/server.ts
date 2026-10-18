@@ -9,6 +9,8 @@ export async function pilot(){
 const productionOrigins = new Set([
  'https://investprotrading.fr',
  'https://www.investprotrading.fr',
+ // Verified stable production alias used by existing installed applications.
+ 'https://investpro-dashboard1.vercel.app',
 ]);
 
 export function sameOrigin(req: Request): boolean {
@@ -17,7 +19,7 @@ export function sameOrigin(req: Request): boolean {
  try {
   // Require the browser's serialized Origin, never Host or forwarding headers.
   if (new URL(origin).origin !== origin) return false;
-  // Both verified public domains must work independently of stale origin config.
+  // Verified production addresses work independently of stale origin config.
   if (productionOrigins.has(origin)) return true;
   const development = process.env.VERCEL_ENV === 'development' || (!process.env.VERCEL_ENV && process.env.NODE_ENV !== 'production');
   if (!development) return false;

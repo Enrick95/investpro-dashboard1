@@ -8,6 +8,8 @@ import ts from "typescript";
 const root = path.resolve(import.meta.dirname, "..");
 const apex = "https://investprotrading.fr";
 const www = "https://www.investprotrading.fr";
+const legacy = "https://investpro-dashboard1.vercel.app";
+const productionOrigins = [apex, www, legacy];
 const upstream = "https://investpro-dashboard1-upstream-invest-pronos.vercel.app/api/metasync/hosted";
 const user = { id: "33333333-3333-4333-8333-333333333333" };
 
@@ -60,16 +62,16 @@ function noSensitiveWork(calls) {
   assert.equal(calls.database + calls.catalog + calls.crypto + calls.seal, 0);
 }
 
-test("both official HTTPS browser origins remain trusted when the dedicated setting is absent or stale", () => {
+test("official HTTPS browser origins and the verified legacy production alias remain trusted with absent or stale configuration", () => {
   for (const setting of [undefined, "", apex, www, apex + "/", "https://old-investpro.example.invalid"]) {
     const guard = originHelper(setting === undefined ? {} : { METASYNC_SITE_ORIGIN: setting });
-    for (const origin of [apex, www]) assert.equal(guard.sameOrigin(request(origin)), true, `origin=${origin}; setting=${setting ?? "absent"}`);
+    for (const origin of productionOrigins) assert.equal(guard.sameOrigin(request(origin)), true, `origin=${origin}; setting=${setting ?? "absent"}`);
   }
 });
 
 test("a Vercel upstream URL and Host mismatch cannot block an official serialized browser Origin", () => {
   const guard = originHelper({ METASYNC_SITE_ORIGIN: apex });
-  for (const origin of [apex, www]) {
+  for (const origin of productionOrigins) {
     assert.equal(guard.sameOrigin(request(origin, { extra: { Host: "internal.vercel.app", "X-Forwarded-Host": new URL(origin).host, "X-Forwarded-Proto": "https" } })), true);
     assert.equal(guard.sameOrigin(request(origin, { url: "http://localhost:3000/api/metasync/hosted", extra: { Host: "localhost:3000", "X-Forwarded-Host": "deployment.vercel.app" } })), true);
   }
@@ -89,8 +91,23 @@ test("foreign and lookalike origins are never trusted from Host, forwarding, Ref
   }
 });
 
+test("the legacy alias allowlist does not include other Vercel aliases, lookalikes or non-serialized origins", () => {
+  const guard = originHelper({ METASYNC_SITE_ORIGIN: legacy });
+  for (const origin of [
+    "http://investpro-dashboard1.vercel.app", "https://investpro-dashboard1.vercel.app:443",
+    "https://investpro-dashboard1.vercel.app:444", "https://investpro-dashboard1.vercel.app/",
+    "https://investpro-dashboard1.vercel.app/dashboard", "https://user@investpro-dashboard1.vercel.app",
+    "https://investpro-dashboard1.vercel.app.evil.example.invalid", "https://investpro-dashboard1.vercel.app.",
+    "https://investpro-dashboard1-foreign.vercel.app", "https://investpro-dashboard1-invest-pronos.vercel.app",
+    "https://investpro-dashboard1-preview-invest-pronos.vercel.app", "https://unrelated.vercel.app",
+    `${legacy}, ${apex}`, `${legacy} ${apex}`,
+  ]) {
+    assert.equal(guard.sameOrigin(request(origin, { extra: { Host: new URL(legacy).host, "X-Forwarded-Host": new URL(legacy).host, Referer: legacy + "/dashboard/connexions", "Sec-Fetch-Site": "same-origin" } })), false, origin);
+  }
+});
+
 test("official production POSTs pass the origin guard to safe body validation without database or MT activity", async () => {
-  for (const origin of [apex, www]) {
+  for (const origin of productionOrigins) {
     const api = hostedFixture();
     const response = await api.post(origin, { extra: { Host: "internal.vercel.app", "X-Forwarded-Host": new URL(origin).host } });
     // The body intentionally fails before database(), seal() or any hosted RPC.
@@ -110,9 +127,9 @@ test("foreign POSTs fail before reading input or attempting hosted persistence",
 });
 
 test("session verification is still required before any hosted request can proceed", async () => {
-  for (const options of [{ signedIn: false }, { authFailure: true }]) {
+  for (const origin of productionOrigins) for (const options of [{ signedIn: false }, { authFailure: true }]) {
     const api = hostedFixture(options);
-    assert.equal((await api.post(apex)).status, options.authFailure ? 503 : 401);
+    assert.equal((await api.post(origin)).status, options.authFailure ? 503 : 401);
     assert.equal(api.calls.body, 0); noSensitiveWork(api.calls);
   }
 });
@@ -129,7 +146,7 @@ test("preview origins retain their separate non-mutating guard even after produc
 
 test("a cross-site fetch hint rejects even an otherwise official serialized Origin", async () => {
   const guard = originHelper({ METASYNC_SITE_ORIGIN: apex });
-  for (const origin of [apex, www]) {
+  for (const origin of productionOrigins) {
     assert.equal(guard.sameOrigin(request(origin, { extra: { "Sec-Fetch-Site": "cross-site" } })), false);
     for (const value of ["same-origin", "same-site", "none"]) assert.equal(guard.sameOrigin(request(origin, { extra: { "Sec-Fetch-Site": value } })), true);
     const api = hostedFixture();
@@ -140,9 +157,9 @@ test("a cross-site fetch hint rejects even an otherwise official serialized Orig
 
 test("the shared guard refuses all preview origins, including matching configured and official domains", () => {
   const preview = "https://investpro-dashboard1-preview.vercel.app";
-  for (const configured of [apex, www, preview]) {
+  for (const configured of [apex, www, legacy, preview]) {
     const guard = originHelper({ VERCEL_ENV: "preview", METASYNC_SITE_ORIGIN: configured });
-    for (const origin of [apex, www, preview]) assert.equal(guard.sameOrigin(request(origin)), false);
+    for (const origin of [...productionOrigins, preview]) assert.equal(guard.sameOrigin(request(origin)), false);
   }
 });
 
@@ -182,7 +199,7 @@ test("non-serialized URL lookalikes and duplicate Origin headers remain invalid"
 });
 
 test("the real Master-sync route accepts official origins only as far as safe early body validation", async () => {
-  for (const origin of [apex, www]) {
+  for (const origin of productionOrigins) {
     const api = hostedFixture({ routeFile: "app/api/copier/master-sync/route.ts" });
     const result = await api.post(origin, { extra: { Host: "internal.vercel.app" } });
     assert.equal(result.status, 400); assert.match(result.body.error, /demande reçue est invalide/);
@@ -192,7 +209,7 @@ test("the real Master-sync route accepts official origins only as far as safe ea
 
 test("Master-sync retains auth, foreign-origin and preview rejection without database or password access", async () => {
   const routeFile = "app/api/copier/master-sync/route.ts";
-  for (const [options, origin, status] of [[{ signedIn: false }, apex, 401], [{ authFailure: true }, apex, 503], [{}, "https://evil.example.invalid", 403], [{}, "null", 403], [{ environment: { VERCEL_ENV: "preview" } }, apex, 503]]) {
+  for (const [options, origin, status] of [[{ signedIn: false }, apex, 401], [{ authFailure: true }, apex, 503], [{ signedIn: false }, legacy, 401], [{ authFailure: true }, legacy, 503], [{}, "https://evil.example.invalid", 403], [{}, "null", 403], [{ environment: { VERCEL_ENV: "preview" } }, apex, 503], [{ environment: { VERCEL_ENV: "preview" } }, legacy, 503]]) {
     const api = hostedFixture({ routeFile, ...options });
     assert.equal((await api.post(origin)).status, status);
     assert.equal(api.calls.body, 0); noSensitiveWork(api.calls);

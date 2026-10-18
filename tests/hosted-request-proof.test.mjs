@@ -13,6 +13,7 @@ const secret = '34'.repeat(32);
 const purpose = 'investpro:metasync:request-proof:v1';
 const nowSeconds = 1_792_300_000;
 const header = 'X-InvestPro-MT-Token';
+const legacyOrigin = 'https://investpro-dashboard1.vercel.app';
 
 function compile(file, modules, { environment = {}, now = () => nowSeconds * 1000, warnings = [] } = {}) {
   const cjsModule = { exports: {} };
@@ -157,7 +158,7 @@ test('token verification consumes neither credentials nor the submitted body', a
   assert.equal(await req.text(), '{"fixture":"no real credentials"}');
 });
 
-function hostedRoute({ signedIn = true, authFailure = false, authId = userId, environment = {}, now, dependenciesUnavailable = false, successfulMutation = false } = {}) {
+function hostedRoute({ signedIn = true, authFailure = false, authId = userId, environment = {}, now, dependenciesUnavailable = false, successfulMutation = false, browserOrigin = 'https://investprotrading.fr' } = {}) {
   const env = { VERCEL_ENV: 'production', METASYNC_HOSTED_ENCRYPTION_KEY: secret, METASYNC_HOSTED_WORKER_TOKEN: '78'.repeat(32), ...environment };
   const counts = { auth: 0, body: 0, database: 0, catalog: 0, crypto: 0, seal: 0, writes: 0 };
   const warnings = [];
@@ -211,11 +212,11 @@ function hostedRoute({ signedIn = true, authFailure = false, authId = userId, en
   const route = compile('app/api/metasync/hosted/route.ts', modules, { environment: env, now, warnings });
   return {
     counts, warnings, pairs, proof: realProof, unseal: realHosted.unseal,
-    async get({ proofOnly = false } = {}) { const response = await route.GET(new Request(`https://investprotrading.fr/api/metasync/hosted${proofOnly ? '?requestProof=1' : ''}`)); return { response, body: await response.json() }; },
+    async get({ proofOnly = false } = {}) { const response = await route.GET(new Request(`${browserOrigin}/api/metasync/hosted${proofOnly ? '?requestProof=1' : ''}`)); return { response, body: await response.json() }; },
     async handle(url, options, origin) {
       const headers = new Headers(options.headers);
       if (origin !== undefined) headers.set('Origin', origin);
-      const req = new Request(new URL(url, 'https://investprotrading.fr'), { ...options, headers });
+      const req = new Request(new URL(url, browserOrigin), { ...options, headers });
       return options.method === 'POST' ? route.POST(req) : route.GET(req);
     },
     async post({ origin, token, contentType = 'application/json', fetchSite, extra = {} } = {}) {
@@ -291,8 +292,8 @@ test('signed-out or unverifiable proof-only GET never reads connection storage o
 test('the real client, proof GET and hosted POST pair an own fixture exactly once through intercepted transport and DB', async () => {
   const client = compile('lib/metasync/hosted-request-client.ts', {});
   const payload = Object.freeze({ broker: 'offline-fixture', login: '123456', password: 'offline-placeholder', currency: 'USD', type: 'prop', syncConsent: true });
-  for (const origin of [undefined, 'null']) {
-    const api = hostedRoute({ successfulMutation: true });
+  for (const origin of [undefined, 'null', legacyOrigin]) {
+    const api = hostedRoute({ successfulMutation: true, browserOrigin: origin === legacyOrigin ? legacyOrigin : undefined, environment: { METASYNC_SITE_ORIGIN: 'https://obsolete.example.invalid' } });
     const calls = [];
     const fetcher = async (url, options) => {
       calls.push({ url, method: options.method ?? 'GET' });
@@ -396,7 +397,7 @@ test('a missing signing configuration cannot enable the fallback path', async ()
 });
 
 test('an explicit foreign or malformed Origin cannot be overridden by a valid proof or trusted hints', async () => {
-  for (const origin of ['', 'https://evil.example.invalid', 'https://investprotrading.fr.evil.example.invalid', 'http://investprotrading.fr', 'https://investprotrading.fr/', 'https://user@investprotrading.fr', 'https://investprotrading.fr, https://www.investprotrading.fr', 'https://investprotrading.fr:443']) {
+  for (const origin of ['', 'https://evil.example.invalid', 'https://investprotrading.fr.evil.example.invalid', 'http://investprotrading.fr', 'https://investprotrading.fr/', 'https://user@investprotrading.fr', 'https://investprotrading.fr, https://www.investprotrading.fr', 'https://investprotrading.fr:443', 'http://investpro-dashboard1.vercel.app', legacyOrigin + ':443', legacyOrigin + ':444', legacyOrigin + '/', 'https://user@investpro-dashboard1.vercel.app', legacyOrigin + '.evil.example.invalid', 'https://investpro-dashboard1-foreign.vercel.app', 'https://investpro-dashboard1-invest-pronos.vercel.app', 'https://investpro-dashboard1-preview-invest-pronos.vercel.app', 'https://unrelated.vercel.app']) {
     const api = hostedRoute();
     const result = await api.post({ origin, token: api.proof.issueHostedRequestToken(userId), fetchSite: 'same-origin', extra: { Referer: 'https://investprotrading.fr/dashboard/connexions/metatrader', Host: 'investprotrading.fr', 'X-Forwarded-Host': 'investprotrading.fr' } });
     assert.equal(result.response.status, 403, origin);
@@ -417,10 +418,12 @@ test('cross-site and ambiguous fetch metadata always block fallback even with th
       noConnectionSideEffects(api.counts);
     }
   }
-  const api = hostedRoute();
-  const result = await api.post({ origin: 'https://investprotrading.fr', fetchSite: 'cross-site', token: api.proof.issueHostedRequestToken(userId) });
-  assert.equal(result.response.status, 403);
-  assert.equal(api.counts.body, 0);
+  for (const origin of ['https://investprotrading.fr', legacyOrigin]) {
+    const api = hostedRoute();
+    const result = await api.post({ origin, fetchSite: 'cross-site', token: api.proof.issueHostedRequestToken(userId) });
+    assert.equal(result.response.status, 403);
+    assert.equal(api.counts.body, 0);
+  }
 });
 
 test('form submissions and non-JSON fallback requests cannot use even a valid proof', async () => {
