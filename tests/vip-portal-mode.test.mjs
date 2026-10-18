@@ -170,6 +170,7 @@ function fixture(initialAdminMode = false) {
     ...common, "@/components/i18n/LanguageSwitcher": () => element("select", { "aria-label": "Language" }),
     "./VipPublicationsEditor": Editor, "./VipPortal.module.css": css, "./VipPortalShell.css": {},
     "./VipChat": function VipChat(props) { return element("section", { "data-chat-user": props.userId, "data-chat-admin": props.admin, children: "Private chat fixture" }); },
+    "./VipFavorites": function VipFavorites(props) { return element("section", { "data-favorites-user": props.userId, children: "Private saved posts fixture" }); },
     "@/lib/supabase/client": { createClient: () => ({ auth: { onAuthStateChange(callback) { authCallback = callback; callback("INITIAL_SESSION", { user: { id: "offline-user" } }); return { data: { subscription: { unsubscribe() { authCallback = undefined; } } } }; } } }) },
     "@/lib/push/activation-client": { activateConfiguredPush() { throw Error("Push activation must never run in navigation tests"); } },
     "@/lib/push/setup": { PushSetupError: class PushSetupError extends Error {}, pushSetupErrorText: () => "Push fixture error" },
@@ -279,6 +280,40 @@ test("Chat follows Telegram in the rail and only mounts after verified active ac
     await locked.host.settle();
     assert.equal(locked.host.instance("VipChat"), undefined);
   }
+});
+
+test("Favorites follows Chat and only mounts for a verified active member", async () => {
+  const state = fixture();
+  const rail = nodes(state.host.tree, node => node.type === "nav" && node.props["aria-label"] === "Rubriques de l’espace VIP")[0];
+  const labels = nodes(rail, node => node.type === "button").map(text);
+  assert.equal(labels[labels.indexOf("Chat") + 1], "Favoris");
+  button(state.host, "Favoris").props.onClick(); await state.host.settle();
+  assert.equal(state.host.instance("VipFavorites"), undefined);
+  state.resolve(access(false, true)); await state.host.settle();
+  assert.ok(state.host.instance("VipFavorites"));
+  assert.equal(nodes(state.host.tree, node => node.props["data-favorites-user"] === "offline-user").length, 1);
+  for (const anonymous of [false, true]) {
+    const locked = fixture(); button(locked.host, "Favoris").props.onClick();
+    if (anonymous) locked.anonymous(); else locked.resolve(access(false, false));
+    await locked.host.settle();
+    assert.equal(locked.host.instance("VipFavorites"), undefined);
+  }
+});
+
+test("Favorites unmounts on effective admin mode, a different view, or logout", async () => {
+  const state = fixture(); state.resolve(access(true, true)); await state.host.settle();
+  button(state.host, "Favoris").props.onClick(); await state.host.settle();
+  assert.ok(state.host.instance("VipFavorites"));
+  button(state.host, "Administrateur").props.onClick(); await state.host.settle();
+  assert.equal(state.host.instance("VipFavorites"), undefined);
+  button(state.host, "Membre").props.onClick(); await state.host.settle();
+  assert.ok(state.host.instance("VipFavorites"));
+  button(state.host, "Analyses").props.onClick(); await state.host.settle();
+  assert.equal(state.host.instance("VipFavorites"), undefined);
+  button(state.host, "Favoris").props.onClick(); await state.host.settle();
+  state.auth("SIGNED_OUT", null); await state.host.settle();
+  assert.equal(state.host.instance("VipFavorites"), undefined);
+  assert.equal(nodes(state.host.tree, node => node.props["data-favorites-user"]).length, 0);
 });
 
 test("mode=admin query cannot hide Chat from an ordinary verified member", async () => {

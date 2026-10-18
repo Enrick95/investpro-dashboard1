@@ -12,6 +12,8 @@ import type { VipAccessRequest, VipMembership } from "@/lib/vip/types";
 import s from "./intake.module.css";
 import orbit from "../vip.module.css";
 import VipOnboardingShell from "../VipOnboardingShell";
+import VipRequestCompletionForm from "@/components/vip/VipRequestCompletionForm";
+import { needsVipCompletion, requestRevision } from "@/lib/vip/request-completions";
 
 type Payload = { user: { email: string }; request: VipAccessRequest | null; membership: VipMembership | null; active: boolean };
 const next = encodeURIComponent("/vip/deja-membre");
@@ -61,7 +63,8 @@ export default function ExistingMemberIntake() {
           <p>{data.active ? t("Votre compte est déjà relié au VIP. Vous pouvez ouvrir votre espace personnel.") : t("Votre accès doit être renouvelé ou réactivé par l’équipe. Une nouvelle inscription n’est pas nécessaire.")}</p>
           <Link href="/dashboard/vip" className={s.primary}>{t("Ouvrir mon espace VIP")}{" "}<ArrowRight size={17} /></Link>
         </> : pending ? <>
-          <span className={s.status}><Clock3 size={18} /> {t("Vérification en cours")}</span><h2 id="intake-title">{t("Votre demande est reçue.")}</h2>
+          <span className={s.status}><Clock3 size={18} /> {needsVipCompletion(data.request!) ? (locale === "en" ? "Action required" : "À compléter") : data.request?.completion_submitted_at ? (locale === "en" ? "Update received · under review" : "Compléments reçus · à vérifier") : t("Vérification en cours")}</span><h2 id="intake-title">{t("Votre demande est reçue.")}</h2>
+          <VipRequestCompletionForm key={`${data.request!.id}:${requestRevision(data.request!)}`} request={data.request!} onSubmitted={load} />
           <p>{t("L’équipe vérifie votre accès actuel. Après validation, vous recevrez un e-mail avec le lien de votre espace VIP, ainsi qu’une notification sur cet appareil si vous avez activé les alertes. Aucun code supplémentaire n’est nécessaire.")}</p>
           <dl className={s.details}><div><dt>{t("Compte")}</dt><dd>{data.user.email}</dd></div><div><dt>{t("Telegram")}</dt><dd>{data.request!.telegram_username ? `@${data.request!.telegram_username}` : t("Non renseigné")}</dd></div><div><dt>{t("Origine déclarée")}</dt><dd>{data.request!.type === "abonnement" ? t("Abonnement") : `${t("Affiliation")} · ${vipAffiliationBrokerLabel(data.request!.affiliation_broker) || t("Broker à confirmer")}`}</dd></div>{data.request!.type === "abonnement" && <div><dt>{t("Dernier paiement déclaré")}</dt><dd>{vipDate(data.request!.paid_on, locale)}</dd></div>}<div><dt>{t("Demande envoyée")}</dt><dd>{vipDate(data.request!.created_at, locale)}</dd></div></dl>
           <button type="button" className={s.secondary} onClick={() => void load()}><RefreshCw size={16} /> {t("Vérifier mon accès")}</button>

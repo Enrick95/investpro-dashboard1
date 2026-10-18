@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowUpRight, Calculator, Crown, Expand, X } from "lucide-react";
+import { ArrowUpRight, Bookmark, Calculator, Crown, Expand, X } from "lucide-react";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { safeHttps, vipDate, vipRequest, type VipPost, type VipPostReactions, type VipReaction } from "@/lib/vip/client";
 import { vipSignalOrder } from "@/lib/vip/publication-notice";
@@ -32,19 +32,25 @@ export type VipPostCardProps = {
   preview?: boolean;
   /** A local object URL selected in the editor. Never persisted or accepted from the member API. */
   imagePreviewUrl?: string | null;
+  onFavoriteChange?: (postId: string, favorite: boolean) => void;
 };
 
-export default function VipPostCard({ post, preview = false, imagePreviewUrl }: VipPostCardProps) {
+export default function VipPostCard({ post, preview = false, imagePreviewUrl, onFavoriteChange }: VipPostCardProps) {
   const { t, locale } = useLocale();
   const [now, setNow] = useState(() => Date.now());
   const [reactionBusy, setReactionBusy] = useState(false);
   const [reactionError, setReactionError] = useState("");
+  const [favoriteBusy, setFavoriteBusy] = useState(false);
+  const [favoriteError, setFavoriteError] = useState("");
+  const [localFavorite, setLocalFavorite] = useState<{ source: VipPost; value: boolean } | null>(null);
+  const favoriteRequest = useRef<AbortController | null>(null);
   const [localReaction, setLocalReaction] = useState<{ source: VipPostReactions | undefined; value: VipPostReactions } | null>(null);
   const viewer = useRef<HTMLDialogElement>(null);
   const imageTrigger = useRef<HTMLButtonElement>(null);
   const viewerTitle = useId();
   const image = (preview && previewImage(imagePreviewUrl)) || safeHttps(post.image_url);
   const reactionState = localReaction && localReaction.source === post.reactions ? localReaction.value : post.reactions || emptyReactions;
+  const favorite = localFavorite?.source === post ? localFavorite.value : post.favorite === true;
   const created = Date.parse(post.created_at);
   const isRecentSignal = preview || (Number.isFinite(created) && now >= created && now - created < recentSignalDuration);
   const signalLabel = t(isRecentSignal ? "Nouveau signal" : "Signal");
@@ -62,6 +68,29 @@ export default function VipPostCard({ post, preview = false, imagePreviewUrl }: 
     const timer = window.setTimeout(() => setNow(Date.now()), Math.min(remaining + 100, 2147483647));
     return () => window.clearTimeout(timer);
   }, [created, post.category, preview]);
+
+  useEffect(() => () => favoriteRequest.current?.abort(), []);
+
+  async function saveFavorite() {
+    if (preview || favoriteBusy || favoriteRequest.current) return;
+    const controller = new AbortController();
+    favoriteRequest.current = controller;
+    setFavoriteBusy(true); setFavoriteError("");
+    try {
+      const result = await vipRequest<{ postId: string; favorite: boolean }>(`/api/vip/posts/${encodeURIComponent(post.id)}/favorite`, {
+        method: "PUT", body: JSON.stringify({ favorite: !favorite }), signal: controller.signal,
+      });
+      if (controller.signal.aborted) return;
+      if (result.postId !== post.id || typeof result.favorite !== "boolean") throw new Error("Impossible d’enregistrer votre favori.");
+      setLocalFavorite({ source: post, value: result.favorite });
+      onFavoriteChange?.(post.id, result.favorite);
+    } catch (cause) {
+      if (!controller.signal.aborted) setFavoriteError(cause instanceof Error ? cause.message : "Impossible d’enregistrer votre favori.");
+    } finally {
+      if (favoriteRequest.current === controller) favoriteRequest.current = null;
+      if (!controller.signal.aborted) setFavoriteBusy(false);
+    }
+  }
 
   async function react(reaction: VipReaction) {
     if (preview || reactionBusy) return;
@@ -110,10 +139,12 @@ export default function VipPostCard({ post, preview = false, imagePreviewUrl }: 
       </dialog>
     </>}
     {post.category === "signal" && <Link className={s.riskLink} href={riskSignalHref(post.id, preview)} aria-label={t("Calculer mon lot avec le simulateur de risque")}><span className={s.riskIcon}><Calculator size={16} aria-hidden="true" /></span><span><strong>{t("Calculer mon lot")}</strong><small>{locale === "en" ? "Entry & Stop Loss prefilled" : "Entrée & Stop Loss préremplis"}</small></span><ArrowUpRight size={13} aria-hidden="true" /></Link>}
-    <div className={s.reactions} role="group" aria-label={t("Réactions à la publication")} aria-busy={reactionBusy}>
+    <div className={s.reactions} role="group" aria-label={t("Actions de la publication")} aria-busy={reactionBusy}>
       {reactions.map(({ key, emoji, label }) => <button type="button" key={key} className={s.reaction} disabled={preview || reactionBusy} onClick={() => void react(key)} aria-pressed={reactionState.mine === key} aria-label={`${t(label)} · ${reactionState.counts[key]}`}><span aria-hidden="true">{emoji}</span><span>{reactionState.counts[key]}</span></button>)}
+      <button type="button" className={s.favorite} disabled={preview || favoriteBusy} onClick={() => void saveFavorite()} aria-pressed={favorite} aria-busy={favoriteBusy} aria-label={t(favorite ? "Retirer des favoris" : "Ajouter aux favoris")} title={t(favorite ? "Retirer des favoris" : "Ajouter aux favoris")}><Bookmark size={18} fill={favorite ? "currentColor" : "none"} aria-hidden="true" /><span className={s.srOnly}>{t(favorite ? "Retirer des favoris" : "Ajouter aux favoris")}</span></button>
     </div>
     {reactionError && <p className={s.reactionError} role="alert">{t(reactionError)}</p>}
+    {favoriteError && <p className={s.reactionError} role="alert">{t(favoriteError)}</p>}
     {preview && <p className={s.reactionHint}>{t("Les membres pourront réagir ici.")}</p>}
   </article>;
 }

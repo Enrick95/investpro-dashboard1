@@ -11,6 +11,8 @@ import { vipParisPaymentDate } from "@/lib/vip/access-requests";
 import { vipAffiliationBrokerLabel } from "@/lib/vip/identity";
 import { createClient } from "@/lib/supabase/client";
 import s from "./join.module.css";
+import VipRequestCompletionForm from "@/components/vip/VipRequestCompletionForm";
+import { needsVipCompletion, requestRevision } from "@/lib/vip/request-completions";
 
 type Access = "subscription" | "affiliation";
 type Stage = "account" | "checkout" | "broker" | "broker-account" | "instructions" | "deposit" | "finish";
@@ -291,6 +293,7 @@ export default function JoinVip({ initialChoices = {} }: { initialChoices?: Choi
         <div className={s.existingLink}><span>{tr("Vous êtes déjà dans notre canal Telegram VIP ?", "Already in our VIP Telegram channel?")}</span><Link href="/vip/deja-membre" prefetch={false}>{tr("Rattacher mon accès actuel", "Link my existing membership")}<ArrowRight size={14} aria-hidden="true" /></Link></div>
 
         {intake && (intake.membership || intake.request?.status === "pending") && <section className={s.statusPanel} aria-labelledby="request-status-title">
+          {intake.request && !intake.membership && <><p role="status">{needsVipCompletion(intake.request) ? tr("À compléter · l’équipe attend votre réponse", "Action required · the team is waiting for your reply") : intake.request.completion_submitted_at ? tr("Compléments reçus · vérification en cours", "Update received · under review") : null}</p><VipRequestCompletionForm key={`${intake.request.id}:${requestRevision(intake.request)}`} request={intake.request} onSubmitted={load} /></>}
           <span className={s.finishBadge}><ShieldCheck size={17} aria-hidden="true" />{intake.active ? tr("VOTRE ACCÈS EST PRÊT", "YOUR ACCESS IS READY") : intake.membership ? tr("VOTRE ACCÈS EXISTANT", "YOUR EXISTING ACCESS") : tr("VÉRIFICATION EN COURS", "REVIEW IN PROGRESS")}</span>
           <h2 id="request-status-title">{intake.active ? tr("Bienvenue dans votre espace InvestPro.", "Welcome to your InvestPro space.") : intake.membership ? tr("Votre compte est déjà rattaché.", "Your account is already linked.") : tr("Votre demande est reçue.", "Your application has been received.")}</h2>
           <p>{intake.active ? tr("Vous pouvez maintenant ouvrir votre espace VIP.", "You can now open your VIP space.") : intake.membership ? tr("Retrouvez votre accès dans votre espace VIP, ou contactez l’équipe pour le renouveler ou le réactiver.", "Find your access in your VIP space, or contact the team to renew or reactivate it.") : tr("L’équipe vérifie les informations et le paiement ou le dépôt. Après validation, vous recevrez un e-mail avec le lien de votre espace VIP, ainsi qu’une notification sur cet appareil si vous avez activé les alertes. Aucun code supplémentaire n’est nécessaire.", "The team is checking your details and payment or deposit. Once approved, you will receive an email with a link to your VIP space, plus a notification on this device if you have enabled alerts. No additional code is needed.")}</p>

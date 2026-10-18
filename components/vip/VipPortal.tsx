@@ -8,9 +8,10 @@ import LanguageSwitcher from "@/components/i18n/LanguageSwitcher";
 import VipPostCard from "./VipPostCard";
 import VipPublicationsEditor from "./VipPublicationsEditor";
 import VipChat from "./VipChat";
+import VipFavorites from "./VipFavorites";
 import { createClient } from "@/lib/supabase/client";
 import "./VipPortalShell.css";
-import { Activity, ArrowRight, ArrowUpRight, Bell, BookOpen, Calculator, ChartColumn, ChartNoAxesCombined, ChevronDown, Crown, GitBranch, GraduationCap, Handshake, LockKeyhole, MessageCircle, PenLine, Radio, RefreshCw, Send, Settings, ShieldCheck, Smartphone, UserRound } from "lucide-react";
+import { Activity, ArrowRight, ArrowUpRight, Bell, Bookmark, BookOpen, Calculator, ChartColumn, ChartNoAxesCombined, ChevronDown, Crown, GitBranch, GraduationCap, Handshake, LockKeyhole, MessageCircle, PenLine, Radio, RefreshCw, Send, Settings, ShieldCheck, Smartphone, UserRound } from "lucide-react";
 import { safeHttps, VipApiError, vipDate, vipRequest, type VipAccess, type VipPost } from "@/lib/vip/client";
 import s from "./VipPortal.module.css";
 import { activateConfiguredPush } from "@/lib/push/activation-client";
@@ -26,6 +27,7 @@ const views = [
   { key: "partnership", label: "Partenariats", Icon: Handshake },
   { key: "telegram", label: "Telegram", Icon: Send },
   { key: "chat", label: "Chat", Icon: MessageCircle },
+  { key: "favorites", label: "Favoris", Icon: Bookmark },
 ] as const;
 export type VipView = typeof views[number]["key"];
 const headings: Record<VipView, [string, string]> = {
@@ -36,6 +38,7 @@ const headings: Record<VipView, [string, string]> = {
   partnership: ["Partenariats.", "Les présentations et avantages des partenaires."], performance: ["Bilan.", "Le récapitulatif partagé avec le groupe."],
   training: ["Formation & coaching.", "Les prochaines expériences du cercle."], telegram: ["Telegram.", "Le lien avec ton canal privé."],
   chat: ["Chat.", "Les échanges entre membres du VIP."],
+  favorites: ["Favoris.", "Vos analyses, signaux et publications enregistrés."],
 };
 export default function VipPortal({ initialAdminMode = false }: { initialAdminMode?: boolean }) {
   const { t, locale } = useLocale();
@@ -50,12 +53,15 @@ export default function VipPortal({ initialAdminMode = false }: { initialAdminMo
   const [busy, setBusy] = useState(false);
   const [publicKey, setPublicKey] = useState<string | null>(null);
   const [alertsOn, setAlertsOn] = useState(false);
+  const [favoriteRefreshKey, setFavoriteRefreshKey] = useState(0);
   const requestVersion = useRef(0);
+  const activeUser = useRef<string | null>(null);
   const refresh = useCallback(async (signal?: AbortSignal) => {
     const version = ++requestVersion.current;
     try {
       const result = await vipRequest<VipAccess>("/api/vip/access", { signal });
       if (signal?.aborted || version !== requestVersion.current) return;
+      activeUser.current = result.active ? result.user.id : null;
       setError(""); setAccess(result);
       if (result.active) {
         const [publications, push] = await Promise.all([
@@ -67,7 +73,7 @@ export default function VipPortal({ initialAdminMode = false }: { initialAdminMo
       } else { setPosts([]); setPublicKey(null); }
     } catch (cause) {
       if (signal?.aborted || version !== requestVersion.current) return;
-      if (cause instanceof VipApiError && cause.status === 401) setAccess(null);
+      if (cause instanceof VipApiError && (cause.status === 401 || cause.status === 403)) { activeUser.current = null; setAccess(null); }
       setPosts([]); setError(cause instanceof Error ? cause.message : "Impossible de charger votre espace.");
     } finally { if (!signal?.aborted && version === requestVersion.current) setLoading(false); }
   }, []);
@@ -82,6 +88,7 @@ export default function VipPortal({ initialAdminMode = false }: { initialAdminMo
       if (currentUser === undefined) { currentUser = nextUser; return; }
       if (nextUser === currentUser) return;
       currentUser = nextUser;
+      activeUser.current = null;
       ++requestVersion.current;
       setAccess(null); setPosts([]); setPublicKey(null); setAlertsOn(false);
       setMessage(""); setError(""); setLoading(Boolean(nextUser));
@@ -111,6 +118,12 @@ export default function VipPortal({ initialAdminMode = false }: { initialAdminMo
     if (access?.active && expiry !== null) scheduleExpiry();
     return () => { window.removeEventListener("focus", onFocus); document.removeEventListener("visibilitychange", onFocus); window.clearInterval(interval); if (timer !== null) window.clearTimeout(timer); };
   }, [access?.membership?.expires_at, access?.active, refresh]);
+  function favoriteChanged(postId: string, favorite: boolean) {
+    if (!access?.active || activeUser.current !== access.user.id) return;
+    // Ignore any older poll that started before this confirmed save.
+    ++requestVersion.current;
+    setPosts(previous => previous.map(post => post.id === postId ? { ...post, favorite } : post));
+  }
   async function renewal() {
     setBusy(true); setMessage("");
     try { await vipRequest("/api/vip/renewal", { method: "POST", body: "{}" }); setMessage("Votre demande de renouvellement a été transmise. L’équipe vérifiera votre règlement manuellement."); await refresh(); }
@@ -143,7 +156,7 @@ export default function VipPortal({ initialAdminMode = false }: { initialAdminMo
     {membership.type === "abonnement" && <button type="button" className={s.secondary} onClick={renewal} disabled={busy || Boolean(membership.renewal_requested_at)}>{membership.renewal_requested_at ? t("Demande transmise") : t("Demander mon renouvellement")}</button>}
   </div>;
 
-  return <VipPortalFrame view={view} onSelect={setView} admin={access?.admin === true} adminMode={effectiveAdminMode} onModeChange={setAdminMode} onRefresh={() => void refresh()} loading={loading} editor={access?.admin === true ? <VipPublicationsEditor active={adminMode} embedded onPublished={() => void refresh()} /> : undefined}>
+  return <VipPortalFrame view={view} onSelect={setView} admin={access?.admin === true} adminMode={effectiveAdminMode} onModeChange={setAdminMode} onRefresh={() => { setFavoriteRefreshKey(key => key + 1); void refresh(); }} loading={loading} editor={access?.admin === true ? <VipPublicationsEditor active={adminMode} embedded onPublished={() => void refresh()} /> : undefined}>
         {loading ? <div className={s.empty} role="status">{t("Chargement de votre espace privé…")}</div> : <>
           {error && <div className={s.notice} role="alert">{t(error)}{!access && <Link href="/login?next=%2Fdashboard%2Fvip">{t("Me connecter")}{" "}<ArrowRight size={15} /></Link>}</div>}
           {message && <p className={s.notice} role="status">{t(message)}</p>}
@@ -163,7 +176,7 @@ export default function VipPortal({ initialAdminMode = false }: { initialAdminMo
                 <Link className={s.helpLink} href="/dashboard/contact"><MessageCircle size={15} aria-hidden="true" />{t("Contacter le support")}</Link>
               </div>
             </details>
-            {view === "chat" ? !effectiveAdminMode && <VipChat key={access.user.id} userId={access.user.id} admin={access.admin} locale={locale === "en" ? "en" : "fr"} /> : <VipViewContent view={view} posts={posts} telegramUrl={telegramUrl} />}
+            {view === "chat" ? !effectiveAdminMode && <VipChat key={access.user.id} userId={access.user.id} admin={access.admin} locale={locale === "en" ? "en" : "fr"} /> : view === "favorites" ? !effectiveAdminMode && <VipFavorites key={access.user.id} userId={access.user.id} refreshKey={favoriteRefreshKey} onFavoriteChange={favoriteChanged} /> : <VipViewContent view={view} posts={posts} telegramUrl={telegramUrl} userId={access.user.id} onFavoriteChange={favoriteChanged} />}
           </>}
         </>}
   </VipPortalFrame>;
@@ -217,7 +230,7 @@ function VipPortalFrame({ view, onSelect, admin = false, adminMode = false, onMo
   </div>;
 }
 
-function VipViewContent({ view, posts, telegramUrl, preview = false }: { view: VipView; posts: VipPost[]; telegramUrl: string | null; preview?: boolean }) {
+function VipViewContent({ view, posts, telegramUrl, preview = false, userId, onFavoriteChange }: { view: VipView; posts: VipPost[]; telegramUrl: string | null; preview?: boolean; userId?: string; onFavoriteChange?: (postId: string, favorite: boolean) => void }) {
   const { t } = useLocale();
   const isFeed = view === "analysis" || view === "signal" || view === "performance" || view === "followup" || view === "partnership";
   const visible = isFeed ? posts.filter(post => post.category === view) : [];
@@ -226,13 +239,14 @@ function VipViewContent({ view, posts, telegramUrl, preview = false }: { view: V
   };
   return <>
     {isFeed && <div className={s.posts} aria-label={t("Publications") + " · " + t(headings[view][0])}>
-      {visible.length ? <><div className={s.feedLabel}>{t("Publications")}</div>{visible.map(post => <VipPostCard key={post.id} post={post} preview={preview} />)}<p className={s.feedNote}><ShieldCheck size={13} aria-hidden="true" />{t("Seule l’équipe publie. Les membres peuvent réagir.")}</p></> : <div className={s.empty}><MessageCircle size={25} aria-hidden="true" /><h2>{t(emptyTitles[view] || "Les publications de l’équipe seront disponibles dans cette rubrique.")}</h2><p>{t("Les publications de l’équipe seront disponibles dans cette rubrique.")}</p></div>}
+      {visible.length ? <><div className={s.feedLabel}>{t("Publications")}</div>{visible.map(post => <VipPostCard key={`${userId || "preview"}:${post.id}`} post={post} preview={preview} onFavoriteChange={onFavoriteChange} />)}<p className={s.feedNote}><ShieldCheck size={13} aria-hidden="true" />{t("Seule l’équipe publie. Les membres peuvent réagir.")}</p></> : <div className={s.empty}><MessageCircle size={25} aria-hidden="true" /><h2>{t(emptyTitles[view] || "Les publications de l’équipe seront disponibles dans cette rubrique.")}</h2><p>{t("Les publications de l’équipe seront disponibles dans cette rubrique.")}</p></div>}
     </div>}
     {view === "performance" && <Link className={s.performanceLink} href="/dashboard/performances-vip"><Activity size={16} aria-hidden="true" />{t("Voir les performances VIP")}<ArrowUpRight size={14} aria-hidden="true" /></Link>}
     {view === "risk" && <section className={s.feature}><span className={s.trainingIcon}><Calculator size={20} aria-hidden="true" /></span><h2>{t("Calculer mon lot.")}</h2><p>{t("Retrouve le simulateur InvestPro pour préparer ton risque avant de prendre position.")}</p><Link className={s.primary} href="/dashboard/simulateur"><Calculator size={15} aria-hidden="true" />{t("Ouvrir le simulateur")}{" "}<ArrowUpRight size={16} /></Link></section>}
     {view === "training" && <section className={`${s.feature} ${s.trainingFeature}`}><span className={s.trainingIcon}><GraduationCap size={20} aria-hidden="true" /></span><span className={s.trainingSoon}>{t("Bientôt")}</span><h2>{t("Formation & coaching")}</h2><p>{t("Un nouvel espace pour apprendre et progresser avec le cercle privé.")}</p></section>}
     {view === "telegram" && <section className={s.feature}><Send size={31} /><h2>{t("Retrouvez votre communauté.")}</h2><p>{t("Votre espace InvestPro est actif. Demandez à rejoindre InvestPro Trading VIP ™ ; l’équipe vérifie et valide votre entrée manuellement.")}</p>{telegramUrl ? <a className={s.primary} href={telegramUrl} target="_blank" rel="noopener noreferrer">{t("Rejoindre Telegram")}{" "}<ArrowUpRight size={16} /></a> : <p className={s.notice}>{t("Le lien du canal sera disponible ici dès sa configuration par l’équipe.")}</p>}<small>{t("L’adhésion au canal et son renouvellement restent gérés par l’équipe sur Telegram.")}</small></section>}
     {view === "chat" && preview && <section className={s.feature}><MessageCircle size={30} /><h2>{t("Le chat des membres VIP.")}</h2><p>{t("Un espace pour échanger avec la communauté depuis InvestPro.")}</p><small>{t("Aperçu en lecture seule · les messages sont réservés aux membres connectés.")}</small></section>}
+    {view === "favorites" && preview && <section className={s.empty}><Bookmark size={25} aria-hidden="true" /><h2>{t("Vos publications à retrouver.")}</h2><p>{t("Appuyez sur le marque-page d’une publication pour l’ajouter à vos favoris.")}</p></section>}
   </>;
 }
 

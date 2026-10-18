@@ -42,6 +42,17 @@ function fixture({ authorized = true, vip = true, preview = false, expired = fal
   const db = {
     storage: { from(name) { assert.equal(name, "vip-post-media"); return bucket; } },
     from(table) {
+      if (table === "vip_post_favorites") {
+        const filters = new Map(); let postIds = [];
+        const chain = {
+          select() { return chain; }, eq(key, value) { filters.set(key, value); return chain; },
+          in(key, value) { assert.equal(key, "post_id"); postIds = value; return chain; },
+          then(resolvePromise) {
+            assert.equal(filters.get("user_id"), userId); assert(postIds.every(id => rows.some(row => row.id === id && row.published)));
+            return Promise.resolve({ data: [], error: null }).then(resolvePromise);
+          },
+        }; return chain;
+      }
       assert.equal(table, "vip_posts");
       const filters = new Map(); let operation = "read", payload;
       const matching = () => rows.filter(row => [...filters].every(([key, value]) => row[key] === value));
@@ -75,8 +86,9 @@ function fixture({ authorized = true, vip = true, preview = false, expired = fal
   };
   const environment = { env: { VERCEL_ENV: preview ? "preview" : "production", SUPABASE_SERVICE_ROLE_KEY: "vip-offline-fixture-secret-" + "x".repeat(48) } };
   const postsServer = compile("lib/vip/posts-server.ts", { "server-only": {}, "./membership": membership, "./membership-server": server, "./post-validation": validation }, { process: environment });
+  const favoritesServer = compile("lib/vip/favorites-server.ts", { "server-only": {}, "./membership-server": server, "./post-validation": validation }, { process: environment });
   const uploadTickets = compile("lib/vip/media-upload.ts", { "server-only": {}, "node:crypto": crypto, "./membership-server": server, "./post-validation": validation }, { process: environment });
-  const common = { "@/lib/vip/membership-server": server, "@/lib/vip/posts-server": postsServer, "@/lib/vip/post-validation": validation };
+  const common = { "@/lib/vip/membership-server": server, "@/lib/vip/posts-server": postsServer, "@/lib/vip/post-validation": validation, "@/lib/vip/favorites-server": favoritesServer };
   const adminPosts = compile("app/api/admin/vip/posts/route.ts", { ...common, "@/lib/admin/permissions": { async authenticateAdmin(_request, permission) { calls.permissions.push(permission); return authorized ? { user: { id: adminId }, admin: db } : { error: "Unauthorized", status: 401 }; } }, "@/lib/vip/notifications": { deliverVipNotifications() { throw Error("Real notification must never run in tests"); } }, "next/server": { after(callback) { calls.after.push(callback); } } });
   const adminMedia = compile("app/api/admin/vip/media/route.ts", { ...common, "@/lib/admin/permissions": { async authenticateAdmin() { return authorized ? { user: { id: adminId }, admin: db } : { error: "Unauthorized", status: 401 }; } }, "node:crypto": { randomUUID: () => postId } });
   const signedMedia = compile("app/api/admin/vip/media/upload/route.ts", { ...common, "@/lib/vip/media-upload": uploadTickets, "@/lib/admin/permissions": { async authenticateAdmin(_request, permission) { calls.permissions.push(permission); return authorized ? { user: { id: adminId }, admin: db } : { error: "Unauthorized", status: 401 }; } }, "node:crypto": { randomUUID: () => postId } });

@@ -113,6 +113,10 @@
 .mobileStart details > p { line-height: 1.9; margin-top: 10px; }
 .mobileStart details b { font-size: 10px; color: var(--v-text); }
 .posts { display: grid; gap: 13px; min-width: 0; }
+.favorites > .secondary { width: 100%; }
+.favorites > .notice { margin: 0; }
+.favorites > .notice p { margin: 0 0 8px; }
+.favoriteStatus { font-size: 11px; line-height: 1.7; color: var(--v-muted); margin: 0; padding: 6px 0; }
 .feedLabel { font-size: 9px; letter-spacing: 1.1px; color: #9da892; text-transform: uppercase; margin: 0 0 -3px; }
 .feedNote { display: flex; align-items: flex-start; gap: 7px; padding: 11px; border: 1px solid #39472d; border-radius: 11px; background: #171f12; color: #a8b89a; font-size: 10px; line-height: 1.6; margin: 2px 0 0; }
 .feedNote svg { flex-shrink: 0; margin-top: 2px; }

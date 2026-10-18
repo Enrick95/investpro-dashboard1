@@ -21,6 +21,8 @@ export type VipPost = {
   created_at: string;
   updated_at?: string;
   reactions?: VipPostReactions;
+  /** Saved by the currently authenticated VIP member only. */
+  favorite?: boolean;
 };
 export type VipMediaUpload = { imagePath: string; imageUrl: string; mimeType: string; sizeBytes: number };
 export type VipMediaUploadPreparation = {
@@ -101,4 +103,10 @@ export type VipAccessRequest = {
   verified_deposit_usd: number | null;
   verified_broker_linked: boolean;
   verified_payment: boolean;
+  revision?: number;
+  completion_fields?: string[];
+  completion_note?: string | null;
+  completion_requested_at?: string | null;
+  completion_submitted_at?: string | null;
+  completion_reply?: string | null;
 };

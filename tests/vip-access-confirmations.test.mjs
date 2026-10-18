@@ -37,6 +37,7 @@ const validation = compile("lib/vip/push-validation.ts");
 const publicationNotice = compile("lib/vip/publication-notice.ts");
 const identity = compile("lib/vip/identity.ts");
 const accessRequests = compile("lib/vip/access-requests.ts", { "./identity": identity, "./membership": membership });
+const completions = compile("lib/vip/request-completions.ts", { "./access-requests": accessRequests });
 
 function event(overrides = {}) {
   return {
@@ -471,6 +472,8 @@ function approvalRouteFixture(file, options = {}) {
     "next/server": { after(callback) { deferred.push(callback); } },
     "@/lib/admin/permissions": { authenticateAdmin: authenticate },
     "@/lib/vip/access-requests": accessRequests,
+    "@/lib/vip/request-completions": completions,
+    "@/lib/vip/request-completion-notifications": { async deliverVipRequestCompletionNotifications() { return {}; } },
     "@/lib/vip/identity": identity,
     "@/lib/vip/membership": membership,
     "@/lib/vip/membership-server": {
@@ -490,7 +493,7 @@ function approvalRouteFixture(file, options = {}) {
   return {
     calls, deferred,
     async post(body) {
-      return route.POST(new Request("https://investprotrading.fr/api/offline-fixture", { method: "POST", headers: { "Content-Type": "application/json", Origin: "https://investprotrading.fr" }, body: JSON.stringify(body) }));
+      return route.POST(new Request("https://investprotrading.fr/api/offline-fixture", { method: "POST", headers: { "Content-Type": "application/json", Origin: "https://investprotrading.fr" }, body: JSON.stringify({ expectedRevision: 0, ...body }) }));
     },
     async flush() { for (const callback of deferred) await callback(); },
   };
@@ -505,7 +508,11 @@ test("existing-member and new-client approval routes schedule both channels afte
     const fixture = approvalRouteFixture("app/api/admin/vip/requests/route.ts", { requestKind, emailError: true });
     const response = await fixture.post(approvalBody);
     assert.equal(response.status, 200);
-    assert.equal(fixture.calls.rpc[0].name, requestKind === "new" ? "vip_review_access_request_checked" : "vip_review_access_request");
+    assert.equal(fixture.calls.rpc[0].name, "vip_review_access_request_revision");
+    assert.equal(fixture.calls.rpc[0].args.p_expected_revision, 0);
+    assert.equal(fixture.calls.rpc[0].args.p_verified_deposit_usd, requestKind === "new" ? 300 : null);
+    assert.equal(fixture.calls.rpc[0].args.p_broker_linked_verified, requestKind === "new");
+    assert.equal(fixture.calls.rpc[0].args.p_payment_verified, false);
     assert.equal(fixture.calls.email, 0, "provider work is deferred until after the response");
     await fixture.flush();
     assert.equal(fixture.calls.email, 1);

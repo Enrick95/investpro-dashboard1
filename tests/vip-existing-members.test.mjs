@@ -36,6 +36,7 @@ const validators = compile("lib/vip/access-requests.ts", {
   "./membership": membership,
   "@/lib/vip/membership": membership,
 });
+const completions = compile("lib/vip/request-completions.ts", { "./access-requests": validators });
 
 function fixture({ authorized = true, adminAuthorized = true, confirmed = true, existingRequest = null, existingMembership = null, databaseError = null, rpcError = null, environment = "production" } = {}) {
   const calls = { auth: [], permissions: [], reads: [], writes: [], rpcs: [] };
@@ -77,6 +78,8 @@ function fixture({ authorized = true, adminAuthorized = true, confirmed = true, 
     "@/lib/vip/admin-activity": { async queueVipAdminActivity() { return { queued: 0 }; } },
     "@/lib/vip/notifications": { async deliverVipNotifications() { return { sent: 0 }; } },
     "@/lib/vip/access-confirmations": { async deliverVipAccessConfirmations() { return { sent: 0 }; } },
+    "@/lib/vip/request-completion-notifications": { async deliverVipRequestCompletionNotifications() { return {}; } },
+    "@/lib/vip/request-completions": completions,
     "@/lib/admin/permissions": { async authenticateAdmin(_request, permission) {
       calls.permissions.push(permission);
       return adminAuthorized ? { user: { id: adminId }, admin: db } : { error: "Accès refusé", status: 403 };
@@ -113,7 +116,7 @@ function fixture({ authorized = true, adminAuthorized = true, confirmed = true, 
     get: search => request(memberRoute, "GET", undefined, search),
     post: body => request(memberRoute, "POST", body),
     adminGet: search => request(adminRoute, "GET", undefined, search),
-    adminPost: body => request(adminRoute, "POST", body),
+    adminPost: body => request(adminRoute, "POST", { expectedRevision: 0, ...body }),
   };
 }
 
@@ -234,13 +237,17 @@ test("approval uses the service RPC and cannot forward arbitrary membership or r
   assert.deepEqual(api.calls.permissions, ["users_write"]);
   assert.equal(api.calls.writes.length, 0);
   assert.equal(api.calls.rpcs.length, 1);
-  assert.equal(api.calls.rpcs[0].name, "vip_review_access_request");
+  assert.equal(api.calls.rpcs[0].name, "vip_review_access_request_revision");
   const args = plain(api.calls.rpcs[0].args);
   assert.equal(args.p_request_id, requestId);
+  assert.equal(args.p_expected_revision, 0);
   assert.equal(args.p_reviewed_by, adminId);
   assert.equal(args.p_action, "approve");
   assert.equal(args.p_affiliation_broker, "axi");
   assert.equal(args.p_paid_on, null);
+  assert.equal(args.p_verified_deposit_usd, null);
+  assert.equal(args.p_broker_linked_verified, false);
+  assert.equal(args.p_payment_verified, false);
   for (const field of ["p_user_id", "p_email", "p_status", "p_admin", "p_started_at", "p_expires_at"]) assert.equal(Object.hasOwn(args, field), false, field);
 });
 
@@ -394,8 +401,8 @@ test("denial sends no access-grant fields even when the client includes a valid 
   const response = await api.adminPost({ action: "deny", id: requestId, ...declaration, type: "abonnement", paidOn: parisToday(), expiresAt: "2099-01-23T23:59:00Z" });
   assert.equal(response.status, 200);
   assert.deepEqual(plain(api.calls.rpcs[0]), {
-    name: "vip_review_access_request",
-    args: { p_request_id: requestId, p_action: "deny", p_reviewed_by: adminId, p_first_name: null, p_last_name: null, p_type: null, p_affiliation_broker: null, p_paid_on: null },
+    name: "vip_review_access_request_revision",
+    args: { p_request_id: requestId, p_expected_revision: 0, p_action: "deny", p_reviewed_by: adminId, p_first_name: null, p_last_name: null, p_type: null, p_affiliation_broker: null, p_paid_on: null, p_verified_deposit_usd: null, p_broker_linked_verified: false, p_payment_verified: false },
   });
   assert.equal(api.calls.writes.length, 0);
 });
@@ -498,7 +505,8 @@ test("administrators must verify actual broker linkage and funding for a new req
   const api = fixture({ existingRequest });
   assert.equal((await api.adminPost({ id: requestId, action: "approve", ...declaration, brokerLinkedVerified: true, verifiedDepositUsd: 300 })).status, 200);
   const args = api.calls.rpcs[0].args;
-  assert.equal(api.calls.rpcs[0].name, "vip_review_access_request_checked");
+  assert.equal(api.calls.rpcs[0].name, "vip_review_access_request_revision");
+  assert.equal(args.p_expected_revision, 0);
   assert.equal(args.p_verified_deposit_usd, 300);
   assert.equal(args.p_broker_linked_verified, true);
   assert.equal(args.p_payment_verified, false);

@@ -3,6 +3,7 @@ import {vipDatabase,vipJson} from "@/lib/vip/membership-server";
 import {deliverVipNotifications} from "@/lib/vip/notifications";
 import {queueVipAdminActivity} from "@/lib/vip/admin-activity";
 import {deliverVipAccessConfirmations} from "@/lib/vip/access-confirmations";
+import {deliverVipRequestCompletionNotifications} from "@/lib/vip/request-completion-notifications";
 export const dynamic="force-dynamic";
 export const runtime="nodejs";
 export const maxDuration=300;
@@ -15,7 +16,7 @@ export async function GET(request:Request) {
   if(process.env.VERCEL_ENV!=="production")return vipJson({error:"Les rappels sont exécutés uniquement sur le site principal."},403);
   try {
     const db=vipDatabase();
-    const [notifications,confirmations]=await Promise.allSettled([
+    const [notifications,confirmations,completions]=await Promise.allSettled([
       (async()=>{
         let activity;
         try {activity=await queueVipAdminActivity(db);}
@@ -26,8 +27,9 @@ export async function GET(request:Request) {
         return {queued:data,activity,delivery};
       })(),
       deliverVipAccessConfirmations(db),
+      deliverVipRequestCompletionNotifications(db),
     ]);
-    if(notifications.status==="rejected"||confirmations.status==="rejected")throw new Error("VIP_NOTIFICATION_CRON_FAILED");
-    return vipJson({ok:true,...notifications.value,confirmations:confirmations.value});
+    if(notifications.status==="rejected"||confirmations.status==="rejected"||completions.status==="rejected")throw new Error("VIP_NOTIFICATION_CRON_FAILED");
+    return vipJson({ok:true,...notifications.value,confirmations:confirmations.value,completions:completions.value});
   } catch{return vipJson({error:"Traitement des rappels indisponible."},503);}
 }

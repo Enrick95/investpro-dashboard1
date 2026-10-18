@@ -48,6 +48,11 @@
 .reaction span:first-child { font-size: 15px; }
 .reaction[aria-pressed="true"] { background: #3a321b; border-color: #987640; color: #ffce76; }
 .reaction:disabled { opacity: .65; }
+.post .favorite { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 44px; min-height: 44px; margin-left: auto; padding: 9px; border: 1px solid #625132; border-radius: 11px; background: #202619; color: #d7bb7c; }
+.post .favorite[aria-pressed="true"] { color: #ffce76; border-color: #987640; background: #3a321b; }
+.favorite:disabled { opacity: .65; }
+.favorite[aria-busy="true"] svg { opacity: .5; }
+.srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .reactionHint { font-size: 9px; color: #8f9e85; padding: 0 12px 10px; margin: 0; }
 .reactionError { font-size: 10px; line-height: 1.6; color: #f0b6a4; padding: 0 12px 10px; margin: 0; overflow-wrap: anywhere; }
 .riskLink { display: flex; align-items: center; gap: 9px; padding: 12px 11px; min-height: 62px; color: #ffce76; background: #202b17; border-top: 1px solid #394b2c; text-decoration: none; }
