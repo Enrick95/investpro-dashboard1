@@ -1,6 +1,7 @@
 "use client";
 
 import { useLocale } from "@/components/i18n/LocaleProvider";
+import ServerRequests from "@/components/metasync/ServerRequests";
 import { HostedRequestError, sendHostedMutation } from "@/lib/metasync/hosted-request-client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -160,6 +161,10 @@ export default function HostedSyncPanel({ initialPlatform = "MT5" }: { initialPl
             <Pill icon={<LockKeyhole size={11} />} text={translate("Chiffrement serveur")} />
           </div>
         </div>
+      </div>
+
+      <div className="border-b border-white/[0.06] px-5 py-4 md:px-6">
+        <ServerRequests platformDefault={platform} />
       </div>
 
       <div className="grid grid-cols-1 gap-px bg-white/[0.05] xl:grid-cols-[1.05fr_.95fr]">

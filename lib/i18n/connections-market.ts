@@ -1,5 +1,8 @@
 /** Static connection, market, community and Academy interface copy. Account and market data is unchanged. */
 export const connectionsMarketMessages: Readonly<Record<string, string>> = {
+  "Mon broker ou mon serveur est absent": "My broker or server is missing",
+  "Indique ton broker, MT4 ou MT5 et le nom exact du serveur affiché dans MetaTrader. Ta demande est transmise à l’équipe InvestPro pour préparer la connexion.": "Enter your broker, MT4 or MT5 and the exact server name shown in MetaTrader. Your request is sent to the InvestPro team to prepare the connection.",
+  "Retrouve le suivi de ta demande ci-dessous. Lorsqu’elle indique « Disponible dans la liste des serveurs », sélectionne ce serveur dans le formulaire de connexion. Aucun mot de passe n’est demandé ici.": "Track your request below. When it says “Available in the server list”, select that server in the connection form. No password is requested here.",
   "(clique Sync)": "(click Sync)",
   "* Estimation sur le prix actuel et le lot saisi.": "* Estimate based on the current price and entered lot size.",
   "* Estimations via tick_value/tick_size.": "* Estimates using tick_value/tick_size.",
