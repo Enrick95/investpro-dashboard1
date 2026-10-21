@@ -38,3 +38,8 @@
 :global(body):has(.page){padding-bottom:0!important}
 :global(body):has(.page) :global(.ip-mobile-global-nav){display:none!important}
 .drawerHeader{box-shadow:0 -18px 0 #111213,0 8px 0 #111213}
+.inboxBadge{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;min-width:22px;height:22px;padding:0 6px;border-radius:20px;background:var(--gold);color:#14110a;font-size:11px;line-height:1;font-weight:750;font-variant-numeric:tabular-nums}
+.inboxShortcut{position:relative;border-color:#77663b;background:#ffc86712}
+.inboxShortcut .inboxBadge{position:absolute;right:-6px;top:-6px;border:2px solid #0c0d0e;min-width:23px;height:23px;padding:0 5px;font-size:10px}
+@media(max-width:760px){.mobileRail .inboxBadge{position:absolute;right:4px;top:3px;min-width:20px;height:20px;padding:0 5px;font-size:10px}}
+@media(max-width:360px){.mobileBrand{display:none}}

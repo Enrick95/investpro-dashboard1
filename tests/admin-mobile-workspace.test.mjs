@@ -11,15 +11,15 @@ import ts from "typescript";
 const root = path.resolve(import.meta.dirname, "..");
 const require = createRequire(import.meta.url);
 function compile(file, modules = {}) {
-  const module = { exports: {} };
+  const cjsModule = { exports: {} };
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(root, file), "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true } }).outputText,
-    { module, exports: module.exports, URL, URLSearchParams, require: name => { assert(Object.hasOwn(modules, name), `Unexpected import ${name}`); return modules[name]; } });
-  return module.exports;
+    { module: cjsModule, exports: cjsModule.exports, URL, URLSearchParams, require: name => { assert(Object.hasOwn(modules, name), `Unexpected import ${name}`); return modules[name]; } });
+  return cjsModule.exports;
 }
 const access = compile("app/admin-preview/admin-tool-access.ts");
 const css = new Proxy({}, { get: (_target, name) => String(name) });
-function render(query = "", locale = "fr") {
-  function Link({ href, prefetch: _prefetch, ...props }) { return React.createElement("a", { href, ...props }); }
+function render(query = "", locale = "fr", inboxCount = null) {
+  function Link({ href, prefetch, ...props }) { void prefetch; return React.createElement("a", { href, ...props }); }
   const Component = compile("components/admin/AdminWorkspace.tsx", {
     react: require("react"), "react/jsx-runtime": require("react/jsx-runtime"), "lucide-react": require("lucide-react"),
     "next/link": { __esModule: true, default: Link },
@@ -29,6 +29,7 @@ function render(query = "", locale = "fr") {
     "@/app/admin-preview/AdminToolWorkspace": { __esModule: true, default: props => React.createElement("section", { "data-tool": props.tool, "data-vip-view": props.vipView || "", "data-base-path": props.basePath }) },
     "@/app/admin-preview/admin-tool-access": access,
     "./AdminWorkspace.module.css": { __esModule: true, default: css },
+    "./useAdminInboxCount": { useAdminInboxCount: () => inboxCount },
   }).default;
   return renderToStaticMarkup(React.createElement(Component));
 }
@@ -37,15 +38,15 @@ const decode = value => value.replaceAll("&amp;", "&");
 const hrefs = html => [...html.matchAll(/href="([^"]+)"/g)].map(match => decode(match[1]));
 function activeHref(html) { const result = html.match(/<a\b(?=[^>]*aria-current="page")[^>]*href="([^"]+)"[^>]*>/); return result ? decode(result[1]) : null; }
 
-test("mobile rail contains seven named shortcuts and the explicit all-sections action", () => {
+test("mobile rail contains eight named shortcuts including Inbox and the explicit all-sections action", () => {
   const rail = nav(render(), "mobileRail");
-  assert.equal((rail.match(/<a\b/g) || []).length, 7); assert.equal((rail.match(/<button\b/g) || []).length, 1);
-  for (const label of ["Accueil", "Membres", "Demandes", "Posts VIP", "Finance", "Stats", "Équipe", "Tout"]) assert(rail.includes(`<span>${label}</span>`), label);
-  assert.deepEqual(hrefs(rail), ["/dashboard/admin?tool=overview-current", "/dashboard/admin?tool=vip&view=members", "/dashboard/admin?tool=vip&view=requests", "/dashboard/admin?tool=vip-publications", "/dashboard/admin?tool=finance", "/dashboard/admin?tool=analytics", "/dashboard/admin?tool=staff"]);
+  assert.equal((rail.match(/<a\b/g) || []).length, 8); assert.equal((rail.match(/<button\b/g) || []).length, 1);
+  for (const label of ["Accueil", "Inbox", "Membres", "Demandes", "Posts VIP", "Finance", "Stats", "Équipe", "Tout"]) assert(rail.includes(`<span>${label}</span>`), label);
+  assert.deepEqual(hrefs(rail), ["/dashboard/admin?tool=overview-current", "/dashboard/admin?tool=inbox", "/dashboard/admin?tool=vip&view=members", "/dashboard/admin?tool=vip&view=requests", "/dashboard/admin?tool=vip-publications", "/dashboard/admin?tool=finance", "/dashboard/admin?tool=analytics", "/dashboard/admin?tool=staff"]);
 });
-test("English labels describe all eight mobile actions without changing their destinations", () => {
+test("English labels describe all nine mobile actions without changing their destinations", () => {
   const fr = nav(render("tool=finance"), "mobileRail"), en = nav(render("tool=finance", "en"), "mobileRail");
-  for (const label of ["Home", "Members", "Requests", "VIP posts", "Finance", "Stats", "Team", "All"]) assert(en.includes(`<span>${label}</span>`), label);
+  for (const label of ["Home", "Inbox", "Members", "Requests", "VIP posts", "Finance", "Stats", "Team", "All"]) assert(en.includes(`<span>${label}</span>`), label);
   assert.deepEqual(hrefs(fr), hrefs(en)); assert.match(en, /aria-label="Administration shortcuts"/);
 });
 test("members and requests remain distinct active VIP views", () => {
@@ -60,7 +61,8 @@ test("members and requests remain distinct active VIP views", () => {
 test("tools without a shortcut highlight All instead of the wrong member view", () => {
   const rail = nav(render("tool=vip&view=subscriptions"), "mobileRail");
   assert.equal(activeHref(rail), null); assert.match(rail, /<button[^>]*data-active="true"/);
-  assert.equal(activeHref(nav(render("tool=inbox"), "mobileRail")), null);
+  assert.equal(activeHref(nav(render("tool=moderation"), "mobileRail")), null);
+  assert.equal(activeHref(nav(render("tool=inbox"), "mobileRail")), "/dashboard/admin?tool=inbox");
 });
 test("both mobile menu openers control the actual labelled native drawer", () => {
   const html = render();
@@ -84,4 +86,40 @@ test("invalid tool queries safely fall back to Overview while member details ret
   const id = "11111111-1111-4111-8111-111111111111";
   const detail = render(`tool=utilisateurs&member=${id}`);
   assert.match(detail, /Dossier membre/); assert.match(detail, /data-tool="utilisateurs"/); assert.equal(activeHref(nav(detail, "mobileRail")), null);
+});
+
+function inboxSurfaces(html) {
+  const drawer = html.slice(html.indexOf('<dialog id="admin-navigation-drawer"'));
+  const header = html.match(/<header class="topbar"[\s\S]*?<\/header>/)?.[0];
+  assert(header, "Missing admin header");
+  return [nav(html, "navigation"), nav(drawer, "navigation"), nav(html, "mobileRail"), header];
+}
+
+test("one confirmed pending count appears beside Inbox in sidebar, drawer, mobile rail and header", () => {
+  const surfaces = inboxSurfaces(render("tool=finance", "fr", 3));
+  for (const html of surfaces) {
+    assert.equal((html.match(/class="inboxBadge"/g) || []).length, 1);
+    assert.match(html, /class="inboxBadge" aria-label="3 demandes à traiter">3<\/b>/);
+  }
+  assert.match(surfaces[2], /href="\/dashboard\/admin\?tool=inbox"[^>]*aria-label="Inbox, 3 demandes à traiter"/);
+  assert.match(surfaces[3], /aria-label="Ouvrir Inbox, 3 demandes à traiter"/);
+  assert.match(inboxSurfaces(render("tool=inbox", "en", 3))[3], /aria-label="Open Inbox, 3 pending requests"/);
+});
+
+test("unknown and zero counts show no badge and no misleading header alert", () => {
+  for (const count of [null, 0]) {
+    const surfaces = inboxSurfaces(render("", "fr", count));
+    for (const html of surfaces) assert.equal(html.includes('class="inboxBadge"'), false);
+    assert.equal(surfaces[3].includes("inboxShortcut"), false);
+    assert(hrefs(surfaces[2]).includes("/dashboard/admin?tool=inbox"));
+  }
+});
+
+test("large badges display 99+ while assistive labels retain the exact queue size", () => {
+  for (const html of inboxSurfaces(render("", "fr", 137))) {
+    assert.match(html, /class="inboxBadge" aria-label="137 demandes à traiter">99\+<\/b>/);
+  }
+  const english = inboxSurfaces(render("", "en", 137));
+  assert.match(english[2], /aria-label="Inbox, 137 pending requests"/);
+  assert.match(english[3], /aria-label="Open Inbox, 137 pending requests"/);
 });

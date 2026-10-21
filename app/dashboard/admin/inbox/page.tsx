@@ -16,6 +16,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { ADMIN_INBOX_UPDATED } from "@/components/admin/useAdminInboxCount";
 
 type ChatMessage = {id:string;sender_role:string;body:string;created_at:string;attachment_url?: string | null;};
 type Item = {
@@ -170,6 +171,7 @@ export default function AdminInboxPage() {
         r=await fetch("/api/admin/support/messages",{method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:JSON.stringify({ticket_id:selected.id,message:chatDraft})});
       }
       const j=await r.json();if(!r.ok)throw Error(j.error||tr("Envoi impossible"));
+      window.dispatchEvent(new Event(ADMIN_INBOX_UPDATED));
       setChatDraft("");setChatFile(null);await loadChat(selected.id);await load(true);
     }catch(e:any){setError(e.message||tr("Envoi impossible"))}finally{setChatBusy(false)}
   }
@@ -195,6 +197,7 @@ export default function AdminInboxPage() {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || tr("Clôture impossible"));
+      window.dispatchEvent(new Event(ADMIN_INBOX_UPDATED));
       setStatus("closed");
       await load(true);
       await loadChat(selected.id);
@@ -229,6 +232,7 @@ export default function AdminInboxPage() {
 
       const json = await response.json();
       if (!response.ok) throw new Error(json?.error || tr("Action impossible."));
+      window.dispatchEvent(new Event(ADMIN_INBOX_UPDATED));
 
       await load(true);
     } catch (e: any) {
