@@ -4,6 +4,7 @@ import type {Trade as TelegramTrade} from "@/lib/telegram/engine";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import VipTelegram from "@/components/telegram/VipTelegram";
 import VipPerformanceReport from "@/components/vip/VipPerformanceReport";
+import PublicVipPerformance from "@/components/vip/PublicVipPerformance";
 import { buildVipPerformanceReport, type ReportTrade } from "@/lib/vip/performance-report";
 import { containsReportDay, reportPeriodRange } from "@/lib/vip/performance-report-period";
 import { tradeDay } from "@/lib/performance";
@@ -281,6 +282,7 @@ function statusClass(
 
 export default function PerformancesVipPage() {
   const { t: tr, locale } = useLocale();
+  const [publicView, setPublicView] = useState(true);
   const [telegramTrades,setTelegramTrades]=useState<TelegramTrade[]>([]);
   const [telegramStatus,setTelegramStatus]=useState<'loading'|'ready'|'error'>('loading');
   const [canReport,setCanReport]=useState(false);
@@ -391,10 +393,10 @@ export default function PerformancesVipPage() {
       activeUserId.current = nextId;
       loadVersion.current++;
       setCanReport(false); setIsAdmin(false); setTrades([]); setTelegramTrades([]);
+      setPublicView(true);
       setTelegramStatus('loading'); setUserId(null);
       if (reload) clearTimeout(reload);
-      if (nextId) reload = setTimeout(() => { void loadPage(); }, 0);
-      else setLoading(false);
+      reload = setTimeout(() => { void loadPage(); }, 0);
     });
     return () => { loadVersion.current++; subscription.unsubscribe(); if (reload) clearTimeout(reload); };
 
@@ -426,9 +428,7 @@ export default function PerformancesVipPage() {
 
       if (version !== loadVersion.current) return;
       if (!user) {
-        window.location.href =
-          "/login";
-
+        setPublicView(true);
         return;
       }
 
@@ -447,6 +447,12 @@ export default function PerformancesVipPage() {
           return access.owner === true || (Array.isArray(access.permissions) && access.permissions.includes('users_write'));
         } catch { return false; }
       })();
+      const reportAccess = await adminAccess;
+      if (version !== loadVersion.current) return;
+      if (!reportAccess) {
+        setPublicView(true);
+        return;
+      }
       // Fetch every page so an export cannot silently omit older losses at 1,000 rows.
       const manualTrades = (async () => {
         const data: VipTrade[] = [];
@@ -463,7 +469,7 @@ export default function PerformancesVipPage() {
         }
         return { data: null, error: new Error('History limit reached') };
       })();
-      const [tradesResult, reportAccess] = await Promise.all([manualTrades, adminAccess]);
+      const tradesResult = await manualTrades;
       if (version !== loadVersion.current) return;
       setCanReport(reportAccess);
 
@@ -489,10 +495,12 @@ export default function PerformancesVipPage() {
         user.email?.toLowerCase() ===
           "louisiusenrick@gmail.com"
       );
+      setPublicView(false);
     } catch (
       error
     ) {
       if (version !== loadVersion.current) return;
+      setPublicView(true);
       setManualError(tr("Historique manuel indisponible : les totaux affichés peuvent être incomplets."));
       setCanReport(false);
       console.error(
@@ -1393,6 +1401,8 @@ export default function PerformancesVipPage() {
   /* =======================================================
      LOADING
   ======================================================= */
+
+  if (publicView) return <PublicVipPerformance />;
 
   if (loading) {
     return (
