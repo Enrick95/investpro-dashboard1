@@ -1,7 +1,7 @@
 "use client";
 
 import { useLocale } from "@/components/i18n/LocaleProvider";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   Activity,
@@ -30,6 +30,8 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { SthStatus } from "@/lib/sth/client";
+import CopierConnectionNetwork from "@/components/copier/CopierConnectionNetwork";
+import { connectionStateLabel, type ConnectionState } from "@/lib/copier/connection-network";
 
 type Receiver = {
   id: string;
@@ -446,7 +448,7 @@ export default function CopieurPage() {
   const [error, setError] = useState(false);
   const [message, setMessage] = useState("Chargement d’InvestPro Copier…");
   const [checked, setChecked] = useState("");
-  const [maxLots, setMaxLots] = useState(0.1);
+  const [, setMaxLots] = useState(0.1);
 
   const [receivers, setReceivers] = useState<Receiver[]>([]);
   const [accounts, setAccounts] = useState<LooseAccount[]>([]);
@@ -456,6 +458,33 @@ export default function CopieurPage() {
   const [selectedReceiverId, setSelectedReceiverId] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<SthStatus | null>(null);
   const [selectedMasters, setSelectedMasters] = useState<SelectedMaster>({});
+  const [connectionStates, setConnectionStates] = useState<Record<string, ConnectionState>>({});
+  const [connectionNow, setConnectionNow] = useState(0);
+  const [networkChecking, setNetworkChecking] = useState(false);
+  const selectedReceiverRef = useRef<string | null>(null);
+  const connectionStatesRef = useRef<Record<string, ConnectionState>>({});
+  const connectionRequests = useRef(new Map<string, Promise<SthStatus | undefined>>());
+  const connectionVersions = useRef<Record<string, number>>({});
+  const networkCheckingRef = useRef(false);
+  const networkReceiverIdsRef = useRef<string[]>([]);
+
+  const setActiveReceiver = useCallback((id: string | null) => {
+    selectedReceiverRef.current = id;
+    setSelectedReceiverId(id);
+  }, []);
+
+  const updateConnectionState = useCallback((id: string, patch: Partial<ConnectionState>) => {
+    const next = { ...connectionStatesRef.current, [id]: { ...connectionStatesRef.current[id], ...patch } };
+    connectionStatesRef.current = next;
+    setConnectionStates(next);
+  }, []);
+
+  const confirmConnection = useCallback((id: string, status: SthStatus) => {
+    connectionVersions.current[id] = (connectionVersions.current[id] || 0) + 1;
+    const now = Date.now();
+    updateConnectionState(id, { snapshot: { status, checkedAt: now }, checking: false, error: false });
+    setConnectionNow(now);
+  }, [updateConnectionState]);
 
   const [addOpen, setAddOpen] = useState(false);
   const [alias, setAlias] = useState("");
@@ -529,9 +558,6 @@ export default function CopieurPage() {
     return visible;
   }, [activationRequests]);
   const approvedMaster = latestMasterRequests.find((r) => r.status === "activated" && Boolean(r.provider_master_id) && !["pending", "processing", "completed"].includes(r.removal_status)) || null;
-  const approvedMasterReceiver = approvedMaster
-    ? receivers.find((receiver) => isExplicitReceiver(receiver, latestMasterRequests) && receiver.login === approvedMaster.login && receiver.platform === approvedMaster.platform && receiver.server === approvedMaster.server) || null
-    : null;
   const virtualReceivers = useMemo(() => {
     const rows: Array<Receiver & { legacy?: boolean }> = receivers.filter((receiver) => isExplicitReceiver(receiver, latestMasterRequests)).map((r) => ({ ...r }));
     if (legacyConnected) {
@@ -570,7 +596,9 @@ export default function CopieurPage() {
     if (!response.ok) return;
 
     const data = await response.json();
-    setActivationRequests((data.requests || []) as ActivationRequest[]);
+    const requests = (data.requests || []) as ActivationRequest[];
+    setActivationRequests(requests);
+    return requests;
   }
 
   async function requestMasterRemoval() {
@@ -724,31 +752,99 @@ export default function CopieurPage() {
       const configData = await configResponse.json();
       setConfigurationRequests((configData.requests || []) as CopierConfigRequest[]);
     }
+    return r1.error ? receivers : (r1.data || []) as Receiver[];
   }
 
-  function applyStatus(status: SthStatus) {
+  const applyStatus = useCallback((status: SthStatus, receiverId = selectedReceiverRef.current) => {
+    if (!receiverId) return;
+    confirmConnection(receiverId, status);
+    if (selectedReceiverRef.current !== receiverId) return;
     setSelectedStatus(status);
     setSelectedMasters(Object.fromEntries(status.masterAccountsList.map((m) => [m.id, { on: m.userIsSubscribed, lots: String(m.lots) }])));
     setMasterConsent(false);
     setChecked(new Date().toLocaleString(locale === "en" ? "en-US" : "fr-FR"));
-  }
+  }, [confirmConnection, locale]);
 
-  async function fetchStatus(receiverId = "legacy") {
-    const response = await fetch(`/api/sth?receiverId=${encodeURIComponent(receiverId)}`, { cache: "no-store" });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "Connexion indisponible.");
-    setEnabled(Boolean(data.enabled));
-    if (data.maxLots) setMaxLots(Number(data.maxLots));
-    if (data.status) applyStatus(data.status);
-    return data.status as SthStatus | undefined;
-  }
+  const readConnection = useCallback((receiverId: string): Promise<SthStatus | undefined> => {
+    const running = connectionRequests.current.get(receiverId);
+    if (running) return running;
+    const version = (connectionVersions.current[receiverId] || 0) + 1;
+    connectionVersions.current[receiverId] = version;
+    updateConnectionState(receiverId, { checking: true, error: false });
+    const request = (async () => {
+      try {
+        const response = await fetch(`/api/sth?receiverId=${encodeURIComponent(receiverId)}`, { cache: "no-store" });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Connexion indisponible.");
+        if (!data.status || typeof data.status.isTradingAccountConnected !== "boolean" || !Array.isArray(data.status.masterAccountsList)) throw new Error("Connexion indisponible.");
+        if (connectionVersions.current[receiverId] !== version) return undefined;
+        const status = data.status as SthStatus;
+        const now = Date.now();
+        updateConnectionState(receiverId, { snapshot: { status, checkedAt: now }, checking: false, error: false });
+        setConnectionNow(now);
+        if (selectedReceiverRef.current === receiverId) {
+          setEnabled(Boolean(data.enabled));
+          if (data.maxLots) setMaxLots(Number(data.maxLots));
+        }
+        return status;
+      } catch (cause) {
+        if (connectionVersions.current[receiverId] === version) updateConnectionState(receiverId, { checking: false, error: true });
+        throw cause;
+      } finally {
+        connectionRequests.current.delete(receiverId);
+      }
+    })();
+    connectionRequests.current.set(receiverId, request);
+    return request;
+  }, [updateConnectionState]);
+
+  const fetchStatus = useCallback(async (receiverId = "legacy") => {
+    const status = await readConnection(receiverId);
+    if (status) applyStatus(status, receiverId);
+    return status;
+  }, [readConnection, applyStatus]);
+
+  const verifyNetwork = useCallback(async (force = true) => {
+    if (networkCheckingRef.current) return;
+    const ids = [...networkReceiverIdsRef.current];
+    if (ids.length === 0) return;
+    networkCheckingRef.current = true;
+    setNetworkChecking(true);
+    try {
+      // Read each account once, sequentially, without resetting any unsaved risk settings.
+      for (const id of ids) {
+        if (!networkReceiverIdsRef.current.includes(id)) continue;
+        const state = connectionStatesRef.current[id];
+        if (!force && state?.snapshot && !state.error && Date.now() - state.snapshot.checkedAt < 45_000) continue;
+        await readConnection(id).catch(() => undefined);
+      }
+    } finally {
+      networkCheckingRef.current = false;
+      setNetworkChecking(false);
+      setConnectionNow(Date.now());
+    }
+  }, [readConnection]);
+
+  const networkReceiverKey = virtualReceivers.map((receiver) => receiver.id).join(",");
+  useEffect(() => {
+    networkReceiverIdsRef.current = networkReceiverKey ? networkReceiverKey.split(",") : [];
+    if (!engineChecked) return;
+    void verifyNetwork(false);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      setConnectionNow(Date.now());
+      void verifyNetwork(false);
+    }, 60_000);
+    return () => window.clearInterval(timer);
+  }, [networkReceiverKey, engineChecked, verifyNetwork]);
 
   async function refresh() {
+    let refreshReceiverId = selectedReceiverRef.current;
     setBusy(true);
     setError(false);
     setEngineChecked(false);
     try {
-      await Promise.all([loadRows(), loadActivationRequests()]);
+      const [loadedReceivers, loadedRequests] = await Promise.all([loadRows(), loadActivationRequests()]);
       const legacy = await fetch("/api/sth?receiverId=legacy", { cache: "no-store" });
       const legacyData = await legacy.json();
       if (legacy.ok) {
@@ -757,28 +853,29 @@ export default function CopieurPage() {
         if (legacyData.maxLots) setMaxLots(Number(legacyData.maxLots));
       }
 
-      let target = selectedReceiverId;
-      if (!target) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { data } = await supabase.from("copier_receivers").select("id").eq("user_id", user.id).order("created_at", { ascending: true }).limit(1).maybeSingle();
-          target = data?.id || (legacyData.status?.isTradingAccountConnected ? "legacy" : null);
-        }
-      }
+      const explicitReceivers = (loadedReceivers || []).filter((receiver) => isExplicitReceiver(receiver, loadedRequests || latestMasterRequests));
+      let target = selectedReceiverRef.current;
+      if (target !== "legacy" && !explicitReceivers.some((receiver) => receiver.id === target)) target = null;
+      if (!target) target = explicitReceivers[0]?.id || (legacyData.status?.isTradingAccountConnected ? "legacy" : null);
       if (target) {
-        setSelectedReceiverId(target);
+        refreshReceiverId = target;
+        setActiveReceiver(target);
+        setSelectedStatus(null);
         await fetchStatus(target);
       } else {
+        setActiveReceiver(null);
         setSelectedStatus(null);
         setSelectedMasters({});
       }
-      setMessage("InvestPro Copier actualisé.");
+      if (selectedReceiverRef.current === refreshReceiverId) setMessage("InvestPro Copier actualisé.");
     } catch (cause) {
-      setError(true);
-      setMessage(cause instanceof Error ? cause.message : "Connexion indisponible.");
+      if (selectedReceiverRef.current === refreshReceiverId) {
+        setError(true);
+        setMessage(cause instanceof Error ? cause.message : "Connexion indisponible.");
+      }
     } finally {
       setEngineChecked(true);
-      setBusy(false);
+      if (selectedReceiverRef.current === refreshReceiverId) setBusy(false);
     }
   }
 
@@ -806,26 +903,33 @@ export default function CopieurPage() {
 
   const selectReceiver = useCallback(async (id: string) => {
     if (selectedReceiverId === id) {
-      setSelectedReceiverId(null);
+      setActiveReceiver(null);
       setSelectedStatus(null);
       setSelectedMasters({});
       setMasterConsent(false);
       setRiskModalOpen(false);
+      setBusy(false);
       return;
     }
-    setSelectedReceiverId(id);
+    setActiveReceiver(id);
+    setSelectedStatus(null);
+    setSelectedMasters({});
+    setMasterConsent(false);
+    setRiskModalOpen(false);
     setBusy(true);
     setError(false);
     try {
       await fetchStatus(id);
-      setMessage("Compte receveur chargé.");
+      if (selectedReceiverRef.current === id) setMessage("Compte receveur chargé.");
     } catch (cause) {
-      setError(true);
-      setMessage(cause instanceof Error ? cause.message : "Impossible de charger ce compte.");
+      if (selectedReceiverRef.current === id) {
+        setError(true);
+        setMessage(cause instanceof Error ? cause.message : "Impossible de charger ce compte.");
+      }
     } finally {
-      setBusy(false);
+      if (selectedReceiverRef.current === id) setBusy(false);
     }
-  }, [selectedReceiverId]);
+  }, [selectedReceiverId, setActiveReceiver, fetchStatus]);
 
   async function post(payload: Record<string, unknown>) {
     const response = await fetch("/api/sth", {
@@ -975,8 +1079,10 @@ export default function CopieurPage() {
       setCustomServer("");
       await loadRows();
       if (data.receiverId) {
-        setSelectedReceiverId(data.receiverId);
-        if (data.status) applyStatus(data.status);
+        setActiveReceiver(data.receiverId);
+        setSelectedStatus(null);
+        if (data.status) applyStatus(data.status, data.receiverId);
+        else await fetchStatus(data.receiverId);
       }
       if (!syncConsent) {
         syncNotice = "Connexion Copier active. Pour afficher aussi ce compte dans Mes comptes avec son solde, reconnecte ce même compte en cochant l’autorisation MetaSync.";
@@ -995,12 +1101,6 @@ export default function CopieurPage() {
 
   function toggleMaster(id: string) {
     setSelectedMasters((cur) => ({ ...cur, [id]: { ...(cur[id] || { lots: "0.01" }), on: !cur[id]?.on } }));
-    setMasterConsent(false);
-    setMasterSaveState("idle");
-  }
-
-  function changeLots(id: string, lots: string) {
-    setSelectedMasters((cur) => ({ ...cur, [id]: { ...(cur[id] || { on: false }), lots } }));
     setMasterConsent(false);
     setMasterSaveState("idle");
   }
@@ -1075,7 +1175,7 @@ export default function CopieurPage() {
     try {
       const masters = (Object.entries(selectedMasters) as Array<[string, { on: boolean; lots: string }]>).filter(([, v]) => v.on).map(([id, v]) => ({ id, lots: Number(v.lots) }));
       const data = await post({ action: "masters", receiverId: selectedReceiverId, consent: masterConsent, masters });
-      if (data.status) applyStatus(data.status);
+      if (data.status) applyStatus(data.status, selectedReceiverId);
       setMasterSaveState("saved");
       setMessage("Configuration confirmée par le moteur de copie.");
     } catch (cause) {
@@ -1102,8 +1202,8 @@ export default function CopieurPage() {
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "Impossible de supprimer le receveur.");
       setReceivers((list) => list.filter((r) => r.id !== id));
-      if (selectedReceiverId === id) {
-        setSelectedReceiverId(null);
+      if (selectedReceiverRef.current === id) {
+        setActiveReceiver(null);
         setSelectedStatus(null);
         setSelectedMasters({});
       }
@@ -1124,7 +1224,7 @@ export default function CopieurPage() {
     setError(false);
     try {
       const data = await post({ action: "disconnect", receiverId: selectedReceiverId, consent: disconnectConsent });
-      if (data.status) applyStatus(data.status);
+      if (data.status) applyStatus(data.status, selectedReceiverId);
       setDisconnectConsent(false);
       await loadRows();
       setMessage("Compte receveur déconnecté.");
@@ -1137,6 +1237,9 @@ export default function CopieurPage() {
   }
 
   const activeMasters = selectedStatus?.masterAccountsList.filter((m) => selectedMasters[m.id]?.on) || [];
+  const confirmedMasters = (selectedReceiverId ? connectionStates[selectedReceiverId]?.snapshot?.status.masterAccountsList : [])?.filter((master) => master.userIsSubscribed) || [];
+  const selectedConnection = connectionStateLabel(selectedReceiverId ? connectionStates[selectedReceiverId] : undefined, connectionNow);
+  const confirmedCopyLink = selectedConnection.kind === "connected" && confirmedMasters.length > 0;
   const totalLots = activeMasters.reduce((sum, m) => sum + Number(selectedMasters[m.id]?.lots || 0), 0);
   const selectedReceiver = virtualReceivers.find((r) => r.id === selectedReceiverId) || null;
   const savedRiskEngine = (selectedReceiver?.config?.risk_engine || {}) as Partial<RiskSettings>;
@@ -1223,8 +1326,8 @@ export default function CopieurPage() {
     ? statsFor(selectedReceiver)
     : { balance: null, equity: null, pnl: null, open: null, currency: "USD" };
 
-  const connectedCount = virtualReceivers.filter((receiver) => receiver.status === "connected").length;
-  const errorCount = virtualReceivers.filter((receiver) => receiver.status === "error").length;
+  const connectedCount = virtualReceivers.filter((receiver) => connectionStateLabel(connectionStates[receiver.id], connectionNow).kind === "connected").length;
+  const errorCount = virtualReceivers.filter((receiver) => ["error", "disconnected", "stale"].includes(connectionStateLabel(connectionStates[receiver.id], connectionNow).kind)).length;
   const totalOpenPositions = virtualReceivers.reduce((sum, receiver) => {
     if (receiver.id === "legacy") return sum;
     const s = statsFor(receiver);
@@ -1250,7 +1353,7 @@ export default function CopieurPage() {
       if (riskSettings.mode === "fixed") {
         const data = await post({ action: "masters", receiverId: selectedReceiverId, consent: true, masters });
         if (data.ok === false) throw new Error(data.error || "La liaison Master n’a pas été confirmée.");
-        if (data.status) applyStatus(data.status);
+        if (data.status) applyStatus(data.status, selectedReceiverId);
       }
       if (selectedReceiverId !== "legacy") {
         const response = await fetch("/api/copier/settings", {
@@ -1298,6 +1401,29 @@ export default function CopieurPage() {
     });
   }
 
+  function masterSelectionLabel(id: string, on: boolean) {
+    const saved = confirmedMasters.some((master) => master.id === id);
+    return on !== saved ? "Modification à enregistrer" : saved ? "Liaison enregistrée" : "Non relié";
+  }
+
+  const connectionNetwork = <CopierConnectionNetwork
+    receivers={virtualReceivers}
+    masters={latestMasterRequests.filter((request) => request.status === "activated" && Boolean(request.provider_master_id) && request.removal_status !== "completed").map((request) => ({ id: request.provider_master_id, name: request.alias, login: request.login, platform: request.platform, server: request.server, approved: true }))}
+    states={Object.fromEntries(virtualReceivers.map((receiver) => [receiver.id, connectionStates[receiver.id] || {}]))}
+    selectedReceiverId={selectedReceiverId}
+    now={connectionNow}
+    checkingAll={networkChecking}
+    onVerify={() => void verifyNetwork()}
+    onSelectReceiver={async (id) => {
+      if (selectedReceiverRef.current !== id) await selectReceiver(id);
+      if (selectedReceiverRef.current !== id) return;
+      const target = window.matchMedia("(min-width: 768px)").matches ? "copier-masters" : "copier-mobile-settings";
+      document.getElementById(target)?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+    }}
+    translate={translate}
+    locale={locale}
+  />;
+
   return (
     <>
       <main className="mx-auto max-w-[1600px] space-y-5 pb-32">
@@ -1309,6 +1435,8 @@ export default function CopieurPage() {
             {error ? <div role="alert" className="mt-3 rounded-xl border border-red-500/20 bg-red-500/[0.055] px-3 py-2 text-[10px] leading-5 text-red-300">{localizeCopierMessage(message, translate)}</div> : null}
             {requestSuccess ? <div role="status" className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-2 text-[10px] leading-5 text-emerald-300">{translate(requestSuccess)}</div> : null}
           </section>
+        {connectionNetwork}
+
 
           <section className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4">
             <div className="inline-flex rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1.5 text-[9px] font-semibold text-[color:var(--gold)]">{translate("Parcours mobile simplifié")}</div><h2 className="mt-3 text-xl font-semibold text-white">{translate("Configuration guidée")}</h2><p className="mt-1 text-[11px] leading-5 text-white/45">{translate("Vérifie ton Master, choisis le receveur, puis règle le risque.")}</p>
@@ -1317,20 +1445,20 @@ export default function CopieurPage() {
 
           <section className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4">
             <div className="flex items-start justify-between gap-3"><div><div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[color:var(--gold)]">{translate("1. Compte Master")}</div><p className="mt-1 text-[10px] text-white/40">{translate("Compte source à copier.")}</p></div><State active={Boolean(approvedMaster)} label={approvedMaster ? translate("Approuvé") : translate("À valider")} /></div>
-            {approvedMaster ? <div className="mt-3 rounded-[17px] border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-3"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><div className="break-words text-base font-semibold leading-tight text-white">{approvedMaster.alias}</div><div className="mt-1 text-[9px] leading-4 text-white/45">#{approvedMaster.login} · {approvedMaster.platform} · {approvedMaster.server}</div></div>{approvedMasterReceiver ? <ReceiverStatusBadge status={approvedMasterReceiver.status} /> : <span className="shrink-0 rounded-full border border-white/[0.08] px-2 py-1 text-[7px] font-semibold text-white/40">{translate("État inconnu")}</span>}</div><div className="mt-3 grid grid-cols-3 gap-2">{[["Solde", masterBalance == null ? "—" : money(masterBalance, masterCurrency)], ["Equity", masterEquity == null ? "—" : money(masterEquity, masterCurrency)], ["P&L jour", masterPnl == null ? "—" : money(masterPnl, masterCurrency)]].map(([label, value]) => <div key={label} className="min-w-0 rounded-lg border border-white/[0.06] bg-black/20 p-2"><div className="text-[7px] uppercase tracking-wide text-white/35">{translate(label)}</div><div className="mt-1 break-words text-[9px] font-semibold leading-snug text-white">{value}</div></div>)}</div><div className="mt-3 flex items-center gap-2 border-t border-white/[0.07] pt-2 text-[9px] text-white/50"><span className={cn("h-1.5 w-1.5 rounded-full", approvedMasterReceiver?.status === "connected" ? "bg-emerald-400" : approvedMasterReceiver?.status === "error" ? "bg-red-400" : "bg-amber-400")} />{approvedMasterReceiver?.status === "connected" ? translate("Master connecté") : approvedMasterReceiver?.status === "paused" ? translate("Connexion en pause") : approvedMasterReceiver?.status === "error" ? translate("Connexion à vérifier") : translate("Connexion Master à confirmer")}</div></div> : <div className="mt-3 rounded-xl border border-white/[0.07] bg-black/15 p-3"><p className="text-[10px] leading-5 text-white/50">{translate("Ajoute ton compte source. Il apparaîtra ici après validation par l’équipe InvestPro.")}</p><button type="button" onClick={() => setRequestOpen(true)} className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 text-[10px] font-semibold text-[color:var(--gold)]"><Plus size={14} /> {" "}{translate("Ajouter un compte Master")}</button></div>}
+            {approvedMaster ? <div className="mt-3 rounded-[17px] border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-3"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><div className="break-words text-base font-semibold leading-tight text-white">{approvedMaster.alias}</div><div className="mt-1 text-[9px] leading-4 text-white/45">#{approvedMaster.login} · {approvedMaster.platform} · {approvedMaster.server}</div></div></div><div className="mt-3 grid grid-cols-3 gap-2">{[["Solde", masterBalance == null ? "—" : money(masterBalance, masterCurrency)], ["Equity", masterEquity == null ? "—" : money(masterEquity, masterCurrency)], ["P&L jour", masterPnl == null ? "—" : money(masterPnl, masterCurrency)]].map(([label, value]) => <div key={label} className="min-w-0 rounded-lg border border-white/[0.06] bg-black/20 p-2"><div className="text-[7px] uppercase tracking-wide text-white/35">{translate(label)}</div><div className="mt-1 break-words text-[9px] font-semibold leading-snug text-white">{value}</div></div>)}</div><div className="mt-3 flex items-center gap-2 border-t border-white/[0.07] pt-2 text-[9px] text-white/50"><ShieldCheck size={12} className="text-[color:var(--gold)]" />{translate("Master validé par l’équipe")}</div></div> : <div className="mt-3 rounded-xl border border-white/[0.07] bg-black/15 p-3"><p className="text-[10px] leading-5 text-white/50">{translate("Ajoute ton compte source. Il apparaîtra ici après validation par l’équipe InvestPro.")}</p><button type="button" onClick={() => setRequestOpen(true)} className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 text-[10px] font-semibold text-[color:var(--gold)]"><Plus size={14} /> {" "}{translate("Ajouter un compte Master")}</button></div>}
           </section>
 
           <section className="scroll-mt-4 rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4">
             <div className="flex items-start justify-between gap-3"><div><div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[color:var(--gold)]">{translate("2. Compte receveur")}</div><p className="mt-1 text-[10px] leading-5 text-white/40">{translate("Le compte qui recevra les trades copiés.")}</p></div><span className="shrink-0 rounded-full border border-white/[0.08] px-2.5 py-1 text-[8px] font-semibold text-white/45">{selectedReceiver ? translate("Sélectionné") : translate("À choisir")}</span></div>
-            {selectedReceiver ? <div className="mt-3 rounded-[17px] border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-3"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><div className="break-words text-base font-semibold text-white">{selectedReceiver.alias}</div><div className="mt-1 text-[9px] text-white/45">#{selectedReceiver.login} · {selectedReceiver.platform}</div></div><ReceiverStatusBadge status={selectedReceiver.status} /></div><div className="mt-2 flex items-center justify-between gap-2 text-[9px] text-white/45"><span className="truncate">{selectedReceiver.server}</span><span>{selectedStats.balance == null ? translate("Solde —") : money(selectedStats.balance, selectedStats.currency)}</span></div></div> : <div className="mt-3 rounded-xl border border-dashed border-white/[0.12] bg-black/15 p-3 text-[10px] text-white/45">{translate("Aucun receveur sélectionné.")}</div>}
-            {virtualReceivers.length > 0 ? <div className="mt-3 space-y-2"><div className="text-[9px] font-semibold text-white/50">{virtualReceivers.length === 1 ? translate("Compte receveur relié") : translate("Choisir un compte receveur")}</div>{virtualReceivers.map((receiver) => { const active = receiver.id === selectedReceiverId; return <button type="button" key={receiver.id} aria-pressed={active} onClick={() => { if (!active) void selectReceiver(receiver.id); }} className={cn("flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border px-3 text-left transition", active ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]" : "border-white/[0.07] bg-black/15")}><span className="min-w-0"><span className="block truncate text-[10px] font-semibold text-white/85">{receiver.alias}{active ? translate(" · sélectionné") : ""}</span><span className="mt-0.5 block truncate text-[8px] text-white/45">#{receiver.login} · {receiver.platform} · {receiver.server}</span></span><ReceiverStatusBadge status={receiver.status} /></button>; })}</div> : null}
+            {selectedReceiver ? <div className="mt-3 rounded-[17px] border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-3"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><div className="break-words text-base font-semibold text-white">{selectedReceiver.alias}</div><div className="mt-1 text-[9px] text-white/45">#{selectedReceiver.login} · {selectedReceiver.platform}</div></div><ReceiverStatusBadge state={connectionStates[selectedReceiver.id]} now={connectionNow} /></div><div className="mt-2 flex items-center justify-between gap-2 text-[9px] text-white/45"><span className="truncate">{selectedReceiver.server}</span><span>{selectedStats.balance == null ? translate("Solde —") : money(selectedStats.balance, selectedStats.currency)}</span></div></div> : <div className="mt-3 rounded-xl border border-dashed border-white/[0.12] bg-black/15 p-3 text-[10px] text-white/45">{translate("Aucun receveur sélectionné.")}</div>}
+            {virtualReceivers.length > 0 ? <div className="mt-3 space-y-2"><div className="text-[9px] font-semibold text-white/50">{virtualReceivers.length === 1 ? translate("Compte receveur relié") : translate("Choisir un compte receveur")}</div>{virtualReceivers.map((receiver) => { const active = receiver.id === selectedReceiverId; return <button type="button" key={receiver.id} aria-pressed={active} onClick={() => { if (!active) void selectReceiver(receiver.id); }} className={cn("flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border px-3 text-left transition", active ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]" : "border-white/[0.07] bg-black/15")}><span className="min-w-0"><span className="block truncate text-[10px] font-semibold text-white/85">{receiver.alias}{active ? translate(" · sélectionné") : ""}</span><span className="mt-0.5 block truncate text-[8px] text-white/45">#{receiver.login} · {receiver.platform} · {receiver.server}</span></span><ReceiverStatusBadge state={connectionStates[receiver.id]} now={connectionNow} /></button>; })}</div> : null}
             <div className="mt-3 flex gap-2"><button type="button" onClick={openAddReceiver} className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[color:var(--gold)] px-3 text-[10px] font-semibold text-black"><Plus size={14} /> {" "}{translate("Ajouter un compte receveur")}</button>{selectedReceiver && selectedReceiver.id !== "legacy" ? <button type="button" aria-label={translate("Retirer ce receveur")} onClick={() => { setRemoveReceiverId(selectedReceiver.id); setDisconnectConsent(false); setRemoveError(""); }} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-red-500/20 text-red-300"><Unplug size={15} /></button> : null}</div>
           </section>
 
-          {selectedReceiver ? <section className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4">
+          {selectedReceiver ? <section id="copier-mobile-settings" className="scroll-mt-24 rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4">
             <div className="flex items-start justify-between gap-3"><div><div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[color:var(--gold)]">{translate("3. Configurer le risque")}</div><p className="mt-1 text-[10px] leading-5 text-white/40">{translate("Les lots fixes s’activent à l’enregistrement. Les autres méthodes nécessitent une validation InvestPro.")}</p></div><span className={cn("shrink-0 rounded-full border px-2.5 py-1 text-[8px] font-semibold", riskSaveState === "saved" ? "border-emerald-500/20 bg-emerald-500/[0.05] text-emerald-300" : riskSaveState === "pending" ? "border-amber-500/20 bg-amber-500/[0.05] text-amber-200" : "border-white/[0.08] text-white/40")}>{riskSaveState === "saved" ? translate("Enregistré") : riskSaveState === "pending" ? translate("En attente") : translate("À faire")}</span></div>
             <div className="mt-3 flex items-center justify-between gap-3 rounded-[17px] border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-3"><div className="min-w-0"><div className="text-[13px] font-semibold text-white">{translate(riskModeLabel(riskSettings.mode))}</div><div className="mt-1 text-[9px] leading-4 text-white/45">{riskSettings.mode === "fixed" ? translate("Activation directe après enregistrement") : translate("Demande de validation nécessaire avant activation")}</div></div>{riskSettings.mode === "fixed" ? <div className="shrink-0 rounded-xl border border-white/[0.08] bg-black/20 px-3 py-2 text-right"><div className="text-[11px] font-bold text-white">{masterQuickValue} {" "}{translate("lots")}</div></div> : <span className="shrink-0 rounded-xl border border-white/[0.08] bg-black/20 px-3 py-2 text-[10px] font-semibold text-white">{translate("×")}{riskSettings.mirror_multiplier}</span>}</div>
-            {selectedStatus?.masterAccountsList.length ? <div className="mt-3"><div className="mb-2 text-[9px] font-semibold text-white/55">{translate("Sources disponibles")}</div><div className="space-y-2">{selectedStatus.masterAccountsList.map((master, index) => { const current = selectedMasters[master.id] || { on: false, lots: masterQuickValue || "0.01" }; return <div key={master.id} className={cn("flex items-center gap-2 rounded-xl border p-2.5", current.on ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]/60" : "border-white/[0.07] bg-black/15")}><button type="button" aria-label={("" + (current.on ? translate("Désactiver") : translate("Activer")) + " " + (master.name) + "")} onClick={() => toggleMaster(master.id)} className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border", current.on ? "border-[color:var(--gold-border)] bg-[color:var(--gold)] text-black" : "border-white/10 text-white/45")}>{current.on ? <Check size={14} /> : null}</button><div className="min-w-0 flex-1"><div className="truncate text-[10px] font-semibold text-white">{master.name}</div><div className="mt-0.5 text-[8px] text-white/40">{translate("Master")}{" "}{String(index + 1).padStart(2, "0")} · {current.on ? translate("Sélectionné") : translate("Non sélectionné")}</div></div>{riskSettings.mode === "fixed" ? <div className="w-[84px]"><input aria-label={(translate("Lots pour ") + (master.name) + "")} type="number" min="0.001" max={maxLots} step="any" value={current.lots} disabled={!current.on} onChange={(e) => changeLots(master.id, e.target.value)} className="ip-field disabled:opacity-35" /></div> : null}</div>; })}</div></div> : <div className="mt-3 rounded-xl border border-white/[0.07] bg-black/15 p-3 text-[9px] leading-4 text-white/45">{error ? translate("Les sources ne sont pas disponibles pour le moment.") : translate("Les sources apparaîtront après la vérification du compte.")}</div>}
+            {selectedStatus?.masterAccountsList.length ? <div className="mt-3"><div className="mb-2 text-[9px] font-semibold text-white/55">{translate("Sources disponibles")}</div><div className="space-y-2">{selectedStatus.masterAccountsList.map((master, index) => { const current = selectedMasters[master.id] || { on: false, lots: masterQuickValue || "0.01" }; return <div key={master.id} className={cn("flex items-center gap-2 rounded-xl border p-2.5", current.on ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]/60" : "border-white/[0.07] bg-black/15")}><button type="button" aria-label={("" + (current.on ? translate("Désactiver") : translate("Activer")) + " " + (master.name) + "")} onClick={() => toggleMaster(master.id)} className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border", current.on ? "border-[color:var(--gold-border)] bg-[color:var(--gold)] text-black" : "border-white/10 text-white/45")}>{current.on ? <Check size={14} /> : null}</button><div className="min-w-0 flex-1"><div className="truncate text-[10px] font-semibold text-white">{master.name}</div><div className="mt-0.5 text-[8px] text-white/40">{translate("Master")}{" "}{String(index + 1).padStart(2, "0")} · {current.on ? translate("Sélectionné") : translate("Non sélectionné")}</div></div></div>; })}</div></div> : <div className="mt-3 rounded-xl border border-white/[0.07] bg-black/15 p-3 text-[9px] leading-4 text-white/45">{error ? translate("Les sources ne sont pas disponibles pour le moment.") : translate("Les sources apparaîtront après la vérification du compte.")}</div>}
             <label className="mt-3 flex items-start gap-2 rounded-xl border border-white/[0.07] bg-black/15 p-3 text-[9px] leading-4 text-white/55"><input type="checkbox" checked={masterConsent} onChange={(e) => { setMasterConsent(e.target.checked); setSaveBarState("idle"); setSaveBarMessage("Configuration non enregistrée"); }} className="mt-0.5 h-4 w-4 shrink-0 accent-[#d4a934]" />{translate("Je confirme le compte Master sélectionné ainsi que la configuration choisie.")}</label>
             <button type="button" disabled={!selectedReceiver || activeMasters.length === 0 || !masterConsent || !selectedStatus || error} onClick={() => setRiskModalOpen(true)} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[color:var(--gold)] px-3 text-[10px] font-semibold text-black disabled:opacity-40"><Settings2 size={14} /> {" "}{translate("Continuer : choisir les réglages")}</button><p className="mt-2 text-center text-[9px] text-white/35">{translate(saveBarMessage)}</p>
           </section> : <section className="rounded-[22px] border border-white/[0.07] bg-[color:var(--panel)] p-4"><div className="text-[10px] font-semibold text-white/75">{translate("3. Configurer le risque")}</div><p className="mt-1 text-[9px] text-white/40">{translate("Sélectionne d’abord un compte receveur.")}</p></section>}
@@ -1379,10 +1507,12 @@ export default function CopieurPage() {
               <HeroStatCard icon={<Layers3 size={17} />} label={translate("Comptes receveurs")} value={String(virtualReceivers.length)} sub={translate("{count} en pause").replace("{count}", String(virtualReceivers.length - connectedCount - errorCount))} />
               <HeroStatCard icon={<Link2 size={17} />} label={translate("Connectés")} value={String(connectedCount)} sub={errorCount > 0 ? ("" + (errorCount) + translate(" à vérifier")) : translate("État des connexions")} accent={errorCount > 0 ? translate(errorCount > 1 ? "{count} alertes" : "{count} alerte").replace("{count}", String(errorCount)) : undefined} accentPositive={false} />
               <HeroStatCard icon={<Activity size={17} />} label={translate("Positions ouvertes")} value={String(totalOpenPositions)} sub={translate("Tous les receveurs")} />
-              <HeroStatCard icon={<ShieldCheck size={17} />} label={translate("Masters actifs")} value={String(activeMasters.length)} sub={selectedReceiver ? translate("Pour {name}").replace("{name}", selectedReceiver.alias) : translate("Sélectionne un receveur")} />
+              <HeroStatCard icon={<ShieldCheck size={17} />} label={translate("Masters actifs")} value={String(confirmedMasters.length)} sub={selectedReceiver ? translate("Pour {name}").replace("{name}", selectedReceiver.alias) : translate("Sélectionne un receveur")} />
             </div>
           </div>
         </section>
+        {connectionNetwork}
+
 
         {latestMasterRequests.length > 0 ? (
           <section className="rounded-[22px] border border-white/[0.07] bg-[color:var(--panel)] p-4 md:p-5">
@@ -1470,7 +1600,7 @@ export default function CopieurPage() {
                     !connection.last_sync && row.equity == null;
                 });
                 const selected = selectedReceiverId === receiver.id;
-                return <div key={receiver.id} className={cn("grid grid-cols-1 gap-3 border-b border-white/[0.05] px-4 py-4 last:border-0 xl:grid-cols-[56px_1.7fr_.7fr_.8fr_.9fr_.9fr_.8fr_.75fr_.9fr] xl:items-center", selected ? "bg-[color:var(--gold-soft)]" : "bg-black/10 hover:bg-white/[0.02]") }><div className="flex items-center"><button onClick={() => void selectReceiver(receiver.id)} className={cn("flex h-6 w-6 items-center justify-center rounded-md border text-[10px]", selected ? "border-[color:var(--gold-border)] bg-[color:var(--gold)] text-black" : "border-white/10 text-white/50")}>{selected ? <Check size={13} /> : null}</button></div><button onClick={() => void selectReceiver(receiver.id)} className="text-left"><div className="text-sm font-semibold text-white">{receiver.alias}</div><div className="mt-1 text-[10px] text-white/35">#{receiver.login}{s.lastSync ? ` · MetaSync ${new Date(s.lastSync).toLocaleTimeString(locale === "en" ? "en-US" : "fr-FR", { hour: "2-digit", minute: "2-digit" })}` : ""}</div>{hostedSyncError ? <div className="mt-1 text-[9px] leading-4 text-red-300">{translate("MetaSync en échec · aucun solde confirmé. Vérifie les identifiants et le serveur puis relance l’ajout.")}</div> : null}</button><div className="text-[11px] font-semibold text-[color:var(--gold)]">{receiver.platform}</div><div><ReceiverStatusBadge status={receiver.status} /></div><div className="text-[11px] text-white/70">{money(s.balance, s.currency)}</div><div className="text-[11px] text-white/70">{money(s.equity, s.currency)}</div><div className={cn("text-[11px] font-medium", Number(s.pnl) > 0 ? "text-emerald-400" : Number(s.pnl) < 0 ? "text-red-400" : "text-white/60")}>{s.pnl == null ? "—" : money(s.pnl, s.currency)}</div><div className="text-[11px] text-white/70">{s.open == null ? "—" : String(s.open)}</div><div className="flex items-center gap-2"><button onClick={() => { setShowStats(true); void selectReceiver(receiver.id); }} aria-label={(translate("Statistiques de ") + (receiver.alias) + "")} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 text-white/60 hover:text-white xl:h-8 xl:w-8 xl:rounded-lg"><Activity size={14} /></button><button onClick={() => void selectReceiver(receiver.id)} aria-label={(translate("Configurer ") + (receiver.alias) + "")} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 text-white/60 hover:text-white xl:h-8 xl:w-8 xl:rounded-lg"><Settings2 size={14} /></button>{receiver.id !== "legacy" ? <button onClick={() => { setRemoveReceiverId(receiver.id); setDisconnectConsent(false); setRemoveError(""); }} aria-label={(translate("Retirer ") + (receiver.alias) + "")} className="flex h-11 w-11 items-center justify-center rounded-xl border border-red-500/20 text-red-400 hover:bg-red-500/10 xl:h-8 xl:w-8 xl:rounded-lg"><Unplug size={14} /></button> : null}</div></div>;
+                return <div key={receiver.id} className={cn("grid grid-cols-1 gap-3 border-b border-white/[0.05] px-4 py-4 last:border-0 xl:grid-cols-[56px_1.7fr_.7fr_.8fr_.9fr_.9fr_.8fr_.75fr_.9fr] xl:items-center", selected ? "bg-[color:var(--gold-soft)]" : "bg-black/10 hover:bg-white/[0.02]") }><div className="flex items-center"><button onClick={() => void selectReceiver(receiver.id)} className={cn("flex h-6 w-6 items-center justify-center rounded-md border text-[10px]", selected ? "border-[color:var(--gold-border)] bg-[color:var(--gold)] text-black" : "border-white/10 text-white/50")}>{selected ? <Check size={13} /> : null}</button></div><button onClick={() => void selectReceiver(receiver.id)} className="text-left"><div className="text-sm font-semibold text-white">{receiver.alias}</div><div className="mt-1 text-[10px] text-white/35">#{receiver.login}{s.lastSync ? ` · MetaSync ${new Date(s.lastSync).toLocaleTimeString(locale === "en" ? "en-US" : "fr-FR", { hour: "2-digit", minute: "2-digit" })}` : ""}</div>{hostedSyncError ? <div className="mt-1 text-[9px] leading-4 text-red-300">{translate("MetaSync en échec · aucun solde confirmé. Vérifie les identifiants et le serveur puis relance l’ajout.")}</div> : null}</button><div className="text-[11px] font-semibold text-[color:var(--gold)]">{receiver.platform}</div><div><ReceiverStatusBadge state={connectionStates[receiver.id]} now={connectionNow} /></div><div className="text-[11px] text-white/70">{money(s.balance, s.currency)}</div><div className="text-[11px] text-white/70">{money(s.equity, s.currency)}</div><div className={cn("text-[11px] font-medium", Number(s.pnl) > 0 ? "text-emerald-400" : Number(s.pnl) < 0 ? "text-red-400" : "text-white/60")}>{s.pnl == null ? "—" : money(s.pnl, s.currency)}</div><div className="text-[11px] text-white/70">{s.open == null ? "—" : String(s.open)}</div><div className="flex items-center gap-2"><button onClick={() => { setShowStats(true); void selectReceiver(receiver.id); }} aria-label={(translate("Statistiques de ") + (receiver.alias) + "")} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 text-white/60 hover:text-white xl:h-8 xl:w-8 xl:rounded-lg"><Activity size={14} /></button><button onClick={() => void selectReceiver(receiver.id)} aria-label={(translate("Configurer ") + (receiver.alias) + "")} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 text-white/60 hover:text-white xl:h-8 xl:w-8 xl:rounded-lg"><Settings2 size={14} /></button>{receiver.id !== "legacy" ? <button onClick={() => { setRemoveReceiverId(receiver.id); setDisconnectConsent(false); setRemoveError(""); }} aria-label={(translate("Retirer ") + (receiver.alias) + "")} className="flex h-11 w-11 items-center justify-center rounded-xl border border-red-500/20 text-red-400 hover:bg-red-500/10 xl:h-8 xl:w-8 xl:rounded-lg"><Unplug size={14} /></button> : null}</div></div>;
               })}
             </div>
             {virtualReceivers.some((receiver) => receiver.id !== "legacy" && (() => { const stats = statsFor(receiver); return stats.balance == null || stats.equity == null; })()) ? <div className="mt-3 flex flex-col gap-2 rounded-xl border border-amber-500/15 bg-amber-500/[0.04] p-3 text-[10px] leading-5 text-white/55 sm:flex-row sm:items-center sm:justify-between"><span>{translate("Les comptes receveurs reprennent automatiquement les soldes disponibles dans MetaSync. Si un chiffre manque, relie ce même compte dans Mes comptes.")}</span><a href="/dashboard/comptes" className="inline-flex min-h-9 shrink-0 items-center rounded-lg border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 font-semibold text-[color:var(--gold)]">{translate("Ouvrir Mes comptes")}</a></div> : null}
@@ -1481,28 +1611,28 @@ export default function CopieurPage() {
           <section className="rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4 md:p-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <div id="copier-masters" className="scroll-mt-24 text-lg font-semibold text-white">{translate("Réseau de copie")}</div>
-                <div className="mt-1 text-[11px] text-white/40">{translate("Vérifie le compte source, le receveur et leur état de liaison.")}</div>
+                <div id="copier-masters" className="scroll-mt-24 text-lg font-semibold text-white">{translate("Configuration du receveur")}</div>
+                <div className="mt-1 text-[11px] text-white/40">{translate("Choisis le Master à copier, puis passe aux réglages.")}</div>
               </div>
               {selectedReceiver.id !== "legacy" ? <button type="button" onClick={() => { setRemoveReceiverId(selectedReceiver.id); setDisconnectConsent(false); setRemoveError(""); }} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-red-500/20 bg-red-500/[0.04] px-4 text-[11px] font-semibold text-red-300"><Unplug size={13} /> {" "}{translate("Retirer ce receveur")}</button> : null}
             </div>
 
             <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-stretch">
               <div className="rounded-[18px] border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2"><div className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gold)]">{translate("Compte Master · source")}</div><div className="flex items-center gap-2"><State active={Boolean(approvedMaster)} label={approvedMaster ? translate("Validé") : translate("À configurer")} />{approvedMasterReceiver ? <ReceiverStatusBadge status={approvedMasterReceiver.status} /> : approvedMaster ? <span className="rounded-full border border-white/[0.08] px-2.5 py-1 text-[8px] font-semibold text-white/45">{translate("État inconnu")}</span> : null}</div></div>
+                <div className="flex flex-wrap items-center justify-between gap-2"><div className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gold)]">{translate("Compte Master · source")}</div><div className="flex items-center gap-2"><State active={Boolean(approvedMaster)} label={approvedMaster ? translate("Validé") : translate("À configurer")} /></div></div>
                 <div className="mt-3 text-lg font-semibold text-white">{approvedMaster?.alias || translate("Aucun Master validé")}</div>
                 <div className="mt-1 text-[10px] text-white/50">{approvedMaster ? `#${approvedMaster.login} · ${approvedMaster.platform} · ${approvedMaster.server}` : translate("Demande de Master à faire approuver.")}</div>
-                <div className="mt-4 flex items-center gap-2 border-t border-white/[0.07] pt-3 text-[10px] text-white/50"><ShieldCheck size={14} className="text-[color:var(--gold)]" />{approvedMasterReceiver?.status === "connected" ? (translate("Connecté") + (approvedMasterReceiver.last_connected_at ? ` · ${new Date(approvedMasterReceiver.last_connected_at).toLocaleString(locale === "en" ? "en-US" : "fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}` : "") + "") : approvedMasterReceiver?.status === "paused" ? translate("Connexion en pause") : approvedMasterReceiver?.status === "error" ? translate("Connexion à vérifier") : approvedMaster ? translate("Master validé · état de connexion non remonté") : translate("Aucune source approuvée")}</div>
+                <div className="mt-4 flex items-center gap-2 border-t border-white/[0.07] pt-3 text-[10px] text-white/50"><ShieldCheck size={14} className="text-[color:var(--gold)]" />{approvedMaster ? translate("Master validé par l’équipe") : translate("Aucune source approuvée")}</div>
               </div>
 
               <div className="flex min-h-16 flex-col items-center justify-center gap-1.5 px-3 text-center md:min-w-[145px]">
-                <span className={cn("flex h-10 w-10 items-center justify-center rounded-full border", error ? "border-amber-500/20 bg-amber-500/[0.06] text-amber-300" : enabled && activeMasters.length > 0 && selectedStatus?.isTradingAccountConnected ? "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-300" : "border-white/[0.08] bg-white/[0.03] text-white/40")}><ChevronDown size={18} className="md:-rotate-90" /></span>
-                <span className={cn("text-[9px] font-semibold", error ? "text-amber-300" : enabled && activeMasters.length > 0 && selectedStatus?.isTradingAccountConnected ? "text-emerald-300" : "text-white/55")}>{error ? translate("Statut indisponible") : enabled && activeMasters.length > 0 && selectedStatus?.isTradingAccountConnected ? translate("Copie active") : activeMasters.length > 0 ? translate("Liaison configurée") : selectedStatus ? translate("Liaison à configurer") : translate("En attente de vérification")}</span>
-                <span className="text-[8px] leading-4 text-white/35">{error ? localizeCopierMessage(message, translate) : selectedStatus ? translate(activeMasters.length > 1 ? "{count} Masters associés" : "{count} Master associé").replace("{count}", String(activeMasters.length)) : translate("Connexion non vérifiable sur cet environnement")}</span>
+                <span className={cn("flex h-10 w-10 items-center justify-center rounded-full border", error ? "border-amber-500/20 bg-amber-500/[0.06] text-amber-300" : enabled && confirmedCopyLink ? "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-300" : "border-white/[0.08] bg-white/[0.03] text-white/40")}><ChevronDown size={18} className="md:-rotate-90" /></span>
+                <span className={cn("text-[9px] font-semibold", error ? "text-amber-300" : enabled && confirmedCopyLink ? "text-emerald-300" : "text-white/55")}>{error ? translate("Statut indisponible") : enabled && confirmedCopyLink ? translate("Relié au Master") : confirmedMasters.length > 0 ? translate("Liaison enregistrée · à vérifier") : selectedStatus ? translate("Liaison à configurer") : translate("En attente de vérification")}</span>
+                <span className="text-[8px] leading-4 text-white/35">{error ? localizeCopierMessage(message, translate) : selectedStatus ? translate(confirmedMasters.length > 1 ? "{count} Masters associés" : "{count} Master associé").replace("{count}", String(confirmedMasters.length)) : translate("Connexion non vérifiable sur cet environnement")}</span>
               </div>
 
               <div className="rounded-[18px] border border-white/[0.08] bg-black/20 p-4">
-                <div className="flex items-center justify-between gap-3"><div className="text-[9px] font-semibold uppercase tracking-[0.12em] text-white/45">{translate("Compte receveur")}</div><ReceiverStatusBadge status={selectedReceiver.status} /></div>
+                <div className="flex items-center justify-between gap-3"><div className="text-[9px] font-semibold uppercase tracking-[0.12em] text-white/45">{translate("Compte receveur")}</div><ReceiverStatusBadge state={connectionStates[selectedReceiver.id]} now={connectionNow} /></div>
                 <div className="mt-3 text-lg font-semibold text-white">{selectedReceiver.alias}</div>
                 <div className="mt-1 text-[10px] text-white/50">#{selectedReceiver.login} · {selectedReceiver.platform} · {selectedReceiver.server}</div>
         <div className="mt-4 flex items-center gap-2 border-t border-white/[0.07] pt-3 text-[10px] text-white/50"><Activity size={14} className={selectedReceiver.status === "connected" ? "text-emerald-300" : "text-white/35"} />{selectedStatus ? selectedStatus.isTradingAccountConnected ? translate("Connexion confirmée par le moteur de copie") : translate("Connexion non confirmée par le moteur de copie") : selectedReceiver.status === "connected" ? translate("Connecté dans InvestPro · vérification indisponible") : translate("En attente de connexion")}</div>
@@ -1519,11 +1649,11 @@ export default function CopieurPage() {
                 ) : selectedStatus.masterAccountsList.map((master, index) => {
                   const current = selectedMasters[master.id] || { on: false, lots: masterQuickValue || "0.01" };
                   return <div key={master.id} className={cn("rounded-[18px] border p-4 transition", current.on ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]" : "border-white/[0.07] bg-black/20")}>
-                    <div className="grid grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3 md:grid-cols-[44px_minmax(0,1fr)_auto_120px]">
+                    <div className="grid grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3 md:grid-cols-[44px_minmax(0,1fr)_auto]">
                       <button type="button" aria-label={("" + (current.on ? translate("Désactiver") : translate("Activer")) + " " + (master.name) + "")} onClick={() => toggleMaster(master.id)} className={cn("flex h-11 w-11 items-center justify-center rounded-xl border", current.on ? "border-[color:var(--gold-border)] bg-[color:var(--gold)] text-black" : "border-white/10 text-white/50")}>{current.on ? <Check size={15} /> : null}</button>
-                      <div><div className="text-sm font-semibold text-white">{master.name}</div><div className="mt-1 text-[10px] text-white/40">{translate("MASTER")}{" "}{String(index + 1).padStart(2, "0")} · {current.on ? translate("Liaison active") : translate("Non relié")}</div></div>
+                      <div><div className="text-sm font-semibold text-white">{master.name}</div><div className="mt-1 text-[10px] text-white/40">{translate("MASTER")}{" "}{String(index + 1).padStart(2, "0")} · {translate(masterSelectionLabel(master.id, current.on))}</div></div>
                       <div className="text-right md:text-left"><div className="text-[9px] text-white/40">{translate("Mode")}</div><div className="mt-1 text-[10px] font-semibold text-[color:var(--gold)]">{translate(riskModeDisplayLabel)}</div></div>
-                      {riskSettings.mode === "fixed" ? <Field label={translate("Lots")}><input type="number" min="0.001" max={maxLots} step="any" value={current.lots} disabled={!current.on} onChange={(e) => changeLots(master.id, e.target.value)} className="ip-field disabled:opacity-35" /></Field> : <div className="rounded-xl border border-white/[0.06] bg-black/20 px-3 py-3 text-[10px] text-white/45">{translate("Géré automatiquement")}</div>}
+                      
                     </div>
                   </div>;
                 })}
@@ -1538,7 +1668,7 @@ export default function CopieurPage() {
           <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl border border-[color:var(--gold-border)] bg-[#101310] p-4"><div><div className="font-semibold text-white">{translate("Réglages de copie")}</div><div className="mt-1 text-xs text-white/50">{approvedMaster?.alias || "Master"} → {selectedReceiver.alias} {" "}{translate("· Choisis les lots puis confirme une seule fois")}</div></div><button onClick={() => setRiskModalOpen(false)} className="rounded-xl border border-white/10 p-2 text-white" aria-label={translate("Fermer")}><X size={18}/></button></div>
           <section className="rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6"><div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><div className="text-xl font-semibold text-white">{translate("Paramètres de copie —")}{" "}{selectedReceiver.alias}</div><p className="mt-1 text-[11px] text-white/40">{translate("Choisis comment calculer les lots et règle les paramètres de copie de ce receveur.")}</p></div><div className="flex flex-wrap gap-2"><span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-1.5 text-[10px] font-semibold text-emerald-400"><CheckCircle2 size={12} /> {" "}{translate("Compte sélectionné")}</span><button onClick={() => setShowStats((v) => !v)} className="inline-flex h-9 items-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 text-[10px] font-semibold text-[color:var(--gold)]"><Activity size={13} /> {showStats ? translate("Masquer les statistiques") : translate("Voir les statistiques")}</button></div></div><div className={cn("mt-4 rounded-xl border px-4 py-3 text-[11px] leading-5", riskSettings.mode === "fixed" ? "border-emerald-500/20 bg-emerald-500/[0.05] text-emerald-200" : "border-amber-500/20 bg-amber-500/[0.05] text-amber-100")}>{riskSettings.mode === "fixed" ? translate("Lots fixes : tu peux enregistrer ce réglage tout de suite, sans demande de validation.") : translate("Demande de validation requise : l’équipe InvestPro traitera ce réglage. Le réglage actuellement actif reste en place jusqu’à sa confirmation.")}</div><div className="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-2"><section className="hidden rounded-[22px] border border-white/[0.07] bg-black/20 p-4"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--gold)] text-sm font-bold text-black">1</span><div><div className="text-base font-semibold text-white">{translate("Choisir le receveur")}</div><div className="mt-1 text-[10px] text-white/35">{translate("Compte qui recevra les trades")}</div></div></div><div className="mt-4 rounded-[18px] border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4"><div className="flex items-center justify-between gap-3"><div><div className="text-sm font-semibold text-white">{selectedReceiver.alias}</div><div className="mt-1 text-[10px] text-white/35">#{selectedReceiver.login} · {selectedReceiver.platform} · {selectedReceiver.server}</div></div><State active={selectedReceiver.status === "connected"} label={selectedReceiver.status === "connected" ? translate("Connecté") : selectedReceiver.status === "paused" ? translate("Pause") : translate("Erreur")} /></div><select value={selectedReceiverId || ""} onChange={(e) => void selectReceiver(e.target.value)} className="ip-field mt-4">{virtualReceivers.map((receiver) => <option key={receiver.id} value={receiver.id}>{receiver.alias} — {receiver.login}</option>)}</select><div className="mt-3 text-[10px] text-white/35">{translate("Tu peux changer de receveur ici pour configurer un autre compte sans quitter la page.")}</div></div></section><section className="rounded-[22px] border border-white/[0.07] bg-black/20 p-4"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--gold)] text-sm font-bold text-black">2</span><div><div className="text-base font-semibold text-white">{translate("Régler le risque")}</div><div className="mt-1 text-[10px] text-white/35">{translate("Lots fixes : enregistrement direct. Les autres modes : demande à valider.")}</div></div></div><div className="mt-4 space-y-3"><InlineRiskOption active={riskSettings.mode === "fixed"} label={translate("Lots fixes")} desc={translate("Volume identique · disponible immédiatement")} onClick={() => setRiskSettings((v) => ({ ...v, mode: "fixed" }))}><input type="number" min="0.001" step="0.001" value={masterQuickValue} onChange={(e) => applyQuickModeToSelectedMasters(e.target.value)} className="ip-field h-10 w-full text-center" /></InlineRiskOption><InlineRiskOption active={riskSettings.mode === "mirror"} label={translate("Copier les lots du Master")} desc={translate("Même lot que le Master · validation InvestPro requise")} onClick={() => setRiskSettings((v) => ({ ...v, mode: "mirror" }))}><input type="number" min="0.1" step="0.1" value={riskSettings.mirror_multiplier} onChange={(e) => setRiskSettings((v) => ({ ...v, mode: "mirror", mirror_multiplier: Number(e.target.value || 1) }))} className="ip-field h-10 w-full text-center" /></InlineRiskOption><InlineRiskOption active={riskSettings.mode === "balance"} label={translate("Risque par solde")} desc={translate("Calcul selon le solde · validation InvestPro requise")} onClick={() => setRiskSettings((v) => ({ ...v, mode: "balance" }))}><input type="number" min="0.1" step="0.1" value={riskSettings.balance_multiplier} onChange={(e) => setRiskSettings((v) => ({ ...v, mode: "balance", balance_multiplier: Number(e.target.value || 1) }))} className="ip-field h-10 w-full text-center" /></InlineRiskOption><InlineRiskOption active={riskSettings.mode === "equity"} label={translate("Risque par equity")} desc={translate("Calcul selon l’equity · validation InvestPro requise")} onClick={() => setRiskSettings((v) => ({ ...v, mode: "equity" }))}><input type="number" min="0.1" step="0.1" value={riskSettings.equity_multiplier} onChange={(e) => setRiskSettings((v) => ({ ...v, mode: "equity", equity_multiplier: Number(e.target.value || 1) }))} className="ip-field h-10 w-full text-center" /></InlineRiskOption><InlineRiskOption active={riskSettings.mode === "percent"} label={translate("Risque en %")} desc={translate("Pourcentage du capital · validation InvestPro requise")} onClick={() => setRiskSettings((v) => ({ ...v, mode: "percent" }))}><input type="number" min="0.1" step="0.1" value={riskSettings.risk_percent} onChange={(e) => setRiskSettings((v) => ({ ...v, mode: "percent", risk_percent: Number(e.target.value || 1) }))} className="ip-field h-10 w-full text-center" /></InlineRiskOption></div></section><section className="rounded-[22px] border border-white/[0.07] bg-black/20 p-4"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--gold)] text-sm font-bold text-black">3</span><div><div className="text-base font-semibold text-white">{translate("Paramètres avancés")}</div><div className="mt-1 text-[10px] text-white/35">{translate("Protection, exécution et filtres.")}</div></div></div><div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2"><RiskNumber label={translate("Slippage max")} value={riskSettings.slippage_pips} min={0} max={1000} step={1} suffix="pips" onChange={(value) => setRiskSettings((v) => ({ ...v, slippage_pips: value }))} /><RiskNumber label={translate("Lots maximum")} value={riskSettings.max_lots} min={0.01} max={1000} step={0.01} suffix="lots" onChange={(value) => setRiskSettings((v) => ({ ...v, max_lots: value }))} /><RiskNumber label={translate("Multiplicateur des lots")} value={riskSettings.mirror_multiplier} min={0.1} max={20} step={0.1} suffix="x" onChange={(value) => setRiskSettings((v) => ({ ...v, mirror_multiplier: value }))} /><RiskNumber label={translate("Risque en %")} value={riskSettings.risk_percent} min={0.1} max={20} step={0.1} suffix="%" onChange={(value) => setRiskSettings((v) => ({ ...v, risk_percent: value }))} /></div><div className="mt-4 space-y-3"><ToggleSetting label={translate("Copier uniquement certains symboles")} description={translate("Préparez un filtrage personnalisé par symboles.")} checked={Boolean(riskSettings.symbol_mapping)} onChange={(checked) => setRiskSettings((v) => ({ ...v, symbol_mapping: checked ? v.symbol_mapping || "XAUUSD=GOLD" : "" }))} /><ToggleSetting label={translate("Heures de trading autorisées")} description={translate("Option avancée de filtrage horaire.")} checked={riskSettings.drawdown_enabled} onChange={(checked) => setRiskSettings((v) => ({ ...v, drawdown_enabled: checked }))} /></div><Field label={translate("Configuration / notes avancées")}><textarea value={riskSettings.symbol_mapping} onChange={(e) => setRiskSettings((v) => ({ ...v, symbol_mapping: e.target.value }))} className="min-h-24 w-full rounded-xl border border-white/[0.08] bg-black/25 p-3 text-[11px] leading-5 text-white outline-none focus:border-[color:var(--gold-border)]" placeholder={`Ex. XAUUSD=GOLD\nUS30=DJ30`} /></Field></section></div></section><div className="mt-4 flex flex-col gap-2 rounded-2xl border border-[color:var(--gold-border)] bg-[#101310] p-4 sm:flex-row sm:items-center sm:justify-between"><label className="flex items-center gap-2 text-xs text-white/70"><input type="checkbox" checked={masterConsent} onChange={(e) => setMasterConsent(e.target.checked)} />{riskSettings.mode === "fixed" ? translate("Je confirme le réglage en lots fixes.") : translate("Je confirme ma demande de réglage et son envoi à l’équipe InvestPro.")}</label><button disabled={busy || riskBusy || !masterConsent} onClick={() => void saveAll()} className="rounded-xl bg-[color:var(--gold)] px-5 py-3 text-sm font-bold text-black disabled:opacity-40">{saveBarState === "saving" ? translate("Enregistrement…") : riskSettings.mode === "fixed" ? translate("Enregistrer les lots fixes") : translate("Envoyer la demande à InvestPro")}</button></div></div></div>, document.body) : null}
 
-        <section className="grid grid-cols-1 gap-5 xl:grid-cols-1"><section className="hidden rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><div className="text-lg font-semibold text-white">{translate("Liaisons Master")}</div><div className="mt-1 text-[11px] text-white/35">{translate("Active les masters que ce receveur doit copier.")}</div></div>{selectedReceiver && selectedReceiver.id !== "legacy" ? <button onClick={() => { setRemoveReceiverId(selectedReceiver.id); setDisconnectConsent(false); setRemoveError(""); }} className="inline-flex h-10 items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/[0.04] px-4 text-[11px] font-semibold text-red-300"><Unplug size={13} /> {" "}{translate("Retirer ce receveur")}</button> : null}</div><div className="mt-5 space-y-3">{(selectedStatus?.masterAccountsList || []).length === 0 ? <div className="rounded-2xl border border-white/[0.07] bg-black/20 p-6 text-[11px] text-white/40">{translate("Aucune liaison master disponible pour le moment.")}</div> : (selectedStatus?.masterAccountsList || []).map((master, index) => { const current = selectedMasters[master.id] || { on: false, lots: masterQuickValue || "0.01" }; return <div key={master.id} className={cn("rounded-[18px] border p-4 transition", current.on ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]" : "border-white/[0.07] bg-black/20")}><div className="grid grid-cols-1 gap-3 md:grid-cols-[auto_1fr_auto_auto] md:items-center"><button onClick={() => toggleMaster(master.id)} className={cn("flex h-7 w-7 items-center justify-center rounded-md border", current.on ? "border-[color:var(--gold-border)] bg-[color:var(--gold)] text-black" : "border-white/10 text-white/50")}>{current.on ? <Check size={14} /> : null}</button><div><div className="text-sm font-semibold text-white">{master.name}</div><div className="mt-1 text-[10px] text-white/35">{translate("MASTER")}{" "}{String(index + 1).padStart(2, "0")} · {current.on ? translate("Activé") : translate("Pause")}</div></div><div className="text-[10px] text-white/50">{translate("Mode")}</div><div className="text-[11px] font-semibold text-[color:var(--gold)]">{translate(riskModeLabel(riskSettings.mode))}</div></div><div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-[1fr_160px_110px] md:items-end"><div className="rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2 text-[10px] text-white/40">{translate("Cette liaison utilisera les paramètres du bloc “Régler le risque”.")}</div>{riskSettings.mode === "fixed" ? <Field label={translate("Lots")}><input type="number" min="0.001" max={maxLots} step="any" value={current.lots} disabled={!current.on} onChange={(e) => changeLots(master.id, e.target.value)} className="ip-field disabled:opacity-35" /></Field> : <div className="rounded-xl border border-white/[0.06] bg-black/20 px-3 py-3 text-[10px] text-white/45">{translate("Géré automatiquement")}</div>}<State active={current.on} label={current.on ? translate("Activé") : translate("Pause")} /></div></div>; })}</div><label className="mt-5 flex items-start gap-3 rounded-2xl border border-white/[0.06] bg-black/20 p-4 text-[11px] leading-5 text-white/55"><input type="checkbox" checked={masterConsent} onChange={(e) => { setMasterConsent(e.target.checked); setSaveBarState("idle"); setSaveBarMessage("Configuration non enregistrée"); }} className="mt-0.5 h-4 w-4 accent-[#d4a934]" /> {" "}{translate("Je confirme les stratégies et volumes sélectionnés.")}</label></section><section className="space-y-5"><section className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4 md:p-5"><div className="text-sm font-semibold text-white">{translate("Activité & état du système")}</div><div className="mt-1 text-[10px] text-white/40">{translate("Derniers états connus, sans inventer d’évènements de trading.")}</div><div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3"><div className="flex items-start gap-3 rounded-xl border border-white/[0.06] bg-black/20 p-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-300/[0.08] text-cyan-200"><RefreshCw size={14} /></span><div><div className="text-[10px] font-semibold text-white/80">{translate("Vérification des comptes")}</div><div className="mt-1 text-[9px] text-white/40">{checked || translate("En attente de synchronisation")}</div></div></div><div className="flex items-start gap-3 rounded-xl border border-white/[0.06] bg-black/20 p-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-400/[0.08] text-emerald-300"><ShieldCheck size={14} /></span><div><div className="text-[10px] font-semibold text-white/80">{translate("Réglages de risque")}</div><div className="mt-1 text-[9px] text-white/40">{riskSaveState === "saved" ? (translate("Enregistrés") + (riskSavedAt ? ` · ${riskSavedAt}` : "") + "") : riskSaveState === "pending" ? translate("Validation en attente") : translate("État non confirmé")}</div></div></div><div className="flex items-start gap-3 rounded-xl border border-white/[0.06] bg-black/20 p-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[color:var(--gold-soft)] text-[color:var(--gold)]"><Link2 size={14} /></span><div><div className="text-[10px] font-semibold text-white/80">{translate("Liaisons Master")}</div><div className="mt-1 text-[9px] text-white/40">{translate(activeMasters.length > 1 ? "{count} liaisons actives" : "{count} liaison active").replace("{count}", String(activeMasters.length))}</div></div></div></div></section>{showStats ? <section className="rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6"><div className="text-lg font-semibold text-white">{translate("Statistiques du compte sélectionné")}</div><div className="mt-4 grid grid-cols-2 gap-3"><Summary label={translate("Solde")} value={selectedStats.balance == null ? "—" : money(selectedStats.balance, selectedStats.currency)} /><Summary label={translate("Equity")} value={selectedStats.equity == null ? "—" : money(selectedStats.equity, selectedStats.currency)} /><Summary label={translate("P&L jour")} value={selectedStats.pnl == null ? "—" : money(selectedStats.pnl, selectedStats.currency)} green={Number(selectedStats.pnl) > 0} /><Summary label={translate("Positions ouvertes")} value={selectedStats.open == null ? "—" : String(selectedStats.open)} /></div></section> : null}</section></section>
+        <section className="grid grid-cols-1 gap-5 xl:grid-cols-1"><section className="hidden rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><div className="text-lg font-semibold text-white">{translate("Liaisons Master")}</div><div className="mt-1 text-[11px] text-white/35">{translate("Active les masters que ce receveur doit copier.")}</div></div>{selectedReceiver && selectedReceiver.id !== "legacy" ? <button onClick={() => { setRemoveReceiverId(selectedReceiver.id); setDisconnectConsent(false); setRemoveError(""); }} className="inline-flex h-10 items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/[0.04] px-4 text-[11px] font-semibold text-red-300"><Unplug size={13} /> {" "}{translate("Retirer ce receveur")}</button> : null}</div><div className="mt-5 space-y-3">{(selectedStatus?.masterAccountsList || []).length === 0 ? <div className="rounded-2xl border border-white/[0.07] bg-black/20 p-6 text-[11px] text-white/40">{translate("Aucune liaison master disponible pour le moment.")}</div> : (selectedStatus?.masterAccountsList || []).map((master, index) => { const current = selectedMasters[master.id] || { on: false, lots: masterQuickValue || "0.01" }; return <div key={master.id} className={cn("rounded-[18px] border p-4 transition", current.on ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]" : "border-white/[0.07] bg-black/20")}><div className="grid grid-cols-1 gap-3 md:grid-cols-[auto_1fr_auto_auto] md:items-center"><button onClick={() => toggleMaster(master.id)} className={cn("flex h-7 w-7 items-center justify-center rounded-md border", current.on ? "border-[color:var(--gold-border)] bg-[color:var(--gold)] text-black" : "border-white/10 text-white/50")}>{current.on ? <Check size={14} /> : null}</button><div><div className="text-sm font-semibold text-white">{master.name}</div><div className="mt-1 text-[10px] text-white/35">{translate("MASTER")}{" "}{String(index + 1).padStart(2, "0")} · {current.on ? translate("Activé") : translate("Pause")}</div></div><div className="text-[10px] text-white/50">{translate("Mode")}</div><div className="text-[11px] font-semibold text-[color:var(--gold)]">{translate(riskModeLabel(riskSettings.mode))}</div></div><div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-[1fr_160px_110px] md:items-end"><div className="rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2 text-[10px] text-white/40">{translate("Cette liaison utilisera les paramètres du bloc “Régler le risque”.")}</div><State active={current.on} label={current.on ? translate("Activé") : translate("Pause")} /></div></div>; })}</div><label className="mt-5 flex items-start gap-3 rounded-2xl border border-white/[0.06] bg-black/20 p-4 text-[11px] leading-5 text-white/55"><input type="checkbox" checked={masterConsent} onChange={(e) => { setMasterConsent(e.target.checked); setSaveBarState("idle"); setSaveBarMessage("Configuration non enregistrée"); }} className="mt-0.5 h-4 w-4 accent-[#d4a934]" /> {" "}{translate("Je confirme les stratégies et volumes sélectionnés.")}</label></section><section className="space-y-5"><section className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4 md:p-5"><div className="text-sm font-semibold text-white">{translate("Activité & état du système")}</div><div className="mt-1 text-[10px] text-white/40">{translate("Derniers états connus, sans inventer d’évènements de trading.")}</div><div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3"><div className="flex items-start gap-3 rounded-xl border border-white/[0.06] bg-black/20 p-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-300/[0.08] text-cyan-200"><RefreshCw size={14} /></span><div><div className="text-[10px] font-semibold text-white/80">{translate("Vérification des comptes")}</div><div className="mt-1 text-[9px] text-white/40">{checked || translate("En attente de synchronisation")}</div></div></div><div className="flex items-start gap-3 rounded-xl border border-white/[0.06] bg-black/20 p-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-400/[0.08] text-emerald-300"><ShieldCheck size={14} /></span><div><div className="text-[10px] font-semibold text-white/80">{translate("Réglages de risque")}</div><div className="mt-1 text-[9px] text-white/40">{riskSaveState === "saved" ? (translate("Enregistrés") + (riskSavedAt ? ` · ${riskSavedAt}` : "") + "") : riskSaveState === "pending" ? translate("Validation en attente") : translate("État non confirmé")}</div></div></div><div className="flex items-start gap-3 rounded-xl border border-white/[0.06] bg-black/20 p-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[color:var(--gold-soft)] text-[color:var(--gold)]"><Link2 size={14} /></span><div><div className="text-[10px] font-semibold text-white/80">{translate("Liaisons Master")}</div><div className="mt-1 text-[9px] text-white/40">{translate(confirmedMasters.length > 1 ? "{count} liaisons actives" : "{count} liaison active").replace("{count}", String(confirmedMasters.length))}</div></div></div></div></section>{showStats ? <section className="rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6"><div className="text-lg font-semibold text-white">{translate("Statistiques du compte sélectionné")}</div><div className="mt-4 grid grid-cols-2 gap-3"><Summary label={translate("Solde")} value={selectedStats.balance == null ? "—" : money(selectedStats.balance, selectedStats.currency)} /><Summary label={translate("Equity")} value={selectedStats.equity == null ? "—" : money(selectedStats.equity, selectedStats.currency)} /><Summary label={translate("P&L jour")} value={selectedStats.pnl == null ? "—" : money(selectedStats.pnl, selectedStats.currency)} green={Number(selectedStats.pnl) > 0} /><Summary label={translate("Positions ouvertes")} value={selectedStats.open == null ? "—" : String(selectedStats.open)} /></div></section> : null}</section></section>
 
         </div>
       </main>
@@ -2024,9 +2154,12 @@ function HeroStatCard({ icon, label, value, sub, accent, accentPositive }: { ico
 function MiniMetric({ label, value, positive, negative }: { label: string; value: string; positive?: boolean; negative?: boolean }) {
   const { t: translate } = useLocale();
  return <div className="rounded-xl border border-white/[0.06] bg-black/20 p-3"><div className="text-[9px] uppercase tracking-[0.08em] text-white/30">{translate(label)}</div><div className={cn("mt-2 text-lg font-semibold", positive ? "text-emerald-400" : negative ? "text-red-400" : "text-white")}>{value}</div></div>; }
-function ReceiverStatusBadge({ status }: { status: Receiver['status'] }) {
+function ReceiverStatusBadge({ state, now }: { state?: ConnectionState; now: number }) {
   const { t: translate } = useLocale();
- const styles = status === 'connected' ? 'border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-400' : status === 'paused' ? 'border-white/[0.08] bg-white/[0.03] text-white/55' : 'border-red-500/20 bg-red-500/[0.05] text-red-300'; const label = status === 'connected' ? 'Connecté' : status === 'paused' ? 'Pause' : 'Erreur'; return <span className={cn('inline-flex rounded-full border px-2.5 py-1 text-[8px] font-bold uppercase', styles)}>{translate(label)}</span>; }
+  const status = connectionStateLabel(state, now);
+  const styles = status.tone === "green" ? "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-400" : status.tone === "amber" ? "border-amber-500/20 bg-amber-500/[0.05] text-amber-200" : "border-white/[0.08] bg-white/[0.03] text-white/55";
+  return <span className={cn("inline-flex max-w-full rounded-full border px-2.5 py-1 text-[10px] font-semibold", styles)}>{translate(status.labelFrench)}</span>;
+}
 function InlineRiskOption({ active, label, desc, onClick, children }: { active: boolean; label: string; desc: string; onClick: () => void; children: React.ReactNode }) {
   const { t: translate } = useLocale();
  return <button type="button" onClick={onClick} className={cn("grid w-full grid-cols-[auto_1fr_132px] items-center gap-3 rounded-xl border p-3 text-left transition", active ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]" : "border-white/[0.06] bg-black/20 hover:bg-white/[0.02]")}><span className={cn("flex h-5 w-5 items-center justify-center rounded-full border", active ? "border-[color:var(--gold-border)] bg-[color:var(--gold)] text-black" : "border-white/15 text-transparent")}>{active ? <Check size={12} /> : '•'}</span><span className="min-w-0"><span className="block text-[11px] font-semibold text-white">{translate(label)}</span><span className="mt-0.5 block text-[9px] text-white/35">{translate(desc)}</span></span><span onClick={(e) => e.stopPropagation()}>{children}</span></button>; }
