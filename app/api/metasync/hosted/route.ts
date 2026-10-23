@@ -55,7 +55,7 @@ export async function GET(req?: Request) {
     const { data, error } = await database()
       .from('investpro_mt_hosted')
       .select(
-        'id,broker_id,active,status,updated_at,capital_auto,capital_reference,capital_method,funding_summary,equity,investpro_mt_connections(login,server,platform,last_sync,account_id,warnings,currency)'
+        'id,broker_id,active,status,updated_at,capital_auto,capital_reference,capital_method,funding_summary,equity,floating_pnl,open_positions,metrics_observed_at,investpro_mt_connections(login,server,platform,last_sync,observed_at,account_id,warnings,currency)'
       )
       .eq('user_id', user.id)
       .order('created_at');
@@ -217,7 +217,7 @@ export async function POST(req: Request) {
         return reply({ error: 'Le service de connexion a atteint sa limite temporaire. Réessaie plus tard.' }, 503);
       }
       if (message === 'limit') {
-        return reply({ error: 'Tu as atteint la limite de dix connexions hébergées.' }, 409);
+        return reply({ error: 'Tu as atteint la limite de cinquante connexions hébergées.' }, 409);
       }
       if (message === 'existing local connection') {
         return reply({ error: 'Ce compte a déjà une connexion MetaTrader enregistrée dans InvestPro. Réutilise cette connexion ou déconnecte-la avant de créer une connexion hébergée.' }, 409);

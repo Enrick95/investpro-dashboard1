@@ -155,7 +155,7 @@ export async function POST(req: Request) {
       if (error.code === '42501') return reply({ error: 'InvestPro a refusé cette opération pour des raisons d’autorisation du compte.' }, 403);
       if (message === 'too frequent') return reply({ error: 'Une demande vient déjà d’être envoyée. Patiente quelques secondes.' }, 429);
       if (message === 'global limit') return reply({ error: 'Le service de connexion a atteint sa limite temporaire. Réessaie plus tard.' }, 503);
-      if (message === 'limit') return reply({ error: 'Tu as atteint la limite de dix connexions MetaSync.' }, 409);
+      if (message === 'limit') return reply({ error: 'Tu as atteint la limite de cinquante connexions MetaSync.' }, 409);
       if (message === 'existing local connection') return reply({ error: 'Ce compte existe déjà dans Mes comptes. Relie ou réactive cette connexion pour afficher le solde.' }, 409);
       return reply({ error: 'InvestPro n’a pas pu lancer la synchronisation. Le compte Master reste actif.' }, 503);
     }

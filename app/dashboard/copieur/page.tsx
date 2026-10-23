@@ -31,6 +31,9 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import type { SthStatus } from "@/lib/sth/client";
 import CopierConnectionNetwork from "@/components/copier/CopierConnectionNetwork";
+import CopierPnlSummary from "@/components/copier/CopierPnlSummary";
+import { buildCopierAccountMetrics, aggregateCopierPnl, type HostedCopierAccountSync } from "@/lib/copier/account-metrics";
+import { sendHostedMutation } from "@/lib/metasync/hosted-request-client";
 import { connectionStateLabel, type ConnectionState } from "@/lib/copier/connection-network";
 
 type Receiver = {
@@ -93,19 +96,7 @@ function riskModeLabel(mode: RiskMode) {
   return "Lots fixes";
 }
 type LooseAccount = Record<string, unknown>;
-type HostedAccountSync = {
-  active?: boolean;
-  status?: string;
-  equity?: number | null;
-  investpro_mt_connections?: {
-    account_id?: number;
-    login?: string;
-    server?: string;
-    platform?: string;
-    currency?: string;
-    last_sync?: string | null;
-  } | null;
-};
+type HostedAccountSync = HostedCopierAccountSync;
 type HostedBroker = { id: string; platform: string; server: string; label: string };
 
 type ActivationRequest = {
@@ -384,59 +375,6 @@ function isExplicitReceiver(receiver: Receiver, masterRequests: ActivationReques
   return Date.parse(receiver.created_at) > Date.parse(matchingMaster.activated_at);
 }
 
-function matchingAccount(accounts: LooseAccount[], target: { login: string; platform: string; server: string }, hostedSyncs: HostedAccountSync[] = []) {
-  const serverKey = target.server.trim().toLowerCase();
-  const synced = hostedSyncs.filter((row) => {
-    const connection = row.investpro_mt_connections;
-    return row.active !== false && connection &&
-      String(connection.login || "").trim() === target.login.trim() &&
-      String(connection.platform || "").toUpperCase() === target.platform.toUpperCase() &&
-      String(connection.server || "").trim().toLowerCase() === serverKey;
-  }).sort((a, b) => Date.parse(b.investpro_mt_connections?.last_sync || "") - Date.parse(a.investpro_mt_connections?.last_sync || ""));
-  const syncedConnection = synced[0]?.investpro_mt_connections;
-  if (syncedConnection) {
-    const account = accounts.find((row) => Number(row.id) === Number(syncedConnection.account_id));
-    if (account) {
-      const hasSnapshot = Boolean(syncedConnection.last_sync) || synced[0].equity != null;
-      return {
-        ...account,
-        ...(synced[0].status === "error" && !hasSnapshot
-          ? { current_balance: null, balance: null, equity: null, current_equity: null }
-          : {}),
-        currency: account.currency || syncedConnection.currency,
-        current_equity: synced[0].status === "error" && !hasSnapshot
-          ? null
-          : synced[0].equity ?? account.current_equity ?? account.equity,
-        sync_last_seen: syncedConnection.last_sync,
-      };
-    }
-    // Hosted MetaSync can already have a fresh equity snapshot before a local
-    // account row is linked. Keep that verified snapshot visible without
-    // inventing a balance or creating a second credential/connection record.
-    if (synced[0].equity != null) return {
-      current_balance: null,
-      current_equity: synced[0].equity,
-      currency: syncedConnection.currency,
-      sync_last_seen: syncedConnection.last_sync,
-    };
-  }
-
-  const candidates = accounts.filter((row) => {
-    const platform = String(row.platform || "").toUpperCase();
-    return accountNumber(row) === target.login && (!platform || platform === target.platform);
-  });
-  const serverFor = (row: LooseAccount) => String(row.server ?? row.server_name ?? row.broker_server ?? "").trim().toLowerCase();
-  const exactServer = candidates.filter((row) => serverFor(row) === target.server.trim().toLowerCase());
-  if (exactServer.length === 1) return exactServer[0];
-  return candidates.length === 1 && !serverFor(candidates[0]) ? candidates[0] : undefined;
-}
-
-function stat(row: LooseAccount | undefined, keys: string[]) {
-  if (!row) return null;
-  for (const key of keys) if (row[key] != null) return row[key];
-  return null;
-}
-
 export default function CopieurPage() {
   const { locale, t: translate } = useLocale();
   const money = (value: unknown, currency = "USD") => formatMoney(value, currency, locale);
@@ -454,6 +392,10 @@ export default function CopieurPage() {
   const [accounts, setAccounts] = useState<LooseAccount[]>([]);
   const [hostedAccountSyncs, setHostedAccountSyncs] = useState<HostedAccountSync[]>([]);
   const [hostedBrokers, setHostedBrokers] = useState<HostedBroker[]>([]);
+  const [financialRefreshing, setFinancialRefreshing] = useState(false);
+  const [financialRefreshError, setFinancialRefreshError] = useState(false);
+  const financialRequest = useRef<Promise<void> | null>(null);
+  const financialEpoch = useRef(0);
   const [legacyConnected, setLegacyConnected] = useState(false);
   const [selectedReceiverId, setSelectedReceiverId] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<SthStatus | null>(null);
@@ -735,18 +677,49 @@ export default function CopieurPage() {
     }
   }
 
+  const loadFinancialRows = useCallback((): Promise<void> => {
+    if (financialRequest.current) return financialRequest.current;
+    const epoch = financialEpoch.current;
+    const request = (async () => {
+      setFinancialRefreshing(true);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user || financialEpoch.current !== epoch) return;
+        const [accountResult, hostedResult] = await Promise.all([
+          supabase.from("trading_accounts").select("*").eq("user_id", user.id),
+          fetch("/api/metasync/hosted", { cache: "no-store", signal: AbortSignal.timeout(15000) })
+            .then(async response => response.ok ? response.json() : null).catch(() => null),
+        ]);
+        if (financialEpoch.current !== epoch) return;
+        const hostedAvailable = Array.isArray(hostedResult?.connections);
+        if (!accountResult.error && hostedAvailable) {
+          // Keep the matched balance and hosted observation together on failures.
+          setAccounts((accountResult.data || []) as LooseAccount[]);
+          setHostedAccountSyncs(hostedResult.connections as HostedAccountSync[]);
+          if (Array.isArray(hostedResult.brokers)) setHostedBrokers(hostedResult.brokers as HostedBroker[]);
+        }
+        setFinancialRefreshError(Boolean(accountResult.error) || !hostedAvailable);
+        setConnectionNow(Date.now());
+      } catch {
+        if (financialEpoch.current === epoch) setFinancialRefreshError(true);
+      } finally {
+        if (financialEpoch.current === epoch) setFinancialRefreshing(false);
+      }
+    })().finally(() => {
+      if (financialRequest.current === request) financialRequest.current = null;
+    });
+    financialRequest.current = request;
+    return request;
+  }, [supabase]);
+
   async function loadRows() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const [r1, r2, hostedResponse] = await Promise.all([
+    const [r1] = await Promise.all([
       supabase.from("copier_receivers").select("*").eq("user_id", user.id).order("created_at", { ascending: true }),
-      supabase.from("trading_accounts").select("*").eq("user_id", user.id),
-      fetch("/api/metasync/hosted", { cache: "no-store" }).then(async (response) => response.ok ? response.json() : null).catch(() => null),
+      loadFinancialRows(),
     ]);
     if (!r1.error) setReceivers((r1.data || []) as Receiver[]);
-    if (!r2.error) setAccounts((r2.data || []) as LooseAccount[]);
-    setHostedAccountSyncs(Array.isArray(hostedResponse?.connections) ? hostedResponse.connections as HostedAccountSync[] : []);
-    setHostedBrokers(Array.isArray(hostedResponse?.brokers) ? hostedResponse.brokers as HostedBroker[] : []);
     const configResponse = await fetch("/api/copier/config-request", { cache: "no-store" });
     if (configResponse.ok) {
       const configData = await configResponse.json();
@@ -881,25 +854,25 @@ export default function CopieurPage() {
 
   useEffect(() => { void refresh(); }, []);
 
-  // Keep displayed balances aligned with the existing MetaSync snapshots while
-  // the Copier page stays open. No new connector or account is created here.
+  // A single read is shared by refresh buttons and polling. Failures retain the
+  // last confirmed snapshot; freshness is based on the broker observation time.
   useEffect(() => {
-    const timer = window.setInterval(() => {
+    const refreshFinancials = () => {
       if (document.visibilityState !== "visible") return;
-      void (async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-        const [accountsResponse, hostedResponse] = await Promise.all([
-          supabase.from("trading_accounts").select("*").eq("user_id", user.id),
-          fetch("/api/metasync/hosted", { cache: "no-store" }).then(async (response) => response.ok ? response.json() : null).catch(() => null),
-        ]);
-        if (!accountsResponse.error) setAccounts((accountsResponse.data || []) as LooseAccount[]);
-        setHostedAccountSyncs(Array.isArray(hostedResponse?.connections) ? hostedResponse.connections as HostedAccountSync[] : []);
-    setHostedBrokers(Array.isArray(hostedResponse?.brokers) ? hostedResponse.brokers as HostedBroker[] : []);
-      })().catch(() => {});
-    }, 15000);
-    return () => window.clearInterval(timer);
-  }, [supabase]);
+      setConnectionNow(Date.now());
+      void loadFinancialRows();
+    };
+    const timer = window.setInterval(refreshFinancials, 15000);
+    document.addEventListener("visibilitychange", refreshFinancials);
+    window.addEventListener("focus", refreshFinancials);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refreshFinancials);
+      window.removeEventListener("focus", refreshFinancials);
+      financialEpoch.current += 1;
+      financialRequest.current = null;
+    };
+  }, [loadFinancialRows]);
 
   const selectReceiver = useCallback(async (id: string) => {
     if (selectedReceiverId === id) {
@@ -1023,15 +996,8 @@ export default function CopieurPage() {
             syncNotice = "MetaSync avait échoué et ce serveur n’est plus disponible dans le catalogue. Aucun solde n’a été confirmé.";
           } else {
             try {
-              const syncResponse = await fetch("/api/metasync/hosted", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ broker: hostedBroker.id, login, password, currency: accountCurrency.trim().toUpperCase(), type: accountType, syncConsent: true }),
-              });
-              const syncData = await syncResponse.json().catch(() => ({}));
-              syncNotice = syncResponse.ok
-                ? "La synchronisation MetaSync en échec a été relancée avec les identifiants saisis. Le solde s’affichera après une première réponse valide du serveur."
-                : `Le receveur est connecté, mais MetaSync n’a pas pu être relancé : ${syncData.error || "réessaie plus tard"}`;
+              await sendHostedMutation({ broker: hostedBroker.id, login, password, currency: accountCurrency.trim().toUpperCase(), type: accountType, syncConsent: true });
+              syncNotice = "La synchronisation MetaSync en échec a été relancée avec les identifiants saisis. Le solde s’affichera après une première réponse valide du serveur.";
             } catch {
               syncNotice = "Le receveur est connecté, mais la relance MetaSync n’a pas été confirmée. Vérifie le statut dans InvestPro Copier.";
             }
@@ -1046,22 +1012,15 @@ export default function CopieurPage() {
             syncNotice = "Ce serveur n’est pas encore pris en charge par MetaSync ; le receveur est connecté, mais son solde ne pourra pas être synchronisé automatiquement.";
           } else {
             try {
-              const syncResponse = await fetch("/api/metasync/hosted", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
+              await sendHostedMutation({
                   broker: hostedBroker.id,
                   login,
                   password,
                   currency: accountCurrency.trim().toUpperCase(),
                   type: accountType,
                   syncConsent: true,
-                }),
-              });
-              const syncData = await syncResponse.json().catch(() => ({}));
-              syncNotice = syncResponse.ok
-                ? "MetaSync est lancé ; le solde et l’equity apparaîtront après la première synchronisation."
-                : `Le receveur est connecté, mais MetaSync n’a pas pu démarrer : ${syncData.error || "réessaie depuis Mes comptes"}`;
+                });
+              syncNotice = "MetaSync est lancé ; le solde et l’equity apparaîtront après la première synchronisation.";
             } catch {
               syncNotice = "Le receveur est connecté, mais la demande MetaSync n’a pas été confirmée. Vérifie Mes comptes avant de réessayer.";
             }
@@ -1295,20 +1254,22 @@ export default function CopieurPage() {
     else setRiskSaveState("failed");
   }, [configurationRequests, selectedReceiverId, locale]);
 
+  const receiverMetrics = useMemo(() => buildCopierAccountMetrics(virtualReceivers, accounts, hostedAccountSyncs, connectionNow), [virtualReceivers, accounts, hostedAccountSyncs, connectionNow]);
+  const receiverMetricsById = useMemo(() => new Map(receiverMetrics.map(metric => [metric.receiverId, metric])), [receiverMetrics]);
   function statsFor(receiver: Receiver) {
-    const row = matchingAccount(accounts, receiver, hostedAccountSyncs);
-    const currency = String(row?.currency || "USD");
+    const metric = receiverMetricsById.get(receiver.id);
     return {
-      balance: stat(row, ["current_balance", "balance"]),
-      equity: stat(row, ["equity", "current_equity"]),
-      pnl: stat(row, ["daily_pnl", "pnl_today", "today_pnl"]),
-      open: stat(row, ["open_positions", "positions_open", "open_trades"]),
-      currency,
-      lastSync: typeof row?.sync_last_seen === "string" ? row.sync_last_seen : null,
+      balance: metric?.currency ? metric.balance : null,
+      equity: metric?.currency ? metric.equity : null,
+      pnl: metric?.isFresh && metric.currency ? metric.floatingPnl : null,
+      open: metric?.isFresh ? metric.openPositions : null,
+      currency: metric?.currency || "USD",
+      lastSync: metric?.lastSync ?? null,
+      hasSync: metric?.hasSync ?? false,
+      syncStatus: metric?.status ?? "missing",
     };
   }
 
-  const masterAccountRow = approvedMaster ? matchingAccount(accounts, approvedMaster, hostedAccountSyncs) : undefined;
   const masterSyncFailed = Boolean(approvedMaster && hostedAccountSyncs.some((row) => {
     const connection = row.investpro_mt_connections;
     return row.active !== false && row.status === "error" && connection &&
@@ -1317,10 +1278,11 @@ export default function CopieurPage() {
       connection.server?.trim().toLowerCase() === approvedMaster.server.trim().toLowerCase() &&
       !connection.last_sync && row.equity == null;
   }));
-  const masterBalance = stat(masterAccountRow, ["current_balance", "balance"]);
-  const masterEquity = stat(masterAccountRow, ["equity", "current_equity"]);
-  const masterPnl = stat(masterAccountRow, ["daily_pnl", "pnl_today", "today_pnl"]);
-  const masterCurrency = String(masterAccountRow?.currency || "USD");
+  const masterMetric = approvedMaster ? buildCopierAccountMetrics([approvedMaster], accounts, hostedAccountSyncs, connectionNow)[0] : undefined;
+  const masterBalance = masterMetric?.currency ? masterMetric.balance : null;
+  const masterEquity = masterMetric?.currency ? masterMetric.equity : null;
+  const masterPnl = masterMetric?.isFresh && masterMetric.currency ? masterMetric.floatingPnl : null;
+  const masterCurrency = masterMetric?.currency || "USD";
 
   const selectedStats = selectedReceiver && selectedReceiver.id !== "legacy"
     ? statsFor(selectedReceiver)
@@ -1328,11 +1290,7 @@ export default function CopieurPage() {
 
   const connectedCount = virtualReceivers.filter((receiver) => connectionStateLabel(connectionStates[receiver.id], connectionNow).kind === "connected").length;
   const errorCount = virtualReceivers.filter((receiver) => ["error", "disconnected", "stale"].includes(connectionStateLabel(connectionStates[receiver.id], connectionNow).kind)).length;
-  const totalOpenPositions = virtualReceivers.reduce((sum, receiver) => {
-    if (receiver.id === "legacy") return sum;
-    const s = statsFor(receiver);
-    return sum + (Number(s.open) || 0);
-  }, 0);
+  const totalOpenPositions = aggregateCopierPnl(receiverMetrics).openPositions;
 
   async function saveAll() {
     if (!selectedReceiverId) return;
@@ -1406,6 +1364,10 @@ export default function CopieurPage() {
     return on !== saved ? "Modification à enregistrer" : saved ? "Liaison enregistrée" : "Non relié";
   }
 
+  const pnlSummary = <div className="space-y-2">
+    <CopierPnlSummary metrics={receiverMetrics} now={connectionNow} translate={translate} locale={locale} refreshing={financialRefreshing} />
+    {financialRefreshError ? <p role="status" className="px-2 text-[10px] text-amber-200/80">{translate("Actualisation temporairement indisponible · dernières données conservées.")}</p> : null}
+  </div>;
   const connectionNetwork = <CopierConnectionNetwork
     receivers={virtualReceivers}
     masters={latestMasterRequests.filter((request) => request.status === "activated" && Boolean(request.provider_master_id) && request.removal_status !== "completed").map((request) => ({ id: request.provider_master_id, name: request.alias, login: request.login, platform: request.platform, server: request.server, approved: true }))}
@@ -1435,6 +1397,7 @@ export default function CopieurPage() {
             {error ? <div role="alert" className="mt-3 rounded-xl border border-red-500/20 bg-red-500/[0.055] px-3 py-2 text-[10px] leading-5 text-red-300">{localizeCopierMessage(message, translate)}</div> : null}
             {requestSuccess ? <div role="status" className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-2 text-[10px] leading-5 text-emerald-300">{translate(requestSuccess)}</div> : null}
           </section>
+        {pnlSummary}
         {connectionNetwork}
 
 
@@ -1445,7 +1408,7 @@ export default function CopieurPage() {
 
           <section className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4">
             <div className="flex items-start justify-between gap-3"><div><div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[color:var(--gold)]">{translate("1. Compte Master")}</div><p className="mt-1 text-[10px] text-white/40">{translate("Compte source à copier.")}</p></div><State active={Boolean(approvedMaster)} label={approvedMaster ? translate("Approuvé") : translate("À valider")} /></div>
-            {approvedMaster ? <div className="mt-3 rounded-[17px] border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-3"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><div className="break-words text-base font-semibold leading-tight text-white">{approvedMaster.alias}</div><div className="mt-1 text-[9px] leading-4 text-white/45">#{approvedMaster.login} · {approvedMaster.platform} · {approvedMaster.server}</div></div></div><div className="mt-3 grid grid-cols-3 gap-2">{[["Solde", masterBalance == null ? "—" : money(masterBalance, masterCurrency)], ["Equity", masterEquity == null ? "—" : money(masterEquity, masterCurrency)], ["P&L jour", masterPnl == null ? "—" : money(masterPnl, masterCurrency)]].map(([label, value]) => <div key={label} className="min-w-0 rounded-lg border border-white/[0.06] bg-black/20 p-2"><div className="text-[7px] uppercase tracking-wide text-white/35">{translate(label)}</div><div className="mt-1 break-words text-[9px] font-semibold leading-snug text-white">{value}</div></div>)}</div><div className="mt-3 flex items-center gap-2 border-t border-white/[0.07] pt-2 text-[9px] text-white/50"><ShieldCheck size={12} className="text-[color:var(--gold)]" />{translate("Master validé par l’équipe")}</div></div> : <div className="mt-3 rounded-xl border border-white/[0.07] bg-black/15 p-3"><p className="text-[10px] leading-5 text-white/50">{translate("Ajoute ton compte source. Il apparaîtra ici après validation par l’équipe InvestPro.")}</p><button type="button" onClick={() => setRequestOpen(true)} className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 text-[10px] font-semibold text-[color:var(--gold)]"><Plus size={14} /> {" "}{translate("Ajouter un compte Master")}</button></div>}
+            {approvedMaster ? <div className="mt-3 rounded-[17px] border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-3"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><div className="break-words text-base font-semibold leading-tight text-white">{approvedMaster.alias}</div><div className="mt-1 text-[9px] leading-4 text-white/45">#{approvedMaster.login} · {approvedMaster.platform} · {approvedMaster.server}</div></div></div><div className="mt-3 grid grid-cols-3 gap-2">{[["Solde", masterBalance == null ? "—" : money(masterBalance, masterCurrency)], ["Equity", masterEquity == null ? "—" : money(masterEquity, masterCurrency)], ["P&L en cours", masterPnl == null ? "—" : money(masterPnl, masterCurrency)]].map(([label, value]) => <div key={label} className="min-w-0 rounded-lg border border-white/[0.06] bg-black/20 p-2"><div className="text-[7px] uppercase tracking-wide text-white/35">{translate(label)}</div><div className="mt-1 break-words text-[9px] font-semibold leading-snug text-white">{value}</div></div>)}</div><div className="mt-3 flex items-center gap-2 border-t border-white/[0.07] pt-2 text-[9px] text-white/50"><ShieldCheck size={12} className="text-[color:var(--gold)]" />{translate("Master validé par l’équipe")}</div></div> : <div className="mt-3 rounded-xl border border-white/[0.07] bg-black/15 p-3"><p className="text-[10px] leading-5 text-white/50">{translate("Ajoute ton compte source. Il apparaîtra ici après validation par l’équipe InvestPro.")}</p><button type="button" onClick={() => setRequestOpen(true)} className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 text-[10px] font-semibold text-[color:var(--gold)]"><Plus size={14} /> {" "}{translate("Ajouter un compte Master")}</button></div>}
           </section>
 
           <section className="scroll-mt-4 rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4">
@@ -1506,11 +1469,12 @@ export default function CopieurPage() {
             <div className="relative mt-4 grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-3">
               <HeroStatCard icon={<Layers3 size={17} />} label={translate("Comptes receveurs")} value={String(virtualReceivers.length)} sub={translate("{count} en pause").replace("{count}", String(virtualReceivers.length - connectedCount - errorCount))} />
               <HeroStatCard icon={<Link2 size={17} />} label={translate("Connectés")} value={String(connectedCount)} sub={errorCount > 0 ? ("" + (errorCount) + translate(" à vérifier")) : translate("État des connexions")} accent={errorCount > 0 ? translate(errorCount > 1 ? "{count} alertes" : "{count} alerte").replace("{count}", String(errorCount)) : undefined} accentPositive={false} />
-              <HeroStatCard icon={<Activity size={17} />} label={translate("Positions ouvertes")} value={String(totalOpenPositions)} sub={translate("Tous les receveurs")} />
+              <HeroStatCard icon={<Activity size={17} />} label={translate("Positions ouvertes")} value={totalOpenPositions == null ? "—" : String(totalOpenPositions)} sub={translate("Tous les receveurs")} />
               <HeroStatCard icon={<ShieldCheck size={17} />} label={translate("Masters actifs")} value={String(confirmedMasters.length)} sub={selectedReceiver ? translate("Pour {name}").replace("{name}", selectedReceiver.alias) : translate("Sélectionne un receveur")} />
             </div>
           </div>
         </section>
+        {pnlSummary}
         {connectionNetwork}
 
 
@@ -1547,10 +1511,10 @@ export default function CopieurPage() {
         <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1.65fr_.9fr]">
           <section className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4 md:p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div><div className="text-[9px] font-semibold uppercase tracking-[0.13em] text-white/40">{translate("Performance · aujourd’hui")}</div><h2 className={cn("mt-2 text-2xl font-semibold tracking-tight", Number(selectedStats.pnl) > 0 ? "text-emerald-300" : Number(selectedStats.pnl) < 0 ? "text-red-300" : "text-white")}>{selectedStats.pnl == null ? "—" : money(selectedStats.pnl, selectedStats.currency)}</h2><p className="mt-1 text-[10px] text-white/40">{translate("Résultat du receveur sélectionné ·")}{" "}{selectedReceiver?.alias || translate("aucun compte sélectionné")}</p></div>
+              <div><div className="text-[9px] font-semibold uppercase tracking-[0.13em] text-white/40">{translate("P&L en cours · compte sélectionné")}</div><h2 className={cn("mt-2 text-2xl font-semibold tracking-tight", Number(selectedStats.pnl) > 0 ? "text-emerald-300" : Number(selectedStats.pnl) < 0 ? "text-red-300" : "text-white")}>{selectedStats.pnl == null ? "—" : money(selectedStats.pnl, selectedStats.currency)}</h2><p className="mt-1 text-[10px] text-white/40">{translate("Résultat du receveur sélectionné ·")}{" "}{selectedReceiver?.alias || translate("aucun compte sélectionné")}</p></div>
               <div className="grid grid-cols-2 gap-2 sm:min-w-[230px]"><MiniMetric label={translate("Solde")} value={selectedStats.balance == null ? "—" : money(selectedStats.balance, selectedStats.currency)} /><MiniMetric label={translate("Equity")} value={selectedStats.equity == null ? "—" : money(selectedStats.equity, selectedStats.currency)} /></div>
             </div>
-            <div className="mt-4 border-t border-white/[0.06] pt-3"><div className="mb-2 text-[9px] uppercase tracking-[0.1em] text-white/35">{translate("P&L du jour par receveur")}</div>{virtualReceivers.length === 0 ? <div className="py-3 text-[10px] text-white/40">{translate("Aucun compte receveur.")}</div> : <div className="space-y-2">{virtualReceivers.map((receiver) => { const item = receiver.id === "legacy" ? { pnl: null, currency: "USD" } : statsFor(receiver); const amount = item.pnl == null ? null : Number(item.pnl); const maxAbs = Math.max(1, ...virtualReceivers.map((entry) => { const value = entry.id === "legacy" ? null : statsFor(entry).pnl; return value == null ? 0 : Math.abs(Number(value)); })); const width = amount == null || !Number.isFinite(amount) ? 0 : Math.max(3, Math.abs(amount) / maxAbs * 100); return <div key={receiver.id} className="grid grid-cols-[minmax(90px,.75fr)_1.6fr_auto] items-center gap-3"><span className="truncate text-[10px] text-white/60">{receiver.alias}</span><span className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]"><span className={cn("block h-full rounded-full", amount == null ? "bg-white/15" : amount >= 0 ? "bg-emerald-400/75" : "bg-red-400/75")} style={{ width: `${width}%` }} /></span><span className={cn("min-w-[80px] text-right text-[10px] tabular-nums", amount == null ? "text-white/40" : amount > 0 ? "text-emerald-300" : amount < 0 ? "text-red-300" : "text-white/60")}>{amount == null ? "—" : money(amount, item.currency)}</span></div>; })}</div>}</div>
+            <div className="mt-4 border-t border-white/[0.06] pt-3"><div className="mb-2 text-[9px] uppercase tracking-[0.1em] text-white/35">{translate("P&L en cours par receveur")}</div>{virtualReceivers.length === 0 ? <div className="py-3 text-[10px] text-white/40">{translate("Aucun compte receveur.")}</div> : <div className="space-y-2">{virtualReceivers.map((receiver) => { const item = receiver.id === "legacy" ? { pnl: null, currency: "USD" } : statsFor(receiver); const amount = item.pnl == null ? null : Number(item.pnl); const maxAbs = Math.max(1, ...virtualReceivers.map((entry) => { const value = entry.id === "legacy" ? null : statsFor(entry).pnl; return value == null ? 0 : Math.abs(Number(value)); })); const width = amount == null || !Number.isFinite(amount) ? 0 : Math.max(3, Math.abs(amount) / maxAbs * 100); return <div key={receiver.id} className="grid grid-cols-[minmax(90px,.75fr)_1.6fr_auto] items-center gap-3"><span className="truncate text-[10px] text-white/60">{receiver.alias}</span><span className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]"><span className={cn("block h-full rounded-full", amount == null ? "bg-white/15" : amount >= 0 ? "bg-emerald-400/75" : "bg-red-400/75")} style={{ width: `${width}%` }} /></span><span className={cn("min-w-[80px] text-right text-[10px] tabular-nums", amount == null ? "text-white/40" : amount > 0 ? "text-emerald-300" : amount < 0 ? "text-red-300" : "text-white/60")}>{amount == null ? "—" : money(amount, item.currency)}</span></div>; })}</div>}</div>
           </section>
           <section className="relative overflow-hidden rounded-[22px] border border-emerald-500/15 bg-[color:var(--panel)] p-4 md:p-5">
             <div className="pointer-events-none absolute -right-12 -top-14 h-36 w-36 rounded-full bg-cyan-300/[0.06] blur-2xl" />
@@ -1569,7 +1533,7 @@ export default function CopieurPage() {
             <div className="flex items-start justify-between gap-3"><div><div className="text-[12px] font-semibold text-white">{translate("Compte Master (source)")}</div><div className="mt-1 text-[10px] text-white/35">{translate("Compte sélectionné pour piloter la copie")}</div></div><State active={Boolean(approvedMaster)} label={approvedMaster ? translate("Approuvé") : translate("À approuver")} /></div>
             <div className="mt-4 rounded-[18px] border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-3 md:mt-5 md:rounded-[22px] md:p-4">
               <div className="flex items-center justify-between gap-3"><div className="min-w-0"><div className="break-words text-lg font-semibold leading-tight text-white md:text-2xl">{approvedMaster?.alias || "Aucun Master approuvé"}</div><div className="mt-1 text-[10px] text-white/40 md:text-[11px]">{approvedMaster ? `#${approvedMaster.login} • ${approvedMaster.server}` : translate("La demande de Master doit être approuvée par un administrateur.")}</div></div><button className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/20 text-white/70 md:h-10 md:w-10"><Settings2 size={15} /></button></div>
-              <div className="mt-3 grid grid-cols-3 gap-2 md:mt-5 md:gap-3">{[["Equity", masterEquity == null ? "—" : money(masterEquity, masterCurrency)], ["Solde", masterBalance == null ? translate("En attente de sync") : money(masterBalance, masterCurrency)], ["P&L jour", masterPnl == null ? "—" : money(masterPnl, masterCurrency)]].map(([label, value], index) => <div key={label} className="min-w-0 rounded-lg border border-white/[0.06] bg-black/20 p-2 md:rounded-xl md:p-3"><div className="text-[7px] uppercase tracking-[0.06em] text-white/30 md:text-[9px] md:tracking-[0.08em]">{translate(label)}</div><div className={cn("mt-1 break-words text-[10px] font-semibold leading-snug md:mt-2 md:text-lg", index === 2 && Number(masterPnl) > 0 ? "text-emerald-400" : index === 2 && Number(masterPnl) < 0 ? "text-red-400" : "text-white")}>{value}</div></div>)}</div>
+              <div className="mt-3 grid grid-cols-3 gap-2 md:mt-5 md:gap-3">{[["Equity", masterEquity == null ? "—" : money(masterEquity, masterCurrency)], ["Solde", masterBalance == null ? translate("En attente de sync") : money(masterBalance, masterCurrency)], ["P&L en cours", masterPnl == null ? "—" : money(masterPnl, masterCurrency)]].map(([label, value], index) => <div key={label} className="min-w-0 rounded-lg border border-white/[0.06] bg-black/20 p-2 md:rounded-xl md:p-3"><div className="text-[7px] uppercase tracking-[0.06em] text-white/30 md:text-[9px] md:tracking-[0.08em]">{translate(label)}</div><div className={cn("mt-1 break-words text-[10px] font-semibold leading-snug md:mt-2 md:text-lg", index === 2 && Number(masterPnl) > 0 ? "text-emerald-400" : index === 2 && Number(masterPnl) < 0 ? "text-red-400" : "text-white")}>{value}</div></div>)}</div>
               {approvedMaster && masterBalance == null ? <div className="mt-3 rounded-xl border border-amber-500/15 bg-amber-500/[0.04] p-3 text-[10px] leading-5 text-white/55">
                 <div className={cn("font-semibold", masterSyncFailed ? "text-red-300" : "text-amber-200")}>{masterSyncFailed ? translate("Échec de la synchronisation MetaSync") : translate("Solde non synchronisé")}</div>
                 <p className="mt-1">{masterSyncFailed ? translate("Aucun solde n’a été confirmé par le connecteur. Relance MetaSync ici ; le système reprendra les identifiants chiffrés du Master et n’affichera pas un zéro trompeur.") : translate("Autorise MetaSync pour relier ce Master approuvé à la synchronisation des soldes. Tes identifiants déjà chiffrés seront transmis côté serveur ; ils ne seront jamais affichés ni journalisés.")}</p>
@@ -1588,9 +1552,9 @@ export default function CopieurPage() {
           <section className="rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"><div><div id="copier-receivers" className="scroll-mt-24 text-lg font-semibold text-white">{translate("Comptes receveurs (")}{virtualReceivers.length})</div><div className="mt-1 text-[11px] text-white/40">{translate("Sélectionnez un compte pour configurer ses paramètres de copie.")}</div></div><button onClick={openAddReceiver} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-xs font-semibold text-black"><Plus size={15} /> {" "}{translate("Ajouter un compte receveur")}</button></div>
             <div className="mt-5 overflow-hidden rounded-[20px] border border-white/[0.07]">
-              <div className="hidden grid-cols-[56px_1.7fr_.7fr_.8fr_.9fr_.9fr_.8fr_.75fr_.9fr] gap-3 border-b border-white/[0.06] bg-black/25 px-4 py-3 text-[9px] font-bold uppercase tracking-[0.08em] text-white/30 xl:grid"><div></div><div>{translate("Nom du compte")}</div><div>{translate("Plateforme")}</div><div>{translate("Statut")}</div><div>{translate("Solde")}</div><div>{translate("Equity")}</div><div>{translate("P&L jour")}</div><div>{translate("Ouverts")}</div><div>{translate("Actions")}</div></div>
+              <div className="hidden grid-cols-[56px_1.7fr_.7fr_.8fr_.9fr_.9fr_.8fr_.75fr_.9fr] gap-3 border-b border-white/[0.06] bg-black/25 px-4 py-3 text-[9px] font-bold uppercase tracking-[0.08em] text-white/30 xl:grid"><div></div><div>{translate("Nom du compte")}</div><div>{translate("Plateforme")}</div><div>{translate("Statut")}</div><div>{translate("Solde")}</div><div>{translate("Equity")}</div><div>{translate("P&L en cours")}</div><div>{translate("Ouverts")}</div><div>{translate("Actions")}</div></div>
               {virtualReceivers.length === 0 ? <div className="p-10 text-center text-white/40">{translate("Aucun receveur pour le moment.")}</div> : virtualReceivers.map((receiver) => {
-                const s = receiver.id === "legacy" ? { balance: null, equity: null, pnl: null, open: null, currency: "USD", lastSync: null } : statsFor(receiver);
+                const s = receiver.id === "legacy" ? { balance: null, equity: null, pnl: null, open: null, currency: "USD", lastSync: null, hasSync: false, syncStatus: "missing" } : statsFor(receiver);
                 const hostedSyncError = hostedAccountSyncs.some((row) => {
                   const connection = row.investpro_mt_connections;
                   return row.active !== false && row.status === "error" && connection &&
@@ -1600,7 +1564,7 @@ export default function CopieurPage() {
                     !connection.last_sync && row.equity == null;
                 });
                 const selected = selectedReceiverId === receiver.id;
-                return <div key={receiver.id} className={cn("grid grid-cols-1 gap-3 border-b border-white/[0.05] px-4 py-4 last:border-0 xl:grid-cols-[56px_1.7fr_.7fr_.8fr_.9fr_.9fr_.8fr_.75fr_.9fr] xl:items-center", selected ? "bg-[color:var(--gold-soft)]" : "bg-black/10 hover:bg-white/[0.02]") }><div className="flex items-center"><button onClick={() => void selectReceiver(receiver.id)} className={cn("flex h-6 w-6 items-center justify-center rounded-md border text-[10px]", selected ? "border-[color:var(--gold-border)] bg-[color:var(--gold)] text-black" : "border-white/10 text-white/50")}>{selected ? <Check size={13} /> : null}</button></div><button onClick={() => void selectReceiver(receiver.id)} className="text-left"><div className="text-sm font-semibold text-white">{receiver.alias}</div><div className="mt-1 text-[10px] text-white/35">#{receiver.login}{s.lastSync ? ` · MetaSync ${new Date(s.lastSync).toLocaleTimeString(locale === "en" ? "en-US" : "fr-FR", { hour: "2-digit", minute: "2-digit" })}` : ""}</div>{hostedSyncError ? <div className="mt-1 text-[9px] leading-4 text-red-300">{translate("MetaSync en échec · aucun solde confirmé. Vérifie les identifiants et le serveur puis relance l’ajout.")}</div> : null}</button><div className="text-[11px] font-semibold text-[color:var(--gold)]">{receiver.platform}</div><div><ReceiverStatusBadge state={connectionStates[receiver.id]} now={connectionNow} /></div><div className="text-[11px] text-white/70">{money(s.balance, s.currency)}</div><div className="text-[11px] text-white/70">{money(s.equity, s.currency)}</div><div className={cn("text-[11px] font-medium", Number(s.pnl) > 0 ? "text-emerald-400" : Number(s.pnl) < 0 ? "text-red-400" : "text-white/60")}>{s.pnl == null ? "—" : money(s.pnl, s.currency)}</div><div className="text-[11px] text-white/70">{s.open == null ? "—" : String(s.open)}</div><div className="flex items-center gap-2"><button onClick={() => { setShowStats(true); void selectReceiver(receiver.id); }} aria-label={(translate("Statistiques de ") + (receiver.alias) + "")} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 text-white/60 hover:text-white xl:h-8 xl:w-8 xl:rounded-lg"><Activity size={14} /></button><button onClick={() => void selectReceiver(receiver.id)} aria-label={(translate("Configurer ") + (receiver.alias) + "")} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 text-white/60 hover:text-white xl:h-8 xl:w-8 xl:rounded-lg"><Settings2 size={14} /></button>{receiver.id !== "legacy" ? <button onClick={() => { setRemoveReceiverId(receiver.id); setDisconnectConsent(false); setRemoveError(""); }} aria-label={(translate("Retirer ") + (receiver.alias) + "")} className="flex h-11 w-11 items-center justify-center rounded-xl border border-red-500/20 text-red-400 hover:bg-red-500/10 xl:h-8 xl:w-8 xl:rounded-lg"><Unplug size={14} /></button> : null}</div></div>;
+                return <div key={receiver.id} className={cn("grid grid-cols-1 gap-3 border-b border-white/[0.05] px-4 py-4 last:border-0 xl:grid-cols-[56px_1.7fr_.7fr_.8fr_.9fr_.9fr_.8fr_.75fr_.9fr] xl:items-center", selected ? "bg-[color:var(--gold-soft)]" : "bg-black/10 hover:bg-white/[0.02]") }><div className="flex items-center"><button onClick={() => void selectReceiver(receiver.id)} className={cn("flex h-6 w-6 items-center justify-center rounded-md border text-[10px]", selected ? "border-[color:var(--gold-border)] bg-[color:var(--gold)] text-black" : "border-white/10 text-white/50")}>{selected ? <Check size={13} /> : null}</button></div><div className="min-w-0 text-left"><button type="button" onClick={() => void selectReceiver(receiver.id)} className="block w-full text-left"><div className="text-sm font-semibold text-white">{receiver.alias}</div><div className="mt-1 text-[10px] text-white/35">#{receiver.login}{s.lastSync ? ` · MetaSync ${new Date(s.lastSync).toLocaleTimeString(locale === "en" ? "en-US" : "fr-FR", { hour: "2-digit", minute: "2-digit" })}` : ""}</div></button>{receiver.id !== "legacy" && !s.hasSync ? <a href="/dashboard/connexions/metatrader" className="mt-1 inline-flex text-[9px] font-semibold text-[color:var(--gold)] underline underline-offset-2">{translate("Relier MetaSync pour afficher le solde")}</a> : null}{hostedSyncError ? <div className="mt-1 text-[9px] leading-4 text-red-300">{translate("MetaSync en échec · aucun solde confirmé. Vérifie les identifiants et le serveur puis relance l’ajout.")}</div> : null}</div><div className="text-[11px] font-semibold text-[color:var(--gold)]">{receiver.platform}</div><div><ReceiverStatusBadge state={connectionStates[receiver.id]} now={connectionNow} /></div><div className="text-[11px] text-white/70">{money(s.balance, s.currency)}</div><div className="text-[11px] text-white/70">{money(s.equity, s.currency)}</div><div className={cn("text-[11px] font-medium", Number(s.pnl) > 0 ? "text-emerald-400" : Number(s.pnl) < 0 ? "text-red-400" : "text-white/60")}>{s.pnl == null ? "—" : money(s.pnl, s.currency)}</div><div className="text-[11px] text-white/70">{s.open == null ? "—" : String(s.open)}</div><div className="flex items-center gap-2"><button onClick={() => { setShowStats(true); void selectReceiver(receiver.id); }} aria-label={(translate("Statistiques de ") + (receiver.alias) + "")} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 text-white/60 hover:text-white xl:h-8 xl:w-8 xl:rounded-lg"><Activity size={14} /></button><button onClick={() => void selectReceiver(receiver.id)} aria-label={(translate("Configurer ") + (receiver.alias) + "")} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 text-white/60 hover:text-white xl:h-8 xl:w-8 xl:rounded-lg"><Settings2 size={14} /></button>{receiver.id !== "legacy" ? <button onClick={() => { setRemoveReceiverId(receiver.id); setDisconnectConsent(false); setRemoveError(""); }} aria-label={(translate("Retirer ") + (receiver.alias) + "")} className="flex h-11 w-11 items-center justify-center rounded-xl border border-red-500/20 text-red-400 hover:bg-red-500/10 xl:h-8 xl:w-8 xl:rounded-lg"><Unplug size={14} /></button> : null}</div></div>;
               })}
             </div>
             {virtualReceivers.some((receiver) => receiver.id !== "legacy" && (() => { const stats = statsFor(receiver); return stats.balance == null || stats.equity == null; })()) ? <div className="mt-3 flex flex-col gap-2 rounded-xl border border-amber-500/15 bg-amber-500/[0.04] p-3 text-[10px] leading-5 text-white/55 sm:flex-row sm:items-center sm:justify-between"><span>{translate("Les comptes receveurs reprennent automatiquement les soldes disponibles dans MetaSync. Si un chiffre manque, relie ce même compte dans Mes comptes.")}</span><a href="/dashboard/comptes" className="inline-flex min-h-9 shrink-0 items-center rounded-lg border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 font-semibold text-[color:var(--gold)]">{translate("Ouvrir Mes comptes")}</a></div> : null}
@@ -1668,7 +1632,7 @@ export default function CopieurPage() {
           <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl border border-[color:var(--gold-border)] bg-[#101310] p-4"><div><div className="font-semibold text-white">{translate("Réglages de copie")}</div><div className="mt-1 text-xs text-white/50">{approvedMaster?.alias || "Master"} → {selectedReceiver.alias} {" "}{translate("· Choisis les lots puis confirme une seule fois")}</div></div><button onClick={() => setRiskModalOpen(false)} className="rounded-xl border border-white/10 p-2 text-white" aria-label={translate("Fermer")}><X size={18}/></button></div>
           <section className="rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6"><div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><div className="text-xl font-semibold text-white">{translate("Paramètres de copie —")}{" "}{selectedReceiver.alias}</div><p className="mt-1 text-[11px] text-white/40">{translate("Choisis comment calculer les lots et règle les paramètres de copie de ce receveur.")}</p></div><div className="flex flex-wrap gap-2"><span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-1.5 text-[10px] font-semibold text-emerald-400"><CheckCircle2 size={12} /> {" "}{translate("Compte sélectionné")}</span><button onClick={() => setShowStats((v) => !v)} className="inline-flex h-9 items-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 text-[10px] font-semibold text-[color:var(--gold)]"><Activity size={13} /> {showStats ? translate("Masquer les statistiques") : translate("Voir les statistiques")}</button></div></div><div className={cn("mt-4 rounded-xl border px-4 py-3 text-[11px] leading-5", riskSettings.mode === "fixed" ? "border-emerald-500/20 bg-emerald-500/[0.05] text-emerald-200" : "border-amber-500/20 bg-amber-500/[0.05] text-amber-100")}>{riskSettings.mode === "fixed" ? translate("Lots fixes : tu peux enregistrer ce réglage tout de suite, sans demande de validation.") : translate("Demande de validation requise : l’équipe InvestPro traitera ce réglage. Le réglage actuellement actif reste en place jusqu’à sa confirmation.")}</div><div className="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-2"><section className="hidden rounded-[22px] border border-white/[0.07] bg-black/20 p-4"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--gold)] text-sm font-bold text-black">1</span><div><div className="text-base font-semibold text-white">{translate("Choisir le receveur")}</div><div className="mt-1 text-[10px] text-white/35">{translate("Compte qui recevra les trades")}</div></div></div><div className="mt-4 rounded-[18px] border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4"><div className="flex items-center justify-between gap-3"><div><div className="text-sm font-semibold text-white">{selectedReceiver.alias}</div><div className="mt-1 text-[10px] text-white/35">#{selectedReceiver.login} · {selectedReceiver.platform} · {selectedReceiver.server}</div></div><State active={selectedReceiver.status === "connected"} label={selectedReceiver.status === "connected" ? translate("Connecté") : selectedReceiver.status === "paused" ? translate("Pause") : translate("Erreur")} /></div><select value={selectedReceiverId || ""} onChange={(e) => void selectReceiver(e.target.value)} className="ip-field mt-4">{virtualReceivers.map((receiver) => <option key={receiver.id} value={receiver.id}>{receiver.alias} — {receiver.login}</option>)}</select><div className="mt-3 text-[10px] text-white/35">{translate("Tu peux changer de receveur ici pour configurer un autre compte sans quitter la page.")}</div></div></section><section className="rounded-[22px] border border-white/[0.07] bg-black/20 p-4"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--gold)] text-sm font-bold text-black">2</span><div><div className="text-base font-semibold text-white">{translate("Régler le risque")}</div><div className="mt-1 text-[10px] text-white/35">{translate("Lots fixes : enregistrement direct. Les autres modes : demande à valider.")}</div></div></div><div className="mt-4 space-y-3"><InlineRiskOption active={riskSettings.mode === "fixed"} label={translate("Lots fixes")} desc={translate("Volume identique · disponible immédiatement")} onClick={() => setRiskSettings((v) => ({ ...v, mode: "fixed" }))}><input type="number" min="0.001" step="0.001" value={masterQuickValue} onChange={(e) => applyQuickModeToSelectedMasters(e.target.value)} className="ip-field h-10 w-full text-center" /></InlineRiskOption><InlineRiskOption active={riskSettings.mode === "mirror"} label={translate("Copier les lots du Master")} desc={translate("Même lot que le Master · validation InvestPro requise")} onClick={() => setRiskSettings((v) => ({ ...v, mode: "mirror" }))}><input type="number" min="0.1" step="0.1" value={riskSettings.mirror_multiplier} onChange={(e) => setRiskSettings((v) => ({ ...v, mode: "mirror", mirror_multiplier: Number(e.target.value || 1) }))} className="ip-field h-10 w-full text-center" /></InlineRiskOption><InlineRiskOption active={riskSettings.mode === "balance"} label={translate("Risque par solde")} desc={translate("Calcul selon le solde · validation InvestPro requise")} onClick={() => setRiskSettings((v) => ({ ...v, mode: "balance" }))}><input type="number" min="0.1" step="0.1" value={riskSettings.balance_multiplier} onChange={(e) => setRiskSettings((v) => ({ ...v, mode: "balance", balance_multiplier: Number(e.target.value || 1) }))} className="ip-field h-10 w-full text-center" /></InlineRiskOption><InlineRiskOption active={riskSettings.mode === "equity"} label={translate("Risque par equity")} desc={translate("Calcul selon l’equity · validation InvestPro requise")} onClick={() => setRiskSettings((v) => ({ ...v, mode: "equity" }))}><input type="number" min="0.1" step="0.1" value={riskSettings.equity_multiplier} onChange={(e) => setRiskSettings((v) => ({ ...v, mode: "equity", equity_multiplier: Number(e.target.value || 1) }))} className="ip-field h-10 w-full text-center" /></InlineRiskOption><InlineRiskOption active={riskSettings.mode === "percent"} label={translate("Risque en %")} desc={translate("Pourcentage du capital · validation InvestPro requise")} onClick={() => setRiskSettings((v) => ({ ...v, mode: "percent" }))}><input type="number" min="0.1" step="0.1" value={riskSettings.risk_percent} onChange={(e) => setRiskSettings((v) => ({ ...v, mode: "percent", risk_percent: Number(e.target.value || 1) }))} className="ip-field h-10 w-full text-center" /></InlineRiskOption></div></section><section className="rounded-[22px] border border-white/[0.07] bg-black/20 p-4"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--gold)] text-sm font-bold text-black">3</span><div><div className="text-base font-semibold text-white">{translate("Paramètres avancés")}</div><div className="mt-1 text-[10px] text-white/35">{translate("Protection, exécution et filtres.")}</div></div></div><div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2"><RiskNumber label={translate("Slippage max")} value={riskSettings.slippage_pips} min={0} max={1000} step={1} suffix="pips" onChange={(value) => setRiskSettings((v) => ({ ...v, slippage_pips: value }))} /><RiskNumber label={translate("Lots maximum")} value={riskSettings.max_lots} min={0.01} max={1000} step={0.01} suffix="lots" onChange={(value) => setRiskSettings((v) => ({ ...v, max_lots: value }))} /><RiskNumber label={translate("Multiplicateur des lots")} value={riskSettings.mirror_multiplier} min={0.1} max={20} step={0.1} suffix="x" onChange={(value) => setRiskSettings((v) => ({ ...v, mirror_multiplier: value }))} /><RiskNumber label={translate("Risque en %")} value={riskSettings.risk_percent} min={0.1} max={20} step={0.1} suffix="%" onChange={(value) => setRiskSettings((v) => ({ ...v, risk_percent: value }))} /></div><div className="mt-4 space-y-3"><ToggleSetting label={translate("Copier uniquement certains symboles")} description={translate("Préparez un filtrage personnalisé par symboles.")} checked={Boolean(riskSettings.symbol_mapping)} onChange={(checked) => setRiskSettings((v) => ({ ...v, symbol_mapping: checked ? v.symbol_mapping || "XAUUSD=GOLD" : "" }))} /><ToggleSetting label={translate("Heures de trading autorisées")} description={translate("Option avancée de filtrage horaire.")} checked={riskSettings.drawdown_enabled} onChange={(checked) => setRiskSettings((v) => ({ ...v, drawdown_enabled: checked }))} /></div><Field label={translate("Configuration / notes avancées")}><textarea value={riskSettings.symbol_mapping} onChange={(e) => setRiskSettings((v) => ({ ...v, symbol_mapping: e.target.value }))} className="min-h-24 w-full rounded-xl border border-white/[0.08] bg-black/25 p-3 text-[11px] leading-5 text-white outline-none focus:border-[color:var(--gold-border)]" placeholder={`Ex. XAUUSD=GOLD\nUS30=DJ30`} /></Field></section></div></section><div className="mt-4 flex flex-col gap-2 rounded-2xl border border-[color:var(--gold-border)] bg-[#101310] p-4 sm:flex-row sm:items-center sm:justify-between"><label className="flex items-center gap-2 text-xs text-white/70"><input type="checkbox" checked={masterConsent} onChange={(e) => setMasterConsent(e.target.checked)} />{riskSettings.mode === "fixed" ? translate("Je confirme le réglage en lots fixes.") : translate("Je confirme ma demande de réglage et son envoi à l’équipe InvestPro.")}</label><button disabled={busy || riskBusy || !masterConsent} onClick={() => void saveAll()} className="rounded-xl bg-[color:var(--gold)] px-5 py-3 text-sm font-bold text-black disabled:opacity-40">{saveBarState === "saving" ? translate("Enregistrement…") : riskSettings.mode === "fixed" ? translate("Enregistrer les lots fixes") : translate("Envoyer la demande à InvestPro")}</button></div></div></div>, document.body) : null}
 
-        <section className="grid grid-cols-1 gap-5 xl:grid-cols-1"><section className="hidden rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><div className="text-lg font-semibold text-white">{translate("Liaisons Master")}</div><div className="mt-1 text-[11px] text-white/35">{translate("Active les masters que ce receveur doit copier.")}</div></div>{selectedReceiver && selectedReceiver.id !== "legacy" ? <button onClick={() => { setRemoveReceiverId(selectedReceiver.id); setDisconnectConsent(false); setRemoveError(""); }} className="inline-flex h-10 items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/[0.04] px-4 text-[11px] font-semibold text-red-300"><Unplug size={13} /> {" "}{translate("Retirer ce receveur")}</button> : null}</div><div className="mt-5 space-y-3">{(selectedStatus?.masterAccountsList || []).length === 0 ? <div className="rounded-2xl border border-white/[0.07] bg-black/20 p-6 text-[11px] text-white/40">{translate("Aucune liaison master disponible pour le moment.")}</div> : (selectedStatus?.masterAccountsList || []).map((master, index) => { const current = selectedMasters[master.id] || { on: false, lots: masterQuickValue || "0.01" }; return <div key={master.id} className={cn("rounded-[18px] border p-4 transition", current.on ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]" : "border-white/[0.07] bg-black/20")}><div className="grid grid-cols-1 gap-3 md:grid-cols-[auto_1fr_auto_auto] md:items-center"><button onClick={() => toggleMaster(master.id)} className={cn("flex h-7 w-7 items-center justify-center rounded-md border", current.on ? "border-[color:var(--gold-border)] bg-[color:var(--gold)] text-black" : "border-white/10 text-white/50")}>{current.on ? <Check size={14} /> : null}</button><div><div className="text-sm font-semibold text-white">{master.name}</div><div className="mt-1 text-[10px] text-white/35">{translate("MASTER")}{" "}{String(index + 1).padStart(2, "0")} · {current.on ? translate("Activé") : translate("Pause")}</div></div><div className="text-[10px] text-white/50">{translate("Mode")}</div><div className="text-[11px] font-semibold text-[color:var(--gold)]">{translate(riskModeLabel(riskSettings.mode))}</div></div><div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-[1fr_160px_110px] md:items-end"><div className="rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2 text-[10px] text-white/40">{translate("Cette liaison utilisera les paramètres du bloc “Régler le risque”.")}</div><State active={current.on} label={current.on ? translate("Activé") : translate("Pause")} /></div></div>; })}</div><label className="mt-5 flex items-start gap-3 rounded-2xl border border-white/[0.06] bg-black/20 p-4 text-[11px] leading-5 text-white/55"><input type="checkbox" checked={masterConsent} onChange={(e) => { setMasterConsent(e.target.checked); setSaveBarState("idle"); setSaveBarMessage("Configuration non enregistrée"); }} className="mt-0.5 h-4 w-4 accent-[#d4a934]" /> {" "}{translate("Je confirme les stratégies et volumes sélectionnés.")}</label></section><section className="space-y-5"><section className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4 md:p-5"><div className="text-sm font-semibold text-white">{translate("Activité & état du système")}</div><div className="mt-1 text-[10px] text-white/40">{translate("Derniers états connus, sans inventer d’évènements de trading.")}</div><div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3"><div className="flex items-start gap-3 rounded-xl border border-white/[0.06] bg-black/20 p-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-300/[0.08] text-cyan-200"><RefreshCw size={14} /></span><div><div className="text-[10px] font-semibold text-white/80">{translate("Vérification des comptes")}</div><div className="mt-1 text-[9px] text-white/40">{checked || translate("En attente de synchronisation")}</div></div></div><div className="flex items-start gap-3 rounded-xl border border-white/[0.06] bg-black/20 p-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-400/[0.08] text-emerald-300"><ShieldCheck size={14} /></span><div><div className="text-[10px] font-semibold text-white/80">{translate("Réglages de risque")}</div><div className="mt-1 text-[9px] text-white/40">{riskSaveState === "saved" ? (translate("Enregistrés") + (riskSavedAt ? ` · ${riskSavedAt}` : "") + "") : riskSaveState === "pending" ? translate("Validation en attente") : translate("État non confirmé")}</div></div></div><div className="flex items-start gap-3 rounded-xl border border-white/[0.06] bg-black/20 p-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[color:var(--gold-soft)] text-[color:var(--gold)]"><Link2 size={14} /></span><div><div className="text-[10px] font-semibold text-white/80">{translate("Liaisons Master")}</div><div className="mt-1 text-[9px] text-white/40">{translate(confirmedMasters.length > 1 ? "{count} liaisons actives" : "{count} liaison active").replace("{count}", String(confirmedMasters.length))}</div></div></div></div></section>{showStats ? <section className="rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6"><div className="text-lg font-semibold text-white">{translate("Statistiques du compte sélectionné")}</div><div className="mt-4 grid grid-cols-2 gap-3"><Summary label={translate("Solde")} value={selectedStats.balance == null ? "—" : money(selectedStats.balance, selectedStats.currency)} /><Summary label={translate("Equity")} value={selectedStats.equity == null ? "—" : money(selectedStats.equity, selectedStats.currency)} /><Summary label={translate("P&L jour")} value={selectedStats.pnl == null ? "—" : money(selectedStats.pnl, selectedStats.currency)} green={Number(selectedStats.pnl) > 0} /><Summary label={translate("Positions ouvertes")} value={selectedStats.open == null ? "—" : String(selectedStats.open)} /></div></section> : null}</section></section>
+        <section className="grid grid-cols-1 gap-5 xl:grid-cols-1"><section className="hidden rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><div className="text-lg font-semibold text-white">{translate("Liaisons Master")}</div><div className="mt-1 text-[11px] text-white/35">{translate("Active les masters que ce receveur doit copier.")}</div></div>{selectedReceiver && selectedReceiver.id !== "legacy" ? <button onClick={() => { setRemoveReceiverId(selectedReceiver.id); setDisconnectConsent(false); setRemoveError(""); }} className="inline-flex h-10 items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/[0.04] px-4 text-[11px] font-semibold text-red-300"><Unplug size={13} /> {" "}{translate("Retirer ce receveur")}</button> : null}</div><div className="mt-5 space-y-3">{(selectedStatus?.masterAccountsList || []).length === 0 ? <div className="rounded-2xl border border-white/[0.07] bg-black/20 p-6 text-[11px] text-white/40">{translate("Aucune liaison master disponible pour le moment.")}</div> : (selectedStatus?.masterAccountsList || []).map((master, index) => { const current = selectedMasters[master.id] || { on: false, lots: masterQuickValue || "0.01" }; return <div key={master.id} className={cn("rounded-[18px] border p-4 transition", current.on ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]" : "border-white/[0.07] bg-black/20")}><div className="grid grid-cols-1 gap-3 md:grid-cols-[auto_1fr_auto_auto] md:items-center"><button onClick={() => toggleMaster(master.id)} className={cn("flex h-7 w-7 items-center justify-center rounded-md border", current.on ? "border-[color:var(--gold-border)] bg-[color:var(--gold)] text-black" : "border-white/10 text-white/50")}>{current.on ? <Check size={14} /> : null}</button><div><div className="text-sm font-semibold text-white">{master.name}</div><div className="mt-1 text-[10px] text-white/35">{translate("MASTER")}{" "}{String(index + 1).padStart(2, "0")} · {current.on ? translate("Activé") : translate("Pause")}</div></div><div className="text-[10px] text-white/50">{translate("Mode")}</div><div className="text-[11px] font-semibold text-[color:var(--gold)]">{translate(riskModeLabel(riskSettings.mode))}</div></div><div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-[1fr_160px_110px] md:items-end"><div className="rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2 text-[10px] text-white/40">{translate("Cette liaison utilisera les paramètres du bloc “Régler le risque”.")}</div><State active={current.on} label={current.on ? translate("Activé") : translate("Pause")} /></div></div>; })}</div><label className="mt-5 flex items-start gap-3 rounded-2xl border border-white/[0.06] bg-black/20 p-4 text-[11px] leading-5 text-white/55"><input type="checkbox" checked={masterConsent} onChange={(e) => { setMasterConsent(e.target.checked); setSaveBarState("idle"); setSaveBarMessage("Configuration non enregistrée"); }} className="mt-0.5 h-4 w-4 accent-[#d4a934]" /> {" "}{translate("Je confirme les stratégies et volumes sélectionnés.")}</label></section><section className="space-y-5"><section className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4 md:p-5"><div className="text-sm font-semibold text-white">{translate("Activité & état du système")}</div><div className="mt-1 text-[10px] text-white/40">{translate("Derniers états connus, sans inventer d’évènements de trading.")}</div><div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3"><div className="flex items-start gap-3 rounded-xl border border-white/[0.06] bg-black/20 p-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-300/[0.08] text-cyan-200"><RefreshCw size={14} /></span><div><div className="text-[10px] font-semibold text-white/80">{translate("Vérification des comptes")}</div><div className="mt-1 text-[9px] text-white/40">{checked || translate("En attente de synchronisation")}</div></div></div><div className="flex items-start gap-3 rounded-xl border border-white/[0.06] bg-black/20 p-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-400/[0.08] text-emerald-300"><ShieldCheck size={14} /></span><div><div className="text-[10px] font-semibold text-white/80">{translate("Réglages de risque")}</div><div className="mt-1 text-[9px] text-white/40">{riskSaveState === "saved" ? (translate("Enregistrés") + (riskSavedAt ? ` · ${riskSavedAt}` : "") + "") : riskSaveState === "pending" ? translate("Validation en attente") : translate("État non confirmé")}</div></div></div><div className="flex items-start gap-3 rounded-xl border border-white/[0.06] bg-black/20 p-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[color:var(--gold-soft)] text-[color:var(--gold)]"><Link2 size={14} /></span><div><div className="text-[10px] font-semibold text-white/80">{translate("Liaisons Master")}</div><div className="mt-1 text-[9px] text-white/40">{translate(confirmedMasters.length > 1 ? "{count} liaisons actives" : "{count} liaison active").replace("{count}", String(confirmedMasters.length))}</div></div></div></div></section>{showStats ? <section className="rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6"><div className="text-lg font-semibold text-white">{translate("Statistiques du compte sélectionné")}</div><div className="mt-4 grid grid-cols-2 gap-3"><Summary label={translate("Solde")} value={selectedStats.balance == null ? "—" : money(selectedStats.balance, selectedStats.currency)} /><Summary label={translate("Equity")} value={selectedStats.equity == null ? "—" : money(selectedStats.equity, selectedStats.currency)} /><Summary label={translate("P&L en cours")} value={selectedStats.pnl == null ? "—" : money(selectedStats.pnl, selectedStats.currency)} green={Number(selectedStats.pnl) > 0} /><Summary label={translate("Positions ouvertes")} value={selectedStats.open == null ? "—" : String(selectedStats.open)} /></div></section> : null}</section></section>
 
         </div>
       </main>

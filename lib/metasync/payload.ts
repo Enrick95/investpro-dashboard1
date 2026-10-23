@@ -1,7 +1,7 @@
 import { validateExecutionMetadata, type ExecutionMetadata } from './execution-metadata';
 // This pilot receives closed MT4 tickets and MT5 positions. It never executes trades.
 export type SyncTrade={external_id:string;symbol:string;direction:'buy'|'sell';entry_price:number;trade_date:string;result_amount:number;execution_metadata?:ExecutionMetadata};
-export type Snapshot={platform:'MT4'|'MT5';login:string;server:string;currency:string;balance:number;equity:number;observed_at:string;trades:SyncTrade[];warnings:string[]};
+export type Snapshot={platform:'MT4'|'MT5';login:string;server:string;currency:string;balance:number;equity:number;observed_at:string;trades:SyncTrade[];warnings:string[];floating_pnl?:number|null;open_positions?:number|null};
 export function validateSnapshot(x:unknown):Snapshot{
  if(!x||typeof x!=='object')throw Error('Format invalide');
  const v=x as Record<string,unknown>;
@@ -10,6 +10,10 @@ export function validateSnapshot(x:unknown):Snapshot{
  const str=(x:unknown,max:number)=>typeof x==='string'&&x.length>0&&x.length<=max;
  const finite=(x:unknown)=>typeof x==='number'&&Number.isFinite(x)&&Math.abs(x)<1e12;
  if(!str(v.login,30)||!/^\d+$/.test(v.login as string)||!str(v.server,120)||!str(v.currency,12)||!finite(v.balance)||!finite(v.equity))throw Error('Compte invalide');
+ // Optional broker-reported metrics. Older connectors have no value; never
+ // replace missing profit or an unknown position count with a misleading zero.
+ if(v.floating_pnl!=null&&!finite(v.floating_pnl))throw Error('P&L invalide');
+ if(v.open_positions!=null&&(typeof v.open_positions!=='number'||!Number.isInteger(v.open_positions)||v.open_positions<0||v.open_positions>100000))throw Error('Positions invalides');
  const stamp=typeof v.observed_at==='string'?Date.parse(v.observed_at):NaN;
  if(!Number.isFinite(stamp)||stamp>Date.now()+300000||stamp<Date.now()-86400000)throw Error('Horodatage invalide');
  if(!Array.isArray(v.trades)||v.trades.length>500||!Array.isArray(v.warnings)||v.warnings.length>20||v.warnings.some(w=>!str(w,300)))throw Error('Lot trop volumineux');
@@ -22,5 +26,5 @@ export function validateSnapshot(x:unknown):Snapshot{
   if(Object.hasOwn(t,'execution_metadata'))validateExecutionMetadata(t.execution_metadata,t,platform);
   ids.add(t.external_id);
  }
- return {...v,platform} as unknown as Snapshot;
+ return {...v,platform,floating_pnl:v.floating_pnl??null,open_positions:v.open_positions??null} as unknown as Snapshot;
 }
