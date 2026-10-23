@@ -33,6 +33,8 @@ import type { SthStatus } from "@/lib/sth/client";
 import CopierConnectionNetwork from "@/components/copier/CopierConnectionNetwork";
 import CopierPnlSummary from "@/components/copier/CopierPnlSummary";
 import { buildCopierAccountMetrics, aggregateCopierPnl, type HostedCopierAccountSync } from "@/lib/copier/account-metrics";
+import { loadCopierDaySnapshot } from "@/lib/copier/day-result-loader";
+import type { CopierDaySnapshot } from "@/lib/copier/day-result";
 import { sendHostedMutation } from "@/lib/metasync/hosted-request-client";
 import { connectionStateLabel, type ConnectionState } from "@/lib/copier/connection-network";
 
@@ -392,6 +394,8 @@ export default function CopieurPage() {
   const [accounts, setAccounts] = useState<LooseAccount[]>([]);
   const [hostedAccountSyncs, setHostedAccountSyncs] = useState<HostedAccountSync[]>([]);
   const [hostedBrokers, setHostedBrokers] = useState<HostedBroker[]>([]);
+  const [dailySnapshot, setDailySnapshot] = useState<CopierDaySnapshot | null>(null);
+  const [dailyReadFailed, setDailyReadFailed] = useState(false);
   const [financialRefreshing, setFinancialRefreshing] = useState(false);
   const [financialRefreshError, setFinancialRefreshError] = useState(false);
   const financialRequest = useRef<Promise<void> | null>(null);
@@ -685,10 +689,12 @@ export default function CopieurPage() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user || financialEpoch.current !== epoch) return;
-        const [accountResult, hostedResult] = await Promise.all([
+        const [accountResult, hostedResult, dayResult] = await Promise.all([
           supabase.from("trading_accounts").select("*").eq("user_id", user.id),
           fetch("/api/metasync/hosted", { cache: "no-store", signal: AbortSignal.timeout(15000) })
             .then(async response => response.ok ? response.json() : null).catch(() => null),
+          loadCopierDaySnapshot(supabase, user.id)
+            .then(snapshot => ({ snapshot })).catch(() => ({ snapshot: null })),
         ]);
         if (financialEpoch.current !== epoch) return;
         const hostedAvailable = Array.isArray(hostedResult?.connections);
@@ -697,11 +703,13 @@ export default function CopieurPage() {
           setAccounts((accountResult.data || []) as LooseAccount[]);
           setHostedAccountSyncs(hostedResult.connections as HostedAccountSync[]);
           if (Array.isArray(hostedResult.brokers)) setHostedBrokers(hostedResult.brokers as HostedBroker[]);
+          if (dayResult.snapshot) setDailySnapshot(dayResult.snapshot);
         }
         setFinancialRefreshError(Boolean(accountResult.error) || !hostedAvailable);
+        setDailyReadFailed(Boolean(accountResult.error) || !hostedAvailable || !dayResult.snapshot);
         setConnectionNow(Date.now());
       } catch {
-        if (financialEpoch.current === epoch) setFinancialRefreshError(true);
+        if (financialEpoch.current === epoch) { setFinancialRefreshError(true); setDailyReadFailed(true); }
       } finally {
         if (financialEpoch.current === epoch) setFinancialRefreshing(false);
       }
@@ -1365,7 +1373,7 @@ export default function CopieurPage() {
   }
 
   const pnlSummary = <div className="space-y-2">
-    <CopierPnlSummary metrics={receiverMetrics} now={connectionNow} translate={translate} locale={locale} refreshing={financialRefreshing} />
+    <CopierPnlSummary metrics={receiverMetrics} now={connectionNow} translate={translate} locale={locale} refreshing={financialRefreshing} dailySnapshot={dailySnapshot} dailyReadFailed={dailyReadFailed} />
     {financialRefreshError ? <p role="status" className="px-2 text-[10px] text-amber-200/80">{translate("Actualisation temporairement indisponible · dernières données conservées.")}</p> : null}
   </div>;
   const connectionNetwork = <CopierConnectionNetwork
@@ -1555,19 +1563,14 @@ export default function CopieurPage() {
               <div className="hidden grid-cols-[56px_1.7fr_.7fr_.8fr_.9fr_.9fr_.8fr_.75fr_.9fr] gap-3 border-b border-white/[0.06] bg-black/25 px-4 py-3 text-[9px] font-bold uppercase tracking-[0.08em] text-white/30 xl:grid"><div></div><div>{translate("Nom du compte")}</div><div>{translate("Plateforme")}</div><div>{translate("Statut")}</div><div>{translate("Solde")}</div><div>{translate("Equity")}</div><div>{translate("P&L en cours")}</div><div>{translate("Ouverts")}</div><div>{translate("Actions")}</div></div>
               {virtualReceivers.length === 0 ? <div className="p-10 text-center text-white/40">{translate("Aucun receveur pour le moment.")}</div> : virtualReceivers.map((receiver) => {
                 const s = receiver.id === "legacy" ? { balance: null, equity: null, pnl: null, open: null, currency: "USD", lastSync: null, hasSync: false, syncStatus: "missing" } : statsFor(receiver);
-                const hostedSyncError = hostedAccountSyncs.some((row) => {
-                  const connection = row.investpro_mt_connections;
-                  return row.active !== false && row.status === "error" && connection &&
-                    connection.login?.trim() === receiver.login.trim() &&
-                    connection.platform?.toUpperCase() === receiver.platform &&
-                    connection.server?.trim().toLowerCase() === receiver.server.trim().toLowerCase() &&
-                    !connection.last_sync && row.equity == null;
-                });
+                const noFirstSnapshot = s.hasSync && !s.lastSync && s.balance == null && s.equity == null;
+                const hostedSyncError = noFirstSnapshot && s.syncStatus === "error";
+                const hostedSyncPending = noFirstSnapshot && s.syncStatus !== "error" && s.syncStatus !== "paused";
                 const selected = selectedReceiverId === receiver.id;
-                return <div key={receiver.id} className={cn("grid grid-cols-1 gap-3 border-b border-white/[0.05] px-4 py-4 last:border-0 xl:grid-cols-[56px_1.7fr_.7fr_.8fr_.9fr_.9fr_.8fr_.75fr_.9fr] xl:items-center", selected ? "bg-[color:var(--gold-soft)]" : "bg-black/10 hover:bg-white/[0.02]") }><div className="flex items-center"><button onClick={() => void selectReceiver(receiver.id)} className={cn("flex h-6 w-6 items-center justify-center rounded-md border text-[10px]", selected ? "border-[color:var(--gold-border)] bg-[color:var(--gold)] text-black" : "border-white/10 text-white/50")}>{selected ? <Check size={13} /> : null}</button></div><div className="min-w-0 text-left"><button type="button" onClick={() => void selectReceiver(receiver.id)} className="block w-full text-left"><div className="text-sm font-semibold text-white">{receiver.alias}</div><div className="mt-1 text-[10px] text-white/35">#{receiver.login}{s.lastSync ? ` · MetaSync ${new Date(s.lastSync).toLocaleTimeString(locale === "en" ? "en-US" : "fr-FR", { hour: "2-digit", minute: "2-digit" })}` : ""}</div></button>{receiver.id !== "legacy" && !s.hasSync ? <a href="/dashboard/connexions/metatrader" className="mt-1 inline-flex text-[9px] font-semibold text-[color:var(--gold)] underline underline-offset-2">{translate("Relier MetaSync pour afficher le solde")}</a> : null}{hostedSyncError ? <div className="mt-1 text-[9px] leading-4 text-red-300">{translate("MetaSync en échec · aucun solde confirmé. Vérifie les identifiants et le serveur puis relance l’ajout.")}</div> : null}</div><div className="text-[11px] font-semibold text-[color:var(--gold)]">{receiver.platform}</div><div><ReceiverStatusBadge state={connectionStates[receiver.id]} now={connectionNow} /></div><div className="text-[11px] text-white/70">{money(s.balance, s.currency)}</div><div className="text-[11px] text-white/70">{money(s.equity, s.currency)}</div><div className={cn("text-[11px] font-medium", Number(s.pnl) > 0 ? "text-emerald-400" : Number(s.pnl) < 0 ? "text-red-400" : "text-white/60")}>{s.pnl == null ? "—" : money(s.pnl, s.currency)}</div><div className="text-[11px] text-white/70">{s.open == null ? "—" : String(s.open)}</div><div className="flex items-center gap-2"><button onClick={() => { setShowStats(true); void selectReceiver(receiver.id); }} aria-label={(translate("Statistiques de ") + (receiver.alias) + "")} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 text-white/60 hover:text-white xl:h-8 xl:w-8 xl:rounded-lg"><Activity size={14} /></button><button onClick={() => void selectReceiver(receiver.id)} aria-label={(translate("Configurer ") + (receiver.alias) + "")} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 text-white/60 hover:text-white xl:h-8 xl:w-8 xl:rounded-lg"><Settings2 size={14} /></button>{receiver.id !== "legacy" ? <button onClick={() => { setRemoveReceiverId(receiver.id); setDisconnectConsent(false); setRemoveError(""); }} aria-label={(translate("Retirer ") + (receiver.alias) + "")} className="flex h-11 w-11 items-center justify-center rounded-xl border border-red-500/20 text-red-400 hover:bg-red-500/10 xl:h-8 xl:w-8 xl:rounded-lg"><Unplug size={14} /></button> : null}</div></div>;
+                return <div key={receiver.id} className={cn("grid grid-cols-1 gap-3 border-b border-white/[0.05] px-4 py-4 last:border-0 xl:grid-cols-[56px_1.7fr_.7fr_.8fr_.9fr_.9fr_.8fr_.75fr_.9fr] xl:items-center", selected ? "bg-[color:var(--gold-soft)]" : "bg-black/10 hover:bg-white/[0.02]") }><div className="flex items-center"><button onClick={() => void selectReceiver(receiver.id)} className={cn("flex h-6 w-6 items-center justify-center rounded-md border text-[10px]", selected ? "border-[color:var(--gold-border)] bg-[color:var(--gold)] text-black" : "border-white/10 text-white/50")}>{selected ? <Check size={13} /> : null}</button></div><div className="min-w-0 text-left"><button type="button" onClick={() => void selectReceiver(receiver.id)} className="block w-full text-left"><div className="text-sm font-semibold text-white">{receiver.alias}</div><div className="mt-1 text-[10px] text-white/35">#{receiver.login}{s.lastSync ? ` · MetaSync ${new Date(s.lastSync).toLocaleTimeString(locale === "en" ? "en-US" : "fr-FR", { hour: "2-digit", minute: "2-digit" })}` : ""}</div></button>{receiver.id !== "legacy" && !s.hasSync ? <a href="/dashboard/connexions/metatrader" className="mt-1 inline-flex text-[9px] font-semibold text-[color:var(--gold)] underline underline-offset-2">{translate("Relier MetaSync pour afficher le solde")}</a> : null}{hostedSyncPending ? <div role="status" className="mt-1 text-[9px] leading-4 text-amber-200/80">{translate("MetaSync relié · premier relevé en attente")}</div> : null}{hostedSyncError ? <div role="status" className="mt-1 text-[9px] leading-4 text-red-300">{translate("MetaSync en échec · aucun solde confirmé.")} <a href="/dashboard/connexions/metatrader" className="font-semibold underline underline-offset-2">{translate("Vérifier MetaSync")}</a></div> : null}</div><div className="text-[11px] font-semibold text-[color:var(--gold)]">{receiver.platform}</div><div><ReceiverStatusBadge state={connectionStates[receiver.id]} now={connectionNow} /></div><div className="text-[11px] text-white/70">{money(s.balance, s.currency)}</div><div className="text-[11px] text-white/70">{money(s.equity, s.currency)}</div><div className={cn("text-[11px] font-medium", Number(s.pnl) > 0 ? "text-emerald-400" : Number(s.pnl) < 0 ? "text-red-400" : "text-white/60")}>{s.pnl == null ? "—" : money(s.pnl, s.currency)}</div><div className="text-[11px] text-white/70">{s.open == null ? "—" : String(s.open)}</div><div className="flex items-center gap-2"><button onClick={() => { setShowStats(true); void selectReceiver(receiver.id); }} aria-label={(translate("Statistiques de ") + (receiver.alias) + "")} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 text-white/60 hover:text-white xl:h-8 xl:w-8 xl:rounded-lg"><Activity size={14} /></button><button onClick={() => void selectReceiver(receiver.id)} aria-label={(translate("Configurer ") + (receiver.alias) + "")} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 text-white/60 hover:text-white xl:h-8 xl:w-8 xl:rounded-lg"><Settings2 size={14} /></button>{receiver.id !== "legacy" ? <button onClick={() => { setRemoveReceiverId(receiver.id); setDisconnectConsent(false); setRemoveError(""); }} aria-label={(translate("Retirer ") + (receiver.alias) + "")} className="flex h-11 w-11 items-center justify-center rounded-xl border border-red-500/20 text-red-400 hover:bg-red-500/10 xl:h-8 xl:w-8 xl:rounded-lg"><Unplug size={14} /></button> : null}</div></div>;
               })}
             </div>
-            {virtualReceivers.some((receiver) => receiver.id !== "legacy" && (() => { const stats = statsFor(receiver); return stats.balance == null || stats.equity == null; })()) ? <div className="mt-3 flex flex-col gap-2 rounded-xl border border-amber-500/15 bg-amber-500/[0.04] p-3 text-[10px] leading-5 text-white/55 sm:flex-row sm:items-center sm:justify-between"><span>{translate("Les comptes receveurs reprennent automatiquement les soldes disponibles dans MetaSync. Si un chiffre manque, relie ce même compte dans Mes comptes.")}</span><a href="/dashboard/comptes" className="inline-flex min-h-9 shrink-0 items-center rounded-lg border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 font-semibold text-[color:var(--gold)]">{translate("Ouvrir Mes comptes")}</a></div> : null}
+            {virtualReceivers.some((receiver) => receiver.id !== "legacy" && (() => { const stats = statsFor(receiver); return stats.balance == null || stats.equity == null; })()) ? <div className="mt-3 flex flex-col gap-2 rounded-xl border border-amber-500/15 bg-amber-500/[0.04] p-3 text-[10px] leading-5 text-white/55 sm:flex-row sm:items-center sm:justify-between"><span>{translate("Les soldes s’affichent après un relevé MetaSync valide. Suis la synchronisation dans Mes comptes.")}</span><a href="/dashboard/comptes" className="inline-flex min-h-9 shrink-0 items-center rounded-lg border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 font-semibold text-[color:var(--gold)]">{translate("Ouvrir Mes comptes")}</a></div> : null}
           </section>
         </section>
 

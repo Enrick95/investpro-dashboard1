@@ -23,7 +23,7 @@ const reply = (connections = [{ id: "snapshot-new", floating_pnl: 12 }], brokers
   ok: true, json: async () => ({ connections, brokers }),
 });
 
-function harness({ auth = async () => ({ data: { user: { id: "user-1" } } }) } = {}) {
+function harness({ auth = async () => ({ data: { user: { id: "user-1" } } }), dayRead = async () => ({ day: "2026-10-23", rows: [], readAt: 1 }) } = {}) {
   const queries = [];
   const requests = [];
   const setters = [];
@@ -31,6 +31,8 @@ function harness({ auth = async () => ({ data: { user: { id: "user-1" } } }) } =
     accounts: [{ id: 7, current_balance: 320 }],
     hostedAccountSyncs: [{ id: "snapshot-old", floating_pnl: 10 }],
     hostedBrokers: [{ id: "broker-old" }],
+    dailySnapshot: { day: "2026-10-23", rows: [{ id: "old-trade" }], readAt: 0 },
+    dailyReadFailed: false,
     financialRefreshError: false,
     financialRefreshing: false,
   };
@@ -51,6 +53,9 @@ function harness({ auth = async () => ({ data: { user: { id: "user-1" } } }) } =
     exports: cjsModule.exports,
     supabase,
     useCallback: callback => callback,
+    loadCopierDaySnapshot: dayRead,
+    setDailySnapshot: set("dailySnapshot"),
+    setDailyReadFailed: set("dailyReadFailed"),
     setAccounts: set("accounts"),
     setHostedAccountSyncs: set("hostedAccountSyncs"),
     setHostedBrokers: set("hostedBrokers"),
@@ -209,4 +214,36 @@ test("the MetaSync recovery link is reachable independently of the receiver sele
   }
   inspect(pageAst);
   assert(found, "the missing-sync recovery link must remain present");
+});
+
+
+test("failed daily history keeps the last daily result while fresh account metrics still update", async () => {
+  const h = harness({ dayRead: async () => { throw new Error("History offline"); } });
+  const previous = h.displayed.dailySnapshot;
+  const reading = h.load();
+  await flush();
+  h.queries[0].resolve({ data: [{ id: 7, current_balance: 321 }], error: null });
+  h.requests[0].resolve(reply());
+  await reading;
+  assert.equal(h.displayed.dailySnapshot, previous);
+  assert.equal(h.displayed.dailyReadFailed, true);
+  assert.equal(h.displayed.accounts[0].current_balance, 321);
+  assert.equal(h.displayed.financialRefreshError, false);
+});
+
+test("a delayed daily read cannot overwrite data after the page has changed", async () => {
+  let finish;
+  const h = harness({ dayRead: () => new Promise(resolve => { finish = resolve; }) });
+  const previous = h.displayed.dailySnapshot;
+  const reading = h.load();
+  await flush();
+  h.queries[0].resolve({ data: [{ id: 7, current_balance: 321 }], error: null });
+  h.requests[0].resolve(reply());
+  h.refs.financialEpoch.current += 1;
+  h.refs.financialRequest.current = null;
+  h.setters.length = 0;
+  finish({ day: "2026-10-23", rows: [], readAt: 2 });
+  await reading;
+  assert.equal(h.displayed.dailySnapshot, previous);
+  assert.equal(h.setters.length, 0);
 });

@@ -77,6 +77,32 @@ type TradingAccount = {
 
 type CopierOrigin = "Master" | "Receveur" | "Copieur";
 
+type HostedAccountReadState = "pending" | "error";
+
+function unconfirmedHostedAccountStates(connections: unknown): Record<number, HostedAccountReadState> {
+  const states: Record<number, HostedAccountReadState> = {};
+  const confirmed = new Set<number>();
+  if (!Array.isArray(connections)) return states;
+  const hasTimestamp = (value: unknown) => typeof value === "string" && value.trim() !== "" && Number.isFinite(Date.parse(value));
+  for (const row of connections) {
+    if (!row || typeof row !== "object" || row.active !== true) continue;
+    const connection = Array.isArray(row.investpro_mt_connections) ? row.investpro_mt_connections[0] : row.investpro_mt_connections;
+    if (!connection || typeof connection !== "object") continue;
+    const rawId = connection.account_id;
+    if ((typeof rawId !== "number" && typeof rawId !== "string") || String(rawId).trim() === "") continue;
+    const id = Number(rawId);
+    if (!Number.isSafeInteger(id) || id <= 0) continue;
+    // A real zero is still a valid balance once the broker has supplied a read.
+    if (hasTimestamp(connection.last_sync) || hasTimestamp(connection.observed_at)) {
+      confirmed.add(id);
+      delete states[id];
+    } else if (!confirmed.has(id)) {
+      states[id] = ["error", "failed", "disconnected"].includes(String(row.status).trim().toLowerCase()) ? "error" : "pending";
+    }
+  }
+  return states;
+}
+
 type AccountForm = {
   name: string;
 
@@ -195,6 +221,9 @@ export default function ComptesPage() {
   const { rates, rateDate, rateLoading } = useCurrencyRates();
   const { displayCurrency } = useDisplayCurrency();
   const deletingRef = useRef(false);
+  const mountedRef = useRef(false);
+  const accountLoadRequestRef = useRef(0);
+  const accountLoadBusyRef = useRef(false);
   const [deletingAccountId, setDeletingAccountId] = useState<number | null>(null);
   const [syncPanelVersion, setSyncPanelVersion] = useState(0);
 
@@ -222,6 +251,7 @@ export default function ComptesPage() {
     >([]);
 
   const [copierOrigins, setCopierOrigins] = useState<Record<number, CopierOrigin>>({});
+  const [accountReadStates, setAccountReadStates] = useState<Record<number, HostedAccountReadState>>({});
 
   const [
     loading,
@@ -262,16 +292,34 @@ export default function ComptesPage() {
   ========================================================= */
 
   useEffect(() => {
-    loadAccounts();
+    mountedRef.current = true;
+    void loadAccounts();
+    return () => {
+      mountedRef.current = false;
+      accountLoadRequestRef.current += 1;
+      accountLoadBusyRef.current = false;
+    };
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function loadAccounts() {
+  const hasUnconfirmedAccounts = Object.keys(accountReadStates).length > 0;
+  useEffect(() => {
+    if (!hasUnconfirmedAccounts) return;
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void loadAccounts(true);
+    }, 30000);
+    return () => window.clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasUnconfirmedAccounts]);
+
+  async function loadAccounts(silent = false) {
+    if (silent && (accountLoadBusyRef.current || deletingRef.current)) return;
+    const request = ++accountLoadRequestRef.current;
+    accountLoadBusyRef.current = true;
+    const isCurrent = () => mountedRef.current && request === accountLoadRequestRef.current;
     try {
-      setLoading(
-        true
-      );
+      if (!silent) setLoading(true);
 
       const {
         data: { user },
@@ -279,6 +327,8 @@ export default function ComptesPage() {
           userError,
       } =
         await supabase.auth.getUser();
+
+      if (!isCurrent()) return;
 
       if (
         userError ||
@@ -293,6 +343,21 @@ export default function ComptesPage() {
       setUserId(
         user.id
       );
+
+      // Read synchronization metadata before the balances it confirms.
+      // A first snapshot must not validate an older placeholder zero.
+      const [hostedResponse, receiverResult, masterResponse] = await Promise.all([
+        fetch("/api/metasync/hosted", { cache: "no-store" })
+          .then(async (response) => response.ok ? response.json() : null)
+          .catch(() => null),
+        supabase.from("copier_receivers")
+          .select("login,server,platform")
+          .eq("user_id", user.id),
+        fetch("/api/copier/request", { cache: "no-store" })
+          .then(async (response) => response.ok ? response.json() : null)
+          .catch(() => null),
+      ]);
+      if (!isCurrent()) return;
 
       const {
         data,
@@ -311,13 +376,14 @@ export default function ComptesPage() {
             }
           );
 
+      if (!isCurrent()) return;
       if (error) {
         console.error(
           "Erreur chargement comptes :",
           error
         );
 
-        pushNotif({
+        if (!silent) pushNotif({
           kind:
             "error",
 
@@ -339,17 +405,11 @@ export default function ComptesPage() {
           []
       );
 
-      const [hostedResponse, receiverResult, masterResponse] = await Promise.all([
-        fetch("/api/metasync/hosted", { cache: "no-store" })
-          .then(async (response) => response.ok ? response.json() : null)
-          .catch(() => null),
-        supabase.from("copier_receivers")
-          .select("login,server,platform")
-          .eq("user_id", user.id),
-        fetch("/api/copier/request", { cache: "no-store" })
-          .then(async (response) => response.ok ? response.json() : null)
-          .catch(() => null),
-      ]);
+
+      // Failed metadata reads must not turn an unconfirmed zero into a balance.
+      if (Array.isArray(hostedResponse?.connections)) {
+        setAccountReadStates(unconfirmedHostedAccountStates(hostedResponse.connections));
+      }
       const normalize = (value: unknown) => String(value || "").trim().toLowerCase();
       const copierLogins = [
         ...(receiverResult.data || []).map((row: any) => ({ ...row, kind: "Receveur" as const })),
@@ -376,11 +436,17 @@ export default function ComptesPage() {
           origins[Number(connection.account_id)] = hasMaster && hasReceiver ? "Copieur" : hasMaster ? "Master" : "Receveur";
         }
       }
-      setCopierOrigins(origins);
+      if (Array.isArray(hostedResponse?.connections)) setCopierOrigins(origins);
+    } catch (error: unknown) {
+      if (isCurrent()) {
+        console.error("Erreur chargement comptes :", error);
+        if (!silent) pushNotif({ kind: "error", title: "Mes comptes", message: "Impossible de charger tes comptes.", ttlMs: 8000 });
+      }
     } finally {
-      setLoading(
-        false
-      );
+      if (isCurrent()) {
+        accountLoadBusyRef.current = false;
+        if (!silent) setLoading(false);
+      }
     }
   }
 
@@ -713,6 +779,8 @@ export default function ComptesPage() {
       translate("Les notes et saisies manuelles ne seront pas récupérées.")
     );
     if (!confirmed) return;
+    accountLoadRequestRef.current += 1;
+    accountLoadBusyRef.current = false;
     deletingRef.current = true;
     setDeletingAccountId(account.id);
     try {
@@ -998,6 +1066,7 @@ export default function ComptesPage() {
                       account
                     }
                     copierOrigin={copierOrigins[account.id]}
+                    readState={accountReadStates[account.id]}
                     onEdit={() =>
                       openEditAccount(
                         account
@@ -1573,6 +1642,7 @@ function AccountCard({
   deleteDisabled,
   account,
   copierOrigin,
+  readState,
   onEdit,
   onDelete,
 }: {
@@ -1582,6 +1652,7 @@ function AccountCard({
     TradingAccount;
 
   copierOrigin?: CopierOrigin;
+  readState?: HostedAccountReadState;
 
   onEdit:
     () => void;
@@ -1686,7 +1757,7 @@ function AccountCard({
               {translate("Capital actuel")}</div>
 
             <div className="mt-1 text-base font-semibold text-white">
-              {formatMoney(
+              {readState ? "—" : formatMoney(
                 Number(
                   account.current_balance ||
                     0
@@ -1708,7 +1779,7 @@ function AccountCard({
               {translate("Capital initial")}</div>
 
             <div className="mt-1 text-base font-semibold text-white">
-              {formatMoney(
+              {readState ? "—" : formatMoney(
                 Number(
                   account.initial_balance ||
                     0
@@ -1718,6 +1789,14 @@ function AccountCard({
             </div>
           </div>
         </div>
+
+        {readState ? (
+          <p role="status" className={readState === "error" ? "mt-3 text-[10px] leading-5 text-red-300" : "mt-3 text-[10px] leading-5 text-amber-200"}>
+            {readState === "error"
+              ? translate("Premier relevé MetaTrader indisponible. Vérifie la connexion dans Connexions MetaTrader.")
+              : translate("En attente du premier relevé MetaTrader.")}
+          </p>
+        ) : null}
 
         <div
           className="
