@@ -181,12 +181,12 @@ const { default: Summary } = compile("components/copier/CopierPnlSummary.tsx", {
 });
 const render = props => renderToStaticMarkup(React.createElement(Summary, { metrics: [metric()], now, translate: text => text, ...props }));
 
-test("actual React summary leads with closed-trade result and separates zero floating profit", () => {
+test("actual React summary shows only the closed-trade day result", () => {
   const html = render({ dailySnapshot: snapshot() });
   assert.match(html, /Résultat des trades clôturés aujourd’hui/);
-  assert.ok(html.indexOf("Résultat des trades clôturés") < html.indexOf("P&amp;L en cours"));
+  assert.doesNotMatch(html, /P&amp;L en cours|Résultat flottant|Positions ouvertes/);
   assert.match(html, /12,40/);
-  assert.match(html, /Aucune position ouverte/);
+  assert.doesNotMatch(html, /Aucune position ouverte/);
   assert.match(html, /1 trade\(s\) clôturé\(s\)/);
   assert.match(html, /Heure de Paris/);
 });
@@ -203,7 +203,7 @@ test("actual React summary labels partial coverage and unavailable daily refresh
 
 test("actual React summary never shows an invented daily zero before a dataset exists", () => {
   const html = render({ dailySnapshot: null });
-  const leading = html.slice(0, html.indexOf("P&amp;L en cours"));
+  const leading = html;
   assert.match(leading, /En attente de l’historique synchronisé du jour/);
   assert.doesNotMatch(leading, /0,00|0 trade/);
 });
