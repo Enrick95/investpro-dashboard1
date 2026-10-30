@@ -12,6 +12,7 @@ import { vipEditorMessages } from "./vip-editor";
 import { vipRailMessages } from "./vip-rail";
 import { vipInlineMessages } from "./vip-inline";
 import { journalOutcomeMessages } from "./journal-outcomes";
+import { journalWithdrawalMessages } from "./journal-withdrawals";
 
 /** Static application copy only. Member posts, names and trading data are never sent for translation. */
 export const messages: Readonly<Record<string, string>> = {
@@ -29,4 +30,5 @@ export const messages: Readonly<Record<string, string>> = {
   ...vipRailMessages,
   ...vipInlineMessages,
   ...journalOutcomeMessages,
+  ...journalWithdrawalMessages,
 };

@@ -32,6 +32,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import PerformanceCalendar from '@/components/performance/PerformanceCalendar';
 import TradeOutcomeControl from '@/components/journal/TradeOutcomeControl';
+import WithdrawalsSection from '@/components/journal/WithdrawalsSection';
 import { pushNotif } from "@/lib/notifyStore";
 import DisplayCurrencySelect from "@/components/currency/DisplayCurrencySelect";
 import { convertCurrency, formatDisplayCurrency, rateDateLabel, useCurrencyRates, useDisplayCurrency } from "@/lib/currency";
@@ -2906,6 +2907,8 @@ export default function JournalPage() {
               : t("Données du plan incomplètes : risque initial, SL/TP, session ou setup.")}
           />
         </section>
+
+        <WithdrawalsSection key={userId || ""} accounts={accounts} />
 
         {/* =====================================================
             FILTERS
