@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Essai VIP sans dépôt — Enrick95 × InvestPro</title>
+<meta name="description" content="Teste le VIP d'Enrick95 sans dépôt, sur un compte démo : les trades se copient automatiquement avec InvestPro Copy. Offre jusqu'au 30 novembre.">
+<link rel="canonical" href="https://investprotrading.fr/enrick/essai-vip">
+<meta name="theme-color" content="#090c0c">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://investprotrading.fr/enrick/essai-vip">
+<meta property="og:title" content="Teste le VIP d'Enrick95 sans dépôt">
+<meta property="og:description" content="Sur un compte démo, avec la copie automatique InvestPro Copy. Offre jusqu'au 30 novembre.">
+<meta property="og:image" content="https://investprotrading.fr/enrick95-portrait.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Page d'offre : même univers que la page Enrick95 — fond vert-noir, or InvestPro, turquoise en accent. */
+:root{
+  --bg:#090c0c; --panel:#111615; --panel2:#141a19; --line:#29312c; --line2:#3a443e;
+  --fg:#f6f2e8; --muted:#a9b4ae; --soft:#8f9d93;
+  --gold:#F0C575; --gold1:#F4CD86; --gold2:#E5B45E; --ink:#181a13; --cyan:#91D6D0;
+  --display:'Unbounded', 'Arial Black', system-ui, sans-serif;
+  --body:'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color-scheme:dark; background:var(--bg);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:17px;line-height:1.6}
+a{color:var(--fg);text-decoration:none}
+img{max-width:100%}
+.wrap{max-width:1120px;margin:0 auto;padding-left:max(20px, env(safe-area-inset-left, 0px));padding-right:max(20px, env(safe-area-inset-right, 0px))}
+h1,h2,h3{text-wrap:balance}
+.eyebrow{font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--cyan);font-weight:800;margin:0 0 14px}
+.h2{font-family:var(--display);font-weight:700;font-size:clamp(28px,4vw,46px);line-height:1.06;letter-spacing:-.02em;margin:0 0 16px}
+.gold{color:var(--gold)}
+.lead{color:var(--muted);font-size:18px;max-width:560px;margin:0}
+
+/* barre du haut */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:rgba(9,12,12,.9);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:12px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:700;font-size:15px}
+.brand i{font-style:normal;width:34px;height:34px;border-radius:10px;background:var(--gold);color:var(--ink);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px}
+.mini-count{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px}
+.mini-count b{color:var(--gold);font-variant-numeric:tabular-nums}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--bg)}
+
+/* boutons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:800;font-size:17px;padding:18px 28px;border-radius:14px;transition:transform .2s ease,box-shadow .2s ease;position:relative;overflow:hidden;isolation:isolate}
+.btn-gold{background:linear-gradient(115deg,var(--gold1),var(--gold2));color:var(--ink)}
+.btn-gold::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.55) 50%,transparent 70%);transform:translateX(-130%);animation:shine 3.6s ease-in-out infinite}
+.btn-gold:hover{transform:translateY(-2px);box-shadow:0 12px 32px rgba(240,197,117,.28)}
+.btn-ghost{border:1px solid var(--line2);color:var(--fg);font-weight:700}
+.btn-ghost:hover{border-color:var(--gold);transform:translateY(-2px)}
+.btn:active{transform:scale(.96)}
+.btn:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+@keyframes shine{0%,55%{transform:translateX(-130%)}85%,100%{transform:translateX(130%)}}
+.pulse{animation:glow 2.8s ease-in-out infinite}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 rgba(240,197,117,0)}50%{box-shadow:0 0 0 9px rgba(240,197,117,.15)}}
+
+/* héros */
+.hero{padding-block:64px 72px}
+.hero .wrap{display:flex;flex-wrap:wrap;gap:48px;align-items:center}
+.hero-txt{flex:999 1 480px;min-width:0}
+.pill{display:inline-flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line2);border-radius:999px;padding:7px 14px;font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:22px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--gold);animation:blink 1.6s ease-in-out infinite}
+@keyframes blink{50%{opacity:.25}}
+.h1{font-family:var(--display);font-weight:800;font-size:clamp(40px,6.4vw,80px);line-height:.98;letter-spacing:-.03em;margin:0 0 22px}
+.hero-in>*{animation:up .8s cubic-bezier(.2,.7,.2,1) both}
+.hero-in>*:nth-child(2){animation-delay:.08s}.hero-in>*:nth-child(3){animation-delay:.16s}.hero-in>*:nth-child(4){animation-delay:.24s}.hero-in>*:nth-child(5){animation-delay:.32s}
+@keyframes up{from{transform:translateY(22px);opacity:0}to{transform:none;opacity:1}}
+
+/* compte à rebours */
+.count-card{flex:1 1 340px;min-width:0;background:linear-gradient(135deg,var(--gold1),var(--gold2));color:var(--ink);border-radius:26px;padding:28px;position:relative;overflow:hidden}
+.count-card::before{content:"";position:absolute;right:-70px;top:-70px;width:220px;height:220px;border-radius:50%;border:2px solid rgba(24,26,19,.12)}
+.count-label{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;margin:0 0 14px}
+.count{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.cell{background:var(--ink);color:var(--fg);border-radius:14px;padding:14px 4px 10px;text-align:center}
+.cell b{display:block;font-family:var(--display);font-weight:800;font-size:clamp(26px,4vw,36px);line-height:1;color:var(--gold);font-variant-numeric:tabular-nums}
+.cell span{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.cell b.tick{animation:tick .35s ease}
+@keyframes tick{0%{transform:translateY(-4px);opacity:.4}100%{transform:none;opacity:1}}
+.count-end{font-size:14px;font-weight:700;margin:14px 0 0}
+.count-card .btn{width:100%;margin-top:18px;background:var(--ink);color:var(--fg)}
+.count-card .btn:hover{box-shadow:0 12px 28px rgba(24,26,19,.35);transform:translateY(-2px)}
+
+/* sections */
+section{padding-block:80px}
+.band{background:#0d1110;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.grid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr));gap:14px;margin-top:40px}
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:20px;padding:24px}
+.ic{width:44px;height:44px;border-radius:50%;background:#1d211a;border:1px solid #3a3a2a;color:var(--gold);display:flex;align-items:center;justify-content:center;margin-bottom:16px;animation:bob 2.6s ease-in-out infinite}
+.card:nth-child(2) .ic{animation-delay:.3s}.card:nth-child(3) .ic{animation-delay:.6s}.card:nth-child(4) .ic{animation-delay:.9s}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+.card h3{font-size:19px;margin:0 0 6px}
+.card p{margin:0;color:var(--muted);font-size:15px}
+
+/* étapes */
+.steps{list-style:none;margin:40px 0 0;padding:0;display:grid;gap:14px}
+.step{display:flex;gap:18px;align-items:flex-start;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:22px}
+.num{flex-shrink:0;width:44px;height:44px;border-radius:12px;background:linear-gradient(115deg,var(--gold1),var(--gold2));color:var(--ink);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:800}
+.step h3{font-size:19px;margin:2px 0 6px}
+.step p{margin:0 0 14px;color:var(--muted);font-size:15px}
+.step .btn{font-size:15px;padding:12px 18px}
+.step-body{min-width:0}
+
+/* preuve */
+.proof .wrap{display:flex;flex-wrap:wrap;gap:56px;align-items:center}
+.proof-txt{flex:1 1 400px;min-width:0}
+.phone-col{flex:1 1 300px;min-width:0;display:flex;justify-content:center}
+.phone{position:relative;width:300px;max-width:100%}
+.phone-shell{position:relative;background:#050707;border:2px solid var(--line2);border-radius:46px;padding:10px;box-shadow:0 40px 80px rgba(0,0,0,.55)}
+.phone-screen{height:560px;overflow:hidden;border-radius:37px;background:#0b0f0e}
+.phone-screen img{display:block;width:100%;height:auto}
+.phone-tag{position:absolute;top:-18px;left:50%;transform:translateX(-50%);z-index:2;white-space:nowrap;background:var(--panel);border:1px solid var(--line2);border-radius:999px;padding:7px 14px;font-size:12px;font-weight:700;color:#c0c9c2}
+.phone-tag em{font-style:normal;color:var(--cyan)}
+
+/* témoignages */
+.quotes{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:12px;margin-top:36px}
+.quote{flex:0 0 280px;margin:0;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:24px;display:flex;flex-direction:column;justify-content:space-between;gap:16px;scroll-snap-align:start}
+.quote blockquote{margin:0;font-size:16px;color:#e6e2d6}
+.quote figcaption{font-size:14px;font-weight:700;color:var(--gold)}
+
+/* faq */
+details{border-top:1px solid var(--line);padding:20px 0}
+details:last-of-type{border-bottom:1px solid var(--line)}
+summary{font-weight:800;font-size:18px;cursor:pointer}
+details p{color:var(--muted);margin:10px 0 0}
+
+/* final */
+.final{text-align:center}
+.final .h1{font-size:clamp(34px,5.6vw,64px)}
+.legal{font-size:13px;color:var(--soft);max-width:760px}
+footer{border-top:1px solid var(--line);padding-block:32px 48px;font-size:14px;color:var(--soft)}
+
+.bk-panel{margin-top:14px;background:#14140f;border:1px solid rgba(240,197,117,.45);border-radius:14px;padding:16px;animation:up .4s ease both}
+.bk-panel .btn{width:100%}
+.bk-todo{margin:14px 0 0;padding-left:20px;color:var(--muted);font-size:15px}
+.bk-todo li+li{margin-top:4px}
+.bk-note{margin:12px 0 0;font-size:13px;font-weight:700;color:var(--gold)}
+.bk-old{margin:14px 0 0;font-size:14px;color:var(--soft)}
+.tg-form{display:grid;gap:8px;margin-top:6px}
+.tg-form label{font-size:13px;font-weight:700;color:var(--muted)}
+.tg-form input{width:100%;background:var(--panel2);border:1px solid var(--line2);border-radius:12px;padding:13px 14px;color:var(--fg);font:500 16px var(--body)}
+.tg-form input:focus{outline:2px solid var(--gold);outline-offset:1px;border-color:var(--gold)}
+.tg-msg{margin:6px 0 4px;background:var(--panel2);border:1px dashed var(--line2);border-radius:12px;padding:12px 14px;font-size:14px;color:#e6e2d6;white-space:pre-line;overflow-wrap:anywhere}
+.tg-form .btn{font-size:15px;padding:13px 18px;cursor:pointer;font-family:var(--body)}
+.tg-form button.btn{border:0}
+.tg-warn{margin:0;font-size:13px;color:#e8a39a}
+.tg-err{margin:4px 0 0;font-size:14px;font-weight:700;color:#e8a39a}
+.tg-form input[aria-invalid="true"]{border-color:#e8a39a}
+.tg-form button[disabled]{opacity:.6;cursor:wait}
+.tg-ok{margin-top:6px;background:rgba(145,214,208,.10);border:1px solid rgba(145,214,208,.4);border-radius:14px;padding:16px}
+.tg-ok b{color:var(--cyan);font-size:17px}.tg-ok p{margin:6px 0 0;color:var(--muted);font-size:15px}
+.tg-fallback{margin-top:6px;display:grid;gap:10px}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.tg-warn b{color:inherit}
+.bks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:4px}
+.bk{display:flex;align-items:center;gap:8px;min-width:0;overflow-wrap:anywhere;background:var(--panel2);border:1px solid var(--line2);border-radius:12px;padding:12px 10px;color:var(--fg);font:700 14px var(--body);cursor:pointer;transition:border-color .2s ease,background-color .2s ease,transform .2s ease;text-align:left}
+.bk:hover{border-color:var(--gold)}
+.bk:last-child:nth-child(odd){grid-column:1/-1}.bk:active{transform:scale(.97)}
+.bk[aria-pressed="true"]{border-color:var(--gold);background:#1d211a;box-shadow:inset 0 0 0 1px var(--gold)}
+.bk-ic{width:30px;height:30px;border-radius:8px;background:#1d211a;border:1px solid #3a3a2a;color:var(--gold);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0}
+.bk[aria-pressed="true"] .bk-ic{background:var(--gold);color:var(--ink)}
+/* apparition au défilement */
+.js .rv{transform:translateY(30px);opacity:.2;transition:transform .8s cubic-bezier(.2,.7,.2,1),opacity .8s ease}
+.js .rv.in{transform:none;opacity:1}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}.js .rv{transform:none!important;opacity:1!important}}
+@media (max-width:520px){.mini-count span.txt{display:none}.count-card{padding:22px}.step{padding:18px;gap:14px}}
+</style>
+
+</head>
+<body>
+<header class="top">
+<div class="wrap">
+<a class="brand" href="/enrick"><i>E</i>ENRICK95</a>
+<div class="mini-count"><span class="dot"></span><span class="txt">Fin de l'offre dans</span><b data-mini>—</b></div>
+</div>
+</header>
+
+<main>
+<section class="hero">
+<div class="wrap">
+<div class="hero-txt hero-in">
+<span class="pill"><span class="dot"></span>Offre du moment · jusqu'au 30 novembre</span>
+<h1 class="h1">Teste le VIP <span class="gold">sans déposer un centime.</span></h1>
+<p class="lead">Normalement, l'accès au VIP se débloque avec un dépôt de 300 $. Ce mois-ci, tu peux le découvrir sur un compte démo : les trades du VIP s'y copient automatiquement avec InvestPro Copy, et tu vérifies par toi-même si les résultats sont réels.</p>
+<div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:30px">
+<a class="btn btn-gold pulse" href="#etapes">Je commence l'essai ↓</a>
+<a class="btn btn-ghost" href="#preuve">Voir les résultats</a>
+</div>
+<p class="legal" style="margin-top:16px">Compte démo : aucun dépôt, aucun abonnement, aucun argent réel engagé.</p>
+</div>
+<div class="count-card hero-in" id="offre-count">
+<p class="count-label">L'offre se termine dans</p>
+<div class="count" role="timer" aria-live="off">
+<div class="cell"><b data-u="d">00</b><span>jours</span></div>
+<div class="cell"><b data-u="h">00</b><span>heures</span></div>
+<div class="cell"><b data-u="m">00</b><span>min</span></div>
+<div class="cell"><b data-u="s">00</b><span>sec</span></div>
+</div>
+<p class="count-end" data-endtxt>Fin le 30 novembre à 23 h 59 (heure de Paris).</p>
+<a class="btn" href="#etapes">J'en profite maintenant</a>
+</div>
+</div>
+</section>
+
+<section class="band rv">
+<div class="wrap">
+<p class="eyebrow">Pendant l'essai</p>
+<h2 class="h2">Tu as accès à <span class="gold">tout le VIP.</span></h2>
+<p class="lead">Exactement ce que reçoivent les membres, appliqué sur ton compte démo.</p>
+<div class="grid4">
+<div class="card"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg></div><h3>Mes analyses en H4</h3><p>Forex, indices, crypto et Gold : les zones, les scénarios, le contexte.</p></div>
+<div class="card"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg></div><h3>La copie automatique</h3><p>Les trades du VIP sont reproduits sur ton compte démo, sans que tu aies à les placer.</p></div>
+<div class="card"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg></div><h3>Les signaux et leurs suivis</h3><p>Entrée, stop, objectifs, puis la gestion du trade jusqu'à la clôture.</p></div>
+<div class="card"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg></div><h3>Le suivi public</h3><p>Chaque trade clôturé, gagnant ou perdant, est visible dans l'app InvestPro.</p></div>
+</div>
+</div>
+</section>
+
+<section id="etapes" class="rv">
+<div class="wrap" style="max-width:820px">
+<p class="eyebrow">Comment ça marche</p>
+<h2 class="h2">4 étapes, <span class="gold">on s'occupe du reste.</span></h2>
+<p class="lead">Suis-les dans l'ordre : chaque bouton t'emmène au bon endroit.</p>
+<ol class="steps">
+<li class="step"><span class="num">1</span><div class="step-body"><h3>Choisis ton broker et ouvre ton compte</h3><p>Clique sur ton broker : ton lien d'inscription s'affiche juste en dessous.</p>
+<div class="bks" role="group" aria-label="Choix du broker"><button type="button" class="bk" data-bk="raisefx" aria-pressed="false"><span class="bk-ic">R</span>Raise FX</button><button type="button" class="bk" data-bk="vtmarkets" aria-pressed="false"><span class="bk-ic">VT</span>VT Markets</button><button type="button" class="bk" data-bk="puprime" aria-pressed="false"><span class="bk-ic">PU</span>PU Prime</button><button type="button" class="bk" data-bk="axi" aria-pressed="false"><span class="bk-ic">A</span>Axi</button><button type="button" class="bk" data-bk="bullwaves" aria-pressed="false"><span class="bk-ic">B</span>Bullwaves</button></div>
+<div class="bk-panel" data-panel hidden>
+<a class="btn btn-gold" data-link="aff" href="#" rel="noopener"><span>Ouvrir mon compte <span data-bkname></span> ↗</span></a>
+<ul class="bk-todo"><li>Crée ton compte <span data-bkname></span> avec ce lien.</li><li>Depuis ton espace <span data-bkname></span>, ouvre un compte <b>démo</b>.</li><li>Garde ton numéro, ton serveur et ton mot de passe démo : tu en auras besoin à l'étape 2.</li></ul>
+<p class="bk-note">Obligatoire : ton accès n'est validé que si ton compte est ouvert avec ce lien.</p>
+</div>
+<p class="bk-old">Déjà un compte chez ce broker ? Écris-nous sur Telegram à <a href="https://t.me/EquipeInvestPro">@EquipeInvestPro</a> : on te guide pour le rattachement.</p>
+</div></li>
+<li class="step"><span class="num">2</span><div class="step-body"><h3>Envoie ta demande</h3><p>Remplis le formulaire et envoie-le : ta demande arrive directement chez nous. On te répond sur Telegram.</p>
+<form class="tg-form" id="essai-form" novalidate>
+<label for="tg-name">Prénom et nom</label><input id="tg-name" name="nom" type="text" autocomplete="name" required placeholder="Ex. Julien Martin">
+<label for="tg-user">Ton pseudo Telegram</label><input id="tg-user" name="telegram" type="text" autocomplete="off" required placeholder="Ex. @julienmartin">
+<label for="tg-acc">N° de ton compte démo</label><input id="tg-acc" name="compte" type="text" inputmode="numeric" required placeholder="Ex. 12345678">
+<label for="tg-srv">Serveur du compte démo</label><input id="tg-srv" name="serveur" type="text" required placeholder="Ex. VTMarkets-Demo">
+<label for="tg-pwd">Mot de passe du compte démo</label><input id="tg-pwd" name="motdepasse" type="password" autocomplete="off" spellcheck="false" required placeholder="Celui reçu par e-mail du broker">
+<p class="tg-warn">Uniquement le mot de passe de ton compte <b>démo</b>. N'envoie jamais celui d'un compte réel.</p>
+<p class="bk-note">Les informations de ta demande, y compris les identifiants du compte démo, sont transmises à @EquipeInvestPro sur Telegram pour activer ton essai.</p>
+<div class="hp" aria-hidden="true"><label for="tg-web">Site web</label><input id="tg-web" name="website" type="text" tabindex="-1" autocomplete="off"></div>
+<p class="tg-err" data-err hidden></p>
+<button type="submit" class="btn btn-gold" data-send>Envoyer ma demande</button>
+</form>
+<div class="tg-ok" data-ok hidden><b>Demande envoyée ✓</b><p>On vérifie ton inscription et on branche la copie. On te confirme sur Telegram, généralement dans la journée. En attendant, rejoins le canal des testeurs (étape 4).</p></div>
+<div class="tg-fallback" data-fallback hidden>
+<p class="tg-err">L'envoi automatique n'a pas fonctionné. Copie ce message et envoie-le à <b>@EquipeInvestPro</b> sur Telegram.</p>
+<div class="tg-msg" data-msg aria-live="polite"></div>
+<div style="display:flex;flex-wrap:wrap;gap:10px">
+<button type="button" class="btn btn-gold" data-copy>Copier le message</button>
+<a class="btn btn-ghost" href="https://t.me/EquipeInvestPro">Ouvrir Telegram ↗</a>
+</div>
+<p class="bk-note" data-copied hidden>Message copié. Colle-le dans la conversation avec @EquipeInvestPro.</p>
+</div>
+</div></li>
+<li class="step"><span class="num">3</span><div class="step-body"><h3>On branche la copie pour toi</h3><p>On vérifie que ton compte est bien ouvert avec le lien, puis on ajoute ton compte démo à InvestPro Copy. Les trades du VIP s'y copient automatiquement jusqu'au 30 novembre, tu n'as rien d'autre à faire.</p></div></li>
+<li class="step"><span class="num">4</span><div class="step-body"><h3>Rejoins le canal des testeurs</h3><p>C'est là que tu suis ton essai : le bilan chaque dimanche, les stats du VIP, les lives réservés aux testeurs et les infos pour la suite.</p>
+<a class="btn btn-gold" data-channel href="https://t.me/+hNCn_4xGGKMxZjJk">Rejoindre le canal Essai VIP ↗</a></div></li>
+</ol>
+</div>
+</section>
+
+<section id="preuve" class="band proof rv">
+<div class="wrap">
+<div class="proof-txt">
+<p class="eyebrow">Ne me crois pas sur parole</p>
+<h2 class="h2">Les résultats sont <span class="gold">publics.</span></h2>
+<p class="lead">Voici le vrai suivi du VIP dans l'app InvestPro : les trades clôturés, les gagnants, les perdants, le taux de réussite. Pendant l'essai, tu les vois se construire en direct.</p>
+<p class="legal" style="margin-top:18px">Performances passées : elles ne garantissent pas les résultats futurs. Le trading comporte un risque de perte en capital.</p>
+</div>
+<div class="phone-col">
+<div class="phone">
+<div class="phone-tag"><em>●</em> Suivi VIP, en direct</div>
+<div class="phone-shell"><div class="phone-screen"><iframe id="perfFrame" src="/dashboard/performances-vip" title="Performances VIP InvestPro" loading="lazy" style="width: 390px; height: 791px; border: 0; transform: scale(0.708); transform-origin: 0 0; display: block;"></iframe></div></div>
+</div>
+</div>
+</div>
+</section>
+
+<section class="rv">
+<div class="wrap">
+<p class="eyebrow">Ils l'ont testé</p>
+<h2 class="h2">Ce qu'en disent <span class="gold">les membres.</span></h2>
+<div class="quotes" aria-label="Messages des membres, faire glisser pour voir la suite">
+<figure class="quote"><blockquote>« Ça fait même pas une journée que je suis dans ton VIP et je suis déjà en profit. Merci Enrick. »</blockquote><figcaption>Joan</figcaption></figure>
+<figure class="quote"><blockquote>« Ton trading est vraiment propre et technique. Tu pousses le groupe vers le haut et t'es proche de nous aussi, et ça c'est important. »</blockquote><figcaption>Yann</figcaption></figure>
+<figure class="quote"><blockquote>« Je gère toujours bien mon money management et je suis tes conseils, donc tout roule. Tu es vraiment quelqu'un de bien. »</blockquote><figcaption>Harmonie</figcaption></figure>
+<figure class="quote"><blockquote>« J'écoute tes conseils sur le VIP et en live, ça me régale. Merci beaucoup ! »</blockquote><figcaption>Lex.a</figcaption></figure>
+</div>
+</div>
+</section>
+
+<section class="band rv">
+<div class="wrap" style="max-width:820px">
+<h2 class="h2">Questions <span class="gold">fréquentes</span></h2>
+<details><summary>Je dois déposer de l'argent ?</summary><p>Non. Pendant l'offre, tu découvres le VIP sur un compte démo : aucun dépôt, aucun abonnement. La seule condition : ouvrir ton compte broker avec mon lien.</p></details>
+<details><summary>Pourquoi un compte démo ?</summary><p>Pour que tu puisses juger les résultats sans prendre de risque. Les trades du VIP sont copiés sur ton compte démo avec de l'argent fictif, et tu vois ce que ça donne.</p></details>
+<details><summary>Et à la fin de l'essai ?</summary><p>Rien n'est automatique. Si tu veux continuer, tu fais un dépôt de 300 $ minimum sur ton compte broker : tu gardes ton accès au VIP, sans abonnement, et tu profites d'un bonus de 100 % sur ton dépôt. Sinon, la copie s'arrête, c'est tout.</p></details>
+<details><summary>J'ai déjà un compte chez un de ces brokers ?</summary><p>Écris-nous sur Telegram à <a href="https://t.me/EquipeInvestPro" style="color:var(--gold);font-weight:700">@EquipeInvestPro</a> : on t'explique comment rattacher ton compte.</p></details>
+<details><summary>Je débute, c'est pour moi ?</summary><p>Oui, c'est même le bon moment : tu apprends à lire les analyses et à gérer un trade, sans pression puisque c'est en démo.</p></details>
+</div>
+</section>
+
+<section class="final rv">
+<div class="wrap">
+<span class="pill"><span class="dot"></span>Fin de l'offre dans <b data-mini style="color:var(--fg);margin-left:4px">—</b></span>
+<h2 class="h1">Un mois pour <span class="gold">te faire ton avis.</span></h2>
+<a class="btn btn-gold pulse" href="#etapes" style="margin-top:12px">Je commence l'essai ↑</a>
+<p class="legal" style="margin:24px auto 0">Le trading comporte un risque de perte en capital. Les contenus partagés sont éducatifs et ne constituent pas un conseil en investissement. Les performances passées ne garantissent pas les résultats futurs.</p>
+</div>
+</section>
+</main>
+
+<footer>
+<div class="wrap" style="display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between">
+<span><a href="/enrick" style="color:var(--fg);font-weight:700">← Retour à la page Enrick95</a></span>
+<span style="display:flex;gap:18px"><a href="https://investprotrading.fr/cgu" style="color:var(--muted)">Conditions</a><a href="https://investprotrading.fr/privacy" style="color:var(--muted)">Confidentialité</a></span>
+</div>
+</footer>
+
+<script>
+(function(){
+  var d=document.documentElement; d.classList.add("js");
+  var red=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // Fin de l'offre : 30 novembre 2026, 23:59:59 heure de Paris (UTC+1)
+  var END=new Date("2026-11-30T23:59:59+01:00").getTime();
+  var cells={}; document.querySelectorAll("[data-u]").forEach(function(b){cells[b.dataset.u]=b;});
+  var minis=document.querySelectorAll("[data-mini]");
+  function pad(n){return (n<10?"0":"")+n;}
+  function tick(){
+    var left=Math.max(0,END-Date.now());
+    var s=Math.floor(left/1000), dd=Math.floor(s/86400), hh=Math.floor(s%86400/3600), mm=Math.floor(s%3600/60), ss=s%60;
+    var v={d:pad(dd),h:pad(hh),m:pad(mm),s:pad(ss)};
+    Object.keys(v).forEach(function(k){var b=cells[k];if(b&&b.textContent!==v[k]){b.textContent=v[k];if(!red){b.classList.remove("tick");void b.offsetWidth;b.classList.add("tick");}}});
+    var txt=dd+" j "+pad(hh)+" h "+pad(mm)+" min";
+    minis.forEach(function(m){m.textContent=left>0?txt:"terminée";});
+    if(left<=0){var e=document.querySelector("[data-endtxt]"); if(e) e.textContent="L'offre est terminée. Rejoins le Telegram pour être prévenu de la prochaine.";}
+  }
+  tick(); setInterval(tick,1000);
+  // Choix du broker : affiche le lien d'affiliation juste en dessous
+  var NAMES={raisefx:"Raise FX",vtmarkets:"VT Markets",puprime:"PU Prime",axi:"Axi",bullwaves:"Bullwaves"};
+  var AFF={
+    raisefx:"https://partners.raisefx.com/visit?bta=152566&brand=raisefx&afp=enrick",
+    vtmarkets:"https://go.vtaffiliates.com/visit/?bta=35905&nci=5942&campaign=843196&afp=enrick",
+    puprime:"https://fr.puprime.partners/forex-trading-account/?affid=90088",
+    axi:"https://www.axi.com/int/live-account?token=CXD44331_558411&affid=44331&utm_source=affiliates&utm_medium=affiliates&afp=enrick",
+    bullwaves:"https://go.bullwaves.com/visit/?bta=35465&brand=bullwaves&afp=enrick"
+  };
+  var current=null, panel=document.querySelector("[data-panel]");
+  function setBroker(k,user){
+    current=k;
+    document.querySelectorAll(".bk").forEach(function(b){b.setAttribute("aria-pressed",b.dataset.bk===k?"true":"false");});
+    document.querySelectorAll("[data-bkname]").forEach(function(e){e.textContent=NAMES[k];});
+    var af=document.querySelector('[data-link="aff"]'); if(af) af.href=AFF[k];
+    if(panel){panel.hidden=false; if(user){panel.style.animation="none";void panel.offsetWidth;panel.style.animation="";}}
+    try{localStorage.setItem("essaiBroker",k);}catch(e){}
+    buildMsg();
+  }
+  // Message Telegram prêt à copier
+  // Formulaire : envoi automatique vers le bot Telegram (route serveur), message à copier en secours
+  var ENDPOINT="/api/essai-vip";
+  var F={nom:"tg-name",telegram:"tg-user",compte:"tg-acc",serveur:"tg-srv",motdepasse:"tg-pwd"};
+  var form=document.getElementById("essai-form"), msgBox=document.querySelector("[data-msg]"), err=document.querySelector("[data-err]");
+  function val(k){var e=document.getElementById(F[k]);return e?e.value.trim():"";}
+  function buildMsg(){
+    var m="C'est fait ✅ Essai VIP sans dépôt\nNom : "+(val("nom")||"…")+"\nTelegram : "+(val("telegram")||"…")+"\nBroker : "+(current?NAMES[current]:"…")+"\nCompte démo n° "+(val("compte")||"…")+"\nServeur : "+(val("serveur")||"…")+"\nMot de passe démo : "+(val("motdepasse")||"…");
+    if(msgBox) msgBox.textContent=m; return m;
+  }
+  Object.keys(F).forEach(function(k){var e=document.getElementById(F[k]); if(e) e.addEventListener("input",function(){e.removeAttribute("aria-invalid");buildMsg();});});
+  if(form) form.addEventListener("submit",function(ev){
+    ev.preventDefault(); if(err){err.hidden=true;}
+    var missing=[]; Object.keys(F).forEach(function(k){var e=document.getElementById(F[k]); var bad=!e.value.trim(); e.setAttribute("aria-invalid",bad?"true":"false"); if(bad) missing.push(e);});
+    if(!current){ if(err){err.textContent="Choisis d'abord ton broker à l'étape 1.";err.hidden=false;} document.querySelector(".bks").scrollIntoView({behavior:"smooth",block:"center"}); return; }
+    if(missing.length){ if(err){err.textContent="Complète les champs en rouge.";err.hidden=false;} missing[0].focus(); return; }
+    var btn=form.querySelector("[data-send]"); btn.disabled=true; btn.textContent="Envoi en cours…";
+    var data={broker:NAMES[current],website:(document.getElementById("tg-web")||{}).value||""}; Object.keys(F).forEach(function(k){data[k]=val(k);});
+    function fail(message){ btn.disabled=false; btn.textContent="Envoyer ma demande"; if(err&&typeof message==="string"&&message){err.textContent=message;err.hidden=false;} buildMsg(); document.querySelector("[data-fallback]").hidden=false; }
+    try{
+      fetch(ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)})
+        .then(function(r){return r.json().catch(function(){return null;}).then(function(body){
+          if(!r.ok||!body||body.ok!==true){var message="";if([400,429,503].indexOf(r.status)!==-1&&body&&typeof body.error==="string")message=body.error.replace(/[\u0000-\u001f\u007f]/g," ").trim().slice(0,240);fail(message);return;}
+          document.getElementById("tg-pwd").value=""; if(msgBox)msgBox.textContent=""; form.hidden=true; document.querySelector("[data-fallback]").hidden=true; document.querySelector("[data-ok]").hidden=false;
+        });})
+        .catch(fail);
+    }catch(e){ fail(); }
+  });
+  var copyBtn=document.querySelector("[data-copy]"), copied=document.querySelector("[data-copied]");
+  if(copyBtn) copyBtn.addEventListener("click",function(){
+    var m=buildMsg();
+    function done(){ if(copied){copied.hidden=false;} copyBtn.textContent="Message copié ✓"; setTimeout(function(){copyBtn.textContent="Copier le message";},2500); }
+    function fallback(){ var r=document.createRange(); r.selectNodeContents(msgBox); var sel=getSelection(); sel.removeAllRanges(); sel.addRange(r); try{document.execCommand("copy");done();}catch(e){} }
+    if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(m).then(done,fallback); } else fallback();
+  });
+  document.querySelectorAll(".bk").forEach(function(b){b.addEventListener("click",function(){setBroker(b.dataset.bk,true);});});
+  var saved=null; try{saved=localStorage.getItem("essaiBroker");}catch(e){}
+  if(NAMES[saved]) setBroker(saved,false); else buildMsg();
+
+  var els=document.querySelectorAll(".rv");
+  if(!("IntersectionObserver" in window)){els.forEach(function(e){e.classList.add("in")});return;}
+  var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add("in");io.unobserve(e.target);}});},{threshold:.12});
+  els.forEach(function(e){io.observe(e)});
+})();
+</script>
+
+<script>(function(){var f=document.getElementById("perfFrame");if(!f)return;var JOIN="#etapes";
+f.addEventListener("load",function(){var d;try{d=f.contentDocument;}catch(e){return;}if(!d)return;
+var st=d.createElement("style");st.textContent=".aura-topbar,.aura-sidebar,.ip-mobile-global-nav,.ip-support-floating{display:none!important}body{padding-bottom:0!important}";d.head.appendChild(st);
+function clean(){d.querySelectorAll('[class*="fixed"]').forEach(function(e){if(/Ajoute l.app/.test(e.textContent))e.style.display="none";});}
+clean();try{new MutationObserver(clean).observe(d.body,{childList:true,subtree:true});}catch(e){}
+function rng(){var m=d.body.innerText.match(/\d{2} \S+ \d{4} → \d{2} \S+ \d{4}/);return m?m[0]:"";}var start=null,n=0,t=setInterval(function(){n++;var b=[].slice.call(d.querySelectorAll("button")).find(function(x){return x.textContent.trim()==="3 mois";});var r=rng();if(start===null&&r)start=r;if(start!==null&&r&&r!==start){clearInterval(t);return;}if(b&&r)b.click();if(n>25)clearInterval(t);},800);
+d.addEventListener("click",function(e){var a=e.target.closest&&e.target.closest("a");if(a){e.preventDefault();e.stopPropagation();window.location.hash="etapes";}},true);
+});})();</script>
+</body>
+</html>
