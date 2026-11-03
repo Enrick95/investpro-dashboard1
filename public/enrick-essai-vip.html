@@ -166,6 +166,16 @@ footer{border-top:1px solid var(--line);padding-block:32px 48px;font-size:14px;c
 .bk[aria-pressed="true"]{border-color:var(--gold);background:#1d211a;box-shadow:inset 0 0 0 1px var(--gold)}
 .bk-ic{width:30px;height:30px;border-radius:8px;background:#1d211a;border:1px solid #3a3a2a;color:var(--gold);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0}
 .bk[aria-pressed="true"] .bk-ic{background:var(--gold);color:var(--ink)}
+.step-must{border-color:rgba(240,197,117,.7)!important;background:#16150f!important;animation:mustGlow 2.4s ease-in-out infinite}
+@keyframes mustGlow{0%,100%{box-shadow:0 0 0 0 rgba(240,197,117,0)}50%{box-shadow:0 0 0 8px rgba(240,197,117,.14)}}
+.must-tag{display:inline-flex;align-items:center;gap:6px;background:#e8a39a;color:#1a0f0d;font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;padding:5px 12px;border-radius:999px;margin-bottom:10px;animation:wiggle 2.6s ease-in-out infinite}
+@keyframes wiggle{0%,70%,100%{transform:rotate(0) scale(1)}74%{transform:rotate(-5deg) scale(1.08)}78%{transform:rotate(5deg) scale(1.08)}82%{transform:rotate(-3deg) scale(1.04)}86%{transform:rotate(0) scale(1)}}
+.btn-must{width:100%;font-size:17px;padding:18px 20px;gap:10px;animation:mustPulse 1.8s ease-in-out infinite}
+@keyframes mustPulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(240,197,117,.55)}50%{transform:scale(1.03);box-shadow:0 0 0 12px rgba(240,197,117,0)}}
+.must-hand{display:inline-block;animation:point 1s ease-in-out infinite}
+@keyframes point{0%,100%{transform:translateX(0)}50%{transform:translateX(6px)}}
+.must-note{margin:12px 0 0!important;font-size:14px;color:var(--gold)!important;font-weight:700}
+.tg-ok strong{color:var(--fg)}
 /* apparition au défilement */
 .js .rv{transform:translateY(30px);opacity:.2;transition:transform .8s cubic-bezier(.2,.7,.2,1),opacity .8s ease}
 .js .rv.in{transform:none;opacity:1}
@@ -253,7 +263,7 @@ footer{border-top:1px solid var(--line);padding-block:32px 48px;font-size:14px;c
 <p class="tg-err" data-err hidden></p>
 <button type="submit" class="btn btn-gold" data-send>Envoyer ma demande</button>
 </form>
-<div class="tg-ok" data-ok hidden><b>Demande envoyée ✓</b><p>On vérifie ton inscription et on branche la copie. On te confirme sur Telegram, généralement dans la journée. En attendant, rejoins le canal des testeurs (étape 4).</p></div>
+<div class="tg-ok" data-ok hidden><b>Demande envoyée ✓</b><p>On vérifie ton inscription et on branche la copie. <strong>Dernière étape, obligatoire : rejoins maintenant le canal Essai VIP.</strong></p><a class="btn btn-gold btn-must" data-channel href="https://t.me/+hNCn_4xGGKMxZjJk" style="margin-top:12px;width:100%"><span class="must-hand" aria-hidden="true">👉</span>Rejoindre le canal Essai VIP ↗</a></div>
 <div class="tg-fallback" data-fallback hidden>
 <p class="tg-err">L'envoi automatique n'a pas fonctionné. Copie ce message et envoie-le à <b>@EquipeInvestPro</b> sur Telegram.</p>
 <div class="tg-msg" data-msg aria-live="polite"></div>
@@ -265,8 +275,13 @@ footer{border-top:1px solid var(--line);padding-block:32px 48px;font-size:14px;c
 </div>
 </div></li>
 <li class="step"><span class="num">3</span><div class="step-body"><h3>On branche la copie pour toi</h3><p>On vérifie que ton compte est bien ouvert avec le lien, puis on ajoute ton compte démo à InvestPro Copy. Les trades du VIP s'y copient automatiquement jusqu'au 30 novembre, tu n'as rien d'autre à faire.</p></div></li>
-<li class="step"><span class="num">4</span><div class="step-body"><h3>Rejoins le canal des testeurs</h3><p>C'est là que tu suis ton essai : le bilan chaque dimanche, les stats du VIP, les lives réservés aux testeurs et les infos pour la suite.</p>
-<a class="btn btn-gold" data-channel href="https://t.me/+hNCn_4xGGKMxZjJk">Rejoindre le canal Essai VIP ↗</a></div></li>
+<li class="step step-must" id="canal"><span class="num">4</span><div class="step-body">
+<span class="must-tag"><span aria-hidden="true">⚠️</span> Obligatoire</span>
+<h3>Rejoins le canal Essai VIP</h3>
+<p>Sans le canal, ton essai n'est pas complet. C'est là que tu reçois la confirmation que ta copie est branchée, le bilan chaque dimanche, les stats du VIP et les lives réservés aux testeurs.</p>
+<a class="btn btn-gold btn-must" data-channel href="https://t.me/+hNCn_4xGGKMxZjJk"><span class="must-hand" aria-hidden="true">👉</span>Rejoindre le canal Essai VIP ↗</a>
+<p class="must-note">Une fois dans le canal, active les notifications pour ne rien rater.</p>
+</div></li>
 </ol>
 </div>
 </section>
