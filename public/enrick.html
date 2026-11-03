@@ -13,8 +13,7 @@
 <meta property="og:description" content="Retrouve ma communauté, mes contenus, les performances du VIP et les outils InvestPro.">
 <meta property="og:image" content="https://investprotrading.fr/enrick95-portrait.jpg">
 <meta name="twitter:card" content="summary_large_image">
-<style>[hidden]{display:none!important}@media(max-width:640px){h2{overflow-wrap:anywhere}#methode{overflow-x:clip}}
-</style>
+<style>[hidden]{display:none!important}</style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&amp;family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
 <style>
@@ -55,6 +54,44 @@ img{max-width:100%}
 .live-dot{animation:blink 1.6s ease-in-out infinite}@keyframes blink{50%{opacity:.25}}
 .cta-dark{transition:transform .2s ease,box-shadow .2s ease}.cta-dark:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(24,26,19,.35);opacity:1}.cta-dark:active{transform:scale(.96)}
 .offer-arrow{display:inline-block;animation:nudge 1.6s ease-in-out infinite}
+/* Offre du moment : animations d'appel */
+.offer-bar::after,.offer-card::after{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.65) 50%,transparent 65%);transform:translateX(-120%);animation:sweep 3.2s ease-in-out infinite}
+.offer-card::after{animation-duration:4.2s;animation-delay:1s}
+@keyframes sweep{0%,45%{transform:translateX(-120%)}80%,100%{transform:translateX(120%)}}
+.offer-bar{animation:barIn .7s cubic-bezier(.2,.9,.3,1.3) both}
+@keyframes barIn{from{transform:translateY(-100%)}to{transform:none}}
+.offer-badge{display:inline-block;animation:wiggle 2.6s ease-in-out infinite;transform-origin:center}
+@keyframes wiggle{0%,70%,100%{transform:rotate(0) scale(1)}74%{transform:rotate(-6deg) scale(1.08)}78%{transform:rotate(6deg) scale(1.08)}82%{transform:rotate(-4deg) scale(1.05)}86%{transform:rotate(0) scale(1)}}
+.offer-card{animation:cardGlow 2.4s ease-in-out infinite}
+@keyframes cardGlow{0%,100%{box-shadow:0 0 0 0 rgba(240,197,117,.0),0 20px 50px rgba(240,197,117,.12)}50%{box-shadow:0 0 0 10px rgba(240,197,117,.16),0 24px 60px rgba(240,197,117,.28)}}
+.js .offer-card.pop{animation:cardPop .9s cubic-bezier(.2,.9,.3,1.25) both,cardGlow 2.4s ease-in-out .9s infinite}
+@keyframes cardPop{0%{transform:scale(.92);opacity:.3}60%{transform:scale(1.025);opacity:1}100%{transform:scale(1)}}
+.ring1{animation:spinPulse 6s ease-in-out infinite}.ring2{animation:spinPulse 6s ease-in-out .8s infinite}
+@keyframes spinPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.12);opacity:.55}}
+.offer-word{display:inline-block;background:linear-gradient(90deg,#181a13 0%,#181a13 40%,#7a5a14 50%,#181a13 60%,#181a13 100%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:textShine 3s linear infinite}
+@keyframes textShine{from{background-position:100% 0}to{background-position:-150% 0}}
+.offer-go{animation:goBounce 2.2s ease-in-out 1.2s infinite}
+@keyframes goBounce{0%,60%,100%{transform:translateY(0)}68%{transform:translateY(-5px)}76%{transform:translateY(0)}84%{transform:translateY(-3px)}}
+.offer-float{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:40;transform:translate(-50%,160%);display:flex;align-items:center;gap:10px;white-space:nowrap;background:linear-gradient(115deg,#F4CD86,#E5B45E);color:#181a13;font-weight:800;font-size:15px;padding:14px 22px;border-radius:999px;box-shadow:0 14px 40px rgba(0,0,0,.55),0 0 0 0 rgba(240,197,117,.5);overflow:hidden;isolation:isolate;transition:transform .5s cubic-bezier(.2,.9,.3,1.3),opacity .3s ease}
+.offer-float.show{transform:translate(-50%,0);animation:floatGlow 2.2s ease-in-out infinite}
+.offer-float.away{transform:translate(-50%,160%);opacity:0}
+.offer-float::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.7) 50%,transparent 65%);transform:translateX(-120%);animation:sweep 2.8s ease-in-out infinite}
+.of-dot{width:8px;height:8px;border-radius:50%;background:#181a13;animation:blink 1.2s ease-in-out infinite}
+.of-go{display:inline-block;animation:nudge 1.4s ease-in-out infinite}
+@keyframes floatGlow{0%,100%{box-shadow:0 14px 40px rgba(0,0,0,.55),0 0 0 0 rgba(240,197,117,.45)}50%{box-shadow:0 14px 40px rgba(0,0,0,.55),0 0 0 10px rgba(240,197,117,0)}}
+.joined{position:relative;overflow:hidden;isolation:isolate;transition:transform .2s ease,border-color .2s ease;animation:joinedGlow 3s ease-in-out infinite}
+.joined:hover{transform:translateY(-2px);border-color:#F0C575 !important;opacity:1}
+.joined::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(105deg,transparent 35%,rgba(240,197,117,.18) 50%,transparent 65%);transform:translateX(-120%);animation:sweep 3.6s ease-in-out 1.5s infinite}
+@keyframes joinedGlow{0%,100%{border-color:#29312c}50%{border-color:rgba(240,197,117,.55)}}
+.avs{display:flex;flex-shrink:0}
+.av{width:34px;height:34px;border-radius:50%;border:2px solid #111615;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;margin-left:-10px;animation:avIn .5s cubic-bezier(.2,.9,.3,1.4) both}
+.av:first-child{margin-left:0}
+.av:nth-child(1){animation-delay:.5s}.av:nth-child(2){animation-delay:.6s}.av:nth-child(3){animation-delay:.7s}.av:nth-child(4){animation-delay:.8s}.av:nth-child(5){animation-delay:.9s}
+@keyframes avIn{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+.joined-go{display:inline-block;animation:nudge 1.6s ease-in-out infinite}
+.photo-badge{animation:badgeFloat 3.2s ease-in-out infinite}
+@keyframes badgeFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@media (max-width: 420px){.av{width:28px;height:28px;font-size:11px;margin-left:-9px}.joined{gap:10px;padding:12px 14px}}
 @media (prefers-reduced-motion: reduce){*{animation:none !important;transition:none !important}.js .rv,.js .stg>*{transform:none !important;opacity:1 !important}}
 @media (max-width: 720px){.navitem{display:none !important}.navsub{display:none !important}}
 </style>
@@ -65,7 +102,7 @@ img{max-width:100%}
 <div style="background: #090c0c; color: #f6f2e8; font-family: 'Manrope', system-ui, sans-serif; font-size: 17px; line-height: 1.6; min-height: 100vh;">
 
 <!-- NAV -->
-<a href="https://investprotrading.fr/enrick/essai-vip" class="offer-bar" style="display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; background: linear-gradient(115deg, #F4CD86, #E5B45E); color: #181a13; font-size: 14px; font-weight: 700; padding: 10px 16px; text-align: center;"><span style="background: #181a13; color: #F0C575; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; padding: 4px 10px; border-radius: 999px;">Offre du moment</span><span>Teste le VIP sans dépôt, sur un compte démo · <b class="offer-left">jusqu'au 30 novembre</b></span><span class="offer-arrow">→</span></a>
+<a href="https://investprotrading.fr/enrick/essai-vip" class="offer-bar" style="position: relative; overflow: hidden; isolation: isolate; display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; background: linear-gradient(115deg, #F4CD86, #E5B45E); color: #181a13; font-size: 14px; font-weight: 700; padding: 10px 16px; text-align: center;"><span class="offer-badge" style="background: #181a13; color: #F0C575; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; padding: 4px 10px; border-radius: 999px;">🔥 Offre du moment</span><span>Teste le VIP sans dépôt, sur un compte démo · <b class="offer-left">jusqu'au 30 novembre</b></span><span class="offer-arrow">→</span></a>
 <header style="position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; background: rgba(9,12,12,0.88); backdrop-filter: blur(14px); border-bottom: 1px solid #29312c;">
 <nav style="max-width: 1200px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;" aria-label="Navigation principale">
 <a href="#top" style="display: flex; align-items: center; gap: 10px;">
@@ -100,36 +137,40 @@ Lives réguliers ·
 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
 <a class="btn2" href="#histoire" style="font-weight: 600; padding: 18px 20px; border-radius: 14px; border: 1px solid #3a443e;">Découvrir mon histoire ↓</a>
 </div>
-<p style="font-size: 14px; color: #8f9d93; margin: 16px 0 0;"><strong style="color: #91D6D0;">+3 990 personnes</strong> ont déjà rejoint le canal</p>
+<a href="https://t.me/+mAcBYu895IxiMTdk" class="joined" style="display: flex; align-items: center; gap: 14px; margin: 22px 0 0; max-width: 560px; background: #111615; border: 1px solid #29312c; border-radius: 18px; padding: 14px 18px; color: #f6f2e8;">
+<span class="avs" aria-hidden="true"><span class="av" style="background: #F0C575; color: #181a13;">K</span><span class="av" style="background: #91D6D0; color: #181a13;">D</span><span class="av" style="background: #e8c9a0; color: #181a13;">J</span><span class="av" style="background: #b8d9c4; color: #181a13;">Y</span><span class="av" style="background: #F4CD86; color: #181a13;">F</span></span>
+<span style="flex: 1 1 auto; min-width: 0; line-height: 1.25;"><span style="display: flex; align-items: center; gap: 8px;"><span class="live-dot" style="width: 9px; height: 9px; border-radius: 50%; background: #91D6D0; flex-shrink: 0;"></span><b class="count count-now" data-to="3990" data-pre="+" style="font-family: 'Unbounded', sans-serif; font-weight: 800; font-size: 26px; color: #F0C575; font-variant-numeric: tabular-nums;">+3 990</b></span><span style="display: block; font-size: 15px; color: #a9b4ae; margin-top: 2px;">personnes ont déjà rejoint le canal</span></span>
+<span class="joined-go" aria-hidden="true" style="color: #F0C575; font-size: 20px; font-weight: 800;">→</span>
+</a>
 </div>
 <div style="flex: 1 1 360px; min-width: 0; position: relative; padding: 20px;">
 <div style="position: absolute; top: 0; right: 0; width: 70%; height: 70%; border-radius: 32px; border: 2px solid #91D6D0;" aria-hidden="true"></div>
 <img src="/enrick-assets/photo-a.jpg" alt="Enrick, assis devant son ordinateur" style="position: relative; display: block; width: 100%; aspect-ratio: 4 / 5; object-fit: cover; object-position: center 30%; border-radius: 28px; border: 1px solid #29312c;">
-<div style="position: absolute; right: -8px; bottom: 56px; background: #111615; border: 1px solid #29312c; color: #f6f2e8; border-radius: 16px; padding: 12px 18px; box-shadow: 0 20px 40px rgba(0,0,0,0.45);">
+<div class="photo-badge" style="position: absolute; right: -8px; bottom: 56px; background: #111615; border: 1px solid #29312c; color: #f6f2e8; border-radius: 16px; padding: 12px 18px; box-shadow: 0 20px 40px rgba(0,0,0,0.45);">
 <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 800;">Communauté</div>
-<div style="font-family: 'Unbounded', sans-serif; font-weight: 800; font-size: 20px;">+3 990 membres</div>
+<div style="font-family: 'Unbounded', sans-serif; font-weight: 800; font-size: 20px; font-variant-numeric: tabular-nums;"><span class="count count-now" data-to="3990" data-pre="+">+3 990</span> membres</div>
 </div>
 </div>
 </section>
 
 <!-- OFFRE DU MOMENT -->
 <section id="offre" class="rv" style="max-width: 1200px; margin: 0 auto; padding: 0 24px 64px;">
-<div style="position: relative; overflow: hidden; background: linear-gradient(135deg, #F4CD86, #E5B45E); color: #181a13; border-radius: 28px; padding: clamp(28px, 5vw, 56px); display: flex; flex-wrap: wrap; gap: 40px; align-items: center;">
-<div aria-hidden="true" style="position: absolute; right: -80px; top: -80px; width: 280px; height: 280px; border-radius: 50%; border: 2px solid rgba(24,26,19,0.12);"></div>
-<div aria-hidden="true" style="position: absolute; right: -20px; top: -20px; width: 160px; height: 160px; border-radius: 50%; border: 2px solid rgba(24,26,19,0.10);"></div>
+<div class="offer-card" style="position: relative; overflow: hidden; isolation: isolate; background: linear-gradient(135deg, #F4CD86, #E5B45E); color: #181a13; border-radius: 28px; padding: clamp(28px, 5vw, 56px); display: flex; flex-wrap: wrap; gap: 40px; align-items: center;">
+<div class="ring1" aria-hidden="true" style="position: absolute; right: -80px; top: -80px; width: 280px; height: 280px; border-radius: 50%; border: 2px solid rgba(24,26,19,0.12);"></div>
+<div class="ring2" aria-hidden="true" style="position: absolute; right: -20px; top: -20px; width: 160px; height: 160px; border-radius: 50%; border: 2px solid rgba(24,26,19,0.10);"></div>
 <div style="position: relative; flex: 1 1 380px; min-width: 0;">
 <span style="display: inline-flex; align-items: center; gap: 8px; background: #181a13; color: #F0C575; font-size: 12px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; padding: 7px 14px; border-radius: 999px; margin-bottom: 18px;"><span class="live-dot" style="width: 7px; height: 7px; border-radius: 50%; background: #F0C575;"></span>Offre du moment · jusqu'au 30 novembre</span>
-<h2 style="font-family: 'Unbounded', sans-serif; font-weight: 800; font-size: clamp(30px, 4.2vw, 52px); line-height: 1.02; letter-spacing: -0.02em; margin: 0 0 16px; text-wrap: balance;">Teste le VIP <span style="white-space: nowrap;">sans dépôt.</span></h2>
+<h2 style="font-family: 'Unbounded', sans-serif; font-weight: 800; font-size: clamp(30px, 4.2vw, 52px); line-height: 1.02; letter-spacing: -0.02em; margin: 0 0 16px; text-wrap: balance;">Teste le VIP <span class="offer-word" style="white-space: nowrap;">sans dépôt.</span></h2>
 <p style="margin: 0 0 24px; font-size: 18px; font-weight: 500; max-width: 480px;">Ce mois-ci, pas besoin du dépôt de 300 $ pour découvrir le VIP. Sur un compte démo, les trades s'y copient automatiquement avec InvestPro Copy, et tu juges les résultats par toi-même.</p>
 <div style="display: flex; flex-wrap: wrap; gap: 12px;">
-<a href="https://investprotrading.fr/enrick/essai-vip" class="cta-dark" style="display: inline-flex; background: #181a13; color: #f6f2e8; font-weight: 800; padding: 16px 26px; border-radius: 14px;">Je teste sans dépôt ↗</a>
+<a href="https://investprotrading.fr/enrick/essai-vip" class="cta-dark offer-go" style="display: inline-flex; background: #181a13; color: #f6f2e8; font-weight: 800; padding: 16px 26px; border-radius: 14px;">Je teste sans dépôt ↗</a>
 <a href="https://t.me/+mAcBYu895IxiMTdk" class="btn2" style="display: inline-flex; color: #181a13; font-weight: 700; padding: 16px 22px; border-radius: 14px; border: 2px solid #181a13;">Une question ? Telegram</a>
 </div>
 <p style="margin: 16px 0 0; font-size: 13px; font-weight: 600; color: #3d3a2c;">Compte démo : aucun dépôt, aucun argent réel engagé.</p>
 </div>
 <ol style="position: relative; flex: 1 1 320px; min-width: 0; list-style: none; margin: 0; padding: 24px; background: rgba(255,255,255,0.22); border: 1px solid rgba(24,26,19,0.12); border-radius: 20px; display: flex; flex-direction: column; gap: 18px;">
-<li style="display: flex; gap: 14px; align-items: flex-start;"><span style="flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%; background: #181a13; color: #F0C575; display: flex; align-items: center; justify-content: center; font-family: 'Unbounded', sans-serif; font-weight: 800; font-size: 13px;">1</span><span><strong style="display: block; font-size: 17px;">Crée ton compte et connecte un compte démo</strong><span style="color: #3d3a2c; font-size: 15px;">Celui de ton courtier, sans dépôt réel.</span></span></li>
-<li style="display: flex; gap: 14px; align-items: flex-start;"><span style="flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%; background: #181a13; color: #F0C575; display: flex; align-items: center; justify-content: center; font-family: 'Unbounded', sans-serif; font-weight: 800; font-size: 13px;">2</span><span><strong style="display: block; font-size: 17px;">Active la copie automatique</strong><span style="color: #3d3a2c; font-size: 15px;">Les trades du VIP se copient tout seuls sur ton compte démo.</span></span></li>
+<li style="display: flex; gap: 14px; align-items: flex-start;"><span style="flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%; background: #181a13; color: #F0C575; display: flex; align-items: center; justify-content: center; font-family: 'Unbounded', sans-serif; font-weight: 800; font-size: 13px;">1</span><span><strong style="display: block; font-size: 17px;">Ouvre un compte démo</strong><span style="color: #3d3a2c; font-size: 15px;">Chez un de mes brokers partenaires, avec mon lien.</span></span></li>
+<li style="display: flex; gap: 14px; align-items: flex-start;"><span style="flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%; background: #181a13; color: #F0C575; display: flex; align-items: center; justify-content: center; font-family: 'Unbounded', sans-serif; font-weight: 800; font-size: 13px;">2</span><span><strong style="display: block; font-size: 17px;">Envoie ta demande</strong><span style="color: #3d3a2c; font-size: 15px;">On branche la copie pour toi : les trades du VIP arrivent tout seuls.</span></span></li>
 <li style="display: flex; gap: 14px; align-items: flex-start;"><span style="flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%; background: #181a13; color: #F0C575; display: flex; align-items: center; justify-content: center; font-family: 'Unbounded', sans-serif; font-weight: 800; font-size: 13px;">3</span><span><strong style="display: block; font-size: 17px;">Vérifie les résultats</strong><span style="color: #3d3a2c; font-size: 15px;">Tu vois si les performances sont réelles.</span></span></li>
 <li style="display: flex; gap: 14px; align-items: flex-start;"><span style="flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%; background: #181a13; color: #F0C575; display: flex; align-items: center; justify-content: center; font-family: 'Unbounded', sans-serif; font-weight: 800; font-size: 13px;">4</span><span><strong style="display: block; font-size: 17px;">Passe le cap quand tu veux</strong><span style="color: #3d3a2c; font-size: 15px;">Tu passes en réel seulement si tu es convaincu.</span></span></li>
 </ol>
@@ -193,7 +234,7 @@ Lives réguliers ·
 </div>
 </div>
 <div style="flex: 1 1 380px; min-width: 0; display: flex; flex-direction: column; gap: 16px;">
-<img src="/enrick-assets/photo-b.jpg" alt="Enrick concentré devant son ordinateur" style="display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; object-position: center 35%; border-radius: 24px; border: 1px solid #29312c;">
+<img src="/enrick-assets/photo-c.jpg" alt="Enrick en pleine analyse devant ses écrans de trading" style="display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; object-position: center 40%; border-radius: 24px; border: 1px solid #29312c;">
 <blockquote style="margin: 0; background: #111615; border: 1px solid #29312c; color: #f6f2e8; border-radius: 24px; padding: 30px;">
 <p style="font-family: 'Unbounded', sans-serif; font-weight: 700; font-size: 20px; line-height: 1.4; margin: 0 0 12px;">« Mon objectif : t'aider à comprendre tes décisions et à développer ton autonomie, plutôt que dépendre des analyses de quelqu'un d'autre. »</p>
 <footer style="font-size: 14px; font-weight: 700; color: #F0C575;">— Enrick</footer>
@@ -212,6 +253,17 @@ Lives réguliers ·
 <a href="https://t.me/+mAcBYu895IxiMTdk" style="font-weight: 700; color: #F0C575;">Rejoindre le Telegram ↗</a>
 </div>
 <div class="carousel" style="display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 12px; -webkit-overflow-scrolling: touch;" aria-label="Captures des membres, faire glisser pour voir la suite">
+<div class="shot" style="flex: 0 0 auto; scroll-snap-align: start;"><img src="/enrick-assets/p-fatih1.jpg" alt="Capture partagée par un membre de la communauté" style="display: block; height: 360px; width: auto; max-width: none; pointer-events: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; border-radius: 16px; border: 1px solid #29312c; background: #141a19;"></div>
+<div class="shot" style="flex: 0 0 auto; scroll-snap-align: start;"><img src="/enrick-assets/p-youss.jpg" alt="Capture partagée par un membre de la communauté" style="display: block; height: 360px; width: auto; max-width: none; pointer-events: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; border-radius: 16px; border: 1px solid #29312c; background: #141a19;"></div>
+<div class="shot" style="flex: 0 0 auto; scroll-snap-align: start;"><img src="/enrick-assets/p-davy2.jpg" alt="Capture partagée par un membre de la communauté" style="display: block; height: 360px; width: auto; max-width: none; pointer-events: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; border-radius: 16px; border: 1px solid #29312c; background: #141a19;"></div>
+<div class="shot" style="flex: 0 0 auto; scroll-snap-align: start;"><img src="/enrick-assets/p-a.jpg" alt="Capture partagée par un membre de la communauté" style="display: block; height: 360px; width: auto; max-width: none; pointer-events: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; border-radius: 16px; border: 1px solid #29312c; background: #141a19;"></div>
+<div class="shot" style="flex: 0 0 auto; scroll-snap-align: start;"><img src="/enrick-assets/p-maks.jpg" alt="Capture partagée par un membre de la communauté" style="display: block; height: 360px; width: auto; max-width: none; pointer-events: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; border-radius: 16px; border: 1px solid #29312c; background: #141a19;"></div>
+<div class="shot" style="flex: 0 0 auto; scroll-snap-align: start;"><img src="/enrick-assets/p-fatih2.jpg" alt="Capture partagée par un membre de la communauté" style="display: block; height: 360px; width: auto; max-width: none; pointer-events: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; border-radius: 16px; border: 1px solid #29312c; background: #141a19;"></div>
+<div class="shot" style="flex: 0 0 auto; scroll-snap-align: start;"><img src="/enrick-assets/p-davy1.jpg" alt="Capture partagée par un membre de la communauté" style="display: block; height: 360px; width: auto; max-width: none; pointer-events: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; border-radius: 16px; border: 1px solid #29312c; background: #141a19;"></div>
+<div class="shot" style="flex: 0 0 auto; scroll-snap-align: start;"><img src="/enrick-assets/p-quotes.jpg" alt="Capture partagée par un membre de la communauté" style="display: block; height: 360px; width: auto; max-width: none; pointer-events: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; border-radius: 16px; border: 1px solid #29312c; background: #141a19;"></div>
+<div class="shot" style="flex: 0 0 auto; scroll-snap-align: start;"><img src="/enrick-assets/p-lexa.jpg" alt="Capture partagée par un membre de la communauté" style="display: block; height: 360px; width: auto; max-width: none; pointer-events: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; border-radius: 16px; border: 1px solid #29312c; background: #141a19;"></div>
+<div class="shot" style="flex: 0 0 auto; scroll-snap-align: start;"><img src="/enrick-assets/p-le7.jpg" alt="Capture partagée par un membre de la communauté" style="display: block; height: 360px; width: auto; max-width: none; pointer-events: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; border-radius: 16px; border: 1px solid #29312c; background: #141a19;"></div>
+<div class="shot" style="flex: 0 0 auto; scroll-snap-align: start;"><img src="/enrick-assets/p-davy3.jpg" alt="Capture partagée par un membre de la communauté" style="display: block; height: 360px; width: auto; max-width: none; pointer-events: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; border-radius: 16px; border: 1px solid #29312c; background: #141a19;"></div>
 <div class="shot" style="flex: 0 0 auto; scroll-snap-align: start;"><img src="/enrick-assets/preuve-1.jpg" alt="Capture partagée par un membre de la communauté" style="display: block; height: 360px; width: auto; max-width: none; pointer-events: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; border-radius: 16px; border: 1px solid #29312c; background: #141a19;"></div>
 <div class="shot" style="flex: 0 0 auto; scroll-snap-align: start;"><img src="/enrick-assets/preuve-2.jpg" alt="Capture partagée par un membre de la communauté" style="display: block; height: 360px; width: auto; max-width: none; pointer-events: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; border-radius: 16px; border: 1px solid #29312c; background: #141a19;"></div>
 <div class="shot" style="flex: 0 0 auto; scroll-snap-align: start;"><img src="/enrick-assets/m-william.jpg" alt="Capture partagée par un membre de la communauté" style="display: block; height: 360px; width: auto; max-width: none; pointer-events: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; border-radius: 16px; border: 1px solid #29312c; background: #141a19;"></div>
@@ -241,6 +293,7 @@ Lives réguliers ·
 <p style="font-size: 14px; color: #a9b4ae; margin: 8px 0 0;">← Fais glisser pour voir plus →</p>
 <h3 style="font-family: 'Unbounded', sans-serif; font-weight: 700; font-size: 22px; margin: 48px 0 20px;">Leurs mots</h3>
 <div class="carousel" style="display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 12px; -webkit-overflow-scrolling: touch;" aria-label="Messages des membres, faire glisser pour voir la suite">
+<figure style="flex: 0 0 280px; width: 280px; margin: 0; background: #111615; border: 1px solid #29312c; border-radius: 20px; padding: 24px; display: flex; flex-direction: column; justify-content: space-between; gap: 16px; scroll-snap-align: start;"><blockquote style="margin: 0; font-size: 16px; line-height: 1.55; color: #e6e2d6;">« Premier trade suivi, et c'est déjà du lourd ! »</blockquote><figcaption style="font-size: 14px; font-weight: 700; color: #F0C575;">Lex.a</figcaption></figure>
 <figure style="flex: 0 0 280px; width: 280px; margin: 0; background: #111615; border: 1px solid #29312c; border-radius: 20px; padding: 24px; display: flex; flex-direction: column; justify-content: space-between; gap: 16px; scroll-snap-align: start;"><blockquote style="margin: 0; font-size: 16px; line-height: 1.55; color: #e6e2d6;">« Ton trading est vraiment propre et technique. Tu pousses le groupe vers le haut et t'es proche de nous aussi, et ça c'est important. »</blockquote><figcaption style="font-size: 14px; font-weight: 700; color: #F0C575;">Yann</figcaption></figure>
 <figure style="flex: 0 0 280px; width: 280px; margin: 0; background: #111615; border: 1px solid #29312c; border-radius: 20px; padding: 24px; display: flex; flex-direction: column; justify-content: space-between; gap: 16px; scroll-snap-align: start;"><blockquote style="margin: 0; font-size: 16px; line-height: 1.55; color: #e6e2d6;">« Je gère toujours bien mon money management et je suis tes conseils, donc tout roule. Tu es vraiment quelqu'un de bien. »</blockquote><figcaption style="font-size: 14px; font-weight: 700; color: #F0C575;">Harmonie</figcaption></figure>
 <figure style="flex: 0 0 280px; width: 280px; margin: 0; background: #111615; border: 1px solid #29312c; border-radius: 20px; padding: 24px; display: flex; flex-direction: column; justify-content: space-between; gap: 16px; scroll-snap-align: start;"><blockquote style="margin: 0; font-size: 16px; line-height: 1.55; color: #e6e2d6;">« Sans toi, je serais encore à bosser en usine à me lever à 6h du matin. Aujourd'hui, je me lève à l'heure que je veux. »</blockquote><figcaption style="font-size: 14px; font-weight: 700; color: #F0C575;">Mathews</figcaption></figure>
@@ -315,10 +368,10 @@ Lives réguliers ·
 <!-- FAQ -->
 <section class="rv" style="max-width: 860px; margin: 0 auto; padding: 0 24px 112px;">
 <h2 style="font-family: 'Unbounded', sans-serif; font-weight: 700; font-size: clamp(28px, 3.4vw, 44px); letter-spacing: -0.02em; margin: 0 0 32px;">Questions <span style="color: #91D6D0;">fréquentes</span></h2>
-<details style="border-top: 1px solid #29312c; padding: 22px 0;"><summary style="font-weight: 800; font-size: 18px; cursor: pointer;">Le Telegram est gratuit ?</summary><p style="color: #a9b4ae; margin: 12px 0 0;">[Ta réponse.]</p></details>
-<details style="border-top: 1px solid #29312c; padding: 22px 0;"><summary style="font-weight: 800; font-size: 18px; cursor: pointer;">Je débute, est-ce que c'est pour moi ?</summary><p style="color: #a9b4ae; margin: 12px 0 0;">[Ta réponse.]</p></details>
+<details style="border-top: 1px solid #29312c; padding: 22px 0;"><summary style="font-weight: 800; font-size: 18px; cursor: pointer;">Le Telegram est gratuit ?</summary><p style="color: #a9b4ae; margin: 12px 0 0;">Oui, mon canal Telegram est gratuit et ouvert à tous. Le VIP est un espace à part : l'accès se fait par affiliation chez un de mes brokers partenaires ou par abonnement.</p></details>
+<details style="border-top: 1px solid #29312c; padding: 22px 0;"><summary style="font-weight: 800; font-size: 18px; cursor: pointer;">Je débute, est-ce que c'est pour moi ?</summary><p style="color: #a9b4ae; margin: 12px 0 0;">Oui. Commence par suivre mes analyses et mes lives sur Telegram. Ce mois-ci, tu peux aussi tester le VIP sans dépôt, sur un compte démo, pour apprendre sans risquer ton argent.</p></details>
 <details style="border-top: 1px solid #29312c; padding: 22px 0;"><summary style="font-weight: 800; font-size: 18px; cursor: pointer;">Comment fonctionne l'accès VIP ?</summary><p style="color: #a9b4ae; margin: 12px 0 0;">Tu découvres les conditions sur Telegram, ton adhésion est vérifiée (affiliation ou abonnement), puis ton espace personnel est activé.</p></details>
-<details style="border-top: 1px solid #29312c; border-bottom: 1px solid #29312c; padding: 22px 0;"><summary style="font-weight: 800; font-size: 18px; cursor: pointer;">Le lien Telegram ne s'ouvre pas ?</summary><p style="color: #a9b4ae; margin: 12px 0 0;">[Ton astuce — ex. ouvrir le lien dans Safari/Chrome plutôt que dans le navigateur de TikTok.]</p></details>
+<details style="border-top: 1px solid #29312c; border-bottom: 1px solid #29312c; padding: 22px 0;"><summary style="font-weight: 800; font-size: 18px; cursor: pointer;">Le lien Telegram ne s'ouvre pas ?</summary><p style="color: #a9b4ae; margin: 12px 0 0;">Ouvre le lien dans Safari ou Chrome plutôt que dans le navigateur de TikTok ou d'Instagram : appuie sur « ⋯ » puis « Ouvrir dans le navigateur ». Vérifie aussi que l'appli Telegram est installée.</p></details>
 </section>
 
 <!-- CTA FINAL -->
@@ -328,6 +381,7 @@ Lives réguliers ·
 <p style="font-size: 14px; color: #8f9d93; margin: 16px 0 0;"><strong style="color: #91D6D0;">+3 990</strong> personnes ont déjà rejoint</p>
 </section>
 
+<a href="https://investprotrading.fr/enrick/essai-vip" class="offer-float" aria-label="Offre du moment : teste le VIP sans dépôt"><span class="of-dot" aria-hidden="true"></span><span>🔥 Teste le VIP <b>sans dépôt</b></span><span class="of-go" aria-hidden="true">→</span></a>
 <!-- FOOTER -->
 <footer style="border-top: 1px solid #29312c;">
 <div style="max-width: 1200px; margin: 0 auto; padding: 36px 24px 48px; display: flex; flex-wrap: wrap; gap: 20px; justify-content: space-between; font-size: 14px; color: #8f9d93;">
@@ -347,6 +401,9 @@ function count(el){var to=+el.dataset.to,pre=el.dataset.pre||"";if(red){el.textC
 var els=document.querySelectorAll(".rv,.stg");if(!("IntersectionObserver" in window)){els.forEach(function(e){e.classList.add("in")});return;}
 var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add("in");e.target.querySelectorAll(".count").forEach(function(c){if(!c.dataset.done){c.dataset.done=1;count(c);}});io.unobserve(e.target);}});},{threshold:0.15,rootMargin:"0px 0px -40px 0px"});
 els.forEach(function(e){io.observe(e)});
+var fl=document.querySelector(".offer-float");if(fl){setTimeout(function(){fl.classList.add("show");},1200);var tgt=[document.getElementById("offre"),document.querySelector("footer")].filter(Boolean);var vis=new Set();var io3=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting)vis.add(e.target);else vis.delete(e.target);});fl.classList.toggle("away",vis.size>0);},{threshold:.15});tgt.forEach(function(x){io3.observe(x);});}
+document.querySelectorAll(".count-now").forEach(function(c,i){c.dataset.done=1;c.textContent=(c.dataset.pre||"")+"0";setTimeout(function(){count(c);},700+i*150);});
+var oc=document.querySelector(".offer-card");if(oc){var io2=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){oc.classList.add("pop");io2.disconnect();}});},{threshold:.3});io2.observe(oc);}
 var END=new Date("2026-11-30T23:59:59+01:00").getTime();function upd(){var l=END-Date.now();document.querySelectorAll(".offer-left").forEach(function(o){if(l<=0){o.textContent="offre terminée";return;}var dd=Math.floor(l/864e5),hh=Math.floor(l%864e5/36e5),mm=Math.floor(l%36e5/6e4);o.textContent="plus que "+dd+" j "+hh+" h "+mm+" min";});}upd();setInterval(upd,30000);
 if(!red){document.querySelectorAll(".carousel").forEach(function autoScroll(c){var paused=false,t;function stop(){paused=true;clearTimeout(t);t=setTimeout(function(){paused=false},6000);}["touchstart","pointerdown","wheel"].forEach(function(ev){c.addEventListener(ev,stop,{passive:true})});setInterval(function(){if(paused)return;var r=c.getBoundingClientRect();if(r.bottom<0||r.top>innerHeight)return;var max=c.scrollWidth-c.clientWidth;if(c.scrollLeft>=max-4)c.scrollTo({left:0,behavior:"smooth"});else c.scrollBy({left:200,behavior:"smooth"});},2800);});}})();</script><script>(function(){var f=document.getElementById("perfFrame");if(!f)return;var JOIN="/vip/rejoindre";
 f.addEventListener("load",function(){var d;try{d=f.contentDocument;}catch(e){return;}if(!d)return;

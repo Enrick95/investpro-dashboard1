@@ -25,7 +25,6 @@
   color-scheme:dark; background:var(--bg);
 }
 *{box-sizing:border-box}
-[hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:17px;line-height:1.6}
 a{color:var(--fg);text-decoration:none}
 img{max-width:100%}
@@ -155,6 +154,11 @@ footer{border-top:1px solid var(--line);padding-block:32px 48px;font-size:14px;c
 .tg-fallback{margin-top:6px;display:grid;gap:10px}
 .hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
 .tg-warn b{color:inherit}
+.demo-tip{margin:12px 0 0;font-size:14px;color:var(--fg);background:rgba(232,163,154,.10);border:1px solid rgba(232,163,154,.35);border-radius:12px;padding:10px 12px}
+.demo-tip b{color:var(--gold)}
+.tg-check{display:flex;gap:10px;align-items:flex-start;font-size:15px;color:var(--fg);font-weight:500;cursor:pointer;margin-top:4px}
+.tg-check input{width:20px;height:20px;flex-shrink:0;margin:2px 0 0;accent-color:#F0C575}
+.tg-check.bad span{color:#e8a39a}
 .bks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:4px}
 .bk{display:flex;align-items:center;gap:8px;min-width:0;overflow-wrap:anywhere;background:var(--panel2);border:1px solid var(--line2);border-radius:12px;padding:12px 10px;color:var(--fg);font:700 14px var(--body);cursor:pointer;transition:border-color .2s ease,background-color .2s ease,transform .2s ease;text-align:left}
 .bk:hover{border-color:var(--gold)}
@@ -229,7 +233,8 @@ footer{border-top:1px solid var(--line);padding-block:32px 48px;font-size:14px;c
 <div class="bks" role="group" aria-label="Choix du broker"><button type="button" class="bk" data-bk="raisefx" aria-pressed="false"><span class="bk-ic">R</span>Raise FX</button><button type="button" class="bk" data-bk="vtmarkets" aria-pressed="false"><span class="bk-ic">VT</span>VT Markets</button><button type="button" class="bk" data-bk="puprime" aria-pressed="false"><span class="bk-ic">PU</span>PU Prime</button><button type="button" class="bk" data-bk="axi" aria-pressed="false"><span class="bk-ic">A</span>Axi</button><button type="button" class="bk" data-bk="bullwaves" aria-pressed="false"><span class="bk-ic">B</span>Bullwaves</button></div>
 <div class="bk-panel" data-panel hidden>
 <a class="btn btn-gold" data-link="aff" href="#" rel="noopener"><span>Ouvrir mon compte <span data-bkname></span> ↗</span></a>
-<ul class="bk-todo"><li>Crée ton compte <span data-bkname></span> avec ce lien.</li><li>Depuis ton espace <span data-bkname></span>, ouvre un compte <b>démo</b>.</li><li>Garde ton numéro, ton serveur et ton mot de passe démo : tu en auras besoin à l'étape 2.</li></ul>
+<ul class="bk-todo"><li>Crée ton compte <span data-bkname></span> avec ce lien.</li><li><b>Le broker te crée d'abord un compte réel : c'est normal, mais ce n'est pas celui-là qu'il nous faut.</b></li><li>Dans ton espace <span data-bkname></span>, ouvre un <b>compte démo</b> (souvent dans « Comptes » puis « Ouvrir un compte démo »).</li><li>Note le numéro, le serveur et le mot de passe de ce compte <b>démo</b> : tu en auras besoin à l'étape 2.</li></ul>
+<p class="demo-tip">Comment le reconnaître ? Le serveur d'un compte démo contient le mot <b>« Demo »</b>. S'il contient « Live » ou « Real », c'est ton compte réel.</p>
 <p class="bk-note">Obligatoire : ton accès n'est validé que si ton compte est ouvert avec ce lien.</p>
 </div>
 <p class="bk-old">Déjà un compte chez ce broker ? Écris-nous sur Telegram à <a href="https://t.me/EquipeInvestPro">@EquipeInvestPro</a> : on te guide pour le rattachement.</p>
@@ -239,10 +244,11 @@ footer{border-top:1px solid var(--line);padding-block:32px 48px;font-size:14px;c
 <label for="tg-name">Prénom et nom</label><input id="tg-name" name="nom" type="text" autocomplete="name" required placeholder="Ex. Julien Martin">
 <label for="tg-user">Ton pseudo Telegram</label><input id="tg-user" name="telegram" type="text" autocomplete="off" required placeholder="Ex. @julienmartin">
 <label for="tg-acc">N° de ton compte démo</label><input id="tg-acc" name="compte" type="text" inputmode="numeric" required placeholder="Ex. 12345678">
-<label for="tg-srv">Serveur du compte démo</label><input id="tg-srv" name="serveur" type="text" required placeholder="Ex. VTMarkets-Demo">
+<label for="tg-srv">Serveur du compte démo</label><input id="tg-srv" name="serveur" type="text" required placeholder="Doit contenir « Demo », ex. VTMarkets-Demo">
 <label for="tg-pwd">Mot de passe du compte démo</label><input id="tg-pwd" name="motdepasse" type="password" autocomplete="off" spellcheck="false" required placeholder="Celui reçu par e-mail du broker">
 <p class="tg-warn">Uniquement le mot de passe de ton compte <b>démo</b>. N'envoie jamais celui d'un compte réel.</p>
 <p class="bk-note">Les informations de ta demande, y compris les identifiants du compte démo, sont transmises à @EquipeInvestPro sur Telegram pour activer ton essai.</p>
+<label class="tg-check" for="tg-demo"><input id="tg-demo" name="confirmeDemo" type="checkbox"> <span>Je confirme que c'est un compte <b>DÉMO</b> et pas mon compte réel.</span></label>
 <div class="hp" aria-hidden="true"><label for="tg-web">Site web</label><input id="tg-web" name="website" type="text" tabindex="-1" autocomplete="off"></div>
 <p class="tg-err" data-err hidden></p>
 <button type="submit" class="btn btn-gold" data-send>Envoyer ma demande</button>
@@ -377,15 +383,17 @@ footer{border-top:1px solid var(--line);padding-block:32px 48px;font-size:14px;c
     var missing=[]; Object.keys(F).forEach(function(k){var e=document.getElementById(F[k]); var bad=!e.value.trim(); e.setAttribute("aria-invalid",bad?"true":"false"); if(bad) missing.push(e);});
     if(!current){ if(err){err.textContent="Choisis d'abord ton broker à l'étape 1.";err.hidden=false;} document.querySelector(".bks").scrollIntoView({behavior:"smooth",block:"center"}); return; }
     if(missing.length){ if(err){err.textContent="Complète les champs en rouge.";err.hidden=false;} missing[0].focus(); return; }
+    var srv=document.getElementById("tg-srv"), sv=srv.value.toLowerCase();
+    if(/live|real|r[ée]el/.test(sv) && !/demo|d[ée]mo/.test(sv)){ srv.setAttribute("aria-invalid","true"); if(err){err.textContent="Ce serveur est celui d'un compte RÉEL (« Live »). Ouvre un compte démo chez ton broker et envoie les infos de ce compte démo.";err.hidden=false;} srv.focus(); return; }
+    var ck=document.getElementById("tg-demo"), ckl=document.querySelector(".tg-check");
+    if(ck && !ck.checked){ if(ckl) ckl.classList.add("bad"); if(err){err.textContent="Coche la case pour confirmer que c'est un compte démo.";err.hidden=false;} ck.focus(); return; }
+    if(ckl) ckl.classList.remove("bad");
     var btn=form.querySelector("[data-send]"); btn.disabled=true; btn.textContent="Envoi en cours…";
-    var data={broker:NAMES[current],website:(document.getElementById("tg-web")||{}).value||""}; Object.keys(F).forEach(function(k){data[k]=val(k);});
-    function fail(message){ btn.disabled=false; btn.textContent="Envoyer ma demande"; if(err&&typeof message==="string"&&message){err.textContent=message;err.hidden=false;} buildMsg(); document.querySelector("[data-fallback]").hidden=false; }
+    var data={broker:NAMES[current],website:(document.getElementById("tg-web")||{}).value||"",confirmeDemo:!!(document.getElementById("tg-demo")||{}).checked}; Object.keys(F).forEach(function(k){data[k]=val(k);});
+    function fail(){ btn.disabled=false; btn.textContent="Envoyer ma demande"; buildMsg(); document.querySelector("[data-fallback]").hidden=false; }
     try{
       fetch(ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)})
-        .then(function(r){return r.json().catch(function(){return null;}).then(function(body){
-          if(!r.ok||!body||body.ok!==true){var message="";if([400,429,503].indexOf(r.status)!==-1&&body&&typeof body.error==="string")message=body.error.replace(/[\u0000-\u001f\u007f]/g," ").trim().slice(0,240);fail(message);return;}
-          document.getElementById("tg-pwd").value=""; if(msgBox)msgBox.textContent=""; form.hidden=true; document.querySelector("[data-fallback]").hidden=true; document.querySelector("[data-ok]").hidden=false;
-        });})
+        .then(function(r){ if(!r.ok) throw 0; form.hidden=true; document.querySelector("[data-fallback]").hidden=true; document.querySelector("[data-ok]").hidden=false; })
         .catch(fail);
     }catch(e){ fail(); }
   });
