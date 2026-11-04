@@ -49,9 +49,14 @@ export default function JoinVip({ initialChoices = {} }: { initialChoices?: Choi
   const subscriptionPrice = new Intl.NumberFormat(numberLocale, { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(SUBSCRIPTION_MONTHLY_EUR);
   const rateDate = new Intl.DateTimeFormat(numberLocale, { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" }).format(new Date(`${RATE_DATE}T12:00:00Z`));
   const [access, setAccess] = useState<Access | null>(initialChoices.access === "affiliation" || initialChoices.access === "subscription" ? initialChoices.access : null);
-  const [stage, setStage] = useState<Stage>(initialChoices.access === "affiliation" ? "broker" : "account");
-  const [broker, setBroker] = useState<Broker | null>(brokers.find(name => BROKER_KEYS[name] === initialChoices.broker) || null);
-  const [brokerAccount, setBrokerAccount] = useState<BrokerAccount | null>(initialChoices.account === "existing" || initialChoices.account === "new" ? initialChoices.account : null);
+  const initialBroker = brokers.find(name => BROKER_KEYS[name] === initialChoices.broker) || null;
+  const initialBrokerAccount = initialChoices.account === "existing" || initialChoices.account === "new" ? initialChoices.account : null;
+  const initialStage: Stage = initialChoices.access === "affiliation"
+    ? initialBrokerAccount ? "account" : initialBroker ? "broker-account" : "broker"
+    : "account";
+  const [stage, setStage] = useState<Stage>(initialStage);
+  const [broker, setBroker] = useState<Broker | null>(initialBroker);
+  const [brokerAccount, setBrokerAccount] = useState<BrokerAccount | null>(initialBrokerAccount);
   const [deposit, setDeposit] = useState<number | null>(null);
   const [wantsCopy, setWantsCopy] = useState(false);
   const [codeCopyState, setCodeCopyState] = useState<"idle" | "copied" | "failed">("idle");
