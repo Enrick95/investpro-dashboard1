@@ -41,7 +41,7 @@ async function currentRequest(db: SupabaseClient, row: CompletionEvent): Promise
   if (error) return { status: "failed", error: "request_lookup_failed" };
   if (!data || data.user_id !== row.user_id || data.id !== row.request_id || data.status !== "pending"
     || data.revision !== row.revision || !["new", "existing"].includes(data.request_kind)
-    || row.href !== (data.request_kind === "new" ? "/vip/rejoindre" : "/vip/deja-membre-original")
+    || row.href !== (data.request_kind === "new" ? "/vip/rejoindre" : "/vip/deja-membre") && !(data.request_kind !== "new" && row.href === "/vip/deja-membre-original")
     || !Array.isArray(data.completion_fields)
     || (row.kind === "needs_info" ? data.completion_fields.length === 0 : data.completion_fields.length !== 0 || !data.completion_submitted_at)) {
     return { status: "skipped", error: "request_event_stale" };
