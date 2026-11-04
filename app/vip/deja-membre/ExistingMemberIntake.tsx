@@ -52,6 +52,22 @@ export default function ExistingMemberIntake() {
     finally { setBusy(false); }
   }
   const pending = data?.request?.status === "pending";
+  if (!loading && !data && !error) return <iframe
+    title={locale === "en" ? "Already a VIP member — link your access" : "Bon retour dans le VIP — rattacher mon accès"}
+    src="/vip-deja-membre-visiteur.html"
+    onLoad={event => {
+      const frame = event.currentTarget;
+      const resize = () => {
+        try { frame.style.height = `${Math.max(frame.contentDocument?.documentElement.scrollHeight || 0, window.innerHeight)}px`; }
+        catch { frame.style.height = "100vh"; }
+      };
+      resize();
+      window.setTimeout(resize, 500);
+      window.setTimeout(resize, 1400);
+    }}
+    style={{ display: "block", position: "relative", zIndex: 1260, width: "100%", minHeight: "100vh", border: 0 }}
+    scrolling="no"
+  />;
   return <VipOnboardingShell existingMember>
     <section className={`${orbit.invitation} ${s.intakePanel}`} aria-labelledby="vip-existing-title">
       <div><span className={orbit.kicker}>{t("VOTRE ACCÈS ACTUEL")}</span><h2 id="vip-existing-title">{t("Retrouvez votre orbite.")}</h2><p>{t("Vous êtes déjà dans le canal VIP. Reliez votre adhésion à votre compte InvestPro pour retrouver votre espace personnel.")}</p></div>
