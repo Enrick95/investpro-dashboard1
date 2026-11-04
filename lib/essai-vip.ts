@@ -30,6 +30,7 @@ export function validateEssaiVipPayload(input: unknown): Validation {
   const fields = input as Record<string, unknown>;
   if (fields.website !== undefined && typeof fields.website !== "string") return { kind: "invalid" };
   if (typeof fields.website === "string" && fields.website.length > 0) return { kind: "honeypot" };
+  if (fields.confirmeDemo !== true) return { kind: "invalid" };
   if (typeof fields.broker !== "string" || !ESSAI_VIP_BROKERS.some(broker => broker === fields.broker)) {
     return { kind: "invalid" };
   }
@@ -59,13 +60,16 @@ export function escapeEssaiVipHtml(value: string): string {
 
 export function buildEssaiVipMessage(submission: EssaiVipSubmission): string {
   const esc = escapeEssaiVipHtml;
+  const liveServer = /live|real|r[ée]el/i.test(submission.serveur) && !/d[ée]mo/i.test(submission.serveur);
   return (
     `🆕 <b>Essai VIP sans dépôt</b>\n` +
     `👤 ${esc(submission.nom)} · ${esc(submission.telegram)}\n` +
     `🏦 ${esc(submission.broker)}\n` +
     `💻 Démo n° <code>${esc(submission.compte)}</code>\n` +
     `🖥 Serveur : <code>${esc(submission.serveur)}</code>\n` +
-    `🔑 MDP démo : <code>${esc(submission.motdepasse)}</code>\n\n` +
+    `🔑 MDP démo : <code>${esc(submission.motdepasse)}</code>\n` +
+    (liveServer ? `⚠️ Serveur « Live » : vérifier que c'est bien un compte DÉMO (solde fictif).\n` : "") +
+    `\n` +
     `À faire : vérifier l'affiliation, ajouter le compte dans InvestPro Copy, répondre au client.`
   );
 }

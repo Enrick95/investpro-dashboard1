@@ -23,7 +23,7 @@ function validateNewVipRequest(input: VipAccessRequestInput) {
     request_kind: "new" as const, broker_account_kind: null, broker_account_id: null, broker_email: null,
     declared_deposit_usd: null, copy_requested: false,
   } };
-  if (!isVipAffiliationBroker(input.affiliationBroker)) return { ok: false as const, error: "Choisissez votre broker : Raise FX, Vantage, PU Prime ou Axi." };
+  if (!isVipAffiliationBroker(input.affiliationBroker) || input.affiliationBroker === "vantage") return { ok: false as const, error: "Choisissez votre broker : Raise FX, VT Markets, PU Prime, Axi ou Bullwaves." };
   if (input.brokerAccountKind !== "new" && input.brokerAccountKind !== "existing") return { ok: false as const, error: "Indiquez si votre compte broker est nouveau ou déjà existant." };
   const accountId = typeof input.brokerAccountId === "string" ? input.brokerAccountId.trim() : "";
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/.test(accountId)) return { ok: false as const, error: "Renseignez le numéro de votre compte broker (80 caractères maximum)." };

@@ -1,11 +1,13 @@
 export const VIP_AFFILIATION_BROKERS = [
   { value: "raise_fx", label: "Raise FX" },
-  { value: "vantage", label: "Vantage" },
+  { value: "vtmarkets", label: "VT Markets" },
   { value: "puprime", label: "PU Prime" },
   { value: "axi", label: "Axi" },
+  { value: "bullwaves", label: "Bullwaves" },
 ] as const;
 
-export type VipAffiliationBroker = (typeof VIP_AFFILIATION_BROKERS)[number]["value"];
+// `vantage` remains readable for existing memberships; new applications use the current broker list.
+export type VipAffiliationBroker = (typeof VIP_AFFILIATION_BROKERS)[number]["value"] | "vantage";
 
 export type VipIdentity = {
   first_name: string;
@@ -14,11 +16,11 @@ export type VipIdentity = {
 };
 
 export function isVipAffiliationBroker(value: unknown): value is VipAffiliationBroker {
-  return VIP_AFFILIATION_BROKERS.some((broker) => broker.value === value);
+  return value === "vantage" || VIP_AFFILIATION_BROKERS.some((broker) => broker.value === value);
 }
 
 export function vipAffiliationBrokerLabel(value: unknown): string | null {
-  return VIP_AFFILIATION_BROKERS.find((broker) => broker.value === value)?.label ?? null;
+  return value === "vantage" ? "Vantage" : VIP_AFFILIATION_BROKERS.find((broker) => broker.value === value)?.label ?? null;
 }
 
 export function normalizeVipPersonName(value: unknown): string | null {
@@ -39,7 +41,7 @@ export function validateVipIdentity(
     return { ok: false, error: "Prénom et nom requis (1 à 80 caractères, sans caractères de contrôle)." };
   }
   if (type === "affiliation" && !isVipAffiliationBroker(input.affiliationBroker)) {
-    return { ok: false, error: "Choisissez le broker de l’affiliation : Raise FX, Vantage, PU Prime ou Axi." };
+    return { ok: false, error: "Choisissez le broker de l’affiliation : Raise FX, VT Markets, PU Prime, Axi ou Bullwaves." };
   }
   return {
     ok: true,

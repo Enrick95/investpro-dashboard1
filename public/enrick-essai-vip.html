@@ -156,6 +156,19 @@ footer{border-top:1px solid var(--line);padding-block:32px 48px;font-size:14px;c
 .tg-warn b{color:inherit}
 .demo-tip{margin:12px 0 0;font-size:14px;color:var(--fg);background:rgba(232,163,154,.10);border:1px solid rgba(232,163,154,.35);border-radius:12px;padding:10px 12px}
 .demo-tip b{color:var(--gold)}
+.dr{margin:14px 0 0;padding:14px;border-radius:14px;background:rgba(232,163,154,.08);border:1px solid rgba(232,163,154,.35)}
+.dr-t{margin:0;font-size:14px;line-height:1.55;color:var(--fg)}
+.dr-t b{color:var(--gold)}
+.dr-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}
+.dr-c{border-radius:12px;padding:12px 10px;background:rgba(11,13,11,.55)}
+.dr-c.ok{border:1.5px solid rgba(145,214,208,.6)}
+.dr-c.no{border:1px solid rgba(232,163,154,.4);opacity:.9}
+.dr-k{display:block;font-weight:800;font-size:13.5px;margin-bottom:6px}
+.dr-c.ok .dr-k{color:#91D6D0}.dr-c.no .dr-k{color:#e8a39a}
+.dr-c p{margin:4px 0 0;font-size:12.5px;line-height:1.45;color:var(--fg)}
+.dr-c b{color:var(--fg)}
+.dr-s{margin-top:8px!important;font-weight:700;font-size:12px!important}
+.dr-c.ok .dr-s{color:#91D6D0}.dr-c.no .dr-s{color:#e8a39a}
 .tg-check{display:flex;gap:10px;align-items:flex-start;font-size:15px;color:var(--fg);font-weight:500;cursor:pointer;margin-top:4px}
 .tg-check input{width:20px;height:20px;flex-shrink:0;margin:2px 0 0;accent-color:#F0C575}
 .tg-check.bad span{color:#e8a39a}
@@ -244,7 +257,12 @@ footer{border-top:1px solid var(--line);padding-block:32px 48px;font-size:14px;c
 <div class="bk-panel" data-panel hidden>
 <a class="btn btn-gold" data-link="aff" href="#" rel="noopener"><span>Ouvrir mon compte <span data-bkname></span> ↗</span></a>
 <ul class="bk-todo"><li>Crée ton compte <span data-bkname></span> avec ce lien.</li><li><b>Le broker te crée d'abord un compte réel : c'est normal, mais ce n'est pas celui-là qu'il nous faut.</b></li><li>Dans ton espace <span data-bkname></span>, ouvre un <b>compte démo</b> (souvent dans « Comptes » puis « Ouvrir un compte démo »).</li><li>Note le numéro, le serveur et le mot de passe de ce compte <b>démo</b> : tu en auras besoin à l'étape 2.</li></ul>
-<p class="demo-tip">Comment le reconnaître ? Le serveur d'un compte démo contient le mot <b>« Demo »</b>. S'il contient « Live » ou « Real », c'est ton compte réel.</p>
+<div class="dr">
+<p class="dr-t"><b>Démo ou réel : comment être sûr ?</b> Ne te fie pas au nom du serveur. Chez certains brokers, le compte démo est sur un serveur qui s'appelle <b>« Live »</b> : c'est normal.</p>
+<div class="dr-grid">
+<div class="dr-c ok"><span class="dr-k">✓ Compte démo</span><p>Ouvert avec le bouton <b>« compte démo »</b></p><p>Solde d'argent <b>fictif</b> déjà présent (ex.&nbsp;10&nbsp;000&nbsp;$)</p><p class="dr-s">C'est celui-là qu'on veut</p></div>
+<div class="dr-c no"><span class="dr-k">✕ Compte réel</span><p>Créé automatiquement à l'inscription</p><p>Solde à <b>0 $</b> tant que tu n'as rien déposé</p><p class="dr-s">Ne nous l'envoie pas</p></div>
+</div></div>
 <p class="bk-note">Obligatoire : ton accès n'est validé que si ton compte est ouvert avec ce lien.</p>
 </div>
 <p class="bk-old">Déjà un compte chez ce broker ? Écris-nous sur Telegram à <a href="https://t.me/EquipeInvestPro">@EquipeInvestPro</a> : on te guide pour le rattachement.</p>
@@ -254,16 +272,15 @@ footer{border-top:1px solid var(--line);padding-block:32px 48px;font-size:14px;c
 <label for="tg-name">Prénom et nom</label><input id="tg-name" name="nom" type="text" autocomplete="name" required placeholder="Ex. Julien Martin">
 <label for="tg-user">Ton pseudo Telegram</label><input id="tg-user" name="telegram" type="text" autocomplete="off" required placeholder="Ex. @julienmartin">
 <label for="tg-acc">N° de ton compte démo</label><input id="tg-acc" name="compte" type="text" inputmode="numeric" required placeholder="Ex. 12345678">
-<label for="tg-srv">Serveur du compte démo</label><input id="tg-srv" name="serveur" type="text" required placeholder="Doit contenir « Demo », ex. VTMarkets-Demo">
-<label for="tg-pwd">Mot de passe du compte démo</label><input id="tg-pwd" name="motdepasse" type="password" autocomplete="off" spellcheck="false" required placeholder="Celui reçu par e-mail du broker">
+<label for="tg-srv">Serveur du compte démo</label><input id="tg-srv" name="serveur" type="text" required placeholder="Copie-le tel quel, même s'il contient « Live »">
+<label for="tg-pwd">Mot de passe du compte démo</label><input id="tg-pwd" name="motdepasse" type="text" autocomplete="off" spellcheck="false" required placeholder="Celui reçu par e-mail du broker">
 <p class="tg-warn">Uniquement le mot de passe de ton compte <b>démo</b>. N'envoie jamais celui d'un compte réel.</p>
-<p class="bk-note">Les informations de ta demande, y compris les identifiants du compte démo, sont transmises à @EquipeInvestPro sur Telegram pour activer ton essai.</p>
-<label class="tg-check" for="tg-demo"><input id="tg-demo" name="confirmeDemo" type="checkbox"> <span>Je confirme que c'est un compte <b>DÉMO</b> et pas mon compte réel.</span></label>
+<label class="tg-check" for="tg-demo"><input id="tg-demo" name="confirmeDemo" type="checkbox"> <span>Je confirme que c'est un compte <b>DÉMO</b> (argent fictif), ouvert avec « compte démo », et pas mon compte réel.</span></label>
 <div class="hp" aria-hidden="true"><label for="tg-web">Site web</label><input id="tg-web" name="website" type="text" tabindex="-1" autocomplete="off"></div>
 <p class="tg-err" data-err hidden></p>
 <button type="submit" class="btn btn-gold" data-send>Envoyer ma demande</button>
 </form>
-<div class="tg-ok" data-ok hidden><b>Demande envoyée ✓</b><p>On vérifie ton inscription et on branche la copie. <strong>Dernière étape, obligatoire : rejoins maintenant le canal Essai VIP.</strong></p><a class="btn btn-gold btn-must" data-channel href="https://t.me/+qbWudXAkJDMyZWM8" style="margin-top:12px;width:100%"><span class="must-hand" aria-hidden="true">👉</span>Rejoindre le canal Essai VIP ↗</a></div>
+<div class="tg-ok" data-ok hidden><b>Demande envoyée ✓</b><p>On vérifie ton inscription et on branche la copie. <strong>Dernière étape, obligatoire : rejoins maintenant le canal Essai VIP.</strong></p><a class="btn btn-gold btn-must" data-channel href="https://t.me/+hNCn_4xGGKMxZjJk" style="margin-top:12px;width:100%"><span class="must-hand" aria-hidden="true">👉</span>Rejoindre le canal Essai VIP ↗</a></div>
 <div class="tg-fallback" data-fallback hidden>
 <p class="tg-err">L'envoi automatique n'a pas fonctionné. Copie ce message et envoie-le à <b>@EquipeInvestPro</b> sur Telegram.</p>
 <div class="tg-msg" data-msg aria-live="polite"></div>
@@ -279,7 +296,7 @@ footer{border-top:1px solid var(--line);padding-block:32px 48px;font-size:14px;c
 <span class="must-tag"><span aria-hidden="true">⚠️</span> Obligatoire</span>
 <h3>Rejoins le canal Essai VIP</h3>
 <p>Sans le canal, ton essai n'est pas complet. C'est là que tu reçois la confirmation que ta copie est branchée, le bilan chaque dimanche, les stats du VIP et les lives réservés aux testeurs.</p>
-<a class="btn btn-gold btn-must" data-channel href="https://t.me/+qbWudXAkJDMyZWM8"><span class="must-hand" aria-hidden="true">👉</span>Rejoindre le canal Essai VIP ↗</a>
+<a class="btn btn-gold btn-must" data-channel href="https://t.me/+hNCn_4xGGKMxZjJk"><span class="must-hand" aria-hidden="true">👉</span>Rejoindre le canal Essai VIP ↗</a>
 <p class="must-note">Une fois dans le canal, active les notifications pour ne rien rater.</p>
 </div></li>
 </ol>
@@ -320,6 +337,7 @@ footer{border-top:1px solid var(--line);padding-block:32px 48px;font-size:14px;c
 <div class="wrap" style="max-width:820px">
 <h2 class="h2">Questions <span class="gold">fréquentes</span></h2>
 <details><summary>Je dois déposer de l'argent ?</summary><p>Non. Pendant l'offre, tu découvres le VIP sur un compte démo : aucun dépôt, aucun abonnement. La seule condition : ouvrir ton compte broker avec mon lien.</p></details>
+<details><summary>Mon compte démo est sur un serveur « Live », c'est normal ?</summary><p>Oui, chez certains brokers c'est le cas. Ce qui compte : tu l'as ouvert avec « compte démo » et il affiche un solde d'argent fictif. Ton compte réel, lui, est à 0 $ tant que tu n'as rien déposé. Envoie bien les infos du compte démo, même si son serveur s'appelle « Live ».</p></details>
 <details><summary>Pourquoi un compte démo ?</summary><p>Pour que tu puisses juger les résultats sans prendre de risque. Les trades du VIP sont copiés sur ton compte démo avec de l'argent fictif, et tu vois ce que ça donne.</p></details>
 <details><summary>Et à la fin de l'essai ?</summary><p>Rien n'est automatique. Si tu veux continuer, tu fais un dépôt de 300 $ minimum sur ton compte broker : tu gardes ton accès au VIP, sans abonnement, et tu profites d'un bonus de 100 % sur ton dépôt. Sinon, la copie s'arrête, c'est tout.</p></details>
 <details><summary>J'ai déjà un compte chez un de ces brokers ?</summary><p>Écris-nous sur Telegram à <a href="https://t.me/EquipeInvestPro" style="color:var(--gold);font-weight:700">@EquipeInvestPro</a> : on t'explique comment rattacher ton compte.</p></details>
@@ -398,13 +416,11 @@ footer{border-top:1px solid var(--line);padding-block:32px 48px;font-size:14px;c
     var missing=[]; Object.keys(F).forEach(function(k){var e=document.getElementById(F[k]); var bad=!e.value.trim(); e.setAttribute("aria-invalid",bad?"true":"false"); if(bad) missing.push(e);});
     if(!current){ if(err){err.textContent="Choisis d'abord ton broker à l'étape 1.";err.hidden=false;} document.querySelector(".bks").scrollIntoView({behavior:"smooth",block:"center"}); return; }
     if(missing.length){ if(err){err.textContent="Complète les champs en rouge.";err.hidden=false;} missing[0].focus(); return; }
-    var srv=document.getElementById("tg-srv"), sv=srv.value.toLowerCase();
-    if(/live|real|r[ée]el/.test(sv) && !/demo|d[ée]mo/.test(sv)){ srv.setAttribute("aria-invalid","true"); if(err){err.textContent="Ce serveur est celui d'un compte RÉEL (« Live »). Ouvre un compte démo chez ton broker et envoie les infos de ce compte démo.";err.hidden=false;} srv.focus(); return; }
     var ck=document.getElementById("tg-demo"), ckl=document.querySelector(".tg-check");
     if(ck && !ck.checked){ if(ckl) ckl.classList.add("bad"); if(err){err.textContent="Coche la case pour confirmer que c'est un compte démo.";err.hidden=false;} ck.focus(); return; }
     if(ckl) ckl.classList.remove("bad");
     var btn=form.querySelector("[data-send]"); btn.disabled=true; btn.textContent="Envoi en cours…";
-    var data={broker:NAMES[current],website:(document.getElementById("tg-web")||{}).value||"",confirmeDemo:!!(document.getElementById("tg-demo")||{}).checked}; Object.keys(F).forEach(function(k){data[k]=val(k);});
+    var data={broker:NAMES[current],confirmeDemo:true,website:(document.getElementById("tg-web")||{}).value||""}; Object.keys(F).forEach(function(k){data[k]=val(k);});
     function fail(){ btn.disabled=false; btn.textContent="Envoyer ma demande"; buildMsg(); document.querySelector("[data-fallback]").hidden=false; }
     try{
       fetch(ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)})

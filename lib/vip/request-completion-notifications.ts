@@ -30,7 +30,7 @@ function validEvent(row: CompletionEvent, channel: Channel): boolean {
     && Number.isInteger(row[`${channel}_attempts`]) && row[`${channel}_attempts`] >= 1 && row[`${channel}_attempts`] <= 4
     && typeof row.title === "string" && row.title.length > 0 && row.title.length <= 160 && !/[\r\n\u0000]/.test(row.title)
     && typeof row.message === "string" && row.message.length > 0 && row.message.length <= 1500 && !/\u0000/.test(row.message)
-    && ["/vip/deja-membre", "/vip/rejoindre"].includes(row.href)
+    && ["/vip/deja-membre", "/vip/deja-membre-original", "/vip/rejoindre"].includes(row.href)
     && Number.isFinite(createdAt) && createdAt > Date.now() - RETRY_WINDOW_MS && createdAt <= Date.now() + 60000;
 }
 
@@ -41,7 +41,7 @@ async function currentRequest(db: SupabaseClient, row: CompletionEvent): Promise
   if (error) return { status: "failed", error: "request_lookup_failed" };
   if (!data || data.user_id !== row.user_id || data.id !== row.request_id || data.status !== "pending"
     || data.revision !== row.revision || !["new", "existing"].includes(data.request_kind)
-    || row.href !== (data.request_kind === "new" ? "/vip/rejoindre" : "/vip/deja-membre")
+    || row.href !== (data.request_kind === "new" ? "/vip/rejoindre" : "/vip/deja-membre-original")
     || !Array.isArray(data.completion_fields)
     || (row.kind === "needs_info" ? data.completion_fields.length === 0 : data.completion_fields.length !== 0 || !data.completion_submitted_at)) {
     return { status: "skipped", error: "request_event_stale" };
