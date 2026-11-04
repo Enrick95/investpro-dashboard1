@@ -6,5 +6,5 @@ const securityHeaders=[
   {key:"Permissions-Policy",value:"camera=(), microphone=(), geolocation=()"},
   {key:"Strict-Transport-Security",value:"max-age=31536000; includeSubDomains"},
 ];
-const nextConfig: NextConfig={poweredByHeader:false,compress:true,async redirects(){return [{source:"/enrick95",destination:"/enrick",statusCode:301}]},async rewrites(){return [{source:"/enrick",destination:"/enrick.html"},{source:"/enrick/essai-vip",destination:"/enrick-essai-vip.html"},{source:"/vip/deja-membre",destination:"/vip-deja-membre.html"}]},async headers(){return [{source:"/:path*",headers:securityHeaders}]}};
+const nextConfig: NextConfig={poweredByHeader:false,compress:true,async redirects(){return [{source:"/enrick95",destination:"/enrick",statusCode:301}]},async rewrites(){return {beforeFiles:[{source:"/enrick",destination:"/enrick.html"},{source:"/enrick/essai-vip",destination:"/enrick-essai-vip.html"},{source:"/vip/deja-membre",destination:"/vip-deja-membre.html"}],afterFiles:[],fallback:[]}},async headers(){return [{source:"/:path*",headers:securityHeaders}]}};
 export default nextConfig;
