@@ -257,12 +257,12 @@ export default function JoinVip({ initialChoices = {} }: { initialChoices?: Choi
             : stage === "deposit" ? tr("Votre dépôt, avant vérification.", "Your deposit, before review.")
               : tr("Vérifiez et transmettez votre demande.", "Review and send your application.");
 
-  return <main className={s.page}>
+  return <main className={`${s.page} ${access ? s.journeyOnly : ""}`}>
     <div className={s.previewNotice}><ShieldCheck size={13} aria-hidden="true" /><span>{tr("Votre adhésion InvestPro · un parcours, toutes vos étapes", "Your InvestPro membership · one journey, every step")}</span></div>
     <div className={s.shell}>
       <header className={s.header}>
         <Link href="/" className={s.brand}><span className={s.brandIcon}><Crown size={23} aria-hidden="true" /></span><span>InvestPro <b>VIP</b><small>TRADING</small></span></Link>
-        <div className={s.headerRight}><a href="#votre-acces" className={s.headerJoin}>{tr("Rejoindre", "Join")}<ArrowRight size={14} aria-hidden="true" /></a><LanguageSwitcher /></div>
+        <div className={s.headerRight}>{access ? <Link href="/vip" className={s.headerJoin}><ArrowLeft size={14} aria-hidden="true" />{tr("Retour", "Back")}</Link> : <a href="#votre-acces" className={s.headerJoin}>{tr("Rejoindre", "Join")}<ArrowRight size={14} aria-hidden="true" /></a>}<LanguageSwitcher /></div>
       </header>
 
       <section className={s.hero} aria-labelledby="join-hero-title">

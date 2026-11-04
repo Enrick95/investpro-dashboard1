@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { permanentRedirect } from "next/navigation";
 import JoinVip from "./JoinVip";
 import { getRequestLocale } from "@/lib/i18n/server";
 
@@ -13,5 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function JoinVipPage({ searchParams }: { searchParams: Promise<{ access?: string; broker?: string; account?: string }> }) {
-  return <JoinVip initialChoices={await searchParams} />;
+  const choices = await searchParams;
+  if (choices.access !== "affiliation" && choices.access !== "subscription") permanentRedirect("/vip");
+  return <JoinVip initialChoices={choices} />;
 }
