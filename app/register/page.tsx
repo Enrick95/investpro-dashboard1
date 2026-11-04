@@ -17,6 +17,7 @@ import AuthExperienceShell, {
   GoogleButton,
   SecurityNote,
 } from "@/components/auth/AuthExperienceShell";
+import VipAuthBanner from "@/components/auth/VipAuthBanner";
 
 type Message = { kind: "success" | "error" | "info"; text: string } | null;
 
@@ -45,6 +46,7 @@ export default function RegisterPage() {
   const [message, setMessage] = useState<Message>(null);
   const requestedNext = useSyncExternalStore(subscribeToLocation, requestedNextPath, serverNextPath);
   const nextPath = requestedNext ? safeNextPath(requestedNext, "/dashboard/onboarding") : null;
+  const isVipReturn = Boolean(nextPath?.includes("/vip/"));
 
   const strength = Math.min(
     4,
@@ -149,6 +151,7 @@ export default function RegisterPage() {
   return (
     <AuthExperienceShell mode="register">
       <div className="rounded-[26px] border border-white/[0.07] bg-[#0d0f0d]/90 p-5 shadow-[0_30px_80px_rgba(0,0,0,.28)] sm:p-7">
+        {isVipReturn ? <VipAuthBanner /> : null}
         <AuthCardHeader
           badge={t("Créer mon espace")}
           title={t("Commence à structurer ton")}

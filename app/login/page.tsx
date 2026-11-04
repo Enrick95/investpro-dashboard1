@@ -17,6 +17,7 @@ import AuthExperienceShell, {
   GoogleButton,
   SecurityNote,
 } from "@/components/auth/AuthExperienceShell";
+import VipAuthBanner from "@/components/auth/VipAuthBanner";
 
 type Message = { kind: "success" | "error" | "info"; text: string } | null;
 
@@ -43,6 +44,7 @@ export default function LoginPage() {
   const [message, setMessage] = useState<Message>(null);
   const requestedNext = useSyncExternalStore(subscribeToLocation, requestedNextPath, serverNextPath);
   const nextPath = requestedNext ? safeNextPath(requestedNext) : null;
+  const isVipReturn = Boolean(nextPath?.includes("/vip/"));
 
   useEffect(() => {
     const requestedNext = new URLSearchParams(window.location.search).get("next");
@@ -142,6 +144,7 @@ export default function LoginPage() {
   return (
     <AuthExperienceShell mode="login">
       <div className="rounded-[26px] border border-white/[0.07] bg-[#0d0f0d]/90 p-5 shadow-[0_30px_80px_rgba(0,0,0,.28)] sm:p-7">
+        {isVipReturn ? <VipAuthBanner /> : null}
         <AuthCardHeader
           badge={forgotMode ? t("Récupération du compte") : t("Espace membre")}
           title={forgotMode ? t("Retrouve ton") : t("Connexion à ton espace")}
