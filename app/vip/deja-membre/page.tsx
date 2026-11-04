@@ -5,7 +5,7 @@ import ExistingMemberIntake from "./ExistingMemberIntake";
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getRequestLocale();
   return {
-    title: locale === "en" ? "Already a VIP member — InvestPro Trading" : "Bon retour dans le VIP — InvestPro Trading",
+    title: locale === "en" ? "Already a VIP member" : "Bon retour dans le VIP",
     description: locale === "en"
       ? "Link your Telegram VIP access to your personal InvestPro account."
       : "Déjà dans le canal Telegram VIP ? Rattachez votre accès à votre compte InvestPro et retrouvez votre espace personnel.",
