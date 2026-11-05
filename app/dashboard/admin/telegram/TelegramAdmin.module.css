@@ -94,7 +94,7 @@
 .chips button{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:5px 12px;border-radius:99px;border:1px solid var(--line);background:#0f120f;color:var(--muted);font:inherit;font-size:12px;cursor:pointer;--c:#c3c6bd}
 .chips button b{font-size:11px;color:var(--c)}
 .chips button[aria-pressed=true]{border-color:var(--c);color:var(--text);background:color-mix(in srgb,var(--c) 12%,transparent)}
-[data-cat=chaud]{--c:#f08a5d}[data-cat=tiede]{--c:#f0c575}[data-cat=froid]{--c:#8fc9ff}[data-cat=vip]{--c:#91d6d0}[data-cat=invite]{--c:#b9a6f0}[data-cat=stop]{--c:#e8a39a}
+.root [data-cat=chaud]{--c:#f08a5d}.root [data-cat=tiede]{--c:#f0c575}.root [data-cat=froid]{--c:#8fc9ff}.root [data-cat=vip]{--c:#91d6d0}.root [data-cat=invite]{--c:#b9a6f0}.root [data-cat=stop]{--c:#e8a39a}
 .agentSplit{display:grid;grid-template-columns:minmax(230px,300px) minmax(0,1fr);gap:14px;align-items:start}
 .agentList{display:grid;gap:8px;padding:8px;border:1px solid var(--line);border-radius:14px;background:#0d0f0e;position:sticky;top:90px}
 .agentList .search input{width:100%}
