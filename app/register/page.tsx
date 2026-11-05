@@ -111,6 +111,8 @@ export default function RegisterPage() {
             : "Vérifie ta boîte e-mail si une confirmation est nécessaire, puis retourne sur la page d’adhésion VIP pour terminer tes démarches broker ou ton paiement et envoyer ta demande. Si tu as déjà un compte avec cette adresse, connecte-toi directement."
           : destination === "/vip/deja-membre"
           ? "Vérifie ta boîte e-mail si une confirmation est nécessaire, puis retourne sur la page « Déjà membre VIP » pour renseigner ton accès. Si tu as déjà un compte avec cette adresse, connecte-toi directement."
+          : destination.startsWith("/vip/nouveau-membre")
+          ? "Vérifie ta boîte e-mail si une confirmation est nécessaire. Après confirmation, tu reviendras sur Nouveau membre VIP avec les informations déjà saisies pour envoyer ta demande."
           : destination.startsWith("/vip")
           ? "Vérifie ta boîte e-mail si une confirmation est nécessaire, puis retrouve ton espace VIP. Si tu as déjà un compte avec cette adresse, connecte-toi directement."
           : "Vérifie ta boîte e-mail si une confirmation est nécessaire. Si tu as déjà un compte avec cette adresse, connecte-toi pour retrouver ton espace InvestPro.",
