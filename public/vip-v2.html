@@ -80,11 +80,11 @@ nav.top .wrap{display:flex;align-items:center;justify-content:space-between;gap:
 @media (max-width:900px){.hero-grid{grid-template-columns:1fr;gap:40px}.hero-photo{max-width:520px}.fc1{left:10px}.fc2{right:10px}}
 
 /* Chiffres */
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:22px;overflow:hidden;margin-top:56px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:22px;overflow:hidden;margin-top:56px}
 .stats div{background:var(--card);padding:24px 22px}
 .stats b{display:block;font-family:'Unbounded';font-weight:800;font-size:clamp(24px,3vw,34px);color:var(--gold)}
 .stats span{color:var(--muted);font-size:14px}
-@media (max-width:760px){.stats{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:760px){.stats{grid-template-columns:1fr 1fr}.stats div:last-child{grid-column:1/-1}}
 
 /* Contenu du VIP */
 .features{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
@@ -255,7 +255,6 @@ footer a:hover{color:var(--text)}
       <div><b class="count" data-to="3990" data-pre="+">+3 990</b><span>membres Telegram</span></div>
       <div><b class="count" data-to="40000" data-pre="+">+40 000</b><span>abonnés TikTok</span></div>
       <div><b class="count" data-to="7">7</b><span>ans sur les marchés</span></div>
-      <div><b>H4</b><span>une méthode, des règles écrites</span></div>
     </div>
   </div>
 </header>
@@ -268,7 +267,7 @@ footer a:hover{color:var(--text)}
       <div class="feat"><span class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2"/></svg></span><h3>Signaux & suivi</h3><p>Entrée, stop, objectifs, puis chaque mise à jour jusqu'à la clôture.</p></div>
       <div class="feat"><span class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5V5a2 2 0 0 1 2-2h12v18H6a2 2 0 0 1-2-1.5Z"/><path d="M8 7h6M8 11h8"/></svg></span><h3>Bilans & journal</h3><p>Du recul sur chaque semaine et un journal pour suivre ta progression.</p></div>
       <div class="feat t"><span class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6Z"/><path d="m9 12 2 2 4-4"/></svg></span><h3>Simulateur de risque</h3><p>Ton lot calculé avant d'entrer, pour ne jamais risquer plus que prévu.</p></div>
-      <div class="feat t"><span class="tag">Option</span><span class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M4 16V5a2 2 0 0 1 2-1h10"/></svg></span><h3>InvestPro Copy</h3><p>Les trades du VIP copiés sur ton compte, avec tes réglages de risque. Dès 500 $.</p></div>
+      <div class="feat t"><span class="tag">Option</span><span class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M4 16V5a2 2 0 0 1 2-1h10"/></svg></span><h3>InvestPro Copy</h3><p>Les trades du VIP copiés sur ton compte, avec tes réglages de risque.</p></div>
       <div class="feat t"><span class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg></span><h3>L'app + alertes</h3><p>iPhone, Android et ordinateur. Une notification à chaque nouveau trade.</p></div>
     </div>
   </div>
