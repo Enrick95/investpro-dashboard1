@@ -126,8 +126,8 @@ export async function POST(request: Request) {
     if (envUrl && serviceKey) {
       const { createClient } = await import("@supabase/supabase-js");
       const admin = createClient(envUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
-      if (proofPath) await admin.storage.from("vip-membership-proofs").remove([proofPath]).catch(() => {});
-      if (accountId && createdAccount) await admin.from("trading_accounts").delete().eq("id", accountId).catch(() => {});
+      try { if (proofPath) await admin.storage.from("vip-membership-proofs").remove([proofPath]); } catch {}
+      try { if (accountId && createdAccount) await admin.from("trading_accounts").delete().eq("id", accountId); } catch {}
     }
     return vipErrorResponse(error);
   }
