@@ -65,3 +65,14 @@
 .sidebar{background:radial-gradient(120% 40% at 0 0,#ffc8670d,transparent 60%),linear-gradient(180deg,#0f1110,#0a0b0a)}
 .brand>span{background:linear-gradient(145deg,#ffc86724,#ffc86708);box-shadow:0 6px 20px #ffc86714}
 .sectionHeader h1{background:linear-gradient(90deg,#fbfaf3 60%,#ffc867);-webkit-background-clip:text;background-clip:text;color:transparent}
+/* En-tête de rubrique coloré selon sa catégorie */
+.sectionHeader{--tone:#ffc867;display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:18px;align-items:center;padding:22px 24px;border:1px solid #ffffff10;border-radius:20px;background:radial-gradient(120% 140% at 0 0,color-mix(in srgb,var(--tone) 14%,transparent),transparent 55%),linear-gradient(180deg,#121513,#0d0f0e)}
+.sectionHeader[data-tone=teal]{--tone:#91d6d0}
+.sectionHeader[data-tone=tg]{--tone:#8fc9ff}
+.sectionHeader[data-tone=rose]{--tone:#e8a39a}
+.sectionHeader[data-tone=grey]{--tone:#d9d6c8}
+.sectionHeader>*{grid-column:2}
+.headerTile{grid-column:1!important;grid-row:1 / span 3;display:grid;place-items:center;width:58px;height:58px;border-radius:17px;background:linear-gradient(145deg,var(--tone),color-mix(in srgb,var(--tone) 55%,#000));color:#0b0d0b;box-shadow:0 12px 30px -12px var(--tone)}
+.sectionHeader .eyebrow{color:var(--tone);text-transform:uppercase;font-weight:600}
+.sectionHeader h1{margin:4px 0 6px;background:linear-gradient(90deg,#fbfaf3 55%,var(--tone));-webkit-background-clip:text;background-clip:text;color:transparent}
+@media (max-width:760px){.sectionHeader{padding:14px 16px;column-gap:12px;border-radius:16px}.headerTile{width:42px;height:42px;border-radius:13px;grid-row:1}.headerTile>svg{width:19px;height:19px}}

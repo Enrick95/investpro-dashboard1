@@ -25,3 +25,64 @@
 
 /* 2026-11 : bandeau « Outil actuel » masqué en production, la vérification d’accès reste active. */
 .productionTool .liveNotice{display:none}
+
+/* ───────── Habillage 2026-11 de toutes les rubriques ─────────
+   Couche de style seulement (aucune logique touchée). Les sélecteurs :where() gardent une
+   priorité faible : ils remplacent le style Tailwind par défaut, mais les styles propres à
+   une rubrique (modules CSS) restent prioritaires. */
+.currentTool{--panel:#121513;--border:#ffffff14;--gold-soft:#ffc86714;--gold-border:#ffc86745}
+
+/* Lisibilité : les tout petits textes passent à une taille confortable */
+.currentTool :where(:global(.text-\[8px\])){font-size:11px;line-height:1.5}
+.currentTool :where(:global(.text-\[9px\])){font-size:11.5px;line-height:1.5}
+.currentTool :where(:global(.text-\[10px\])){font-size:12px;line-height:1.55}
+.currentTool :where(:global(.text-\[11px\])){font-size:12.5px}
+.currentTool :where(:global(.text-xs)){font-size:12.5px}
+
+/* Cartes : fond dégradé, bord doux, légère profondeur */
+.currentTool :where(:global(.rounded-2xl.border),:global(.rounded-\[24px\]),:global(.rounded-\[22px\]),:global(.rounded-3xl.border)):where(:not([class*="red-"]):not([class*="amber-"]):not([class*="emerald-"]):not([class*="rose-"])){
+  border-radius:18px;border-color:#ffffff12;
+  background:linear-gradient(180deg,#151816 0%,#101211 100%);
+  box-shadow:inset 0 1px 0 #ffffff08,0 18px 40px -28px #000;
+}
+.currentTool :where(:global(.rounded-xl.border)):where(:not([class*="red-"]):not([class*="amber-"]):not([class*="emerald-"]):not([class*="rose-"])){border-color:#ffffff10;border-radius:13px}
+.currentTool :where(:global(.bg-black\/20),:global(.bg-black\/30),:global(.bg-\[\#050605\]),:global(.bg-\[\#0d0f0d\])){background:#0d100e}
+.currentTool :where(:global(.bg-white\/\[0\.02\]),:global(.bg-white\/\[\.02\]),:global(.bg-white\/\[0\.025\])){background:#ffffff06}
+
+/* Alertes colorées : un peu plus visibles */
+.currentTool :where([class*="bg-red-500"]){background:#e8a39a10;border-color:#e8a39a40}
+.currentTool :where([class*="bg-amber-500"]){background:#ffc86710;border-color:#ffc86745}
+.currentTool :where([class*="bg-emerald-500"]){background:#91d6d010;border-color:#91d6d045}
+
+/* Champs de saisie */
+.currentTool :where(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]),select,textarea){
+  background-color:#0c0e0d;border:1px solid #2c312d;border-radius:11px;color:#f4f4ed;
+  transition:border-color .15s ease,box-shadow .15s ease;
+}
+.currentTool :where(input:focus,select:focus,textarea:focus){outline:none;border-color:#ffc867aa;box-shadow:0 0 0 3px #ffc8671f}
+.currentTool :where(input[type=checkbox],input[type=radio]){accent-color:#ffc867}
+
+/* Boutons dorés principaux */
+.currentTool :where(:global(.bg-\[color\:var\(--gold\)\]),:global(.bg-\[\#F0C575\])){
+  background:linear-gradient(135deg,#ffd68a,#f0b95a);color:#17140d;box-shadow:0 8px 22px -12px #ffc867aa;
+  transition:transform .15s ease,filter .15s ease;
+}
+.currentTool :where(button:global(.bg-\[color\:var\(--gold\)\]):hover,button:global(.bg-\[\#F0C575\]):hover,a:global(.bg-\[color\:var\(--gold\)\]):hover){filter:brightness(1.06);transform:translateY(-1px)}
+.currentTool :where(button){transition:background-color .15s ease,border-color .15s ease,color .15s ease}
+
+/* Tableaux */
+.currentTool :where(table){border-collapse:separate;border-spacing:0}
+.currentTool :where(thead th){background:#0f1210;color:#a9ada3;font-weight:600;text-transform:uppercase;letter-spacing:.06em;font-size:11px;border-bottom:1px solid #ffffff12}
+.currentTool :where(tbody td){border-bottom:1px solid #ffffff0b}
+.currentTool :where(tbody tr:hover td){background:#ffffff05}
+
+/* Pastilles / badges arrondis */
+.currentTool :where(:global(.rounded-full.border)){letter-spacing:.01em}
+
+/* Liens dorés */
+.currentTool :where(a:global(.text-\[color\:var\(--gold\)\]):hover){text-decoration:underline;text-underline-offset:3px}
+
+/* Apparition douce de chaque rubrique */
+.currentTool{animation:toolIn .28s ease both}
+@keyframes toolIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.currentTool{animation:none}}
