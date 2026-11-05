@@ -1,3 +1,4 @@
+import { createClient } from "@supabase/supabase-js";
 import { buildEssaiVipMessage, validateEssaiVipPayload } from "@/lib/essai-vip";
 import { consumeEssaiVipRateLimit } from "@/lib/essai-vip-rate-limit";
 import { telegram } from "@/lib/telegram/server";
@@ -79,15 +80,30 @@ export async function POST(request: Request) {
   }
 
   try {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !serviceKey) return json(false, 503);
+    const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+    const lead = validation.value;
+    const { error: insertError } = await admin.from("essai_vip_leads").insert({
+      nom: lead.nom,
+      telegram: lead.telegram || null,
+      telephone: lead.telephone || null,
+      consentement_whatsapp: lead.contactMethod === "whatsapp",
+      broker: lead.broker,
+      compte: lead.compte,
+      serveur: lead.serveur,
+    });
+    if (insertError) return json(false, 503);
     await telegram("sendMessage", {
       chat_id: chatId,
-      text: buildEssaiVipMessage(validation.value),
+      text: buildEssaiVipMessage(lead),
       parse_mode: "HTML",
       link_preview_options: { is_disabled: true },
     });
     return json(true);
   } catch {
-    // The shared Telegram helper verifies HTTP + Telegram's ok and sanitizes failures.
+    // Never log the submitted payload; it contains the demo password.
     return json(false, 502);
   }
 }
