@@ -147,8 +147,9 @@ async function notifyNewVipRequest(db: SupabaseClient, id: string, data: Record<
   const form = new FormData();
   form.set("chat_id", chatId); form.set("caption", caption); form.set("parse_mode", "HTML");
   form.set("reply_markup", JSON.stringify({ inline_keyboard: [[{ text: "✅ Valider", callback_data: `vipmember:approve:${id}` }, { text: "❌ Refuser", callback_data: `vipmember:deny:${id}` }]] }));
-  form.set("photo", new File([proof], `preuve-${id}.bin`, { type: proof.type || "application/octet-stream" }));
-  const response = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: "POST", body: form, cache: "no-store", signal: AbortSignal.timeout(15000) });
+  const pdf = proof.type === "application/pdf";
+  form.set(pdf ? "document" : "photo", new File([proof], `preuve-${id}.${pdf ? "pdf" : "image"}`, { type: proof.type }));
+  const response = await fetch(`https://api.telegram.org/bot${token}/${pdf ? "sendDocument" : "sendPhoto"}`, { method: "POST", body: form, cache: "no-store", signal: AbortSignal.timeout(15000) });
   if (!response.ok) throw new Error("Telegram notification failed");
 }
 
