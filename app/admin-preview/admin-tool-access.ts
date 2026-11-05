@@ -1,4 +1,4 @@
-export const ADMIN_TOOL_IDS = ["analytics", "annonces", "backoffice", "copieur", "feedback", "finance", "inbox", "moderation", "navigation", "overview-current", "serveurs", "staff", "systeme", "utilisateurs", "vip", "vip-publications"] as const;
+export const ADMIN_TOOL_IDS = ["analytics", "annonces", "backoffice", "copieur", "feedback", "finance", "inbox", "essai-vip", "moderation", "navigation", "overview-current", "serveurs", "staff", "systeme", "utilisateurs", "vip", "vip-publications"] as const;
 export type AdminToolId = (typeof ADMIN_TOOL_IDS)[number];
 export type AdminAccess = { owner: boolean; permissions: string[] };
 export const VIP_ADMIN_VIEWS = ["members", "requests", "subscriptions", "affiliation", "settings"] as const;
@@ -9,7 +9,7 @@ export type AdminToolCheck = { status: "allowed"; access: AdminAccess } | { stat
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const RULES: Record<AdminToolId, { ownerOnly?: boolean; permissions: string[] }> = {
-  analytics: { permissions: ["analytics"] }, annonces: { permissions: ["announcements_write"] }, backoffice: { ownerOnly: true, permissions: [] }, copieur: { permissions: ["copier"] }, feedback: { permissions: ["feedback"] }, finance: { permissions: ["finance"] }, inbox: { permissions: ["inbox"] }, moderation: { permissions: ["moderation"] }, navigation: { permissions: ["navigation"] }, "overview-current": { ownerOnly: true, permissions: [] }, serveurs: { ownerOnly: true, permissions: [] }, staff: { ownerOnly: true, permissions: [] }, systeme: { permissions: ["system"] }, utilisateurs: { ownerOnly: true, permissions: [] }, vip: { permissions: ["users", "users_write"] }, "vip-publications": { permissions: ["users_write"] },
+  analytics: { permissions: ["analytics"] }, "essai-vip": { ownerOnly: true, permissions: [] }, annonces: { permissions: ["announcements_write"] }, backoffice: { ownerOnly: true, permissions: [] }, copieur: { permissions: ["copier"] }, feedback: { permissions: ["feedback"] }, finance: { permissions: ["finance"] }, inbox: { permissions: ["inbox"] }, moderation: { permissions: ["moderation"] }, navigation: { permissions: ["navigation"] }, "overview-current": { ownerOnly: true, permissions: [] }, serveurs: { ownerOnly: true, permissions: [] }, staff: { ownerOnly: true, permissions: [] }, systeme: { permissions: ["system"] }, utilisateurs: { ownerOnly: true, permissions: [] }, vip: { permissions: ["users", "users_write"] }, "vip-publications": { permissions: ["users_write"] },
 };
 
 export function isAdminToolId(value: unknown): value is AdminToolId {
