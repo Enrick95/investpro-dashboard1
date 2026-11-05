@@ -1,7 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
 import { consumeEssaiVipRateLimit } from "@/lib/essai-vip-rate-limit";
-import { isVipAffiliationBroker, normalizeVipPersonName } from "@/lib/vip/identity";
+import { isVipAffiliationBroker, normalizeVipPersonName, vipAffiliationBrokerLabel } from "@/lib/vip/identity";
+import { after } from "next/server";
+import { telegram as telegramApi } from "@/lib/telegram/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -84,5 +86,19 @@ export async function POST(request: Request) {
     if(inserted.error.code==="23505") return json({error:"Une demande est déjà enregistrée pour cette adresse e-mail."},409);
     return json({error:"La demande n’a pas pu être enregistrée. Réessaie dans un instant."},503);
   }
+  after(async()=>{
+    try { await notifyAdminNewApplication({firstName:String(firstName),lastName:String(lastName),telegram,phone:String(phone),broker,platform,account,server,deposit}); }
+    catch { console.error("VIP_APPLICATION_TELEGRAM_DEFERRED_FAILED"); }
+  });
   return json({ok:true,applicationId:inserted.data.id},201);
+}
+
+/** Alerte Telegram à Enrick pour chaque dossier « nouveau membre ». Le mot de passe investisseur n’y figure jamais. */
+async function notifyAdminNewApplication(d:{firstName:string;lastName:string;telegram:string;phone:string;broker:string;platform:string;account:string;server:string;deposit:string}) {
+  const chat=process.env.TELEGRAM_CHAT_ID||"";
+  if(!process.env.TELEGRAM_BOT_TOKEN||!/^-?\d+$/.test(chat)) return;
+  const esc=(value:string)=>String(value).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c] as string));
+  const deposit=d.deposit==="300-499"?"300 $ à 499 $":d.deposit==="500-999"?"500 $ à 999 $":"1 000 $ ou plus";
+  const text=`🆕 <b>Nouveau membre VIP à vérifier</b>\n👤 ${esc(d.firstName)} ${esc(d.lastName)} · @${esc(d.telegram)} · <a href="https://wa.me/${d.phone.replace(/\D/g,"")}">WhatsApp</a>\n🏦 ${esc(vipAffiliationBrokerLabel(d.broker)||d.broker)} · ${esc(d.platform)} n° ${esc(d.account)} · ${esc(d.server)}\n💰 Dépôt déclaré : ${deposit} · 📎 capture jointe\n\nÀ valider ici : https://investprotrading.fr/dashboard/admin?tool=vip&view=requests`;
+  await telegramApi("sendMessage",{chat_id:chat,text,parse_mode:"HTML",disable_web_page_preview:true});
 }
