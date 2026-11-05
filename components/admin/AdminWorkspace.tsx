@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, Bell, ChevronRight, CircleHelp, Copy, CreditCard, Crown, FileText, Handshake, LayoutDashboard, Mail, MessageCircle, Megaphone, Menu, Server, Settings2, ShieldCheck, TrendingUp, Users, Wallet, X, type LucideIcon } from "lucide-react";
+import { Activity, ArrowRight, Bell, Bot, CalendarClock, ChevronRight, Flame, Send, UserPlus, CircleHelp, Copy, CreditCard, Crown, FileText, Handshake, LayoutDashboard, Mail, MessageCircle, Megaphone, Menu, Server, Settings2, ShieldCheck, TrendingUp, Users, Wallet, X, type LucideIcon } from "lucide-react";
 import LanguageSwitcher from "@/components/i18n/LanguageSwitcher";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import AdminToolWorkspace from "@/app/admin-preview/AdminToolWorkspace";
@@ -13,14 +13,15 @@ import { useAdminInboxCount } from "./useAdminInboxCount";
 
 type Translate = (fr: string, en: string) => string;
 type Entry = { tool: AdminToolId; view?: VipAdminView; fr: string; en: string; Icon: LucideIcon };
-const GROUPS: { fr: string; en: string; items: Entry[] }[] = [
-  { fr: "Pilotage", en: "Overview & insights", items: [
+type Tone = "gold" | "teal" | "tg" | "rose" | "grey";
+const GROUPS: { fr: string; en: string; tone: Tone; items: Entry[] }[] = [
+  { fr: "Pilotage", en: "Overview & insights", tone: "gold", items: [
     { tool: "overview-current", fr: "Vue d’ensemble", en: "Overview", Icon: LayoutDashboard },
     { tool: "finance", fr: "Finance", en: "Finance", Icon: Wallet },
     { tool: "analytics", fr: "Statistiques", en: "Statistics", Icon: TrendingUp },
     { tool: "feedback", fr: "Retours", en: "Feedback", Icon: CircleHelp },
   ] },
-  { fr: "Membres & accès", en: "Members & access", items: [
+  { fr: "Membres & accès", en: "Members & access", tone: "teal", items: [
     { tool: "vip", view: "members", fr: "Membres VIP", en: "VIP members", Icon: Users },
     { tool: "utilisateurs", fr: "Utilisateurs", en: "Users", Icon: Users },
     { tool: "vip", view: "requests", fr: "Demandes VIP", en: "VIP requests", Icon: ShieldCheck },
@@ -29,13 +30,22 @@ const GROUPS: { fr: string; en: string; items: Entry[] }[] = [
     { tool: "vip", view: "affiliation", fr: "Affiliation & Copy", en: "Affiliation & Copy", Icon: Handshake },
     { tool: "copieur", fr: "InvestPro Copier", en: "InvestPro Copier", Icon: Copy },
   ] },
-  { fr: "Contenu & échanges", en: "Content & communication", items: [
+  { fr: "Mon canal Telegram", en: "My Telegram channel", tone: "tg", items: [
+    { tool: "telegram", view: "overview", fr: "Vue d’ensemble Telegram", en: "Telegram overview", Icon: Send },
+    { tool: "telegram", view: "new", fr: "Nouveaux membres", en: "New members", Icon: UserPlus },
+    { tool: "telegram", view: "members", fr: "Membres du canal", en: "Channel members", Icon: Users },
+    { tool: "telegram", view: "subscriptions", fr: "Abonnements & échéances", en: "Subscriptions & renewals", Icon: CalendarClock },
+    { tool: "telegram", view: "relances", fr: "Relances & prospects", en: "Follow-ups & leads", Icon: Flame },
+    { tool: "telegram", view: "activity", fr: "Activité du canal", en: "Channel activity", Icon: Activity },
+    { tool: "telegram", view: "bot", fr: "Réglages du bot", en: "Bot settings", Icon: Bot },
+  ] },
+  { fr: "Contenu & échanges", en: "Content & communication", tone: "rose", items: [
     { tool: "vip-publications", fr: "Publications VIP", en: "VIP posts", Icon: FileText },
     { tool: "moderation", fr: "Modération", en: "Moderation", Icon: ShieldCheck },
     { tool: "inbox", fr: "Inbox", en: "Inbox", Icon: Mail },
     { tool: "annonces", fr: "Annonces", en: "Announcements", Icon: Megaphone },
   ] },
-  { fr: "Plateforme & réglages", en: "Platform & settings", items: [
+  { fr: "Plateforme & réglages", en: "Platform & settings", tone: "grey", items: [
     { tool: "vip", view: "settings", fr: "Réglages VIP", en: "VIP settings", Icon: Settings2 },
     { tool: "systeme", fr: "Système", en: "System", Icon: Settings2 },
     { tool: "navigation", fr: "Navigation", en: "Navigation", Icon: Menu },
@@ -56,8 +66,10 @@ const MOBILE_SHORTCUTS: (Entry & { shortFr: string; shortEn: string })[] = [
   { tool: "staff", fr: "Équipe", en: "Team", shortFr: "Équipe", shortEn: "Team", Icon: Users },
 ];
 
+const DEFAULT_VIEW: Partial<Record<AdminToolId, VipAdminView>> = { vip: "members", telegram: "overview" };
 function isCurrent(target: AdminToolTarget, item: Entry) {
-  return target.tool === item.tool && (item.tool !== "vip" || (target.vipView || "members") === item.view);
+  const fallback = DEFAULT_VIEW[item.tool];
+  return target.tool === item.tool && (!fallback || (target.vipView || fallback) === item.view);
 }
 
 function pendingInboxLabel(count: number, tr: Translate) {
@@ -85,11 +97,11 @@ function Navigation({ target, navigate, tr, inboxCount }: { target: AdminToolTar
     event.preventDefault(); navigate(next);
   }
   return <nav className={s.navigation} aria-label={tr("Rubriques administration", "Administration sections")}>
-    {GROUPS.map(group => <div className={s.navGroup} key={group.fr} role="group" aria-label={tr(group.fr, group.en)}><h2>{tr(group.fr, group.en)}</h2><div className={s.navItems}>
+    {GROUPS.map(group => <div className={s.navGroup} data-tone={group.tone} key={group.fr} role="group" aria-label={tr(group.fr, group.en)}><h2><i aria-hidden="true" />{tr(group.fr, group.en)}</h2><div className={s.navItems}>
       {group.items.map(({ tool, view, fr, en, Icon }) => {
         const active = isCurrent(target, { tool, view, fr, en, Icon });
         const next = { tool, ...(view ? { vipView: view } : {}) };
-        return <Link href={adminToolPreviewHref(tool, undefined, "/dashboard/admin", view)} prefetch={false} key={tool + ":" + (view || "default")} onClick={event => activate(event, next)} aria-current={active ? "page" : undefined}><Icon size={18} aria-hidden="true" /><span>{tr(fr, en)}</span>{tool === "inbox" && <InboxBadge count={inboxCount} tr={tr} />}<ChevronRight size={13} className={s.openToolIcon} aria-hidden="true" /></Link>;
+        return <Link href={adminToolPreviewHref(tool, undefined, "/dashboard/admin", view)} prefetch={false} key={tool + ":" + (view || "default")} onClick={event => activate(event, next)} aria-current={active ? "page" : undefined}><span className={s.navTile}><Icon size={16} aria-hidden="true" /></span><span>{tr(fr, en)}</span>{tool === "inbox" && <InboxBadge count={inboxCount} tr={tr} />}<ChevronRight size={13} className={s.openToolIcon} aria-hidden="true" /></Link>;
       })}
     </div></div>)}
   </nav>;
@@ -102,7 +114,7 @@ export default function AdminWorkspace() {
   const inboxCount = useAdminInboxCount();
   const target = parseAdminToolQuery(new URLSearchParams(searchParams.toString())) || { tool: "overview-current" as const };
   const tr: Translate = (fr, en) => locale === "en" ? en : fr;
-  const current = GROUPS.flatMap(group => group.items).find(item => item.tool === target.tool && (item.tool !== "vip" || item.view === (target.vipView || "members")))!;
+  const current = GROUPS.flatMap(group => group.items).find(item => isCurrent(target, item)) || GROUPS[0].items[0];
   const navDialog = useRef<HTMLDialogElement>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);

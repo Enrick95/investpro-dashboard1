@@ -43,3 +43,25 @@
 .inboxShortcut .inboxBadge{position:absolute;right:-6px;top:-6px;border:2px solid #0c0d0e;min-width:23px;height:23px;padding:0 5px;font-size:10px}
 @media(max-width:760px){.mobileRail .inboxBadge{position:absolute;right:4px;top:3px;min-width:20px;height:20px;padding:0 5px;font-size:10px}}
 @media(max-width:360px){.mobileBrand{display:none}}
+
+/* Habillage 2026-11 : tuiles colorées par catégorie, état actif plus lisible. Ordre et rubriques inchangés. */
+.navGroup{--tone:#ffc867;--tone-bg:#ffc86714;--tone-border:#ffc86740}
+.navGroup[data-tone=teal]{--tone:#91d6d0;--tone-bg:#91d6d014;--tone-border:#91d6d040}
+.navGroup[data-tone=tg]{--tone:#8fc9ff;--tone-bg:#8fc9ff14;--tone-border:#8fc9ff40}
+.navGroup[data-tone=rose]{--tone:#e8a39a;--tone-bg:#e8a39a14;--tone-border:#e8a39a40}
+.navGroup[data-tone=grey]{--tone:#c3c6bd;--tone-bg:#c3c6bd10;--tone-border:#c3c6bd30}
+.navGroup>h2{display:flex;align-items:center;gap:8px;color:#9fa198}
+.navGroup>h2>i{width:6px;height:6px;border-radius:50%;background:var(--tone);box-shadow:0 0 10px var(--tone);flex-shrink:0}
+.navItems{gap:3px}
+.navigation a{min-height:42px;padding:7px 10px;gap:11px;color:#c3c5bb;transition:background .18s ease,color .18s ease,border-color .18s ease}
+.navigation a>span.navTile{flex:0 0 auto;display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:var(--tone-bg);border:1px solid var(--tone-border);color:var(--tone);transition:transform .18s ease,background .18s ease}
+.navigation a>span.navTile>svg{color:inherit}
+.navigation a:hover{background:#ffffff08;color:#f4f4ed}
+.navigation a:hover>span.navTile{transform:scale(1.06)}
+.navigation a[aria-current=page]{position:relative;background:linear-gradient(110deg,var(--tone-bg),#ffffff03 80%);border-color:var(--tone-border);color:#fbfaf3;font-weight:600}
+.navigation a[aria-current=page]::before{content:"";position:absolute;left:-1px;top:9px;bottom:9px;width:3px;border-radius:0 3px 3px 0;background:var(--tone)}
+.navigation a[aria-current=page]>span.navTile{background:var(--tone);color:#0b0d0b;border-color:transparent;box-shadow:0 4px 16px var(--tone-border)}
+.navigation a[aria-current=page] .openToolIcon{color:var(--tone)}
+.sidebar{background:radial-gradient(120% 40% at 0 0,#ffc8670d,transparent 60%),linear-gradient(180deg,#0f1110,#0a0b0a)}
+.brand>span{background:linear-gradient(145deg,#ffc86724,#ffc86708);box-shadow:0 6px 20px #ffc86714}
+.sectionHeader h1{background:linear-gradient(90deg,#fbfaf3 60%,#ffc867);-webkit-background-clip:text;background-clip:text;color:transparent}

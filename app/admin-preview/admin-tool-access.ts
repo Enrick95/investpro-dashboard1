@@ -1,15 +1,23 @@
-export const ADMIN_TOOL_IDS = ["analytics", "annonces", "backoffice", "copieur", "feedback", "finance", "inbox", "essai-vip", "moderation", "navigation", "overview-current", "serveurs", "staff", "systeme", "utilisateurs", "vip", "vip-publications"] as const;
+export const ADMIN_TOOL_IDS = ["analytics", "annonces", "backoffice", "copieur", "feedback", "finance", "inbox", "essai-vip", "moderation", "navigation", "overview-current", "serveurs", "staff", "systeme", "telegram", "utilisateurs", "vip", "vip-publications"] as const;
 export type AdminToolId = (typeof ADMIN_TOOL_IDS)[number];
 export type AdminAccess = { owner: boolean; permissions: string[] };
 export const VIP_ADMIN_VIEWS = ["members", "requests", "subscriptions", "affiliation", "settings"] as const;
-export type VipAdminView = (typeof VIP_ADMIN_VIEWS)[number];
+export const TELEGRAM_ADMIN_VIEWS = ["overview", "new", "members", "subscriptions", "relances", "activity", "bot"] as const;
+export type TelegramAdminView = (typeof TELEGRAM_ADMIN_VIEWS)[number];
+/** Sub-views accepted per tool. The field keeps its historical name `vipView` so existing links and callers stay unchanged. */
+export type VipAdminView = (typeof VIP_ADMIN_VIEWS)[number] | TelegramAdminView;
+const TOOL_VIEWS: Partial<Record<string, readonly string[]>> = { vip: VIP_ADMIN_VIEWS, telegram: TELEGRAM_ADMIN_VIEWS };
+export function isAdminToolView(tool: string, view: unknown): view is VipAdminView {
+  const views = TOOL_VIEWS[tool];
+  return typeof view === "string" && !!views && views.includes(view);
+}
 export type AdminWorkspacePath = "/admin-preview" | "/dashboard/admin";
 export type AdminToolTarget = { tool: AdminToolId; memberId?: string; vipView?: VipAdminView };
 export type AdminToolCheck = { status: "allowed"; access: AdminAccess } | { status: "signedOut" | "denied" | "unavailable" | "aborted" };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const RULES: Record<AdminToolId, { ownerOnly?: boolean; permissions: string[] }> = {
-  analytics: { permissions: ["analytics"] }, "essai-vip": { ownerOnly: true, permissions: [] }, annonces: { permissions: ["announcements_write"] }, backoffice: { ownerOnly: true, permissions: [] }, copieur: { permissions: ["copier"] }, feedback: { permissions: ["feedback"] }, finance: { permissions: ["finance"] }, inbox: { permissions: ["inbox"] }, moderation: { permissions: ["moderation"] }, navigation: { permissions: ["navigation"] }, "overview-current": { ownerOnly: true, permissions: [] }, serveurs: { ownerOnly: true, permissions: [] }, staff: { ownerOnly: true, permissions: [] }, systeme: { permissions: ["system"] }, utilisateurs: { ownerOnly: true, permissions: [] }, vip: { permissions: ["users", "users_write"] }, "vip-publications": { permissions: ["users_write"] },
+  analytics: { permissions: ["analytics"] }, "essai-vip": { ownerOnly: true, permissions: [] }, annonces: { permissions: ["announcements_write"] }, backoffice: { ownerOnly: true, permissions: [] }, copieur: { permissions: ["copier"] }, feedback: { permissions: ["feedback"] }, finance: { permissions: ["finance"] }, inbox: { permissions: ["inbox"] }, moderation: { permissions: ["moderation"] }, navigation: { permissions: ["navigation"] }, "overview-current": { ownerOnly: true, permissions: [] }, serveurs: { ownerOnly: true, permissions: [] }, staff: { ownerOnly: true, permissions: [] }, systeme: { permissions: ["system"] }, utilisateurs: { ownerOnly: true, permissions: [] }, vip: { permissions: ["users", "users_write"] }, telegram: { permissions: ["users", "users_write"] }, "vip-publications": { permissions: ["users_write"] },
 };
 
 export function isAdminToolId(value: unknown): value is AdminToolId {
@@ -27,14 +35,14 @@ export function parseAdminToolQuery(query: URLSearchParams): AdminToolTarget | n
   const member = query.get("member");
   if (member !== null && (tool !== "utilisateurs" || !isAdminMemberId(member))) return null;
   const view = query.get("view");
-  if (view !== null && (tool !== "vip" || !(VIP_ADMIN_VIEWS as readonly string[]).includes(view))) return null;
+  if (view !== null && !isAdminToolView(tool, view)) return null;
   return { tool, ...(member ? { memberId: member.toLowerCase() } : {}), ...(view ? { vipView: view as VipAdminView } : {}) };
 }
 
 export function adminToolPreviewHref(tool: AdminToolId, memberId?: string, basePath: AdminWorkspacePath = "/admin-preview", vipView?: VipAdminView): string {
   if (!isAdminToolId(tool) || (memberId && (tool !== "utilisateurs" || !isAdminMemberId(memberId)))) throw new Error("Invalid admin preview target");
   if (basePath !== "/admin-preview" && basePath !== "/dashboard/admin") throw new Error("Invalid admin workspace path");
-  if (vipView && (tool !== "vip" || !(VIP_ADMIN_VIEWS as readonly string[]).includes(vipView))) throw new Error("Invalid VIP view");
+  if (vipView && !isAdminToolView(tool, vipView)) throw new Error("Invalid VIP view");
   const query = new URLSearchParams({ tool });
   if (memberId) query.set("member", memberId.toLowerCase());
   if (vipView) query.set("view", vipView);

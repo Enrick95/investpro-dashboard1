@@ -32,6 +32,7 @@ const TOOLS = {
   serveurs: dynamic(() => import("@/app/dashboard/admin/serveurs/page"), { ssr: false, loading: LoadingTool }),
   staff: dynamic(() => import("@/app/dashboard/admin/staff/page"), { ssr: false, loading: LoadingTool }),
   systeme: dynamic(() => import("@/app/dashboard/admin/systeme/page"), { ssr: false, loading: LoadingTool }),
+  telegram: dynamic(() => import("@/app/dashboard/admin/telegram/TelegramAdmin"), { ssr: false, loading: LoadingTool }),
   utilisateurs: dynamic(() => import("@/app/dashboard/admin/utilisateurs/page"), { ssr: false, loading: LoadingTool }),
   vip: dynamic(() => import("@/app/dashboard/admin/vip/page"), { ssr: false, loading: LoadingTool }),
   "vip-publications": dynamic(() => import("./CurrentVipPostsTool"), { ssr: false, loading: LoadingTool }),

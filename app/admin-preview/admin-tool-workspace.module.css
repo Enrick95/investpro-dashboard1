@@ -22,3 +22,6 @@
  .action{width:100%;font-size:13px;padding:11px 12px;margin-top:20px}
  .currentTool{overflow-x:visible;--text:#f4f4ed;--muted:#b0b1a6;--gold:#ffc867;--gold-soft:#ffc86712;--gold-border:#b39b5c66;--border:#2b2d2f;--panel:#111213}
 }
+
+/* 2026-11 : bandeau « Outil actuel » masqué en production, la vérification d’accès reste active. */
+.productionTool .liveNotice{display:none}

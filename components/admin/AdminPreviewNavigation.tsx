@@ -1,11 +1,12 @@
 "use client";
 
 import { createContext, useContext, useMemo, type ReactNode } from "react";
+import type { VipAdminView } from "@/app/admin-preview/admin-tool-access";
 
 type AdminPreviewNavigation = {
   onNavigate: (path: string) => void;
   memberId?: string;
-  vipView?: "members" | "requests" | "subscriptions" | "affiliation" | "settings";
+  vipView?: VipAdminView;
 };
 
 const AdminPreviewNavigationContext = createContext<AdminPreviewNavigation | null>(null);

@@ -120,7 +120,7 @@ export default function VipAdminPage() {
     return matchesOrigin && searchable(`${memberName(member, tr)} ${member.email} ${originLabel(member, tr)} ${member.affiliation_broker || ""}`).includes(query);
   }) || [];
   return <div className={s.admin}>
-    <header className={s.heading}><div><span className={s.eyebrow}>{tr("ADMINISTRATION INVESTPRO")}</span><h1>{tr("Votre cercle.")}<br /><em>{tr("Des accès clairs.")}</em></h1><p>{tr("Invitez vos membres, publiez vos contenus et suivez les échéances.")}</p></div><Link className={s.secondary} href="/dashboard/vip">{tr("Voir l’espace VIP ")}<ArrowUpRight size={16} /></Link></header>
+    {!previewNavigation && <header className={s.heading}><div><span className={s.eyebrow}>{tr("ADMINISTRATION INVESTPRO")}</span><h1>{tr("Votre cercle.")}<br /><em>{tr("Des accès clairs.")}</em></h1><p>{tr("Invitez vos membres, publiez vos contenus et suivez les échéances.")}</p></div><Link className={s.secondary} href="/dashboard/vip">{tr("Voir l’espace VIP ")}<ArrowUpRight size={16} /></Link></header>}
     {loading ? <div className={s.empty} role="status">{tr("Chargement de l’administration VIP…")}</div> : <>
       {error && <p className={s.error} role="alert">{tr(error)}</p>}{message && <p className={s.message} role="status">{message}</p>}
       {data ? <>
