@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { Check, Copy, RefreshCw } from "lucide-react";
 import { vipDate, vipRequest } from "@/lib/vip/client";
@@ -23,6 +23,14 @@ function RequestReview({ request, onRefresh }: { request: VipAccessRequest; onRe
   const [error, setError] = useState("");
   const [completionFields, setCompletionFields] = useState<CompletionField[]>([]);
   const [completionNote, setCompletionNote] = useState("");
+  const [proofUrl, setProofUrl] = useState("");
+  const [denialReason, setDenialReason] = useState("");
+  useEffect(() => {
+    if (!request.member_intake || !request.proof_path) return;
+    let active = true;
+    void vipRequest<{ url: string }>(`/api/admin/vip/requests/${request.id}/preuve`).then(value => { if (active) setProofUrl(value.url); }).catch(() => {});
+    return () => { active = false; };
+  }, [request.id, request.member_intake, request.proof_path]);
   const needsCompletion = needsVipCompletion(request);
   async function requestCompletion(event: FormEvent) {
     event.preventDefault();
@@ -49,21 +57,37 @@ function RequestReview({ request, onRefresh }: { request: VipAccessRequest; onRe
       }
       if (isNew && form.type === "abonnement" && !form.paymentVerified) { setError(text("Vérifiez le règlement dans Stripe avant de confirmer le paiement.", "Check the payment in Stripe before confirming it.")); return; }
     }
+    if (action === "deny" && request.member_intake && denialReason.trim().length < 5) { setError(text("Indiquez un motif de refus (5 caractères minimum).", "Enter a reason for refusal (at least 5 characters).")); return; }
     setBusy(true);
     try {
-      await vipRequest("/api/admin/vip/requests", { method: "POST", body: JSON.stringify({ action, id: request.id, expectedRevision: requestRevision(request), firstName: form.firstName, lastName: form.lastName, type: form.type, affiliationBroker: form.affiliationBroker, paidOn: form.paidOn, brokerLinkedVerified: form.brokerLinkedVerified, verifiedDepositUsd: form.verifiedDepositUsd.trim() ? Number(form.verifiedDepositUsd) : null, paymentVerified: form.paymentVerified }) });
+      await vipRequest("/api/admin/vip/requests", { method: "POST", body: JSON.stringify({ action, id: request.id, expectedRevision: requestRevision(request), reason: denialReason.trim(), firstName: form.firstName, lastName: form.lastName, type: form.type, affiliationBroker: form.affiliationBroker, paidOn: form.paidOn, brokerLinkedVerified: form.brokerLinkedVerified, verifiedDepositUsd: form.verifiedDepositUsd.trim() ? Number(form.verifiedDepositUsd) : null, paymentVerified: form.paymentVerified }) });
       await onRefresh();
     } catch (cause) { setError(cause instanceof Error ? cause.message : tr("La demande n’a pas pu être traitée.")); }
     finally { setBusy(false); }
   }
   function approve(event: FormEvent) { event.preventDefault(); void review("approve"); }
   return <article className={s.member}>
-    <div className={s.memberHeading}><div><h3>{request.first_name} {request.last_name}</h3><span className={s.memberEmail}>{request.email}</span><small>{tr("Telegram : ")}{request.telegram_username ? `@${request.telegram_username}` : tr("Non renseigné")}</small><small>{tr("Déclaré : ")}{request.type === "abonnement" ? tr("Abonnement") : (tr("Affiliation · ") + (vipAffiliationBrokerLabel(request.affiliation_broker) || tr("Broker à confirmer")))}</small></div><span className={s.badge} data-kind={isNew ? "new" : "existing"}>{isNew ? text("Nouvelle adhésion · à vérifier", "New application · to review") : text("Déjà membre · à vérifier", "Existing member · to review")}</span></div>
+    <div className={s.memberHeading}><div><h3>{request.first_name} {request.last_name}</h3><span className={s.memberEmail}>{request.email}</span><small>{tr("Telegram : ")}{request.telegram_username ? `@${request.telegram_username}` : tr("Non renseigné")}</small><small>{tr("Déclaré : ")}{request.type === "abonnement" ? tr("Abonnement") : (tr("Affiliation · ") + (vipAffiliationBrokerLabel(request.affiliation_broker) || tr("Broker à confirmer")))}</small></div><span className={s.badge} data-kind={isNew ? "new" : "existing"}>{request.member_intake ? text("Nouveau membre (affiliation) · à vérifier", "New member (referral) · to review") : isNew ? text("Nouvelle adhésion · à vérifier", "New application · to review") : text("Déjà membre · à vérifier", "Existing member · to review")}</span></div>
     <p className={s.fine}>{tr("Demande du ")}{vipDate(request.created_at, locale)}{tr(". Ces informations sont déclarées par le membre.")}</p>
     {request.completion_requested_at && <div className={s.completionStatus} data-waiting={needsCompletion}>
       <b>{needsCompletion ? text("À compléter · réponse du membre attendue", "Action required · waiting for the member") : text("Compléments reçus · à vérifier", "Update received · to review")}</b>
       <p>{request.completion_note}</p>
       {needsCompletion ? <ul>{request.completion_fields?.map(field => <li key={field}>{completionFieldLabel(field, locale)}</li>)}</ul> : <><small>{text("Réponse du ", "Reply received ")}{vipDate(request.completion_submitted_at, locale)}</small>{request.completion_reply && <p className={s.memberReply}>{request.completion_reply}</p>}</>}
+    </div>}
+    {request.member_intake && <div className={s.declaration}>
+      <strong>{text("Dossier nouveau membre · données déclarées", "New member application · declared details")}</strong>
+      <dl className={s.requestFacts}>
+        <div><dt>{text("Téléphone WhatsApp", "WhatsApp phone")}</dt><dd>{request.phone_whatsapp ? <a href={`https://wa.me/${request.phone_whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noreferrer">{request.phone_whatsapp} ↗</a> : "—"}</dd></div>
+        <div><dt>{text("Telegram", "Telegram")}</dt><dd>{request.telegram_username ? <a href={`https://t.me/${encodeURIComponent(request.telegram_username)}`} target="_blank" rel="noreferrer">@{request.telegram_username} ↗</a> : "—"}</dd></div>
+        <div><dt>{text("Compte MetaTrader", "MetaTrader account")}</dt><dd>{request.mt_platform} · {request.broker_account_id}</dd></div>
+        <div><dt>{text("Serveur", "Server")}</dt><dd>{request.mt_server}</dd></div>
+        <div><dt>{text("Dépôt déclaré", "Declared deposit")}</dt><dd>{request.deposit_range === "300-499" ? "300 $ à 499 $" : request.deposit_range === "500-999" ? "500 $ à 999 $" : "1 000 $ ou plus"}</dd></div>
+        <div><dt>{text("Lien d’Enrick", "Enrick referral link")}</dt><dd>{request.via_enrick_link ? text("Confirmé par le membre · à contrôler", "Member confirmed · verify") : "—"}</dd></div>
+        <div><dt>{text("Compte ajouté dans Mes comptes", "Account added to My Accounts")}</dt><dd>{request.trading_account_id ? `#${request.trading_account_id}` : "—"}</dd></div>
+      </dl>
+      {proofUrl ? request.proof_path?.toLowerCase().endsWith(".pdf") ? <a href={proofUrl} target="_blank" rel="noreferrer">{text("Ouvrir la preuve du dépôt ↗", "Open deposit proof ↗")}</a> : <a href={proofUrl} target="_blank" rel="noreferrer"><img src={proofUrl} alt={text("Capture privée du dépôt", "Private deposit screenshot")} style={{ display: "block", maxWidth: 320, maxHeight: 240, objectFit: "contain", borderRadius: 12, marginTop: 12 }} />{text("Agrandir la preuve ↗", "Open full size ↗")}</a> : <p className={s.fine}>{text("Chargement de la preuve privée…", "Loading private proof…")}</p>}
+      <p className={s.fine}>{text("Reçue le ", "Received ")}{vipDate(request.created_at, locale)}. {text("Les champs et la capture sont privés à l’équipe.", "Details and proof are private to the team.")}</p>
+      <p className={s.fine}>{text("Le compte est enregistré sans mot de passe. La synchronisation MetaTrader reste à activer par le membre.", "The account is registered without a password. The member must separately enable MetaTrader sync.")}</p>
     </div>}
     {request.type === "abonnement" && <p className={s.fine}>{tr("Dernier paiement déclaré : ")}{vipDate(request.paid_on, locale)}{tr(". Vérifiez votre échange ou le règlement avant de confirmer.")}</p>}
     {isNew && request.type === "affiliation" && <div className={s.declaration}>
@@ -103,7 +127,8 @@ function RequestReview({ request, onRefresh }: { request: VipAccessRequest; onRe
       </fieldset>}
       {isNew && form.type === "abonnement" && <label className={s.verifyCheck}><input type="checkbox" checked={form.paymentVerified} onChange={event => setForm({ ...form, paymentVerified: event.target.checked })} required /><span>{text("J’ai retrouvé et vérifié dans Stripe le paiement de ce membre, avec le même e-mail et la date indiquée.", "I found and verified this member’s payment in Stripe, matching the email and date shown.")}</span></label>}
       <label className={s.verifyCheck}><input type="checkbox" checked={form.confirmed} onChange={event => setForm({ ...form, confirmed: event.target.checked })} required /><span>{tr("J’ai vérifié l’identité, l’adhésion et ")}{form.type === "abonnement" ? tr("la date du dernier paiement") : tr("le broker d’origine")}.</span></label>
-      <div className={s.identityActions}><button className={s.primary} disabled={busy}><Check size={16} />{busy ? tr("Traitement…") : tr("Valider l’accès vérifié")}</button><button type="button" className={s.secondary} disabled={busy} onClick={() => void review("deny")}>{tr("Ne pas valider")}</button></div>
+      {request.member_intake && <label>{text("Motif de refus (si tu refuses)", "Reason for refusal (if declining)")}<input value={denialReason} onChange={event => setDenialReason(event.target.value)} maxLength={300} placeholder={text("Ex. dépôt insuffisant, compte non affilié…", "e.g. insufficient deposit, account not referred…")} /></label>}
+      <div className={s.identityActions}><button className={s.primary} disabled={busy}><Check size={16} />{busy ? tr("Traitement…") : tr("Valider l’accès vérifié")}</button><button type="button" className={s.secondary} disabled={busy} onClick={() => void review("deny")}>{tr("Refuser")}</button></div>
     </form>}
   </article>;
 }

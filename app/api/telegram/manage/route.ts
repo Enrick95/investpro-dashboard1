@@ -16,6 +16,6 @@ export async function POST(req:Request){try{
  const {error}=await database().from('investpro_telegram_events').select('message_id').limit(1);if(error)throw Error('DB');
  const url=target()+'/api/telegram/webhook';const info=await telegram('getWebhookInfo');
  if(info.url&&info.url!==url)return Response.json({error:'Ce bot est déjà relié à une autre adresse. Vérifie cette connexion avant de la remplacer.'},{status:409});
- await telegram('setWebhook',{url,secret_token:secret,allowed_updates:['channel_post','edited_channel_post'],drop_pending_updates:false,max_connections:2});
+ await telegram('setWebhook',{url,secret_token:secret,allowed_updates:['channel_post','edited_channel_post','callback_query','chat_member'],drop_pending_updates:false,max_connections:2});
  const check=await telegram('getWebhookInfo');return Response.json({ok:check.url===url,message:'Adresse enregistrée. Publie un message ordinaire dans le canal puis actualise pour vérifier sa réception.'});
 }catch{return Response.json({error:'Échec : vérifier le token, les variables, le canal et la migration Supabase.'},{status:503});}}
