@@ -323,19 +323,11 @@ input[readonly]{color:var(--muted)}
 <div id="flow" hidden>
 <div class="flow-top">
 <div class="ring"><svg width="58" height="58" viewBox="0 0 58 58"><circle class="bgc" cx="29" cy="29" r="25"/><circle class="fgc" id="ringFg" cx="29" cy="29" r="25" stroke-dasharray="157" stroke-dashoffset="157"/></svg><b id="ringN">1</b></div>
-<div><small id="stepOf">Étape 1 sur 5</small><strong id="stepName">Ton compte</strong></div>
+<div><small id="stepOf">Étape 1 sur 5</small><strong id="stepName">Tes informations</strong></div>
 <div class="chips" id="chips"><i></i><i></i><i></i><i></i><i></i></div>
 </div>
 
 <section class="screen" data-s="1"><div class="panel">
-<div class="ph"><span class="pi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></span><h2>Ton compte InvestPro</h2></div>
-<p class="lead">Ton accès VIP est rattaché à ton compte. Crée-le ou connecte-toi : tu reviens ici automatiquement, à la bonne étape.</p>
-<a class="btn btn-gold" href="/signup?next=%2Fvip%2Fnouveau-membre" data-login>Créer mon compte<span class="go">→</span></a>
-<a class="btn btn-ghost" href="/login?next=%2Fvip%2Fnouveau-membre" data-login>J'ai déjà un compte</a>
-
-</div></section>
-
-<section class="screen" data-s="2"><div class="panel">
 <div class="ph"><span class="pi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M21 4L3 11l6 2 2 6 3-4 5 4z"/></svg></span><h2>Tes informations</h2></div>
 <p class="lead">Pour vérifier ton inscription et te confirmer ton accès.</p>
 <form id="f2" novalidate>
@@ -356,7 +348,7 @@ input[readonly]{color:var(--muted)}
 <button class="back" data-prev>← Retour</button>
 </div></section>
 
-<section class="screen" data-s="3"><div class="panel">
+<section class="screen" data-s="2"><div class="panel">
 <div class="ph"><span class="pi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/></svg></span><h2>Ton broker et ton compte MetaTrader</h2></div>
 <p class="lead">Ton compte sera ajouté à Mes comptes. La synchronisation automatique des trades se configure ensuite dans Connexions MetaTrader.</p>
 <form id="f3" novalidate>
@@ -386,7 +378,7 @@ input[readonly]{color:var(--muted)}
 <button class="back" data-prev>← Retour</button>
 </div></section>
 
-<section class="screen" data-s="4"><div class="panel">
+<section class="screen" data-s="3"><div class="panel">
 <div class="ph"><span class="pi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></span><h2>On enregistre ton compte</h2></div>
 <p class="lead">Ton compte sera enregistré dans Mes comptes. Pour synchroniser automatiquement tes trades, tu pourras ensuite activer Connexions MetaTrader depuis ton espace.</p>
 <div class="link" id="link">
@@ -400,13 +392,22 @@ input[readonly]{color:var(--muted)}
 <button class="back" data-prev>← Retour</button>
 </div></section>
 
-<section class="screen" data-s="5"><div class="panel">
+<section class="screen" data-s="4"><div class="panel">
 <div class="ph"><span class="pi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg></span><h2>Tout est bon ?</h2></div>
 <p class="lead">Vérifie tes infos, puis envoie : l'équipe reçoit ta demande tout de suite.</p>
 <div class="recap" id="recap"></div>
 <div class="safe"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#91D6D0" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Ces infos restent privées : seuls toi et l'équipe y avez accès.</div>
-<button class="btn btn-gold" id="send">Envoyer et débloquer mon accès<span class="go">→</span></button>
+<button class="btn btn-gold" id="send">Continuer vers mon compte InvestPro<span class="go">→</span></button>
 <button class="back" data-prev>← Modifier</button>
+</div></section>
+
+<section class="screen" data-s="5"><div class="panel">
+<div class="ph"><span class="pi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></span><h2>Crée ton compte InvestPro</h2></div>
+<p class="lead">Tes informations VIP sont prêtes. Crée ton compte sur InvestPro avec la même adresse e-mail : tu reviendras ici pour envoyer ta demande.</p>
+<a class="btn btn-gold" href="/signup?next=%2Fvip%2Fnouveau-membre%3Fresume%3D1" target="_top" data-auth-link>Créer mon compte et continuer<span class="go">→</span></a>
+<a class="btn btn-ghost" href="/login?next=%2Fvip%2Fnouveau-membre%3Fresume%3D1" target="_top" data-auth-link>J’ai déjà un compte<span class="go">→</span></a>
+<div class="err" id="draft-error" hidden></div>
+<button class="back" data-prev>← Retour au récapitulatif</button>
 </div></section>
 
 <section class="screen" data-s="6"><div class="panel wait">
@@ -457,7 +458,7 @@ input[readonly]{color:var(--muted)}
 
 <script>
 (function(){
-var cur=0,D={},names=['','Ton compte','Tes infos','Broker & MetaTrader','Ton journal','Récapitulatif','En vérification'];
+var cur=0,D={},names=['','Tes infos','Broker & MetaTrader','Enregistrement','Récapitulatif','Compte InvestPro','En vérification'];
 var intro=document.getElementById('intro'),flow=document.getElementById('flow'),done=document.getElementById('done'),sticky=document.getElementById('sticky');
 var els=document.querySelectorAll('.rv,.stg');
 if('IntersectionObserver' in window){var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{threshold:.2});els.forEach(function(e){io.observe(e)})}else els.forEach(function(e){e.classList.add('in')});
@@ -466,11 +467,11 @@ function show(n,rev){var prev=cur;cur=n;intro.hidden=n!==0;flow.hidden=!(n>=1&&n
   if(n>=1&&n<=6){var st=Math.min(n,5);document.getElementById('ringN').textContent=n===6?'✓':st;document.getElementById('stepOf').textContent=n===6?'Étape 5 sur 5':'Étape '+st+' sur 5';document.getElementById('stepName').textContent=names[n];
     document.getElementById('ringFg').style.strokeDashoffset=157-157*(n===6?1:(st-.5)/5);
     document.querySelectorAll('#chips i').forEach(function(c,i){c.className=i+1<st||n===6?'ok':i+1===st?'on':''})}
-  scrollTo({top:0,behavior:'smooth'});if(n===5)recap();if(n===7)win()}
-document.getElementById('start').onclick=function(){show(serverState&&serverState.user&&serverState.user.email?2:1)};
+  scrollTo({top:0,behavior:'smooth'});if(n===4)recap();if(n===7)win()}
+document.getElementById('start').onclick=function(){show(1)};
 document.querySelectorAll('[data-prev]').forEach(function(b){b.onclick=function(){show(cur-1,true)}});
-var serverState=null,pollTimer=null;function applyState(data){serverState=data;if(data.user&&data.user.email){document.getElementById('who').classList.add('on');document.getElementById('whoTxt').textContent='Connecté';var m=document.getElementById('mail');if(!m.value)m.value=data.user.email}if(data.request){D.pre=data.request.first_name||'';D.nom=data.request.last_name||'';if(data.request.status==='approved'&&data.request.channel_invite_url){show(7);win(data.request);return}if(data.request.status==='pending'||data.request.status==='approved'){show(6);return}if(data.request.status==='denied'){show(2);var f=document.querySelector('#f2 [data-err]');f.textContent=data.request.rejection_reason?'Demande refusée : '+data.request.rejection_reason:'Ta demande a été refusée. Écris à @EquipeInvestPro si tu as une question.';f.hidden=false;return}}show(0)}
-async function bootstrap(){try{var res=await fetch('/api/vip/nouveau-membre',{credentials:'same-origin',cache:'no-store'});if(res.status===401){show(0);return}var data=await res.json();if(!res.ok)throw Error();applyState(data)}catch(e){show(0)}}
+var serverState=null,pollTimer=null;function applyState(data){serverState=data;syncSend();if(data.user&&data.user.email){document.getElementById('who').classList.add('on');document.getElementById('whoTxt').textContent='Connecté';var m=document.getElementById('mail');if(!m.value)m.value=data.user.email}if(data.request){D.pre=data.request.first_name||'';D.nom=data.request.last_name||'';if(data.request.status==='approved'&&data.request.channel_invite_url){show(7);win(data.request);return}if(data.request.status==='pending'||data.request.status==='approved'){show(6);return}if(data.request.status==='denied'){show(1);var f=document.querySelector('#f2 [data-err]');f.textContent=data.request.rejection_reason?'Demande refusée : '+data.request.rejection_reason:'Ta demande a été refusée. Écris à @EquipeInvestPro si tu as une question.';f.hidden=false;return}}show(0)}
+async function bootstrap(){try{var res=await fetch('/api/vip/nouveau-membre',{credentials:'same-origin',cache:'no-store'});if(res.status===401){serverState=null;syncSend();await restoreDraft();show(0);return}var data=await res.json();if(!res.ok)throw Error();applyState(data);if(!data.request&&await restoreDraft()){show(4)}}catch(e){show(0)}}
 async function pollStatus(){clearTimeout(pollTimer);try{var res=await fetch('/api/vip/nouveau-membre',{credentials:'same-origin',cache:'no-store'});if(res.ok){var data=await res.json();if(data.request&&data.request.status==='approved'&&data.request.channel_invite_url){applyState(data);return}if(data.request&&data.request.status==='denied'){applyState(data);return}}}finally{pollTimer=setTimeout(pollStatus,20000)}}
 function err(f,t){var e=f.querySelector('[data-err]');e.textContent=t;e.hidden=!t;return false}
 function normTg(v){v=(v||'').trim().replace(/^https?:\/\//i,'').replace(/^(www\.)?(t|telegram)\.me\//i,'').replace(/^@+/,'').replace(/\/+$/,'');return /^[A-Za-z][A-Za-z0-9_]{4,31}$/.test(v)?'@'+v:''}
@@ -479,23 +480,32 @@ document.getElementById('f2').onsubmit=function(e){e.preventDefault();var f=this
   if(document.getElementById('tel').value.replace(/\D/g,'').length<9){document.getElementById('tel').setAttribute('aria-invalid',true);return err(f,'Numéro WhatsApp incomplet : mets l\'indicatif, ex. +33 6 12 34 56 78.')}
   var t=document.getElementById('tg'),n=normTg(t.value);if(!n){t.setAttribute('aria-invalid',true);document.getElementById('tgh').classList.add('bad');t.focus();return err(f,"Indique ton nom d'utilisateur Telegram (ex. @julienmartin), pas ton numéro ni ton nom.")}
   t.value=n;document.getElementById('tgh').classList.remove('bad');var m=document.getElementById('mail');if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(m.value.trim())){m.setAttribute('aria-invalid',true);m.focus();return err(f,'Adresse e-mail invalide (ex. ton@email.com).')}err(f,'');D.mail=m.value.trim();
-  D.pre=document.getElementById('pre').value.trim();D.nom=document.getElementById('nom').value.trim();D.tel=document.getElementById('tel').value.trim();D.tg=n;show(3)};
+  D.pre=document.getElementById('pre').value.trim();D.nom=document.getElementById('nom').value.trim();D.tel=document.getElementById('tel').value.trim();D.tg=n;show(2)};
 var bk=null;document.querySelectorAll('.bk').forEach(function(b){b.onclick=function(){bk=b.dataset.bk;document.querySelectorAll('.bk').forEach(function(x){x.setAttribute('aria-pressed',x===b)})}});
 var plat=null;document.querySelectorAll('.pl').forEach(function(b){b.onclick=function(){plat=b.dataset.pl;document.querySelectorAll('.pl').forEach(function(x){x.setAttribute('aria-pressed',x===b)})}});
-var proof=false,dr=document.getElementById('drop'),fileInput=document.getElementById('proofFile');dr.onclick=dr.onkeydown=function(e){if(e.target===fileInput)return;if(e.type==='keydown'&&e.key!=='Enter'&&e.key!==' ')return;e.preventDefault();fileInput.click()};fileInput.onchange=function(){var f=fileInput.files[0];if(!f)return;if(f.size>8*1024*1024||!['image/jpeg','image/png','image/webp','application/pdf'].includes(f.type)){fileInput.value='';return err(document.getElementById('f3'),'Choisis une image ou un PDF de 8 Mo maximum.')}proof=true;D.proof=f;dr.classList.add('ok');var label=dr.querySelector('span:last-child');label.innerHTML='';var fileName=document.createElement('b');fileName.textContent=f.name;label.appendChild(fileName);label.appendChild(document.createTextNode('Capture ajoutée'));ready3()};
+var proof=false,dr=document.getElementById('drop'),fileInput=document.getElementById('proofFile');
+var DRAFT_DB='investpro-vip-new-member',DRAFT_KEY='new-member-form';
+function draftStore(mode){return new Promise(function(resolve,reject){var req=indexedDB.open(DRAFT_DB,1);req.onupgradeneeded=function(){if(!req.result.objectStoreNames.contains('drafts'))req.result.createObjectStore('drafts')};req.onerror=function(){reject(req.error)};req.onsuccess=function(){var db=req.result,tx=db.transaction('drafts',mode),store=tx.objectStore('drafts');resolve({db:db,store:store,tx:tx})}})}
+async function saveDraft(){var file=document.getElementById('proofFile').files[0]||D.proof;if(!file)throw Error('Capture absente');var ref=await draftStore('readwrite');ref.store.put({data:Object.assign({},D),proof:file,savedAt:Date.now()},DRAFT_KEY);return new Promise(function(resolve,reject){ref.tx.oncomplete=function(){ref.db.close();resolve()};ref.tx.onerror=function(){ref.db.close();reject(ref.tx.error)}})}
+async function clearDraft(){try{var ref=await draftStore('readwrite');ref.store.delete(DRAFT_KEY);await new Promise(function(resolve,reject){ref.tx.oncomplete=resolve;ref.tx.onerror=function(){reject(ref.tx.error)}});ref.db.close()}catch(e){}}
+function setProofFile(file){if(!file)return;D.proof=file;proof=true;dr.classList.add('ok');var label=dr.querySelector('span:last-child');label.innerHTML='';var fileName=document.createElement('b');fileName.textContent=file.name;label.appendChild(fileName);label.appendChild(document.createTextNode('Capture ajoutée'));try{var dt=new DataTransfer();dt.items.add(file);fileInput.files=dt.files}catch(e){}}
+async function restoreDraft(){try{var ref=await draftStore('readonly');var req=ref.store.get(DRAFT_KEY);var row=await new Promise(function(resolve,reject){req.onsuccess=function(){resolve(req.result)};req.onerror=function(){reject(req.error)}});ref.db.close();if(!row)return false;if(Date.now()-row.savedAt>86400000){await clearDraft();return false}D=row.data||{};['pre','nom','tel','tg','mail','acc','srv'].forEach(function(id){var el=document.getElementById(id);if(el&&D[{pre:'pre',nom:'nom',tel:'tel',tg:'tg',mail:'mail',acc:'acc',srv:'srv'}[id]])el.value=D[id]});if(D.dep)document.getElementById('dep').value=D.dep;if(D.bk){bk=D.bk;document.querySelectorAll('.bk').forEach(function(x){x.setAttribute('aria-pressed',x.dataset.bk===bk)})}if(D.plat){plat=D.plat;document.querySelectorAll('.pl').forEach(function(x){x.setAttribute('aria-pressed',x.dataset.pl===plat)})}if(row.proof)setProofFile(row.proof);document.getElementById('viaLien').checked=true;ready2();ready3();return true}catch(e){return false}}
+document.querySelectorAll('[data-auth-link]').forEach(function(a){a.addEventListener('click',async function(e){e.preventDefault();try{await saveDraft();window.top.location.assign(a.href)}catch(err){var de=document.getElementById('draft-error');de.textContent='Impossible de garder tes informations dans ce navigateur. Vérifie le stockage du site puis réessaie.';de.hidden=false}})});
+dr.onclick=dr.onkeydown=function(e){if(e.target===fileInput)return;if(e.type==='keydown'&&e.key!=='Enter'&&e.key!==' ')return;e.preventDefault();fileInput.click()};fileInput.onchange=function(){var f=fileInput.files[0];if(!f)return;if(f.size>8*1024*1024||!['image/jpeg','image/png','image/webp','application/pdf'].includes(f.type)){fileInput.value='';return err(document.getElementById('f3'),'Choisis une image ou un PDF de 8 Mo maximum.')}setProofFile(f);ready3()};
 document.getElementById('f3').onsubmit=function(e){e.preventDefault();var f=this;
   var miss=[];if(!bk)miss.push('ton broker');if(!plat)miss.push('MT4 ou MT5');if(!/^\d{4,12}$/.test(document.getElementById('acc').value.trim())){document.getElementById('acc').setAttribute('aria-invalid',true);miss.push('ton n° MetaTrader')}if(!document.getElementById('srv').value.trim()){document.getElementById('srv').setAttribute('aria-invalid',true);miss.push('le serveur')}if(!document.getElementById('dep').value)miss.push('le montant déposé');if(!proof)miss.push('la capture du dépôt');if(!document.getElementById('viaLien').checked)miss.push('la case « lien d\'Enrick »');if(miss.length>1)return err(f,'Il manque : '+miss.join(', ')+'.');if(!bk)return err(f,'Choisis ton broker.');if(!plat)return err(f,'Choisis ta plateforme : MT4 ou MT5.');var a=document.getElementById('acc');if(!/^\d{4,12}$/.test(a.value.trim())){a.setAttribute('aria-invalid',true);return err(f,'Indique ton n° de compte MetaTrader (chiffres uniquement).')}a.setAttribute('aria-invalid',false);var sv=document.getElementById('srv');if(!sv.value.trim()){sv.setAttribute('aria-invalid',true);return err(f,'Indique le serveur de ton compte MetaTrader.')}sv.setAttribute('aria-invalid',false);
   if(!document.getElementById('dep').value)return err(f,'Indique le montant déposé.');if(!proof)return err(f,'Ajoute la capture de ton dépôt.');
   if(!document.getElementById('viaLien').checked)return err(f,"Coche la case : le compte doit être ouvert avec le lien d'Enrick.");
   err(f,'');D.bk=bk;D.plat=plat;D.srv=sv.value.trim();D.acc=a.value.trim();D.dep=document.getElementById('dep').value;
-  document.getElementById('bkName').textContent=bk;document.getElementById('bkInit').textContent=document.querySelector('.bk[data-bk="'+bk+'"] span').textContent;document.getElementById('accN').textContent=(plat==='MetaTrader 5'?'MT5':'MT4')+' · '+D.acc;show(4);autoLink()};
+  document.getElementById('bkName').textContent=bk;document.getElementById('bkInit').textContent=document.querySelector('.bk[data-bk="'+bk+'"] span').textContent;document.getElementById('accN').textContent=(plat==='MetaTrader 5'?'MT5':'MT4')+' · '+D.acc;show(3);autoLink()};
 /* L'enregistrement du compte se fait à l'envoi. La synchronisation MetaTrader reste une étape séparée, avec consentement du membre. */
 function autoLink(){var l=document.getElementById('link'),st=document.getElementById('status'),c=document.getElementById('toRecap');l.classList.remove('ok');st.className='status';st.innerHTML='<span class="spin"></span>Préparation de ton compte…';c.hidden=true;
   setTimeout(function(){l.classList.add('ok');st.className='status ok';st.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Compte prêt à être enregistré';c.hidden=false;c.className='btn btn-gold'},1800)}
-document.getElementById('toRecap').onclick=function(){show(5)};
+document.getElementById('toRecap').onclick=function(){show(4)};
 function recap(){var r=[['Nom',D.pre+' '+D.nom],['Téléphone WhatsApp',D.tel],['E-mail',D.mail],['Telegram',D.tg],['Broker',D.bk],['Plateforme',D.plat],['Compte MetaTrader',D.acc],['Serveur',D.srv],['Dépôt',D.dep],['Capture','Ajoutée ✓'],['Compte InvestPro','Ajouté à Mes comptes après envoi'],['Synchronisation','À activer dans Connexions MetaTrader']];
   var box=document.getElementById('recap');box.innerHTML='';r.forEach(function(x){var d=document.createElement('div'),s=document.createElement('span'),b=document.createElement('b');s.textContent=x[0];b.textContent=x[1]||'—';d.appendChild(s);d.appendChild(b);box.appendChild(d)})}
 
+function syncSend(){var b=document.getElementById('send');if(!b)return;b.innerHTML=serverState&&serverState.user&&serverState.user.email?'Envoyer et débloquer mon accès<span class="go">→</span>':'Continuer vers mon compte InvestPro<span class="go">→</span>'}
 function ready2(){var ok=['pre','nom'].every(function(id){return document.getElementById(id).value.trim()})&&document.getElementById('tel').value.replace(/\D/g,'').length>=9&&!!normTg(document.getElementById('tg').value)&&/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(document.getElementById('mail').value.trim());document.querySelector('#f2 button[type=submit]').classList.toggle('off',!ok);if(ok)err(document.getElementById('f2'),'')}
 function ready3(){var ok=!!bk&&!!plat&&/^\d{4,12}$/.test(document.getElementById('acc').value.trim())&&!!document.getElementById('srv').value.trim()&&!!document.getElementById('dep').value&&proof&&document.getElementById('viaLien').checked;document.querySelector('#f3 button[type=submit]').classList.toggle('off',!ok);if(ok)err(document.getElementById('f3'),'')}
 ['pre','nom','tel','tg','mail'].forEach(function(id){document.getElementById(id).addEventListener('input',function(){this.removeAttribute('aria-invalid');ready2()})});
@@ -503,11 +513,13 @@ function ready3(){var ok=!!bk&&!!plat&&/^\d{4,12}$/.test(document.getElementById
 document.addEventListener('click',function(e){if(e.target.closest('.bk,.pl,#drop'))setTimeout(ready3,0)});
 ready2();ready3();show(0);bootstrap();
 document.getElementById('send').onclick=async function(){
-  var btn=this;if(btn.disabled)return;var file=document.getElementById('proofFile').files[0];if(!file)return;
+  var btn=this;if(btn.disabled)return;
+  if(!serverState||!serverState.user||!serverState.user.email){try{await saveDraft();}catch(e){var de=document.getElementById('draft-error');de.textContent='Impossible de conserver tes informations sur cet appareil. Réessaie ou contacte @EquipeInvestPro.';de.hidden=false;show(5);return}show(5);return}
+  var file=document.getElementById('proofFile').files[0]||D.proof;if(!file)return;
   btn.disabled=true;btn.dataset.original=btn.innerHTML;btn.textContent='Envoi en cours…';
   var data=new FormData();data.set('firstName',D.pre);data.set('lastName',D.nom);data.set('email',D.mail);data.set('telWhatsapp',D.tel);data.set('telegram',D.tg.replace(/^@/,''));data.set('broker',({ 'Bullwaves':'bullwaves','Raise FX':'raise_fx','VT Markets':'vtmarkets','PU Prime':'puprime','Axi':'axi' })[D.bk]);data.set('plateforme',D.plat==='MetaTrader 4'?'MT4':'MT5');data.set('compteMT',D.acc);data.set('serveur',D.srv);data.set('depot',({'300 $ à 499 $':'300-499','500 $ à 999 $ (VIP + Copy)':'500-999','1 000 $ ou plus':'1000-plus'})[D.dep]);data.set('viaEnrick',document.getElementById('viaLien').checked?'true':'false');data.set('capture',file);
-  try{var response=await fetch('/api/vip/nouveau-membre',{method:'POST',body:data,credentials:'same-origin'});var result=await response.json();if(!response.ok)throw new Error(result.error||'Envoi impossible. Réessaie.');show(6);pollStatus()}
-  catch(error){btn.disabled=false;btn.innerHTML=btn.dataset.original;var f=document.querySelector('[data-s="5"] .panel'),e=f.querySelector('[data-err]')||document.createElement('div');e.className='err';e.textContent=error.message||'Envoi impossible. Réessaie.';e.hidden=false;if(!e.parentNode)btn.before(e)}
+  try{var response=await fetch('/api/vip/nouveau-membre',{method:'POST',body:data,credentials:'same-origin'});var result=await response.json();if(!response.ok)throw new Error(result.error||'Envoi impossible. Réessaie.');await clearDraft();show(6);pollStatus()}
+  catch(error){btn.disabled=false;btn.innerHTML=btn.dataset.original;var f=document.querySelector('[data-s="4"] .panel'),e=f.querySelector('[data-err]')||document.createElement('div');e.className='err';e.textContent=error.message||'Envoi impossible. Réessaie.';e.hidden=false;if(!e.parentNode)btn.before(e)}
 };
 function win(request){request=request||{};document.getElementById('prenomWin').textContent=request.first_name||D.pre||'';document.getElementById('cardName').textContent=((request.first_name||D.pre||'')+' '+(request.last_name||D.nom||'')).trim();document.getElementById('cardNo').textContent='N° '+String(request.member_number||'').padStart(4,'0');var invite=document.querySelector('[data-invite]');invite.href=request.channel_invite_url||'#';invite.target='_blank';invite.rel='noopener noreferrer';
   var c=document.getElementById('conf');c.innerHTML='';var col=['#F0C575','#91D6D0','#F3EFE6','#E2AE55'];for(var i=0;i<46;i++){var s=document.createElement('span');s.style.left=Math.random()*100+'%';s.style.background=col[i%4];s.style.animationDelay=(Math.random()*.9)+'s';c.appendChild(s)}}
