@@ -111,7 +111,8 @@ begin
     v_app.verified_first_name,v_app.verified_last_name,'affiliation',v_app.verified_affiliation_broker,null,
     v_app.verified_deposit_usd,v_app.broker_linked_verified,false
   );
-  v_member_number := nullif(v_review->>'member_number','')::bigint;
+  select member_number into v_member_number from public.vip_memberships where user_id=p_user_id;
+  if v_member_number is null then raise exception 'vip_membership_number_unavailable'; end if;
   update public.vip_access_requests set channel_invite_url=p_invite_url,member_number=v_member_number
     where id=v_request_id and status='approved';
 
