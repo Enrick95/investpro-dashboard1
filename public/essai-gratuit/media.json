@@ -1,0 +1,14 @@
+{
+  "videos": [
+    {
+      "id": "presentation-vip",
+      "src": "media/presentation-essai-vip.mp4",
+      "type": "video/mp4"
+    },
+    {
+      "id": "copy-trading",
+      "src": "media/copy-trading-essai-vip.mp4",
+      "type": "video/mp4"
+    }
+  ]
+}

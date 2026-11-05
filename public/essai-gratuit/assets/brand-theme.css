@@ -1,0 +1,178 @@
+/* InvestPro Trading theme: sampled from the current InvestPro interface. */
+:root{
+  --bg:#090c0c;
+  --panel:#111615;
+  --panel2:#141a19;
+  --line:#29312c;
+  --line2:#3a443e;
+  --text:#f6f2e8;
+  --fg:#f6f2e8;
+  --muted:#a9b4ae;
+  --soft:#8f9d93;
+  --orange:#F0C575;
+  --signal:#F0C575;
+  --signal-deep:#B98D49;
+  --paper:#090c0c;
+  --paper-2:#111615;
+  --coal:#090c0c;
+  --coal-2:#111615;
+  --gold:#F0C575;
+  --gold1:#F4CD86;
+  --gold2:#E5B45E;
+  --ink:#181a13;
+  color-scheme:dark;
+}
+html,body{background:#090c0c!important;color:#f6f2e8!important}
+.preview{background:#111615!important;color:#F0C575!important;border-bottom:1px solid #29312c}
+.header{background:#090c0c!important;border-color:#29312c!important}
+.brand,.private{color:#f6f2e8!important}
+.brand span,.header-nav a:hover{color:#F0C575!important}
+.mark{background:linear-gradient(135deg,#F4CD86,#E5B45E)!important;color:#181a13!important;border:1px solid #f7dfa8!important;box-shadow:0 0 18px #F0C57522!important}
+.private{border-color:#3a443e!important}
+.private:before,.invitation-dot{color:#F0C575!important;background:#F0C575!important;box-shadow:0 0 12px #F0C57555!important}
+.eyebrow,.small-label,.editorial-number{color:#F0C575!important}
+h1 span,.video-section-head h2 span,.proof-intro h2 em,.vip-gallery__intro h2 em,.closing-invitation .eyebrow,.vip-bridge h2 em{color:#F0C575!important}
+.video-section-head h2{color:#f6f2e8!important}
+.button,.button:hover{background:linear-gradient(120deg,#F4CD86,#E5B45E)!important;border-color:#F0C575!important;color:#181a13!important;box-shadow:0 10px 28px #F0C57518,inset 0 1px 0 #fff4d5!important}
+.button:hover{filter:brightness(1.04)}
+.arrival-screen,.video-feature,.guide-card,.rail,.faq details,.partner-placeholder,.media-placeholder{border-color:#3a443e!important}
+.video-journey,.testimonial-section,.guide-intro,.guide-layout,.after,.faq,.closing-invitation,.vip-bridge,.footer{background-color:transparent!important;color:#f6f2e8!important}
+.video-menu button[aria-current=step],.rail button[aria-current=step]{background:linear-gradient(110deg,#F0C57518,#F0C57505)!important;border-color:#F0C57577!important;color:#f6f2e8!important}
+.video-menu{background:#111615!important;border-color:#29312c!important;box-shadow:0 18px 42px #0005!important}
+.video-menu button,.video-menu a{background:#0d1110!important;color:#f6f2e8!important;border-color:#29312c!important}
+.video-menu button:hover,.video-menu a:hover{background:#171d1a!important;border-color:#F0C57577!important}
+.video-menu a{color:#f6f2e8!important}
+.video-menu button[aria-current=step],.video-menu a[aria-current=step]{background:linear-gradient(110deg,#F0C57518,#F0C57505)!important;border-color:#F0C57577!important;color:#f6f2e8!important}
+.video-menu button[aria-current=step]:before{background:#F0C575!important;box-shadow:0 0 12px #F0C57555!important}
+.video-menu button>span,.video-menu a>span,.video-menu a>b,.video-description li:before,.video-description li::marker{color:#F0C575!important}
+.video-feature,.guide-card{background:linear-gradient(145deg,#141a19,#0c1010 78%)!important;border-color:#3a443e!important}
+.video-description .eyebrow,.guide-heading .eyebrow,.proof-intro .eyebrow{color:#F0C575!important}
+.vip-gallery{background:#090c0c!important;color:#f6f2e8!important;border-color:#29312c!important}
+.vip-gallery__background{background:radial-gradient(circle at 50% 57%,#F0C57512,transparent 31%),linear-gradient(180deg,#090c0c 8%,#111615 100%)!important}
+.vip-gallery__panel{background:linear-gradient(160deg,#111615,#090c0c)!important;color:#f6f2e8!important;border-color:#29312c!important}
+.vip-gallery__intro h2,.vip-gallery__caption h3{color:#f6f2e8!important}
+.vip-gallery__intro h2 span,.faq-heading h2{color:#f6f2e8!important}
+.faq-heading h2 span{color:#F0C575!important}
+.vip-gallery__intro p,.vip-gallery__caption p{color:#a9b4ae!important}
+.vip-gallery__caption{background:#111615!important;color:#f6f2e8!important;border-color:#29312c!important}
+.vip-gallery__caption-window{background:#111615!important;border-color:#29312c!important}
+.mock{background:#111615!important;color:#f6f2e8!important;border-color:#3a443e!important;box-shadow:0 18px 40px #0005!important}
+.mockbar{background:#141a19!important;color:#f6f2e8!important;border-color:#29312c!important}
+.mock h4,.mockfield{color:#f6f2e8!important}
+.mockfield{background:#090c0c!important;border-color:#3a443e!important}
+.mockbutton,.image-tabs button[aria-pressed=true]{background:linear-gradient(120deg,#F4CD86,#E5B45E)!important;color:#181a13!important}
+.faq details[open]{background:#111615!important;border-color:#F0C57577!important}
+.closing-invitation,.vip-bridge{background:radial-gradient(ellipse at 0 0,#F0C57514,transparent 62%),linear-gradient(120deg,#141a19,#0b0f0e)!important;border-color:#F0C57566!important;box-shadow:inset 0 1px 0 #F4CD8622,0 24px 65px #0005!important}
+.closing-invitation:before{color:#F0C575!important}
+.vip-bridge__button{background:linear-gradient(120deg,#F4CD86,#E5B45E)!important;color:#181a13!important;border-color:#F0C575!important}
+.vip-bridge__meta{border-color:#F0C57555!important;color:#F0C575!important}
+.footer{border-color:#29312c!important;color:#8f9d93!important}
+.footer strong,.footer-bottom span:last-child{color:#F0C575!important}
+.media-placeholder,.partner-placeholder{background:radial-gradient(ellipse at 50% 20%,#141a19,#090c0c 72%)!important}
+.media-placeholder:before{border-color:#F0C57588!important;background:radial-gradient(circle,#F0C57522,transparent 65%)!important;box-shadow:0 0 34px #F0C57522!important}
+.media-placeholder small,.media-placeholder__index,.asset-empty{color:#F0C575!important}
+.partner-placeholder{border-color:#F0C57566!important}
+@media(prefers-reduced-motion:reduce){.button,.video-menu button,.guide-card{animation:none!important;transition:none!important}}
+
+/* Contrast pass: keep the InvestPro black-and-gold identity while lifting body copy. */
+:root{
+  --bg:#0c0f0d;
+  --panel:#141917;
+  --panel2:#191f1b;
+  --line:#343d37;
+  --line2:#465149;
+  --text:#f7f3e9;
+  --fg:#f7f3e9;
+  --muted:#c1c8c1;
+  --soft:#aeb8b0;
+  --paper:#0c0f0d;
+  --paper-2:#141917;
+  --coal:#0c0f0d;
+  --coal-2:#141917;
+}
+html,body{background:#0c0f0d!important;color:#f7f3e9!important}
+body{color-scheme:dark}
+main.layout{background:#0c0f0d!important;color:#f7f3e9!important}
+main.layout :where(p,li,summary,figcaption,.subtle,.caption,.guide-status,.rail-note,.expected,.risk){color:#c1c8c1!important}
+main.layout :where(h1,h2,h3,h4){color:#f7f3e9!important}
+main.layout :where(a:not(.button)){color:#e4e8df!important}
+main.layout :where(a:not(.button)):hover{color:#F4CD86!important}
+.preview{background:#171c19!important;color:#F4CD86!important;border-color:#343d37!important}
+.header{background:#0c0f0d!important;border-color:#343d37!important}
+.private{background:#141917!important;border-color:#465149!important;color:#e5e8e0!important}
+.arrival-cinema,.video-journey,.testimonial-section,.guide-intro,.guide-layout,.after,.faq,.vip-gallery,.closing-invitation,.vip-bridge,.footer{background-color:#0c0f0d!important;color:#f7f3e9!important}
+.arrival-heading>p,.arrival-bottom>span,.offer-condition,.video-section-head>p,.video-note,.video-description>p,.video-bottom>span,.video-status,.proof-intro>p,.guide-heading>p,.guide-content ol,.guide-help p,.guide-status,.after>div,.faq details p,.vip-gallery__intro p,.vip-gallery__caption p,.partner-placeholder p,.footer,.quote-editor-note{color:#c1c8c1!important}
+.video-section-head h2,.proof-intro h2,.faq-heading h2,.guide-intro h2,.guide-heading h2,.vip-gallery__intro h2,.vip-bridge h2,.closing-invitation h2{color:#f7f3e9!important}
+.video-section-head h2 span,.proof-intro h2 em,.faq-heading h2 span,.vip-gallery__intro h2 em,.vip-bridge h2 em{color:#F0C575!important}
+.video-menu,.rail,.guide-card,.video-feature,.faq details,.vip-gallery__panel,.vip-gallery__caption,.vip-gallery__caption-window,.mock,.mockbar,.guide-nav,.partner-placeholder{background-color:#141917!important;border-color:#343d37!important;color:#f7f3e9!important}
+.video-menu button,.video-menu a,.rail button,.guide-help details,.mockfield,.mockchoice{background:#101411!important;border-color:#343d37!important;color:#e2e7df!important}
+.video-menu button[aria-current=step],.video-menu a[aria-current=step],.rail button[aria-current=step]{background:linear-gradient(110deg,#F0C57520,#F0C57508)!important;border-color:#F0C57588!important;color:#f7f3e9!important}
+.video-description h3,.guide-content li strong,.mock h4,.after b,.footer strong{color:#f7f3e9!important}
+.video-description li,.guide-content li,.guide-content .notice,.signup-tips p,.signup-title p,.real-reference figcaption,.fields label{color:#c1c8c1!important}
+.video-menu small,.video-bottom>span,.signup-tips small,.caption,.subtle{color:#aeb8b0!important}
+.arrival-screen,.video-feature,.guide-card,.rail,.faq details,.partner-placeholder,.media-placeholder,.quote-card,.testimonial-visual{border-color:#3c4740!important}
+.media-placeholder,.partner-placeholder{background:radial-gradient(ellipse at 50% 20%,#19201b,#101411 72%)!important;color:#f7f3e9!important}
+.media-placeholder p{color:#c1c8c1!important}
+.testimonial-gallery{background:transparent!important}
+.testimonial-visual{background:linear-gradient(145deg,#171d19,#101411)!important}
+.closing-invitation,.vip-bridge{background:radial-gradient(ellipse at 0 0,#F0C57518,transparent 62%),linear-gradient(120deg,#171d19,#101411)!important;border-color:#F0C57566!important}
+.footer{border-color:#343d37!important}
+
+/* Surface and text balance: soften large black slabs and make every label readable. */
+html,body{background:#0b0f0d!important}
+body{background-image:radial-gradient(ellipse at 50% 0%,#1b211c 0,transparent 42%),linear-gradient(180deg,#0b0f0d,#101411 52%,#0b0f0d)!important}
+.layout{background:transparent!important}
+.header{background:#101411!important}
+.preview{background:#1b211c!important;color:#f4cd86!important}
+.arrival-cinema,.video-journey,.testimonial-section,.guide-intro,.guide-layout,.after,.faq,.vip-gallery,.partner-placeholder,.closing-invitation,.vip-bridge,.footer{color:#f7f3e9!important}
+.video-journey,.guide-intro,.faq{background:linear-gradient(180deg,#101512,#131915 48%,#101512)!important;border-top:1px solid #303a33!important;border-bottom:1px solid #303a33!important}
+.testimonial-section{background:radial-gradient(ellipse at 50% 0%,#1a211b,#0d110f 68%)!important}
+.video-feature,.guide-card,.faq details,.rail,.video-menu,.partner-placeholder{background-color:#171d19!important;border-color:#465149!important}
+.video-menu button,.video-menu a,.rail button,.guide-nav,.guide-help details{background:#111613!important;border-color:#3c4740!important;color:#f0f2ec!important}
+.video-menu button>div,.video-menu a>div,.video-menu small,.rail-note,.rail .reset,.guide-status,.video-bottom>span{color:#c8d0c8!important}
+.guide-card p,.guide-card li,.guide-help p,.faq details p,.after>div,.video-note,.video-description p,.video-description li,.video-section-head>p,.arrival-heading>p,.arrival-bottom>span,.offer-condition,.partner-placeholder p,.footer{color:#d0d6cf!important}
+.guide-card h2,.guide-card h3,.faq summary,.faq-heading h2,.video-description h3,.video-section-head h2,.arrival-heading h1{color:#fffaf0!important}
+.testimonial-gallery-shell{background:linear-gradient(145deg,#151b17,#101411)!important;border-color:#465149!important}
+.testimonial-gallery-toolbar{color:#f0cd8a!important}
+.testimonial-gallery-controls button{background:#1b231d!important;border-color:#58634f!important;color:#f7f3e9!important}
+.testimonial-visual{background:#171d19!important;border-color:#566052!important}
+.testimonial-visual figcaption{color:#f0cd8a!important}
+.faq summary{color:#fffaf0!important}
+.vip-gallery__caption h3{background:none!important;background-clip:border-box!important;-webkit-background-clip:border-box!important;color:#F4CD86!important}
+.vip-gallery__caption p,.vip-gallery__intro p{color:#d0d6cf!important}
+.vip-gallery__caption,.vip-gallery__caption-window{background:linear-gradient(145deg,#1a211c,#121713)!important;border:1px solid #465149!important}
+.vip-gallery__panel{background:linear-gradient(160deg,#171d19,#101411)!important}
+.vip-gallery__intro h2 span{background:none!important;background-clip:border-box!important;-webkit-background-clip:border-box!important;color:#fffaf0!important}
+.vip-gallery__intro h2 em{background:none!important;background-clip:border-box!important;-webkit-background-clip:border-box!important;color:#F0C575!important}
+.video-section-head>p,.video-note,.guide-intro>p,.guide-status,.rail-note,.faq-heading:after{color:#d0d6cf!important}
+.arrival-heading>p,.arrival-bottom>span{color:#d0d6cf!important}
+.footer{background:linear-gradient(180deg,#121713,#0d110f)!important;color:#d0d6cf!important}
+#questions{background:linear-gradient(180deg,#141a16,#101411)!important;border-block:1px solid #39443c!important}
+#questions .faq-heading .eyebrow,#questions .faq-heading:after{color:#F0C575!important}
+#questions .faq-heading h2,#questions details>summary{color:#fffaf0!important;-webkit-text-fill-color:#fffaf0!important}
+#questions details{background:#171d19!important;border-color:#465149!important}
+#questions details p{color:#d0d6cf!important;-webkit-text-fill-color:#d0d6cf!important}
+#questions details[open]{background:linear-gradient(100deg,#201d15,#171d19)!important;border-color:#F0C57588!important}
+#questions details[open]>summary{color:#F4CD86!important;-webkit-text-fill-color:#F4CD86!important}
+.footer{font-size:13px!important;line-height:1.8!important}
+.after{background:linear-gradient(180deg,#101512,#141a16)!important;border-color:#39443c!important;color:#d0d6cf!important}
+.after>div{background:linear-gradient(145deg,#1b221d,#141916)!important;border:1px solid #465149!important;color:#d0d6cf!important;box-shadow:0 18px 42px #0004!important}
+.after>div b{color:#F4CD86!important}
+.private,.preview,.caption,.subtle,.small-label,.media-placeholder small{letter-spacing:.04em}
+@media(max-width:700px){body{background-image:linear-gradient(180deg,#0b0f0d,#111713 48%,#0b0f0d)!important}}
+/* Keep the partner placeholder visually separate from the final invitation. */
+.partner-placeholder{margin-bottom:clamp(42px,5vw,68px)!important}
+
+/* Keep footer brand and disclaimer in separate, readable rows. */
+.footer{display:block!important;min-height:0!important;padding:38px max(28px,calc((100vw - 1180px)/2)) 28px!important;overflow:hidden!important}
+.footer:before{content:none!important}
+.footer:after{top:40px!important;right:max(28px,calc((100vw - 1180px)/2))!important}
+.footer strong{display:block!important;padding:0!important;margin:0 0 12px!important;color:#F4CD86!important;font-size:13px!important;letter-spacing:.12em!important;text-transform:uppercase!important}
+.footer>p{position:relative;z-index:1;max-width:780px;margin:0 0 26px!important;line-height:1.8!important}
+.footer-bottom{display:flex!important;justify-content:space-between!important;align-items:center!important;gap:12px!important;padding-top:20px!important;margin:0!important;border-top:1px solid #ffffff1f!important}
+@media(max-width:800px){.footer{padding:34px 24px 26px!important}.footer:after{top:35px!important;left:auto!important;right:24px!important}.footer strong{padding:0!important}.footer>p{padding:0!important}.footer-bottom{flex-direction:column!important;align-items:flex-start!important}}
+
+/* Keep the two lesson links compact beside the video player. */
+.video-menu{align-content:start!important;grid-auto-rows:min-content!important}
+
+.arrival-presentation{display:block;width:100%;height:100%;min-height:0;aspect-ratio:16/9;object-fit:cover;border:1px solid #d0b57755;border-radius:18px;background:#090c0a}

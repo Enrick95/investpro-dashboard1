@@ -1,0 +1,15 @@
+.testimonial-gallery-shell{max-width:1180px;margin:36px auto 18px}
+.testimonial-gallery-toolbar{display:flex;justify-content:flex-end;align-items:center;gap:14px;margin:0 4px 10px}
+.testimonial-gallery-count{color:#F0C575;font-size:11px;font-variant-numeric:tabular-nums;letter-spacing:.12em}
+.testimonial-gallery-controls{display:flex;gap:8px}
+.testimonial-gallery-controls button{display:grid;place-items:center;width:40px;height:40px;border:1px solid #3a443e;border-radius:50%;background:#111615;color:#F0C575;font:500 18px/1 inherit;cursor:pointer;transition:background .2s,border-color .2s}
+.testimonial-gallery-controls button:hover{background:#1a211d;border-color:#F0C575}
+.testimonial-gallery-controls button:focus-visible{outline:2px solid #F0C575;outline-offset:3px}
+.testimonial-gallery{display:flex;gap:18px;overflow-x:auto;overflow-y:hidden;padding:12px 4px 25px;scroll-snap-type:x mandatory;scroll-behavior:smooth;overscroll-behavior-inline:contain;-webkit-overflow-scrolling:touch;scrollbar-color:#7d6741 #111615;scrollbar-width:thin}
+.testimonial-visual{flex:0 0 clamp(250px,28vw,330px);height:480px;display:flex;flex-direction:column;align-items:stretch;justify-content:space-between;margin:0;padding:12px 12px 0;border:1px solid #3a443e;border-radius:17px;background:linear-gradient(145deg,#141a19,#090c0c);overflow:hidden;scroll-snap-align:start;box-shadow:0 18px 40px #0005}
+.testimonial-visual img{width:100%;height:calc(100% - 39px);min-height:0;object-fit:contain;object-position:center;border-radius:9px;background:#090c0c}
+.testimonial-visual figcaption{height:39px;display:flex;align-items:center;justify-content:space-between;color:#F0C575;font-size:10px;font-weight:700;letter-spacing:.13em;text-transform:uppercase}
+.testimonial-visual figcaption span{color:#8f9d93;font-weight:500}
+.quote-editor-note{max-width:900px;margin:16px auto 12px;color:#9ba69e;font-size:11px;line-height:1.7;text-align:center}
+@media(max-width:760px){.testimonial-gallery-shell{margin:24px auto 16px}.testimonial-gallery{gap:13px;padding:10px 4px 20px}.testimonial-visual{flex-basis:min(78vw,320px);height:430px;border-radius:15px;padding:9px 9px 0}.testimonial-gallery-controls button{width:36px;height:36px}}
+@media(prefers-reduced-motion:reduce){.testimonial-gallery{scroll-behavior:auto}.testimonial-gallery-controls button{transition:none}}

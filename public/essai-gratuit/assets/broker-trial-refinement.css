@@ -1,0 +1,34 @@
+/* Premium motion layer — preserves the existing InvestPro Trading layout and content. */
+:root{--motion-orange:#ff6b28;--motion-warm:#ffb27c;--motion-blue:#93aefb}
+body{background:
+  radial-gradient(62rem 36rem at 86% -9%,#ff642218 0%,transparent 57%),
+  radial-gradient(43rem 32rem at -12% 46%,#27546c14 0%,transparent 62%),
+  radial-gradient(33rem 20rem at 79% 62%,#f4a36709 0%,transparent 71%),#07080a!important}
+body:before{position:fixed!important;inset:0!important;height:auto!important;opacity:.52;background-size:72px 72px!important;mask-image:linear-gradient(to bottom,#000 0%,#0008 54%,transparent 88%)!important}
+.header{backdrop-filter:blur(15px);-webkit-backdrop-filter:blur(15px);background:#08090ab8;transition:border-color .35s ease,background .35s ease}
+.header:after{content:"";position:absolute;bottom:-1px;left:28px;right:28px;height:1px;background:linear-gradient(90deg,transparent,#ff7a3d4d 35%,#ffc08a5c 52%,transparent);pointer-events:none}
+.arrival-cinema{position:relative;isolation:isolate}
+.arrival-cinema:before{content:"";position:absolute;z-index:-1;width:42rem;height:42rem;right:-16rem;top:-13rem;border-radius:50%;background:radial-gradient(circle,#ff663114 0%,transparent 68%);filter:blur(14px);pointer-events:none}
+.arrival-screen{box-shadow:0 28px 80px #0009,0 0 0 1px #ffb27a12;transition:box-shadow .5s ease,transform .5s cubic-bezier(.2,.8,.2,1)}
+.arrival-screen:hover{box-shadow:0 32px 95px #000b,0 0 0 1px #ffb27a40}
+.arrival-bottom,.video-feature,.guide-card,.faq,.closing-invitation{box-shadow:0 18px 54px #0000002e}
+.video-journey{position:relative}.video-journey:after{content:"";position:absolute;inset:10% -18% auto auto;width:22rem;height:22rem;border-radius:50%;background:#ff6b2808;filter:blur(28px);pointer-events:none}
+.video-menu button{transition:transform .28s ease,border-color .28s ease,background .28s ease,box-shadow .28s ease}
+@media (pointer:fine){.video-menu button:hover{transform:translateX(5px);border-color:#ff8a544d;box-shadow:inset 3px 0 #ff6b2899,0 9px 22px #00000024}}
+.video-menu button[aria-current="step"]{box-shadow:inset 3px 0 var(--motion-orange),0 10px 30px #00000038}
+.video-feature{position:relative;overflow:hidden}.video-feature:before{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(112deg,transparent 31%,#ffb37a0a 49%,transparent 66%);transform:translateX(-100%);animation:card-sheen 9s ease-in-out infinite}
+.guide-card{background:linear-gradient(135deg,#121519f2,#0c0d0ff0)!important}.guide-card:before{content:"";position:absolute;inset:0;border-radius:inherit;background:radial-gradient(28rem 17rem at 95% 0,#ff6b280c,transparent 70%);pointer-events:none}
+.after>div{transition:transform .32s ease,border-color .32s ease,background .32s ease}
+@media(pointer:fine){.after>div:hover{transform:translateY(-4px);border-color:#ff9a6a55;background:#ffffff05}}
+.faq details{transition:background .28s ease,border-color .28s ease,transform .28s ease}.faq details[open]{background:linear-gradient(100deg,#ff6b280b,transparent 60%);border-color:#ff8a5448}.faq details[open] summary{color:#ffd0b2}
+.closing-invitation{position:relative;overflow:hidden}.closing-invitation:after{content:"";position:absolute;width:19rem;height:19rem;border:1px solid #ff83542a;border-radius:50%;right:-9rem;bottom:-12rem;box-shadow:0 0 45px #ff67321d;pointer-events:none}
+/* Sections enter gently without altering the reading order or keyboard flow. */
+[data-reveal]{opacity:0;transform:translateY(22px);transition:opacity .75s cubic-bezier(.2,.65,.2,1),transform .75s cubic-bezier(.2,.65,.2,1)}
+[data-reveal="left"]{transform:translateX(-24px)}[data-reveal="right"]{transform:translateX(24px)}
+[data-reveal].is-visible{opacity:1;transform:translate3d(0,0,0)}
+[data-reveal].is-visible .video-menu button{animation:module-in .5s both}
+[data-reveal].is-visible .video-menu button:nth-child(2){animation-delay:.06s}[data-reveal].is-visible .video-menu button:nth-child(3){animation-delay:.12s}[data-reveal].is-visible .video-menu button:nth-child(4){animation-delay:.18s}[data-reveal].is-visible .video-menu button:nth-child(5){animation-delay:.24s}[data-reveal].is-visible .video-menu button:nth-child(6){animation-delay:.30s}
+@keyframes module-in{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:translateX(0)}}
+@keyframes card-sheen{0%,58%,100%{transform:translateX(-110%)}76%{transform:translateX(110%)}}
+@media (prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}[data-reveal]{opacity:1;transform:none}}
+@media(max-width:700px){body:before{background-size:48px 48px!important;opacity:.32}.header:after{left:16px;right:16px}.arrival-screen:hover{transform:none}.video-feature:before{display:none}.after>div:hover{transform:none}}
