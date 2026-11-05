@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>InvestPro VIP — Trade avec Enrick</title>
+<meta name="description" content="Le VIP InvestPro d'Enrick95 : analyses en H4, signaux suivis, bilans, simulateur de risque et InvestPro Copy. Accès par affiliation ou abonnement.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#090c0c">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:dark;--bg:#090c0c;--card:#111615;--card2:#151b19;--line:#29312c;--line2:#3a443e;--text:#f6f2e8;--muted:#a9b4ae;--muted2:#8f9d93;--gold:#F0C575;--gold2:#E5B45E;--teal:#91D6D0;--blue:#8fc9ff;--ink:#181a13}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Manrope',system-ui,sans-serif;font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+img{max-width:100%;display:block}
+.wrap{width:min(1180px,100% - 40px);margin:0 auto}
+.u{font-family:'Unbounded',sans-serif;letter-spacing:-.02em}
+.gold{color:var(--gold)}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
+.eyebrow i{width:8px;height:8px;border-radius:50%;background:var(--teal);box-shadow:0 0 12px var(--teal);animation:blink 1.6s ease-in-out infinite}
+h1,h2,h3{margin:0}
+h2{font-family:'Unbounded',sans-serif;font-weight:700;font-size:clamp(30px,4.4vw,50px);line-height:1.08;letter-spacing:-.03em}
+.lead{color:var(--muted);font-size:18px;max-width:600px}
+section{padding:96px 0}
+.sec-head{display:grid;gap:14px;margin-bottom:44px;max-width:760px}
+.num{font-family:'Unbounded';font-weight:800;color:var(--line2);font-size:15px}
+
+/* Boutons */
+.btn{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:56px;padding:0 26px;border-radius:15px;font-weight:800;font-size:16px;transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease;isolation:isolate;overflow:hidden;cursor:pointer;border:0;font-family:inherit}
+.btn:active{transform:scale(.97)}
+.btn-gold{background:linear-gradient(115deg,#F4CD86,#E5B45E);color:var(--ink)}
+.btn-gold:hover{transform:translateY(-2px);box-shadow:0 14px 34px rgba(240,197,117,.3)}
+.btn-gold::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.55) 50%,transparent 70%);transform:translateX(-130%);animation:shine 3.6s ease-in-out infinite}
+.btn-line{border:1px solid var(--line2);color:var(--text);background:transparent}
+.btn-line:hover{border-color:var(--gold);transform:translateY(-2px)}
+.btn-tg{background:#2a9fd8;color:#fff}
+.btn-tg:hover{transform:translateY(-2px);box-shadow:0 14px 34px rgba(42,159,216,.3)}
+
+/* Barre d'offre */
+.offer-bar{position:relative;display:flex;justify-content:center;align-items:center;gap:10px;flex-wrap:wrap;padding:11px 16px;background:linear-gradient(115deg,#F4CD86,#E5B45E);color:var(--ink);font-weight:800;font-size:14px;text-align:center;overflow:hidden;isolation:isolate}
+.offer-bar::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.6) 50%,transparent 65%);transform:translateX(-120%);animation:sweep 3.2s ease-in-out infinite}
+.offer-bar b{background:var(--ink);color:var(--gold);padding:3px 9px;border-radius:99px;font-size:12px}
+
+/* Navigation */
+nav.top{position:sticky;top:0;z-index:30;background:rgba(9,12,12,.78);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid rgba(41,49,44,.6)}
+nav.top .wrap{display:flex;align-items:center;justify-content:space-between;gap:18px;height:68px}
+.logo{display:flex;align-items:center;gap:11px;font-weight:800}
+.logo span.mark{display:grid;place-items:center;width:38px;height:38px;border-radius:11px;background:linear-gradient(145deg,#F4CD86,#C99A45);color:var(--ink);font-family:'Unbounded';font-weight:800;font-size:15px}
+.logo small{display:block;font-size:11px;color:var(--muted2);font-weight:700;letter-spacing:.12em}
+.nav-links{display:flex;gap:26px;font-size:15px;color:var(--muted);font-weight:600}
+.nav-links a:hover{color:var(--text)}
+.nav-cta{display:flex;gap:10px}
+.nav-cta .btn{min-height:44px;padding:0 16px;font-size:14px;border-radius:12px}
+@media (max-width:900px){.nav-links{display:none}}
+@media (max-width:520px){.nav-cta .btn-line{display:none}}
+
+/* Hero */
+.hero{padding:56px 0 40px;position:relative}
+.hero::before{content:"";position:absolute;inset:-120px 0 auto;height:620px;background:radial-gradient(50% 60% at 75% 30%,rgba(240,197,117,.12),transparent 70%),radial-gradient(40% 50% at 10% 10%,rgba(145,214,208,.08),transparent 70%);pointer-events:none}
+.hero-grid{position:relative;display:grid;grid-template-columns:1.05fr .95fr;gap:52px;align-items:center}
+.hero h1{font-family:'Unbounded';font-weight:800;font-size:clamp(40px,6.2vw,78px);line-height:1.02;letter-spacing:-.045em;margin:20px 0 22px}
+.hero h1 em{font-style:normal;background:linear-gradient(100deg,#F4CD86 10%,#fff3d6 45%,#E5B45E 80%);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:textShine 5s linear infinite}
+.hero .lead{font-size:19px;margin-bottom:30px}
+.hero-ctas{display:flex;flex-wrap:wrap;gap:12px}
+.trust{display:flex;flex-wrap:wrap;gap:8px;margin-top:26px}
+.trust span{border:1px solid var(--line2);border-radius:99px;padding:6px 12px;font-size:13px;color:#c0c9c2}
+.hero-photo{position:relative}
+.hero-photo::before{content:"";position:absolute;inset:-14px 14px 14px -14px;border:2px solid var(--teal);border-radius:32px;opacity:.75}
+.hero-photo img{position:relative;width:100%;aspect-ratio:4/4.3;object-fit:cover;object-position:52% 40%;border-radius:28px;border:1px solid var(--line)}
+.float-card{position:absolute;background:rgba(17,22,21,.92);backdrop-filter:blur(8px);border:1px solid var(--line2);border-radius:18px;padding:14px 16px;box-shadow:0 20px 50px rgba(0,0,0,.45);animation:badgeFloat 3.4s ease-in-out infinite}
+.float-card b{display:block;font-family:'Unbounded';font-size:22px;color:var(--gold)}
+.float-card small{color:var(--muted);font-size:13px}
+.fc1{left:-26px;bottom:38px}
+.fc2{right:-16px;top:28px;animation-delay:1.2s;display:flex;align-items:center;gap:10px}
+.fc2 .dot{width:10px;height:10px;border-radius:50%;background:#46d483;box-shadow:0 0 10px #46d483;animation:blink 1.4s infinite}
+@media (max-width:900px){.hero-grid{grid-template-columns:1fr;gap:40px}.hero-photo{max-width:520px}.fc1{left:10px}.fc2{right:10px}}
+
+/* Chiffres */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:22px;overflow:hidden;margin-top:56px}
+.stats div{background:var(--card);padding:24px 22px}
+.stats b{display:block;font-family:'Unbounded';font-weight:800;font-size:clamp(24px,3vw,34px);color:var(--gold)}
+.stats span{color:var(--muted);font-size:14px}
+@media (max-width:760px){.stats{grid-template-columns:repeat(2,1fr)}}
+
+/* Contenu du VIP */
+.features{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.feat{position:relative;background:linear-gradient(180deg,var(--card2),var(--card));border:1px solid var(--line);border-radius:22px;padding:26px;transition:transform .25s ease,border-color .25s ease;overflow:hidden}
+.feat:hover{transform:translateY(-4px);border-color:rgba(240,197,117,.5)}
+.feat .ic{display:grid;place-items:center;width:50px;height:50px;border-radius:14px;background:rgba(240,197,117,.12);color:var(--gold);margin-bottom:18px}
+.feat.t .ic{background:rgba(145,214,208,.12);color:var(--teal)}
+.feat h3{font-size:20px;font-weight:800;margin-bottom:6px}
+.feat p{margin:0;color:var(--muted);font-size:15.5px}
+.feat .tag{position:absolute;top:18px;right:18px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--teal);border:1px solid rgba(145,214,208,.4);border-radius:99px;padding:4px 9px}
+@media (max-width:900px){.features{grid-template-columns:1fr 1fr}}
+@media (max-width:600px){.features{grid-template-columns:1fr}}
+
+/* Parcours */
+.story{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start}
+.steps{display:grid;gap:14px}
+.step{display:flex;gap:18px;background:var(--card);border:1px solid var(--line);border-radius:22px;padding:22px}
+.step span{flex-shrink:0;display:grid;place-items:center;width:46px;height:46px;border-radius:14px;background:var(--line);color:var(--gold);font-family:'Unbounded';font-weight:800;font-size:14px}
+.step:last-child span{background:var(--teal);color:var(--ink)}
+.step h3{font-size:19px;font-weight:800;margin-bottom:4px}
+.step p{margin:0;color:var(--muted);font-size:15.5px}
+.story-side{display:grid;gap:14px;position:sticky;top:90px}
+.story-side img{width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:22px;border:1px solid var(--line)}
+blockquote{margin:0;background:linear-gradient(135deg,rgba(240,197,117,.12),rgba(240,197,117,.03));border:1px solid rgba(240,197,117,.35);border-radius:22px;padding:28px}
+blockquote p{margin:0 0 12px;font-family:'Unbounded';font-weight:500;font-size:19px;line-height:1.45}
+blockquote cite{font-style:normal;color:var(--gold);font-weight:800}
+@media (max-width:900px){.story{grid-template-columns:1fr}.story-side{position:static}}
+
+/* Résultats */
+.perf{display:grid;grid-template-columns:1fr 360px;gap:50px;align-items:center}
+.phone{position:relative;width:300px;margin:0 auto}
+.phone::before{content:"";position:absolute;inset:20% -10%;border-radius:50%;background:rgba(240,197,117,.08);filter:blur(34px)}
+.phone .live{position:absolute;top:-16px;left:50%;transform:translateX(-50%);z-index:2;white-space:nowrap;background:var(--card);border:1px solid var(--line2);border-radius:99px;padding:7px 14px;font-size:12px;font-weight:800;color:#c0c9c2}
+.phone .live i{font-style:normal;color:var(--teal);animation:blink 1.6s infinite}
+.phone .shell{position:relative;background:#050707;border:2px solid var(--line2);border-radius:46px;padding:10px;box-shadow:0 40px 80px rgba(0,0,0,.55)}
+.phone .screen{height:600px;overflow:hidden;border-radius:37px;background:#0b0f0e}
+.phone iframe{width:390px;height:848px;border:0;transform:scale(.708);transform-origin:0 0;display:block}
+.fine{font-size:12.5px;color:var(--muted2)}
+@media (max-width:900px){.perf{grid-template-columns:1fr}}
+
+/* Témoignages */
+.carousel{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;padding:4px 0 14px;scrollbar-width:thin}
+.carousel img{height:340px;width:auto;max-width:none;border-radius:16px;border:1px solid var(--line);scroll-snap-align:start;flex:0 0 auto;user-select:none;-webkit-user-select:none;pointer-events:none}
+.quotes{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:22px}
+.quote{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:22px}
+.quote p{margin:0 0 10px;font-size:16px}
+.quote b{color:var(--gold);font-size:14px}
+@media (max-width:900px){.quotes{grid-template-columns:1fr}}
+
+/* Accès */
+.plans{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.plan{position:relative;display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:26px;padding:30px;overflow:hidden}
+.plan.main{border-color:rgba(240,197,117,.55);background:linear-gradient(180deg,rgba(240,197,117,.09),var(--card) 45%)}
+.plan .kind{font-weight:800;letter-spacing:.12em;text-transform:uppercase;font-size:13px;color:var(--muted)}
+.plan.main .kind{color:var(--gold)}
+.price{display:flex;align-items:baseline;gap:8px;margin:14px 0 4px}
+.price b{font-family:'Unbounded';font-weight:800;font-size:58px;line-height:1}
+.price span{color:var(--muted);font-weight:700}
+.plan .cond{color:var(--muted);font-size:15px;margin:0 0 20px}
+.plan ul{list-style:none;padding:0;margin:0 0 24px;display:grid;gap:10px}
+.plan li{display:flex;gap:10px;font-size:15.5px}
+.plan li::before{content:"✓";color:var(--teal);font-weight:900}
+.plan li.no{color:var(--muted2)}
+.plan li.no::before{content:"—";color:var(--muted2)}
+.plan .btn{margin-top:auto;width:100%}
+.brokers{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 22px}
+.brokers span{background:var(--card2);border:1px solid var(--line2);border-radius:10px;padding:7px 12px;font-size:14px;font-weight:700}
+.how{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:22px}
+.how div{display:flex;gap:14px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px}
+.how b{flex-shrink:0;display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:rgba(240,197,117,.14);color:var(--gold);font-family:'Unbounded';font-size:13px}
+.how strong{display:block;font-size:15.5px}
+.how small{color:var(--muted);font-size:14px}
+@media (max-width:900px){.plans,.how{grid-template-columns:1fr}}
+
+/* Essai */
+.trial{position:relative;display:grid;grid-template-columns:1.2fr .8fr;gap:30px;align-items:center;background:linear-gradient(115deg,#F4CD86,#E5B45E);color:var(--ink);border-radius:30px;padding:44px;overflow:hidden;isolation:isolate}
+.trial::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.55) 50%,transparent 65%);transform:translateX(-120%);animation:sweep 4.2s ease-in-out infinite}
+.trial h2{color:var(--ink)}
+.trial p{margin:12px 0 22px;font-size:17px;font-weight:600;max-width:520px}
+.trial .btn{background:var(--ink);color:var(--gold)}
+.trial .btn:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(24,26,19,.35)}
+.countdown{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.countdown div{background:rgba(24,26,19,.92);color:var(--gold);border-radius:16px;padding:14px 6px;text-align:center}
+.countdown b{display:block;font-family:'Unbounded';font-size:28px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
+.countdown small{color:#d9c49a;font-size:12px;font-weight:700}
+@media (max-width:900px){.trial{grid-template-columns:1fr;padding:30px 22px}}
+
+/* App */
+.app{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.app>div{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:24px}
+.app h3{display:flex;align-items:center;gap:10px;font-size:18px;margin-bottom:10px}
+.app ol{margin:0;padding-left:20px;color:var(--muted);font-size:15.5px;display:grid;gap:6px}
+@media (max-width:760px){.app{grid-template-columns:1fr}}
+
+/* FAQ */
+.faq{display:grid;gap:10px;max-width:860px}
+.faq details{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:0 22px;transition:border-color .2s}
+.faq details[open]{border-color:rgba(240,197,117,.45)}
+.faq summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:20px 0;font-weight:800;font-size:17px}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";font-family:'Unbounded';color:var(--gold);font-size:22px;transition:transform .25s}
+.faq details[open] summary::after{transform:rotate(45deg)}
+.faq details p{margin:0 0 20px;color:var(--muted)}
+
+/* Final */
+.final{text-align:center;padding:110px 0 80px;position:relative}
+.final::before{content:"";position:absolute;inset:0;background:radial-gradient(50% 60% at 50% 40%,rgba(240,197,117,.12),transparent 70%);pointer-events:none}
+.final h2{font-size:clamp(34px,5.6vw,66px);margin:16px 0 18px}
+.final .hero-ctas{justify-content:center}
+footer{border-top:1px solid var(--line);padding:30px 0 120px;color:var(--muted2);font-size:13px}
+footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px}
+footer a:hover{color:var(--text)}
+
+/* Bouton flottant mobile */
+.sticky-cta{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:40;display:none;gap:8px;transform:translateY(150%);transition:transform .45s cubic-bezier(.2,.9,.3,1.2)}
+.sticky-cta.show{transform:none}
+.sticky-cta .btn{flex:1;min-height:52px;box-shadow:0 14px 40px rgba(0,0,0,.6)}
+.sticky-cta .btn-line{flex:0 0 auto;background:rgba(17,22,21,.95)}
+@media (max-width:760px){.sticky-cta{display:flex}}
+
+/* Animations */
+@keyframes shine{0%,55%{transform:translateX(-130%)}85%,100%{transform:translateX(130%)}}
+@keyframes sweep{0%,45%{transform:translateX(-120%)}80%,100%{transform:translateX(120%)}}
+@keyframes blink{50%{opacity:.25}}
+@keyframes badgeFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+@keyframes textShine{from{background-position:100% 0}to{background-position:-120% 0}}
+.hero-in>*{animation:up .8s cubic-bezier(.2,.7,.2,1) both}
+.hero-in>*:nth-child(2){animation-delay:.08s}.hero-in>*:nth-child(3){animation-delay:.16s}.hero-in>*:nth-child(4){animation-delay:.24s}.hero-in>*:nth-child(5){animation-delay:.32s}
+@keyframes up{from{transform:translateY(22px);opacity:0}to{transform:none;opacity:1}}
+.js .rv{transform:translateY(30px);opacity:.15;transition:transform .8s cubic-bezier(.2,.7,.2,1),opacity .8s ease}
+.js .rv.in{transform:none;opacity:1}
+.js .stg>*{transform:translateY(24px);opacity:.15;transition:transform .7s cubic-bezier(.2,.7,.2,1),opacity .7s ease}
+.js .stg.in>*{transform:none;opacity:1}
+.stg>*:nth-child(2){transition-delay:.07s}.stg>*:nth-child(3){transition-delay:.14s}.stg>*:nth-child(4){transition-delay:.21s}.stg>*:nth-child(5){transition-delay:.28s}.stg>*:nth-child(6){transition-delay:.35s}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.js .rv,.js .stg>*{transform:none!important;opacity:1!important}}
+@media (max-width:600px){section{padding:70px 0}body{font-size:16px}.wrap{width:calc(100% - 32px)}.plan{padding:24px}.price b{font-size:48px}}
+</style>
+</head>
+<body id="top">
+
+<a class="offer-bar" href="/enrick/essai-vip">🔥 Offre du moment : teste le VIP sans dépôt, sur un compte démo <b class="offer-left">jusqu'au 30 novembre</b> →</a>
+
+<nav class="top">
+  <div class="wrap">
+    <a href="#top" class="logo"><span class="mark">IP</span><span>InvestPro <span class="gold">VIP</span><small>PAR ENRICK95</small></span></a>
+    <div class="nav-links"><a href="#vip">Le VIP</a><a href="#parcours">Mon parcours</a><a href="#resultats">Résultats</a><a href="#acces">Accès</a><a href="#faq">Questions</a></div>
+    <div class="nav-cta"><a class="btn btn-line" href="/vip/deja-membre">Déjà membre</a><a class="btn btn-gold" href="#acces">Rejoindre</a></div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div class="hero-in">
+      <span class="eyebrow"><i></i>Enrick95 · trader depuis 7 ans</span>
+      <h1>Ne trade plus <em>seul.</em> Rejoins le VIP.</h1>
+      <p class="lead">Mes analyses en H4, chaque trade suivi du début à la fin, les bilans et les outils pour gérer ton risque. Tout ce que je fais sur les marchés, dans un espace privé.</p>
+      <div class="hero-ctas"><a class="btn btn-gold" href="#acces">Choisir mon accès ↓</a><a class="btn btn-line" href="#resultats">Voir les résultats</a></div>
+      <div class="trust"><span>Forex</span><span>Indices</span><span>Crypto</span><span>Gold</span><span>Analyse en H4</span></div>
+    </div>
+    <div class="hero-photo">
+      <img src="/enrick-assets/photo-c.jpg" alt="Enrick en pleine analyse devant ses écrans de trading" fetchpriority="high">
+      <div class="float-card fc1"><b><span class="count" data-to="3990" data-pre="+">+3 990</span></b><small>membres sur le Telegram</small></div>
+      <div class="float-card fc2"><span class="dot"></span><div><strong style="font-size:14px">VIP en direct</strong><br><small>trades suivis en temps réel</small></div></div>
+    </div>
+  </div>
+  <div class="wrap">
+    <div class="stats rv">
+      <div><b class="count" data-to="3990" data-pre="+">+3 990</b><span>membres Telegram</span></div>
+      <div><b class="count" data-to="40000" data-pre="+">+40 000</b><span>abonnés TikTok</span></div>
+      <div><b class="count" data-to="7">7</b><span>ans sur les marchés</span></div>
+      <div><b>H4</b><span>une méthode, des règles écrites</span></div>
+    </div>
+  </div>
+</header>
+
+<section id="vip">
+  <div class="wrap">
+    <div class="sec-head rv"><span class="eyebrow">Le VIP</span><h2>Tout ce dont tu as besoin, <span class="gold">au même endroit.</span></h2><p class="lead">Le contexte avant le trade, le suivi pendant, le bilan après. Sur ton téléphone et ton ordinateur.</p></div>
+    <div class="features stg">
+      <div class="feat"><span class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg></span><h3>Analyses en H4</h3><p>Mes graphiques, mes zones et mes scénarios, publiés avant la session.</p></div>
+      <div class="feat"><span class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2"/></svg></span><h3>Signaux & suivi</h3><p>Entrée, stop, objectifs, puis chaque mise à jour jusqu'à la clôture.</p></div>
+      <div class="feat"><span class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5V5a2 2 0 0 1 2-2h12v18H6a2 2 0 0 1-2-1.5Z"/><path d="M8 7h6M8 11h8"/></svg></span><h3>Bilans & journal</h3><p>Du recul sur chaque semaine et un journal pour suivre ta progression.</p></div>
+      <div class="feat t"><span class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6Z"/><path d="m9 12 2 2 4-4"/></svg></span><h3>Simulateur de risque</h3><p>Ton lot calculé avant d'entrer, pour ne jamais risquer plus que prévu.</p></div>
+      <div class="feat t"><span class="tag">Option</span><span class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M4 16V5a2 2 0 0 1 2-1h10"/></svg></span><h3>InvestPro Copy</h3><p>Les trades du VIP copiés sur ton compte, avec tes réglages de risque. Dès 500 $.</p></div>
+      <div class="feat t"><span class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg></span><h3>L'app + alertes</h3><p>iPhone, Android et ordinateur. Une notification à chaque nouveau trade.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="parcours">
+  <div class="wrap">
+    <div class="sec-head rv"><span class="eyebrow">Mon parcours</span><h2>Derrière le VIP, il y a <span class="gold">un vrai parcours.</span></h2></div>
+    <div class="story">
+      <div class="steps stg">
+        <div class="step"><span>01</span><div><h3>Le point de départ</h3><p>Avant le trading, j'ai enchaîné plusieurs emplois, de la préparation de commandes jusqu'à responsable logistique. Devenu papa jeune, j'apprenais à trader à côté de mon travail et de mes responsabilités.</p></div></div>
+        <div class="step"><span>02</span><div><h3>Des débuts difficiles</h3><p>Changements de stratégie, pertes, nuits à surveiller mes positions… J'ai compris qu'une nouvelle technique ne suffisait pas : il fallait travailler la gestion du risque et surtout la psychologie.</p></div></div>
+        <div class="step"><span>03</span><div><h3>Le déclic : ralentir</h3><p>J'ai construit une approche en H4, avec des zones précises, des conditions d'entrée et des règles de gestion définies à l'avance. C'est exactement ce que je partage dans le VIP.</p></div></div>
+      </div>
+      <div class="story-side rv">
+        <img src="/enrick-assets/photo-b.jpg" alt="Enrick concentré devant son ordinateur" loading="lazy" style="aspect-ratio:4/3;object-position:center 38%">
+        <blockquote><p>« Mon objectif : t'aider à comprendre tes décisions et à devenir autonome, plutôt que dépendre des analyses de quelqu'un d'autre. »</p><cite>— Enrick</cite></blockquote>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="resultats">
+  <div class="wrap perf">
+    <div class="rv">
+      <span class="eyebrow">Résultats · en direct</span>
+      <h2 style="margin:14px 0 16px">Les résultats du VIP, <span class="gold">sans filtre.</span></h2>
+      <p class="lead">Ce téléphone affiche la vraie page de suivi InvestPro : chaque trade clôturé du VIP, gagnant ou perdant, avec son résultat. Rien n'est retouché, tout est mis à jour en direct.</p>
+      <div class="hero-ctas" style="margin-top:26px"><a class="btn btn-gold" href="/dashboard/performances-vip">Voir le suivi complet ↗</a><a class="btn btn-line" href="#acces">Rejoindre le VIP</a></div>
+      <p class="fine" style="margin-top:18px">Performances passées : elles ne garantissent pas les résultats futurs. Le trading comporte un risque de perte en capital.</p>
+    </div>
+    <div class="phone rv">
+      <span class="live"><i>●</i> L'app InvestPro, en direct</span>
+      <div class="shell"><div class="screen"><iframe id="perfFrame" src="/dashboard/performances-vip" title="Performances VIP InvestPro" loading="lazy"></iframe></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="communaute" style="padding-top:20px">
+  <div class="wrap">
+    <div class="sec-head rv"><span class="eyebrow">La communauté</span><h2>Ce qu'ils m'envoient <span class="gold">chaque semaine.</span></h2></div>
+    <div class="carousel">
+      <img src="/enrick-assets/p-lexa.jpg" alt="Capture partagée par un membre" loading="lazy">
+      <img src="/enrick-assets/preuve-1.jpg" alt="Capture partagée par un membre" loading="lazy">
+      <img src="/enrick-assets/p-davy1.jpg" alt="Capture partagée par un membre" loading="lazy">
+      <img src="/enrick-assets/preuve-2.jpg" alt="Capture partagée par un membre" loading="lazy">
+      <img src="/enrick-assets/p-fatih1.jpg" alt="Capture partagée par un membre" loading="lazy">
+      <img src="/enrick-assets/preuve-3.jpg" alt="Capture partagée par un membre" loading="lazy">
+      <img src="/enrick-assets/p-maks.jpg" alt="Capture partagée par un membre" loading="lazy">
+      <img src="/enrick-assets/preuve-4.jpg" alt="Capture partagée par un membre" loading="lazy">
+      <img src="/enrick-assets/p-youss.jpg" alt="Capture partagée par un membre" loading="lazy">
+      <img src="/enrick-assets/preuve-5.jpg" alt="Capture partagée par un membre" loading="lazy">
+    </div>
+    <div class="quotes stg">
+      <div class="quote"><p>« Ton trading est vraiment propre et technique. Tu pousses le groupe vers le haut et t'es proche de nous aussi. »</p><b>Yann</b></div>
+      <div class="quote"><p>« Je gère toujours bien mon money management et je suis tes conseils, donc tout roule. »</p><b>Harmonie</b></div>
+      <div class="quote"><p>« Reconnaissance totale pour la qualité et la précision de tes analyses. »</p><b>Jojo</b></div>
+    </div>
+    <p class="fine" style="margin-top:16px">Captures partagées par les membres eux-mêmes. Ce sont des résultats individuels : ils ne reflètent pas les résultats de tous et ne garantissent aucun résultat futur.</p>
+  </div>
+</section>
+
+<section id="acces">
+  <div class="wrap">
+    <div class="sec-head rv"><span class="eyebrow">Accès</span><h2>Le même VIP. <span class="gold">Deux façons d'entrer.</span></h2><p class="lead">Choisis ce qui te correspond. Dans les deux cas, ton accès est vérifié par l'équipe puis activé.</p></div>
+    <div class="plans stg">
+      <div class="plan main">
+        <span class="kind">Affiliation</span>
+        <div class="price"><b>0 €</b><span>sans abonnement</span></div>
+        <p class="cond">Tu ouvres ton compte chez un de mes brokers partenaires avec mon lien, et tu déposes au moins 300 $.</p>
+        <div class="brokers"><span>Raise FX</span><span>VT Markets</span><span>PU Prime</span><span>Axi</span><span>Bullwaves</span></div>
+        <ul><li>Analyses, signaux & suivi</li><li>Bilans, journal et simulateur de risque</li><li>InvestPro Copy en option, dès 500 $</li><li>L'app et les alertes</li></ul>
+        <a class="btn btn-gold" href="/vip/rejoindre?access=affiliation">Je choisis l'affiliation</a>
+      </div>
+      <div class="plan">
+        <span class="kind">Abonnement</span>
+        <div class="price"><b>80 €</b><span>/ mois</span></div>
+        <p class="cond">Tu préfères ne pas passer par un broker : paiement sécurisé Stripe, renouvellement mensuel.</p>
+        <ul><li>Analyses, signaux & suivi</li><li>Bilans, journal et simulateur de risque</li><li>L'app et les alertes</li><li class="no">InvestPro Copy</li></ul>
+        <a class="btn btn-line" href="/vip/rejoindre?access=abonnement">Je choisis l'abonnement</a>
+      </div>
+    </div>
+    <div class="how stg">
+      <div><b>1</b><span><strong>Tu choisis ton accès</strong><small>Affiliation ou abonnement, en 2 minutes.</small></span></div>
+      <div><b>2</b><span><strong>L'équipe vérifie</strong><small>Ton compte ou ton paiement est contrôlé.</small></span></div>
+      <div><b>3</b><span><strong>Tu entres dans le VIP</strong><small>Ton lien Telegram et ton espace sont activés.</small></span></div>
+    </div>
+    <p class="fine" style="margin-top:16px">Déjà dans le Telegram VIP ? <a class="gold" href="/vip/deja-membre">Rattache ton accès ici →</a> · Le dépôt réel est vérifié par l'équipe, hors bonus du broker.</p>
+  </div>
+</section>
+
+<section style="padding-top:10px">
+  <div class="wrap">
+    <div class="trial rv">
+      <div>
+        <span class="eyebrow" style="color:var(--ink)">🔥 Offre du moment</span>
+        <h2 style="margin-top:12px">Teste le VIP sans déposer un centime.</h2>
+        <p>Sur un compte démo, jusqu'au 30 novembre. On branche la copie pour toi : tu vois les trades arriver et tu juges par toi-même.</p>
+        <a class="btn" href="/enrick/essai-vip">Je teste sans dépôt →</a>
+      </div>
+      <div class="countdown" aria-label="Temps restant avant la fin de l'offre"><div><b data-cd="d">00</b><small>jours</small></div><div><b data-cd="h">00</b><small>heures</small></div><div><b data-cd="m">00</b><small>min</small></div><div><b data-cd="s">00</b><small>sec</small></div></div>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top:20px">
+  <div class="wrap">
+    <div class="sec-head rv"><span class="eyebrow">Application</span><h2>Ton VIP, <span class="gold">aussi dans ta poche.</span></h2></div>
+    <div class="app stg">
+      <div><h3>📱 iPhone</h3><ol><li>Ouvre InvestPro dans Safari.</li><li>Touche Partager, puis « Sur l'écran d'accueil ».</li><li>Ouvre l'icône et active les alertes (iOS 16.4 minimum).</li></ol></div>
+      <div><h3>🤖 Android</h3><ol><li>Ouvre InvestPro dans Chrome.</li><li>Touche le menu ⋮, puis « Installer l'application ».</li><li>Confirme, puis active les alertes.</li></ol></div>
+    </div>
+  </div>
+</section>
+
+<section id="faq" style="padding-top:20px">
+  <div class="wrap">
+    <div class="sec-head rv"><span class="eyebrow">Questions</span><h2>Les questions <span class="gold">qu'on me pose souvent.</span></h2></div>
+    <div class="faq">
+      <details><summary>L'accès VIP est vraiment sans abonnement ?</summary><p>Oui, par affiliation : aucun abonnement. Ton accès est validé quand ton compte est ouvert avec mon lien partenaire et que ton dépôt atteint 300 $.</p></details>
+      <details><summary>Je débute, est-ce que c'est pour moi ?</summary><p>Oui. Tu peux commencer par l'essai sans dépôt sur un compte démo, suivre les analyses et apprendre à gérer ton risque avant d'engager ton argent.</p></details>
+      <details><summary>J'ai déjà un compte chez un de ces brokers</summary><p>Un rattachement est possible : passe par « Déjà membre » ou écris à @EquipeInvestPro sur Telegram.</p></details>
+      <details><summary>InvestPro Copy est obligatoire ?</summary><p>Non, c'est une option à partir de 500 $. Tu gardes tes propres réglages de risque.</p></details>
+      <details><summary>Le bonus du broker compte dans le dépôt ?</summary><p>Non. Le dépôt réel est vérifié par l'équipe, séparément d'un éventuel bonus.</p></details>
+      <details><summary>Le lien Telegram ne s'ouvre pas ?</summary><p>Ouvre la page dans Safari ou Chrome plutôt que dans le navigateur de TikTok ou d'Instagram : appuie sur « ⋯ » puis « Ouvrir dans le navigateur ». Vérifie aussi que l'appli Telegram est installée.</p></details>
+    </div>
+  </div>
+</section>
+
+<section class="final">
+  <div class="wrap rv">
+    <span class="eyebrow">Prêt ?</span>
+    <h2>On se retrouve <span class="gold">dans le VIP.</span></h2>
+    <p class="lead" style="margin:0 auto 30px">Choisis ton accès, l'équipe s'occupe du reste.</p>
+    <div class="hero-ctas"><a class="btn btn-gold" href="#acces">Rejoindre le VIP</a><a class="btn btn-tg" href="https://t.me/+mAcBYu895IxiMTdk">Poser une question sur Telegram</a></div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>InvestPro VIP · Enrick95. Le trading comporte un risque de perte en capital. Les contenus partagés sont éducatifs et ne garantissent aucun résultat.</span>
+    <span><a href="/cgu">Conditions</a> · <a href="/privacy">Confidentialité</a> · <a href="/enrick">Mon histoire</a></span>
+  </div>
+</footer>
+
+<div class="sticky-cta"><a class="btn btn-gold" href="#acces">Rejoindre le VIP</a><a class="btn btn-line" href="/vip/deja-membre">Déjà membre</a></div>
+
+<script>
+(function(){
+  var d=document.documentElement;d.classList.add("js");
+  var red=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function fmt(n){return String(n).replace(/\B(?=(\d{3})+(?!\d))/g," ");}
+  function count(el){var to=+el.dataset.to,pre=el.dataset.pre||"";if(red){el.textContent=pre+fmt(to);return;}var t0=null;function step(t){if(!t0)t0=t;var k=Math.min(1,(t-t0)/1500),e=1-Math.pow(1-k,3);el.textContent=pre+fmt(Math.round(to*e));if(k<1)requestAnimationFrame(step);}requestAnimationFrame(step);}
+  var els=document.querySelectorAll(".rv,.stg,.hero .float-card");
+  if(!("IntersectionObserver" in window)){els.forEach(function(e){e.classList.add("in")});}
+  else{var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add("in");e.target.querySelectorAll(".count").forEach(function(c){if(!c.dataset.done){c.dataset.done=1;count(c);}});if(e.target.classList.contains("count")&&!e.target.dataset.done){e.target.dataset.done=1;count(e.target);}io.unobserve(e.target);}});},{threshold:.15,rootMargin:"0px 0px -40px 0px"});els.forEach(function(e){io.observe(e)});}
+  // Compte à rebours de l'offre
+  var END=new Date("2026-11-30T23:59:59+01:00").getTime();
+  function pad(n){return String(n).padStart(2,"0");}
+  function tick(){var l=Math.max(0,END-Date.now());var v={d:Math.floor(l/864e5),h:Math.floor(l%864e5/36e5),m:Math.floor(l%36e5/6e4),s:Math.floor(l%6e4/1e3)};document.querySelectorAll("[data-cd]").forEach(function(b){b.textContent=pad(v[b.dataset.cd]);});document.querySelectorAll(".offer-left").forEach(function(o){o.textContent=l<=0?"offre terminée":"plus que "+v.d+" j "+v.h+" h";});}
+  tick();setInterval(tick,1000);
+  // Bouton flottant sur mobile, caché quand la section Accès est visible
+  var sc=document.querySelector(".sticky-cta"),acc=document.getElementById("acces"),hero=document.querySelector(".hero");
+  if(sc&&"IntersectionObserver" in window){var seen={hero:true,acc:false};var io2=new IntersectionObserver(function(es){es.forEach(function(e){if(e.target===hero)seen.hero=e.isIntersecting;if(e.target===acc)seen.acc=e.isIntersecting;});sc.classList.toggle("show",!seen.hero&&!seen.acc);},{threshold:.05});io2.observe(hero);io2.observe(acc);}
+  // Défilement automatique doux des captures
+  if(!red){document.querySelectorAll(".carousel").forEach(function(c){var paused=false,t;function stop(){paused=true;clearTimeout(t);t=setTimeout(function(){paused=false},6000);}["touchstart","pointerdown","wheel"].forEach(function(ev){c.addEventListener(ev,stop,{passive:true})});setInterval(function(){if(paused)return;var r=c.getBoundingClientRect();if(r.bottom<0||r.top>innerHeight)return;var max=c.scrollWidth-c.clientWidth;if(c.scrollLeft>=max-4)c.scrollTo({left:0,behavior:"smooth"});else c.scrollBy({left:240,behavior:"smooth"});},2800);});}
+})();
+</script>
+<script>
+// Même nettoyage que sur /enrick : on n'affiche que le suivi, sans le menu de l'app.
+(function(){var f=document.getElementById("perfFrame");if(!f)return;
+f.addEventListener("load",function(){var d;try{d=f.contentDocument;}catch(e){return;}if(!d)return;
+var st=d.createElement("style");st.textContent=".aura-topbar,.aura-sidebar,.ip-mobile-global-nav,.ip-support-floating{display:none!important}body{padding-bottom:0!important}";d.head.appendChild(st);
+function clean(){d.querySelectorAll('[class*="fixed"]').forEach(function(e){if(/Ajoute l.app/.test(e.textContent))e.style.display="none";});}
+clean();try{new MutationObserver(clean).observe(d.body,{childList:true,subtree:true});}catch(e){}
+d.addEventListener("click",function(e){var a=e.target.closest&&e.target.closest("a");if(a){e.preventDefault();e.stopPropagation();window.location.href="#acces";}},true);
+});})();
+</script>
+</body>
+</html>
