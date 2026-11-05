@@ -3,6 +3,8 @@ export const ESSAI_VIP_BROKERS = ["Raise FX", "VT Markets", "PU Prime", "Axi", "
 export type EssaiVipSubmission = {
   broker: (typeof ESSAI_VIP_BROKERS)[number];
   nom: string;
+  contactMethod: "whatsapp" | "telegram";
+  telephone: string;
   telegram: string;
   compte: string;
   serveur: string;
@@ -12,6 +14,7 @@ export type EssaiVipSubmission = {
 export const ESSAI_VIP_FIELD_LIMITS = {
   nom: 100,
   telegram: 64,
+  telephone: 24,
   compte: 64,
   serveur: 128,
   motdepasse: 256,
@@ -19,7 +22,7 @@ export const ESSAI_VIP_FIELD_LIMITS = {
 
 type Validation =
   | { kind: "invalid" }
-  | { kind: "invalid-telegram" }
+  | { kind: "invalid-contact" }
   | { kind: "honeypot" }
   | { kind: "valid"; value: EssaiVipSubmission };
 
@@ -35,17 +38,29 @@ export function validateEssaiVipPayload(input: unknown): Validation {
   if (typeof fields.broker !== "string" || !ESSAI_VIP_BROKERS.some(broker => broker === fields.broker)) {
     return { kind: "invalid" };
   }
-  const rawTelegram = fields.telegram;
-  if (typeof rawTelegram !== "string" || rawTelegram.length > ESSAI_VIP_FIELD_LIMITS.telegram || UNSAFE_CONTROL.test(rawTelegram)) {
-    return { kind: "invalid-telegram" };
+  const contactMethod = fields.contactMethod;
+  if (contactMethod !== "whatsapp" && contactMethod !== "telegram") return { kind: "invalid-contact" };
+
+  let telephone = "";
+  let telegram = "";
+  if (contactMethod === "whatsapp") {
+    const rawPhone = fields.telephone;
+    if (typeof rawPhone !== "string" || rawPhone.length > ESSAI_VIP_FIELD_LIMITS.telephone || UNSAFE_CONTROL.test(rawPhone)) return { kind: "invalid-contact" };
+    const phone = rawPhone.trim().replace(/[()\s.-]/g, "").replace(/^00/, "+");
+    if (!/^\+[1-9]\d{7,14}$/.test(phone)) return { kind: "invalid-contact" };
+    telephone = phone;
+  } else {
+    const rawTelegram = fields.telegram;
+    if (typeof rawTelegram !== "string" || rawTelegram.length > ESSAI_VIP_FIELD_LIMITS.telegram || UNSAFE_CONTROL.test(rawTelegram)) return { kind: "invalid-contact" };
+    const username = rawTelegram
+      .trim()
+      .replace(/^https?:\/\//i, "")
+      .replace(/^(www\.)?(t|telegram)\.me\//i, "")
+      .replace(/^@+/, "")
+      .replace(/\/+$/, "");
+    if (!/^[A-Za-z][A-Za-z0-9_]{4,31}$/.test(username)) return { kind: "invalid-contact" };
+    telegram = `@${username}`;
   }
-  const telegram = rawTelegram
-    .trim()
-    .replace(/^https?:\/\//i, "")
-    .replace(/^(www\.)?(t|telegram)\.me\//i, "")
-    .replace(/^@+/, "")
-    .replace(/\/+$/, "");
-  if (!/^[A-Za-z][A-Za-z0-9_]{4,31}$/.test(telegram)) return { kind: "invalid-telegram" };
 
   for (const field of ["nom", "compte", "serveur", "motdepasse"] as const) {
     const value = fields[field];
@@ -58,7 +73,9 @@ export function validateEssaiVipPayload(input: unknown): Validation {
     value: {
       broker: fields.broker as EssaiVipSubmission["broker"],
       nom: (fields.nom as string).trim(),
-      telegram: `@${telegram}`,
+      contactMethod,
+      telephone,
+      telegram,
       compte: (fields.compte as string).trim(),
       serveur: (fields.serveur as string).trim(),
       // Passwords must reach the team exactly as entered, without trimming or truncation.
@@ -74,9 +91,13 @@ export function escapeEssaiVipHtml(value: string): string {
 export function buildEssaiVipMessage(submission: EssaiVipSubmission): string {
   const esc = escapeEssaiVipHtml;
   const liveServer = /live|real|r[ée]el/i.test(submission.serveur) && !/d[ée]mo/i.test(submission.serveur);
+  const contact = submission.contactMethod === "whatsapp"
+    ? `📲 WhatsApp : <a href="https://wa.me/${esc(submission.telephone.replace(/\D/g, ""))}">${esc(submission.telephone)}</a>\n`
+    : `✈️ Telegram : <a href="https://t.me/${esc(submission.telegram.slice(1))}">${esc(submission.telegram)}</a>\n`;
   return (
     `🆕 <b>Essai VIP sans dépôt</b>\n` +
-    `👤 ${esc(submission.nom)} · <a href="https://t.me/${esc(submission.telegram.slice(1))}">${esc(submission.telegram)}</a>\n` +
+    `👤 ${esc(submission.nom)}\n` +
+    contact +
     `🏦 ${esc(submission.broker)}\n` +
     `💻 Démo n° <code>${esc(submission.compte)}</code>\n` +
     `🖥 Serveur : <code>${esc(submission.serveur)}</code>\n` +

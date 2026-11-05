@@ -61,7 +61,7 @@ export async function POST(request: Request) {
   if ("status" in parsed) return json(false, parsed.status);
   const validation = validateEssaiVipPayload(parsed.value);
   if (validation.kind === "honeypot") return json(true);
-  if (validation.kind === "invalid-telegram") return json(false, 400, {}, "telegram");
+  if (validation.kind === "invalid-contact") return json(false, 400, {}, "contact");
   if (validation.kind === "invalid") return json(false, 400);
 
   // Previews must never forward demo credentials to the live team's Telegram.

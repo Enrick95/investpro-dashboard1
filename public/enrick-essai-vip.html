@@ -161,6 +161,15 @@ footer{border-top:1px solid var(--line);padding-block:32px 48px;font-size:14px;c
 .tg-help{margin:6px 0 4px;font-size:12.5px;line-height:1.5;color:var(--muted)}
 .tg-help a{color:#91D6D0;font-weight:700}
 .tg-help.bad{color:#e8a39a}
+.contact-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0 0 4px}
+.contact-option{display:flex;align-items:flex-start;gap:10px;padding:13px 14px;border:1px solid var(--line2);border-radius:12px;background:var(--panel2);cursor:pointer}
+.contact-option:has(input:checked){border-color:var(--gold);background:rgba(240,197,117,.08)}
+.contact-option input{width:18px;height:18px;flex:0 0 18px;margin:2px 0 0;padding:0;accent-color:var(--gold)}
+.contact-option span{display:grid;gap:3px;color:var(--fg);font-size:14px;font-weight:700}
+.contact-option small{color:var(--muted);font-size:12px;font-weight:500;line-height:1.4}
+.contact-option em{color:var(--gold);font-size:10px;font-style:normal;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.contact-field[hidden]{display:none!important}
+@media(max-width:520px){.contact-options{grid-template-columns:1fr}}
 .demo-tip{margin:12px 0 0;font-size:14px;color:var(--fg);background:rgba(232,163,154,.10);border:1px solid rgba(232,163,154,.35);border-radius:12px;padding:10px 12px}
 .demo-tip b{color:var(--gold)}
 .dr{margin:14px 0 0;padding:14px;border-radius:14px;background:rgba(232,163,154,.08);border:1px solid rgba(232,163,154,.35)}
@@ -273,12 +282,17 @@ footer{border-top:1px solid var(--line);padding-block:32px 48px;font-size:14px;c
 </div>
 <p class="bk-old">Déjà un compte Bullwaves ? Écris-nous sur Telegram à <a href="https://t.me/EquipeInvestPro">@EquipeInvestPro</a> : on te guide pour le rattachement.</p>
 </div></li>
-<li class="step"><span class="num">2</span><div class="step-body"><h3>Envoie ta demande</h3><p>Remplis le formulaire et envoie-le : ta demande arrive directement chez nous. On te répond sur Telegram.</p>
-<div class="tg-need"><b>📲 Un compte Telegram est obligatoire.</b> C'est là qu'on te confirme le branchement de ta copie et qu'on suit ton essai. Sans ton @ Telegram, on ne peut pas te retrouver.</div>
+<li class="step"><span class="num">2</span><div class="step-body"><h3>Envoie ta demande</h3><p>Remplis le formulaire et envoie-le : ta demande arrive directement chez nous. On te répond sur le moyen de contact que tu as choisi.</p>
+<div class="tg-need"><b>📲 WhatsApp est recommandé pour le suivi.</b> Tu peux aussi choisir Telegram si tu préfères. Un seul moyen de contact suffit.</div>
 <form class="tg-form" id="essai-form" novalidate>
 <label for="tg-name">Prénom et nom</label><input id="tg-name" name="nom" type="text" autocomplete="name" required placeholder="Ex. Julien Martin">
-<label for="tg-user">Ton nom d'utilisateur Telegram <span class="req">obligatoire</span></label><input id="tg-user" name="telegram" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" required placeholder="Ex. @julienmartin" aria-describedby="tg-user-help">
-<p class="tg-help" id="tg-user-help">Tu le trouves dans Telegram › <b>Paramètres</b> › <b>Nom d'utilisateur</b>. Tu n'en as pas ? Crée-le là, ça prend 10 secondes. Pas encore Telegram ? <a href="https://telegram.org/apps" rel="noopener">Télécharge l'app</a>.</p>
+<label>Comment préfères-tu être contacté ? <span class="req">obligatoire</span></label>
+<div class="contact-options" role="radiogroup" aria-label="Moyen de contact préféré">
+<label class="contact-option"><input type="radio" name="contactMethod" value="whatsapp" checked><span>WhatsApp <em>Recommandé</em><small>Le plus simple pour le suivi de ton essai.</small></span></label>
+<label class="contact-option"><input type="radio" name="contactMethod" value="telegram"><span>Telegram<small>Choisis cette option si tu préfères être contacté sur Telegram.</small></span></label>
+</div>
+<div class="contact-field" id="whatsapp-field"><label for="tg-phone">Ton numéro WhatsApp <span class="req">obligatoire</span></label><input id="tg-phone" name="telephone" type="tel" inputmode="tel" autocomplete="tel" required placeholder="Ex. +33 6 12 34 56 78" aria-describedby="tg-phone-help"><p class="tg-help" id="tg-phone-help">Ajoute l’indicatif de ton pays (ex. +33 pour la France). Ton numéro servira uniquement au suivi de ton essai.</p></div>
+<div class="contact-field" id="telegram-field" hidden><label for="tg-user">Ton nom d'utilisateur Telegram <span class="req">obligatoire si Telegram est choisi</span></label><input id="tg-user" name="telegram" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" disabled placeholder="Ex. @julienmartin" aria-describedby="tg-user-help"><p class="tg-help" id="tg-user-help">Tu le trouves dans Telegram › <b>Paramètres</b> › <b>Nom d'utilisateur</b>. Pas encore Telegram ? <a href="https://telegram.org/apps" rel="noopener">Télécharge l'app</a>.</p></div>
 <label for="tg-acc">N° de ton compte démo</label><input id="tg-acc" name="compte" type="text" inputmode="numeric" required placeholder="Ex. 12345678">
 <label for="tg-srv">Serveur du compte démo</label><input id="tg-srv" name="serveur" type="text" required placeholder="Copie-le tel quel, même s'il contient « Live »">
 <label for="tg-pwd">Mot de passe du compte démo</label><input id="tg-pwd" name="motdepasse" type="text" autocomplete="off" spellcheck="false" required placeholder="Celui reçu par e-mail du broker">
@@ -288,7 +302,7 @@ footer{border-top:1px solid var(--line);padding-block:32px 48px;font-size:14px;c
 <p class="tg-err" data-err hidden></p>
 <button type="submit" class="btn btn-gold" data-send>Envoyer ma demande</button>
 </form>
-<div class="tg-ok" data-ok hidden><b>Demande envoyée ✓</b><p>On vérifie ton inscription et on branche la copie. <strong>Dernière étape, obligatoire : rejoins maintenant le canal Essai VIP.</strong></p><a class="btn btn-gold btn-must" data-channel href="https://t.me/+hNCn_4xGGKMxZjJk" style="margin-top:12px;width:100%"><span class="must-hand" aria-hidden="true">👉</span>Rejoindre le canal Essai VIP ↗</a></div>
+<div class="tg-ok" data-ok hidden><b>Demande envoyée ✓</b><p>On vérifie ton inscription et on te contacte sur le moyen choisi. <strong>Dernière étape, obligatoire : rejoins maintenant le canal Essai VIP.</strong></p><a class="btn btn-gold btn-must" data-channel href="https://t.me/+hNCn_4xGGKMxZjJk" style="margin-top:12px;width:100%"><span class="must-hand" aria-hidden="true">👉</span>Rejoindre le canal Essai VIP ↗</a></div>
 <div class="tg-fallback" data-fallback hidden>
 <p class="tg-err">L'envoi automatique n'a pas fonctionné. Copie ce message et envoie-le à <b>@EquipeInvestPro</b> sur Telegram.</p>
 <div class="tg-msg" data-msg aria-live="polite"></div>
@@ -405,32 +419,41 @@ footer{border-top:1px solid var(--line);padding-block:32px 48px;font-size:14px;c
     try{localStorage.setItem("essaiBroker",k);}catch(e){}
     buildMsg();
   }
-  // Message Telegram prêt à copier
+  // Message de secours prêt à copier
   // Formulaire : envoi automatique vers le bot Telegram (route serveur), message à copier en secours
   var ENDPOINT="/api/essai-vip";
-  var F={nom:"tg-name",telegram:"tg-user",compte:"tg-acc",serveur:"tg-srv",motdepasse:"tg-pwd"};
+  var F={nom:"tg-name",compte:"tg-acc",serveur:"tg-srv",motdepasse:"tg-pwd"};
   var form=document.getElementById("essai-form"), msgBox=document.querySelector("[data-msg]"), err=document.querySelector("[data-err]");
   function normTg(v){ v=(v||"").trim().replace(/^https?:\/\//i,"").replace(/^(www\.)?(t|telegram)\.me\//i,"").replace(/^@+/,"").replace(/\/+$/,""); return /^[A-Za-z][A-Za-z0-9_]{4,31}$/.test(v) ? "@"+v : ""; }
-  (function(){var tu=document.getElementById("tg-user"),hp=document.getElementById("tg-user-help"); if(tu) tu.addEventListener("blur",function(){ if(!tu.value.trim()) return; var n=normTg(tu.value); if(n){tu.value=n; tu.removeAttribute("aria-invalid"); if(hp) hp.classList.remove("bad");} else {tu.setAttribute("aria-invalid","true"); if(hp) hp.classList.add("bad");} buildMsg(); });})();
+  function normPhone(v){var x=(v||"").trim().replace(/[()\s.-]/g,"").replace(/^00/,"+");return /^\+[1-9]\d{7,14}$/.test(x)?x:"";}
+  var phone=document.getElementById("tg-phone"),tg=document.getElementById("tg-user"),phoneField=document.getElementById("whatsapp-field"),tgField=document.getElementById("telegram-field");
+  function contactMethod(){var selected=document.querySelector('input[name="contactMethod"]:checked');return selected?selected.value:"whatsapp";}
+  function updateContactFields(){var usePhone=contactMethod()==="whatsapp";phoneField.hidden=!usePhone;phone.disabled=!usePhone;phone.required=usePhone;tgField.hidden=usePhone;tg.disabled=usePhone;tg.required=!usePhone;buildMsg();}
+  document.querySelectorAll('input[name="contactMethod"]').forEach(function(r){r.addEventListener("change",updateContactFields);});
+  if(phone)phone.addEventListener("blur",function(){if(!phone.value.trim())return;var n=normPhone(phone.value),hp=document.getElementById("tg-phone-help");if(n){phone.value=n;phone.removeAttribute("aria-invalid");if(hp)hp.classList.remove("bad");}else{phone.setAttribute("aria-invalid","true");if(hp)hp.classList.add("bad");}buildMsg();});
+  (function(){var hp=document.getElementById("tg-user-help");if(tg)tg.addEventListener("blur",function(){if(!tg.value.trim())return;var n=normTg(tg.value);if(n){tg.value=n;tg.removeAttribute("aria-invalid");if(hp)hp.classList.remove("bad");}else{tg.setAttribute("aria-invalid","true");if(hp)hp.classList.add("bad");}buildMsg();});})();
   function val(k){var e=document.getElementById(F[k]);return e?e.value.trim():"";}
   function buildMsg(){
-    var m="C'est fait ✅ Essai VIP sans dépôt\nNom : "+(val("nom")||"…")+"\nTelegram : "+(val("telegram")||"…")+"\nBroker : "+(current?NAMES[current]:"…")+"\nCompte démo n° "+(val("compte")||"…")+"\nServeur : "+(val("serveur")||"…")+"\nMot de passe démo : "+(val("motdepasse")||"…");
+    var method=contactMethod(),contact=method==="whatsapp"?"WhatsApp : "+(phone&&phone.value.trim()?phone.value.trim():"…"):"Telegram : "+(tg&&tg.value.trim()?tg.value.trim():"…");
+    var m="C'est fait ✅ Essai VIP sans dépôt\nNom : "+(val("nom")||"…")+"\nContact préféré : "+contact+"\nBroker : "+(current?NAMES[current]:"…")+"\nCompte démo n° "+(val("compte")||"…")+"\nServeur : "+(val("serveur")||"…")+"\nMot de passe démo : "+(val("motdepasse")||"…");
     if(msgBox) msgBox.textContent=m; return m;
   }
   Object.keys(F).forEach(function(k){var e=document.getElementById(F[k]); if(e) e.addEventListener("input",function(){e.removeAttribute("aria-invalid");buildMsg();});});
+  if(phone)phone.addEventListener("input",buildMsg);if(tg)tg.addEventListener("input",buildMsg);
+  updateContactFields();
   if(form) form.addEventListener("submit",function(ev){
     ev.preventDefault(); if(err){err.hidden=true;}
     var missing=[]; Object.keys(F).forEach(function(k){var e=document.getElementById(F[k]); var bad=!e.value.trim(); e.setAttribute("aria-invalid",bad?"true":"false"); if(bad) missing.push(e);});
     if(!current){ if(err){err.textContent="Choisis d'abord ton broker à l'étape 1.";err.hidden=false;} document.querySelector(".bw").scrollIntoView({behavior:"smooth",block:"center"}); return; }
     if(missing.length){ if(err){err.textContent="Complète les champs en rouge.";err.hidden=false;} missing[0].focus(); return; }
-    var tu=document.getElementById("tg-user"), tn=normTg(tu.value);
-    if(!tn){ tu.setAttribute("aria-invalid","true"); var hp=document.getElementById("tg-user-help"); if(hp) hp.classList.add("bad"); if(err){err.textContent="Indique ton nom d'utilisateur Telegram (ex. @julienmartin), pas ton numéro ni ton nom. Tu n'en as pas ? Crée-le dans Telegram › Paramètres › Nom d'utilisateur.";err.hidden=false;} tu.focus(); return; }
-    tu.value=tn;
+    var method=contactMethod(),contactValue="",contactHelp;
+    if(method==="whatsapp"){contactValue=normPhone(phone.value);contactHelp=document.getElementById("tg-phone-help");if(!contactValue){phone.setAttribute("aria-invalid","true");if(contactHelp)contactHelp.classList.add("bad");if(err){err.textContent="Indique ton numéro WhatsApp au format international, avec l’indicatif du pays (ex. +33 6 12 34 56 78).";err.hidden=false;}phone.focus();return;}phone.value=contactValue;phone.removeAttribute("aria-invalid");if(contactHelp)contactHelp.classList.remove("bad");}
+    else{contactValue=normTg(tg.value);contactHelp=document.getElementById("tg-user-help");if(!contactValue){tg.setAttribute("aria-invalid","true");if(contactHelp)contactHelp.classList.add("bad");if(err){err.textContent="Indique ton nom d'utilisateur Telegram (ex. @julienmartin).";err.hidden=false;}tg.focus();return;}tg.value=contactValue;tg.removeAttribute("aria-invalid");if(contactHelp)contactHelp.classList.remove("bad");}
     var ck=document.getElementById("tg-demo"), ckl=document.querySelector(".tg-check");
     if(ck && !ck.checked){ if(ckl) ckl.classList.add("bad"); if(err){err.textContent="Coche la case pour confirmer que c'est un compte démo.";err.hidden=false;} ck.focus(); return; }
     if(ckl) ckl.classList.remove("bad");
     var btn=form.querySelector("[data-send]"); btn.disabled=true; btn.textContent="Envoi en cours…";
-    var data={broker:NAMES[current],confirmeDemo:true,website:(document.getElementById("tg-web")||{}).value||""}; Object.keys(F).forEach(function(k){data[k]=val(k);});
+    var data={broker:NAMES[current],contactMethod:method,telephone:method==="whatsapp"?contactValue:"",telegram:method==="telegram"?contactValue:"",confirmeDemo:true,website:(document.getElementById("tg-web")||{}).value||""}; Object.keys(F).forEach(function(k){data[k]=val(k);});
     function fail(){ btn.disabled=false; btn.textContent="Envoyer ma demande"; buildMsg(); document.querySelector("[data-fallback]").hidden=false; }
     try{
       fetch(ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)})
