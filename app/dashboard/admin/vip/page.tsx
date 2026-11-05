@@ -9,6 +9,7 @@ import { ArrowUpRight, Check, Copy, KeyRound, MessageCircle, Pencil, Plus, Refre
 import { vipDate, vipRequest, type VipMembership } from "@/lib/vip/client";
 import type { VipAccessRequest, VipInvitation } from "@/lib/vip/types";
 import VipAccessRequestsAdmin from "./VipAccessRequestsAdmin";
+import VipMemberApplicationsAdmin from "./VipMemberApplicationsAdmin";
 import { VIP_AFFILIATION_BROKERS, validateVipIdentity, vipAffiliationBrokerLabel, type VipAffiliationBroker } from "@/lib/vip/identity";
 import s from "./VipAdmin.module.css";
 
@@ -124,7 +125,7 @@ export default function VipAdminPage() {
       {error && <p className={s.error} role="alert">{tr(error)}</p>}{message && <p className={s.message} role="status">{message}</p>}
       {data ? <>
         <nav className={s.tabs} aria-label={tr("Administration VIP")}>{[{ key: "members", title: tr("Membres"), Icon: Users }, { key: "requests", title: (tr("À vérifier") + (requests ? ` · ${requests.length}` : "")), Icon: ShieldCheck }, { key: "posts", title: tr("Publications"), Icon: Send }, { key: "settings", title: tr("Paramètres"), Icon: Settings }].map(({ key, title, Icon }) => <button type="button" aria-pressed={tab === key} key={key} onClick={() => key === "posts" ? (previewNavigation ? previewNavigation.onNavigate("/dashboard/vip?mode=admin") : router.push("/dashboard/vip?mode=admin")) : setTab(key as Tab)}><Icon size={16} />{title}</button>)}<button type="button" className={s.reload} aria-label={tr("Actualiser les accès")} onClick={() => void load()} disabled={Boolean(busy)}><RefreshCw size={16} /></button></nav>
-        {tab === "requests" && <VipAccessRequestsAdmin requests={requests} error={requestsError} onRefresh={() => load()} />}
+        {tab === "requests" && <><VipMemberApplicationsAdmin /><VipAccessRequestsAdmin requests={requests} error={requestsError} onRefresh={() => load()} /></>}
         {tab === "members" && <>
           <div className={s.summary}><div><span>{tr("Membres")}</span><b>{data.members.length}</b></div><div><span>{tr("À renouveler")}</span><b>{data.members.filter((member) => member.renewal_requested_at).length}</b></div><div><span>{tr("Invitations en attente")}</span><b>{data.invitations.filter((invitation) => !invitation.redeemed_at && !invitation.revoked_at && new Date(invitation.expires_at).getTime() > asOf).length}</b></div></div>
           <section className={s.card}>
