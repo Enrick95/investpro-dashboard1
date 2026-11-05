@@ -323,8 +323,8 @@ input[readonly]{color:var(--muted)}
 <div id="flow" hidden>
 <div class="flow-top">
 <div class="ring"><svg width="58" height="58" viewBox="0 0 58 58"><circle class="bgc" cx="29" cy="29" r="25"/><circle class="fgc" id="ringFg" cx="29" cy="29" r="25" stroke-dasharray="157" stroke-dashoffset="157"/></svg><b id="ringN">1</b></div>
-<div><small id="stepOf">Étape 1 sur 5</small><strong id="stepName">Tes informations</strong></div>
-<div class="chips" id="chips"><i></i><i></i><i></i><i></i><i></i></div>
+<div><small id="stepOf">Étape 1 sur 4</small><strong id="stepName">Tes informations</strong></div>
+<div class="chips" id="chips"><i></i><i></i><i></i><i></i></div>
 </div>
 
 <section class="screen" data-s="1"><div class="panel">
@@ -380,13 +380,13 @@ input[readonly]{color:var(--muted)}
 
 <section class="screen" data-s="3"><div class="panel">
 <div class="ph"><span class="pi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></span><h2>On enregistre ton compte</h2></div>
-<p class="lead">Ton compte sera enregistré dans Mes comptes. Pour synchroniser automatiquement tes trades, tu pourras ensuite activer Connexions MetaTrader depuis ton espace.</p>
+<p class="lead">Après validation du dossier et création de ton compte InvestPro, tes informations seront ajoutées à Mes comptes. La synchronisation des trades restera à activer dans Connexions MetaTrader.</p>
 <div class="link" id="link">
 <div class="node br"><span class="nb" id="bkInit">B</span><b id="bkName">Bullwaves</b><small id="accN">N° —</small></div>
 <div class="path"></div>
 <div class="node ip"><span class="nb"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#0b0d0b" stroke-width="1.9" stroke-linejoin="round" aria-hidden="true"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"/></svg></span><b>Mes comptes</b><small>InvestPro</small></div>
 </div>
-<div class="status" id="status"><span class="spin"></span>Liaison en cours…</div>
+<div class="status" id="status"><span class="spin"></span>Préparation des informations…</div>
 <button class="btn btn-ghost" id="toRecap" hidden>Continuer<span class="go">→</span></button>
 <p class="note">Ton journal est privé : toi seul et l'équipe y avez accès.</p>
 <button class="back" data-prev>← Retour</button>
@@ -464,8 +464,8 @@ var els=document.querySelectorAll('.rv,.stg');
 if('IntersectionObserver' in window){var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{threshold:.2});els.forEach(function(e){io.observe(e)})}else els.forEach(function(e){e.classList.add('in')});
 function show(n,rev){var prev=cur;cur=n;intro.hidden=n!==0;flow.hidden=!(n>=1&&n<=6);done.hidden=n!==7;sticky.classList.toggle('hide',n!==0);
   document.querySelectorAll('.screen').forEach(function(s){var on=+s.dataset.s===n;s.classList.toggle('show',on);s.classList.toggle('rev',on&&(rev||n<prev))});
-  if(n>=1&&n<=6){var st=Math.min(n,5);document.getElementById('ringN').textContent=n===6?'✓':st;document.getElementById('stepOf').textContent=n===6?'Étape 5 sur 5':'Étape '+st+' sur 5';document.getElementById('stepName').textContent=names[n];
-    document.getElementById('ringFg').style.strokeDashoffset=157-157*(n===6?1:(st-.5)/5);
+  if(n>=1&&n<=6){var st=Math.min(n,4);document.getElementById('ringN').textContent=n===6?'✓':st;document.getElementById('stepOf').textContent=n===6?'Demande envoyée':'Étape '+st+' sur 4';document.getElementById('stepName').textContent=names[n];
+    document.getElementById('ringFg').style.strokeDashoffset=157-157*(n===6?1:(st-.5)/4);
     document.querySelectorAll('#chips i').forEach(function(c,i){c.className=i+1<st||n===6?'ok':i+1===st?'on':''})}
   scrollTo({top:0,behavior:'smooth'});if(n===4)recap();if(n===7)win()}
 document.getElementById('start').onclick=function(){show(1)};
@@ -505,7 +505,7 @@ document.getElementById('f3').onsubmit=function(e){e.preventDefault();var f=this
   document.getElementById('bkName').textContent=bk;document.getElementById('bkInit').textContent=document.querySelector('.bk[data-bk="'+bk+'"] span').textContent;document.getElementById('accN').textContent=(plat==='MetaTrader 5'?'MT5':'MT4')+' · '+D.acc;show(3);autoLink()};
 /* L'enregistrement du compte se fait à l'envoi. La synchronisation MetaTrader reste une étape séparée, avec consentement du membre. */
 function autoLink(){var l=document.getElementById('link'),st=document.getElementById('status'),c=document.getElementById('toRecap');l.classList.remove('ok');st.className='status';st.innerHTML='<span class="spin"></span>Préparation de ton compte…';c.hidden=true;
-  setTimeout(function(){l.classList.add('ok');st.className='status ok';st.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Compte prêt à être enregistré';c.hidden=false;c.className='btn btn-gold'},1800)}
+  setTimeout(function(){l.classList.add('ok');st.className='status ok';st.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Dossier prêt à transmettre à l’équipe';c.hidden=false;c.className='btn btn-gold'},1800)}
 document.getElementById('toRecap').onclick=function(){show(4)};
 function recap(){var r=[['Nom',D.pre+' '+D.nom],['Téléphone WhatsApp',D.tel],['E-mail',D.mail],['Telegram',D.tg],['Broker',D.bk],['Plateforme',D.plat],['Compte MetaTrader',D.acc],['Serveur',D.srv],['Dépôt',D.dep],['Capture','Ajoutée ✓'],['Compte InvestPro','Ajouté à Mes comptes après envoi'],['Compte InvestPro','Créé après validation de la demande']];
   var box=document.getElementById('recap');box.innerHTML='';r.forEach(function(x){var d=document.createElement('div'),s=document.createElement('span'),b=document.createElement('b');s.textContent=x[0];b.textContent=x[1]||'—';d.appendChild(s);d.appendChild(b);box.appendChild(d)})}
