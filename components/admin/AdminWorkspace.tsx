@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Activity, ArrowRight, Bell, Bot, CalendarClock, ChevronRight, Flame, Send, UserPlus, CircleHelp, Copy, CreditCard, Crown, FileText, Handshake, LayoutDashboard, Mail, MessageCircle, Megaphone, Menu, Server, Settings2, ShieldCheck, TrendingUp, Users, Wallet, X, type LucideIcon } from "lucide-react";
+import { Activity, Sparkles, ArrowRight, Bell, Bot, CalendarClock, ChevronRight, Flame, Send, UserPlus, CircleHelp, Copy, CreditCard, Crown, FileText, Handshake, LayoutDashboard, Mail, MessageCircle, Megaphone, Menu, Server, Settings2, ShieldCheck, TrendingUp, Users, Wallet, X, type LucideIcon } from "lucide-react";
 import LanguageSwitcher from "@/components/i18n/LanguageSwitcher";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import AdminToolWorkspace from "@/app/admin-preview/AdminToolWorkspace";
@@ -36,6 +36,7 @@ const GROUPS: { fr: string; en: string; tone: Tone; items: Entry[] }[] = [
     { tool: "telegram", view: "members", fr: "Membres du canal", en: "Channel members", Icon: Users },
     { tool: "telegram", view: "subscriptions", fr: "Abonnements & échéances", en: "Subscriptions & renewals", Icon: CalendarClock },
     { tool: "telegram", view: "relances", fr: "Relances & prospects", en: "Follow-ups & leads", Icon: Flame },
+    { tool: "telegram", view: "agent", fr: "Agent Telegram", en: "Telegram agent", Icon: Sparkles },
     { tool: "telegram", view: "activity", fr: "Activité du canal", en: "Channel activity", Icon: Activity },
     { tool: "telegram", view: "bot", fr: "Réglages du bot", en: "Bot settings", Icon: Bot },
   ] },

@@ -2,7 +2,7 @@ export const ADMIN_TOOL_IDS = ["analytics", "annonces", "backoffice", "copieur",
 export type AdminToolId = (typeof ADMIN_TOOL_IDS)[number];
 export type AdminAccess = { owner: boolean; permissions: string[] };
 export const VIP_ADMIN_VIEWS = ["members", "requests", "subscriptions", "affiliation", "settings"] as const;
-export const TELEGRAM_ADMIN_VIEWS = ["overview", "new", "members", "subscriptions", "relances", "activity", "bot"] as const;
+export const TELEGRAM_ADMIN_VIEWS = ["overview", "new", "members", "subscriptions", "relances", "agent", "activity", "bot"] as const;
 export type TelegramAdminView = (typeof TELEGRAM_ADMIN_VIEWS)[number];
 /** Sub-views accepted per tool. The field keeps its historical name `vipView` so existing links and callers stay unchanged. */
 export type VipAdminView = (typeof VIP_ADMIN_VIEWS)[number] | TelegramAdminView;

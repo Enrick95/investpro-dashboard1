@@ -9,6 +9,7 @@ import type { VipAccessRequest } from "@/lib/vip/types";
 import { vipAffiliationBrokerLabel } from "@/lib/vip/identity";
 import { TELEGRAM_ADMIN_VIEWS, type TelegramAdminView } from "@/app/admin-preview/admin-tool-access";
 import s from "./TelegramAdmin.module.css";
+import AgentTelegram from "./AgentTelegram";
 
 type Application = {
   id: string; status: "submitted" | "approved" | "denied" | "claimed";
@@ -26,6 +27,7 @@ const TABS: { view: TelegramAdminView; label: string; Icon: typeof Send }[] = [
   { view: "members", label: "Membres", Icon: Users },
   { view: "subscriptions", label: "Abonnements", Icon: CalendarClock },
   { view: "relances", label: "Relances & prospects", Icon: Flame },
+  { view: "agent", label: "Agent Telegram", Icon: Sparkles },
   { view: "activity", label: "Activité du canal", Icon: Activity },
   { view: "bot", label: "Réglages du bot", Icon: Bot },
 ];
@@ -139,6 +141,7 @@ export default function TelegramAdmin() {
     <nav className={s.tabs} aria-label="Rubriques Telegram">
       {TABS.map(({ view: tab, label, Icon }) => <button type="button" key={tab} aria-current={view === tab ? "page" : undefined} onClick={() => go(tab)}><Icon size={15} aria-hidden="true" />{label}{tab === "new" && pendingNew.length > 0 && <b className={s.count}>{pendingNew.length}</b>}{tab === "relances" && leads.length > 0 && <b className={s.count}>{leads.length}</b>}</button>)}
     </nav>
+    {view === "agent" ? <AgentTelegram /> : <>
     <div className={s.toolbar}><span>{loading ? "Chargement…" : data ? `Mis à jour à ${new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(now)}` : ""}</span><button type="button" className={s.ghost} onClick={() => void load()} disabled={loading}><RefreshCw size={14} aria-hidden="true" />Actualiser</button></div>
     {error && <p className={s.error} role="alert">{error}</p>}
     {!data ? !error && <p className={s.muted}>Chargement des données du canal…</p> : <>
@@ -242,6 +245,7 @@ export default function TelegramAdmin() {
           </ul>
         </section>
       </div>}
+    </>}
     </>}
   </div>;
 }
