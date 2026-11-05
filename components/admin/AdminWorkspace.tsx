@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, Bell, ChevronRight, CircleHelp, Copy, CreditCard, Crown, FileText, Handshake, LayoutDashboard, Mail, Megaphone, Menu, Server, Settings2, ShieldCheck, TrendingUp, Users, Wallet, X, type LucideIcon } from "lucide-react";
+import { ArrowRight, Bell, ChevronRight, CircleHelp, Copy, CreditCard, Crown, FileText, Handshake, LayoutDashboard, Mail, MessageCircle, Megaphone, Menu, Server, Settings2, ShieldCheck, TrendingUp, Users, Wallet, X, type LucideIcon } from "lucide-react";
 import LanguageSwitcher from "@/components/i18n/LanguageSwitcher";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import AdminToolWorkspace from "@/app/admin-preview/AdminToolWorkspace";
@@ -24,6 +24,7 @@ const GROUPS: { fr: string; en: string; items: Entry[] }[] = [
     { tool: "vip", view: "members", fr: "Membres VIP", en: "VIP members", Icon: Users },
     { tool: "utilisateurs", fr: "Utilisateurs", en: "Users", Icon: Users },
     { tool: "vip", view: "requests", fr: "Demandes VIP", en: "VIP requests", Icon: ShieldCheck },
+    { tool: "essai-vip", fr: "Essais VIP · Prospects", en: "VIP trials · Leads", Icon: MessageCircle },
     { tool: "vip", view: "subscriptions", fr: "Abonnements", en: "Subscriptions", Icon: CreditCard },
     { tool: "vip", view: "affiliation", fr: "Affiliation & Copy", en: "Affiliation & Copy", Icon: Handshake },
     { tool: "copieur", fr: "InvestPro Copier", en: "InvestPro Copier", Icon: Copy },
