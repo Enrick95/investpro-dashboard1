@@ -8,6 +8,7 @@ import { deliverVipAccessConfirmations } from "@/lib/vip/access-confirmations";
 import { deliverVipRequestCompletionNotifications } from "@/lib/vip/request-completion-notifications";
 import { completionColumns, completionRevisionValid, validateCompletionRequest } from "@/lib/vip/request-completions";
 import type { VipAccessRequest } from "@/lib/vip/types";
+import { telegram } from "@/lib/telegram/server";
 const REQUEST_COLUMNS = `${VIP_ACCESS_REQUEST_COLUMNS},${completionColumns}`;
 
 export const runtime = "nodejs";
@@ -36,6 +37,9 @@ export async function POST(request: Request) {
     const source = await context.admin.from("vip_access_requests").select(REQUEST_COLUMNS).eq("id", body.id).maybeSingle();
     if (source.error) throw source.error;
     if (!source.data || source.data.status !== "pending") return vipJson({ error: "Cette demande a déjà été traitée ou n’existe plus." }, 409);
+    const memberIntake = source.data.member_intake === true;
+    const denialReason = typeof body.reason === "string" ? body.reason.trim().slice(0, 300) : "";
+    if (body.action === "deny" && memberIntake && denialReason.length < 5) return vipJson({ error: "Indiquez un motif de refus (5 caractères minimum)." }, 400);
     if (body.action === "request_completion") {
       const completion = validateCompletionRequest(body, source.data as VipAccessRequest);
       if (!completion.ok) return vipJson({ error: completion.error }, 400);
@@ -57,6 +61,15 @@ export async function POST(request: Request) {
     const checks = body.action === "approve" && source.data.request_kind === "new" ? validateNewVipApproval(body, source.data) : null;
     if (checks && !checks.ok) return vipJson({ error: checks.error }, 400);
     const verified = checks?.ok ? checks.value : null;
+    let inviteUrl: string | null = null;
+    if (body.action === "approve" && memberIntake) {
+      if (process.env.VERCEL_ENV !== "production" || !process.env.TELEGRAM_BOT_TOKEN || !process.env.TELEGRAM_VIP_CHAT_ID) return vipJson({ error: "L’invitation Telegram personnelle n’est pas configurée." }, 503);
+      try {
+        const invite = await telegram("createChatInviteLink", { chat_id: process.env.TELEGRAM_VIP_CHAT_ID, member_limit: 1, expire_date: Math.floor(Date.now() / 1000) + 3 * 24 * 60 * 60, name: `VIP-${source.data.id.slice(0, 8)}` }) as { invite_link?: string };
+        if (!invite.invite_link || !/^https:\/\/t\.me\//.test(invite.invite_link)) throw new Error("VIP invite unavailable");
+        inviteUrl = invite.invite_link;
+      } catch { return vipJson({ error: "Telegram n’a pas pu créer le lien personnel. La demande reste en attente." }, 503); }
+    }
     const { data, error } = await context.admin.rpc("vip_review_access_request_revision", {
       p_request_id: body.id, p_expected_revision: body.expectedRevision, p_action: body.action, p_reviewed_by: context.user.id,
       p_first_name: value?.first_name || null, p_last_name: value?.last_name || null,
@@ -66,12 +79,23 @@ export async function POST(request: Request) {
       p_payment_verified: verified?.verified_payment ?? false,
     });
     if (error) {
+      if (inviteUrl) { try { await telegram("revokeChatInviteLink", { chat_id: process.env.TELEGRAM_VIP_CHAT_ID, invite_link: inviteUrl }); } catch {} }
       if (error.message === "vip_request_revision_conflict") return vipJson({ error: "Le membre ou un autre administrateur a modifié le dossier. Actualisez et vérifiez à nouveau les informations." }, 409);
       if (error.message === "vip_completion_outstanding") return vipJson({ error: "Le membre doit répondre à la demande de complément avant validation." }, 409);
       if (error.message === "vip_request_unavailable") return vipJson({ error: "Cette demande a déjà été traitée ou n’existe plus." }, 409);
       if (error.message === "vip_membership_exists") return vipJson({ error: "Ce compte a déjà un accès VIP. Utilisez sa fiche membre pour le gérer." }, 409);
       if (error.message === "vip_request_approval_invalid") return vipJson({ error: "Vérifiez l’identité, le broker et la date réelle du dernier paiement." }, 400);
       throw error;
+    }
+    if (memberIntake && body.action === "approve") {
+      const member = await context.admin.from("vip_memberships").select("member_number").eq("user_id", source.data.user_id).maybeSingle();
+      if (member.error || !member.data) return vipJson({ error: "L’accès est validé, mais la carte membre n’a pas pu être finalisée. Contacte l’équipe." }, 503);
+      const saved = await context.admin.from("vip_access_requests").update({ channel_invite_url: inviteUrl, member_number: member.data.member_number }).eq("id", body.id).eq("status", "approved");
+      if (saved.error) return vipJson({ error: "L’accès est validé, mais le lien privé n’a pas pu être enregistré. Contacte l’équipe." }, 503);
+    }
+    if (memberIntake && body.action === "deny") {
+      const saved = await context.admin.from("vip_access_requests").update({ rejection_reason: denialReason }).eq("id", body.id).eq("status", "denied");
+      if (saved.error) throw saved.error;
     }
     after(async () => {
       if (process.env.VERCEL_ENV !== "production") return;
