@@ -10,6 +10,7 @@ import { vipAffiliationBrokerLabel } from "@/lib/vip/identity";
 import { TELEGRAM_ADMIN_VIEWS, type TelegramAdminView } from "@/app/admin-preview/admin-tool-access";
 import s from "./TelegramAdmin.module.css";
 import AgentTelegram from "./AgentTelegram";
+import BotConnection from "./BotConnection";
 
 type Application = {
   id: string; status: "submitted" | "approved" | "denied" | "claimed";
@@ -162,11 +163,11 @@ export default function TelegramAdmin() {
             <ul className={s.checks}>
               <li data-on="true">Alerte Telegram à chaque nouvelle demande VIP</li>
               <li data-on="true">Notification sur ton téléphone (à activer une fois par appareil)</li>
-              <li>Relances J-7 · J-5 · J0 avant échéance</li>
-              <li>Retrait du canal à J+3 après expiration</li>
-              <li>Résumé chaque matin à 9 h</li>
+              <li data-on="true">Rappels J-7 · J-5 · J0 avant échéance</li>
+              <li data-on="true">Retrait du canal le lendemain de l’expiration</li>
+              <li data-on="true">Résumé chaque matin à 9 h</li>
             </ul>
-            <Soon>Les relances automatiques arrivent à la prochaine étape.</Soon>
+            <Soon>Tout s’active au moment où le nouveau bot est branché sur le site principal.</Soon>
           </section>
         </div>
       </>}
@@ -194,13 +195,13 @@ export default function TelegramAdmin() {
 
       {view === "subscriptions" && <section className={s.card}>
         <header><h3>Échéances des abonnements</h3></header>
-        <div className={s.steps}><span>J-7 rappel</span><span>J-5 rappel</span><span>J0 dernier rappel</span><span data-tone="bad">J+3 retrait du canal</span></div>
+        <div className={s.steps}><span>J-7 rappel</span><span>J-5 rappel</span><span>J0 dernier rappel</span><span data-tone="bad">J+1 retrait du canal</span></div>
         {renewals.length ? renewals.map(member => { const left = daysUntil(member.expires_at, now) as number; const state = memberState(member, now); return <div className={s.row} key={member.user_id}>
           <div><b>{fullName(member.first_name, member.last_name)}</b><small>Échéance le {shortDate(member.expires_at)}{member.renewal_requested_at ? " · renouvellement demandé" : ""}</small></div>
           <div className={s.meter}><i style={{ width: `${Math.max(4, Math.min(100, (left / 30) * 100))}%` }} data-tone={state.tone} /></div>
           <Pill tone={state.tone}>{state.label}</Pill>
         </div>; }) : <p className={s.empty}>Aucun abonnement avec échéance.</p>}
-        <Soon>Les rappels J-7 / J-5 / J0 et le retrait J+3 seront envoyés automatiquement par le bot à la prochaine étape.</Soon>
+        <Soon>Rappels J-7 / J-5 / J0 envoyés par le bot (ou par e-mail si le membre n’a pas démarré le bot). Retrait du canal le lendemain de l’expiration, puis bouton « Relancer » dans ton Telegram.</Soon>
       </section>}
 
       {view === "relances" && <>
@@ -231,6 +232,7 @@ export default function TelegramAdmin() {
       </section>}
 
       {view === "bot" && <div className={s.grid2}>
+        <BotConnection />
         <section className={s.card}><header><h3>Notifications sur ton téléphone</h3></header>
           <p className={s.muted}>Reçois une notification à chaque nouvelle demande VIP. À faire une fois sur chaque téléphone, depuis l’app InvestPro installée sur l’écran d’accueil.</p>
           <AdminPhoneAlerts />
@@ -241,7 +243,7 @@ export default function TelegramAdmin() {
         </section>
         <section className={s.card + " " + s.wide}><header><h3>Automatisations du bot</h3></header>
           <ul className={s.switches}>
-            {[["Alerte Telegram à chaque nouvelle demande", true], ["Boutons Valider / Refuser directement dans Telegram", false], ["Suivi des arrivées et départs du canal", false], ["Rappels J-7, J-5 et J0 avant échéance", false], ["Retrait automatique du canal à J+3", false], ["Résumé du matin à 9 h", false], ["Agent de relance des prospects", false]].map(([label, on]) => <li key={label as string}><span>{label}</span><i data-on={on ? "true" : undefined}>{on ? "Actif" : "Bientôt"}</i></li>)}
+            {[["Alerte Telegram à chaque nouvelle demande", true], ["Boutons Valider / Refuser directement dans Telegram", true], ["Arrivées dans le canal via le lien d’invitation", true], ["Réponse automatique à /start et /aide", true], ["Rappels J-7, J-5 et J0 avant échéance", true], ["Retrait du canal le lendemain de l’expiration", true], ["Bouton « Relancer » après un retrait", true], ["Résumé du matin à 9 h", true], ["Agent de relance des prospects", false]].map(([label, on]) => <li key={label as string}><span>{label}</span><i data-on={on ? "true" : undefined}>{on ? "Prêt" : "Bientôt"}</i></li>)}
           </ul>
         </section>
       </div>}

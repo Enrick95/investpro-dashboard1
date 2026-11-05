@@ -125,3 +125,11 @@
 .selectLabel{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
 .selectLabel select{min-height:36px;padding:5px 8px;border:1px solid var(--line);border-radius:9px;background:#0d0f0d;color:var(--text);font:inherit;font-size:12px}
 @media (max-width:900px){.agentSplit{grid-template-columns:1fr}.agentList{position:static}.agentList ul{max-height:280px}}
+/* Connexion du bot */
+.botHead{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 14px;border-radius:12px;border:1px solid #f0c57545;background:#f0c5750d;font-weight:700;font-size:14px}
+.botHead[data-ready]{border-color:#91d6d055;background:#91d6d010;color:#cdeeea}
+.botLines{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:6px}
+.botLine{display:flex;align-items:center;gap:8px;padding:9px 11px;border-radius:10px;background:#0f120f;border:1px solid #20241f;font-size:13px;color:var(--muted)}
+.botLine>svg{flex-shrink:0;color:#e8a39a}
+.botLine[data-ok]{color:var(--text)}
+.botLine[data-ok]>svg{color:var(--teal)}

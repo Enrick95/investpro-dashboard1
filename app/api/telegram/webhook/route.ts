@@ -3,6 +3,7 @@ import {database,channel} from '@/lib/telegram/server';
 import {parseMessage} from '@/lib/telegram/engine';
 import {vipDatabase} from '@/lib/vip/membership-server';
 import {telegram} from '@/lib/telegram/server';
+import {relaunchMember} from '@/lib/telegram/vip-daily';
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
 export async function POST(req:Request){
@@ -13,8 +14,10 @@ export async function POST(req:Request){
   if(Number(req.headers.get('content-length')??0)>65536)return new Response(null,{status:413});
   const raw=await req.text();if(Buffer.byteLength(raw)>65536)return new Response(null,{status:413});
   let u;try{u=JSON.parse(raw);}catch{return new Response(null,{status:400});}
+  if(u.callback_query&&typeof u.callback_query.data==='string'&&u.callback_query.data.startsWith('viprenew:')) return await handleRenewCallback(u.callback_query);
   if(u.callback_query) return await handleVipMemberCallback(u.callback_query);
   if(u.chat_member) return await handleVipChannelJoin(u.chat_member);
+  if(u.message?.chat?.type==='private') return await handlePrivateMessage(u.message);
   const m=u.channel_post??u.edited_channel_post;
   if(!m||m.chat?.type!=='channel'||String(m.chat.id)!==channel())return Response.json({ok:true});
   if(!Number.isSafeInteger(u.update_id)||!Number.isSafeInteger(m.message_id)||!Number.isSafeInteger(m.date)||m.date<=0)return new Response(null,{status:400});
@@ -82,6 +85,42 @@ async function handleVipMemberCallback(q:any) {
   await telegram('answerCallbackQuery',{callback_query_id:q.id,text:action==='approve'?'Accès VIP validé.':'Demande refusée.'}).catch(()=>{});
   await telegram('editMessageReplyMarkup',{chat_id:chat.id,message_id:message.message_id,reply_markup:{inline_keyboard:[]}}).catch(()=>{});
   await telegram('sendMessage',{chat_id:chat.id,text:action==='approve'?`✅ Accès validé pour ${request.first_name} ${request.last_name}. Le lien personnel a été créé.`:`❌ Demande de ${request.first_name} ${request.last_name} refusée. Le membre recevra le motif générique de refus.`}).catch(()=>{});
+  return Response.json({ok:true});
+ } catch { return Response.json({ok:true}); }
+}
+
+/** Messages privés envoyés au bot : /start et /aide. Aucun contenu n’est enregistré. */
+async function handlePrivateMessage(message:any) {
+ try {
+  const text=typeof message?.text==='string'?message.text.trim():'';
+  const chatId=message?.chat?.id;
+  if(!Number.isSafeInteger(chatId)||!text.startsWith('/'))return Response.json({ok:true});
+  const owner=String(chatId)===(process.env.TELEGRAM_CHAT_ID||'');
+  if(/^\/start\b/.test(text)) {
+   await telegram('sendMessage',{chat_id:chatId,parse_mode:'HTML',text:owner
+    ?'✅ <b>C’est bon, je peux t’écrire.</b>\nTu recevras ici les nouvelles demandes VIP, les retraits d’abonnement et le résumé du matin.'
+    :'👋 <b>Bienvenue sur l’assistant InvestPro VIP.</b>\nTes rappels d’abonnement arriveront ici, quelques jours avant la fin de ton accès.\n\nUne question ? Écris à @EquipeInvestPro.'}).catch(()=>{});
+  } else if(/^\/aide\b/.test(text)) {
+   await telegram('sendMessage',{chat_id:chatId,text:'Pour toute question sur ton accès VIP, écris à @EquipeInvestPro. Rejoindre le VIP : https://investprotrading.fr/vip'}).catch(()=>{});
+  }
+  return Response.json({ok:true});
+ } catch { return Response.json({ok:true}); }
+}
+
+/** Bouton « Relancer » envoyé à Enrick après le retrait d’un membre expiré. */
+async function handleRenewCallback(q:any) {
+ try {
+  const adminChat=process.env.TELEGRAM_CHAT_ID||'';
+  const match=String(q.data).match(/^viprenew:([0-9a-f-]{36})$/i);
+  const chat=q?.message?.chat;
+  if(!match||!adminChat||String(chat?.id)!==adminChat||String(q?.from?.id)!==adminChat) {
+   await telegram('answerCallbackQuery',{callback_query_id:q.id,text:'Action réservée à l’équipe InvestPro.',show_alert:true}).catch(()=>{});
+   return Response.json({ok:true});
+  }
+  const result=await relaunchMember(vipDatabase(),match[1]);
+  const label=result==='telegram'?'Relance envoyée sur Telegram ✅':result==='email'?'Relance envoyée par e-mail ✅':'Impossible de le joindre (ni Telegram ni e-mail).';
+  await telegram('answerCallbackQuery',{callback_query_id:q.id,text:label,show_alert:result==='none'}).catch(()=>{});
+  if(result!=='none') await telegram('editMessageReplyMarkup',{chat_id:chat.id,message_id:q.message.message_id,reply_markup:{inline_keyboard:[]}}).catch(()=>{});
   return Response.json({ok:true});
  } catch { return Response.json({ok:true}); }
 }
