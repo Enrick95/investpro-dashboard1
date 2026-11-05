@@ -330,7 +330,7 @@ input[readonly]{color:var(--muted)}
 <section class="screen" data-s="1"><div class="panel">
 <div class="ph"><span class="pi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M21 4L3 11l6 2 2 6 3-4 5 4z"/></svg></span><h2>Tes informations</h2></div>
 <p class="lead">Pour vérifier ton inscription et te confirmer ton accès.</p>
-<form id="f2" novalidate>
+<form id="f2" novalidate><label aria-hidden="true" style="position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden">Ne pas remplir<input id="website" tabindex="-1" autocomplete="off"></label>
 <div class="row2">
 <div><label for="pre">Prénom</label><div class="field"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg><input id="pre" autocomplete="given-name" placeholder="Julien"></div></div>
 <div><label for="nom">Nom</label><div class="field"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg><input id="nom" autocomplete="family-name" placeholder="Martin"></div></div>
@@ -397,13 +397,13 @@ input[readonly]{color:var(--muted)}
 <p class="lead">Vérifie tes infos, puis envoie : l'équipe reçoit ta demande tout de suite.</p>
 <div class="recap" id="recap"></div>
 <div class="safe"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#91D6D0" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Ces infos restent privées : seuls toi et l'équipe y avez accès.</div>
-<button class="btn btn-gold" id="send">Continuer vers mon compte InvestPro<span class="go">→</span></button>
+<button class="btn btn-gold" id="send">Envoyer ma demande<span class="go">→</span></button>
 <button class="back" data-prev>← Modifier</button>
 </div></section>
 
 <section class="screen" data-s="5"><div class="panel">
 <div class="ph"><span class="pi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></span><h2>Crée ton compte InvestPro</h2></div>
-<p class="lead">Tes informations VIP sont prêtes. Crée ton compte sur InvestPro avec la même adresse e-mail : tu reviendras ici pour envoyer ta demande.</p><p class="help">Tes informations restent sur cet appareil jusqu’à 24 h. Si ton navigateur ne peut pas garder la capture, il te la redemandera à ton retour. Le dossier est effacé après l’envoi.</p>
+<p class="lead">Tu pourras créer ton compte depuis cette page après la validation de ton dossier par l'équipe.</p><p class="help">Aucun compte n'est nécessaire pour envoyer ta demande.</p>
 <a class="btn btn-gold" href="/signup?next=%2Fvip%2Fnouveau-membre%3Fresume%3D1" target="_top" data-auth-link>Créer mon compte et continuer<span class="go">→</span></a>
 <a class="btn btn-ghost" href="/login?next=%2Fvip%2Fnouveau-membre%3Fresume%3D1" target="_top" data-auth-link>J’ai déjà un compte<span class="go">→</span></a>
 <div class="err" id="draft-error" hidden></div>
@@ -413,14 +413,14 @@ input[readonly]{color:var(--muted)}
 <section class="screen" data-s="6"><div class="panel wait">
 <div class="radar"><span><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12M6 21h12M7 3c0 5 10 5 10 9s-10 4-10 9M17 3c0 5-10 5-10 9"/></svg></span></div>
 <h2 style="margin-top:24px">Demande reçue ✓</h2>
-<p class="lead" style="text-align:center">L'équipe vérifie ton inscription. Tu reçois un message sur Telegram dès que ton accès est ouvert.</p>
+<p class="lead" style="text-align:center">Ton dossier est envoyé à l'équipe. Tu recevras un e-mail après vérification pour créer ton compte si ta demande est validée.</p>
 <ul class="tl">
-<li class="d"><i>✓</i><span><b>Compte et infos</b><small>Reçus</small></span></li>
-<li class="d"><i>✓</i><span><b>Compte ajouté à Mes comptes</b><small>Synchronisation MetaTrader à activer séparément</small></span></li>
-<li class="c"><i>3</i><span><b>Vérification de l'affiliation et du dépôt</b><small>En cours par l'équipe</small></span></li>
-<li class="n"><i>4</i><span><b>Accès VIP ouvert</b><small>Ta carte membre et ton lien Telegram VIP</small></span></li>
+<li class="d"><i>✓</i><span><b>Dossier reçu</b><small>Coordonnées, broker, compte et justificatif transmis</small></span></li>
+<li class="c"><i>2</i><span><b>Vérification par l'équipe</b><small>L'accès VIP reste fermé pendant la vérification</small></span></li>
+<li class="n"><i>3</i><span><b>Création de ton compte</b><small>Un lien te sera envoyé après validation</small></span></li>
+<li class="n"><i>4</i><span><b>Accès VIP</b><small>Ouvert après création de ton compte InvestPro</small></span></li>
 </ul>
-<p class="note">Tu peux fermer cette page : ton statut est enregistré sur ton compte.</p>
+<p class="note">Tu peux fermer cette page. Surveille ta boîte e-mail pour la suite.</p>
 
 </div></section>
 </div>
@@ -507,10 +507,10 @@ document.getElementById('f3').onsubmit=function(e){e.preventDefault();var f=this
 function autoLink(){var l=document.getElementById('link'),st=document.getElementById('status'),c=document.getElementById('toRecap');l.classList.remove('ok');st.className='status';st.innerHTML='<span class="spin"></span>Préparation de ton compte…';c.hidden=true;
   setTimeout(function(){l.classList.add('ok');st.className='status ok';st.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Compte prêt à être enregistré';c.hidden=false;c.className='btn btn-gold'},1800)}
 document.getElementById('toRecap').onclick=function(){show(4)};
-function recap(){var r=[['Nom',D.pre+' '+D.nom],['Téléphone WhatsApp',D.tel],['E-mail',D.mail],['Telegram',D.tg],['Broker',D.bk],['Plateforme',D.plat],['Compte MetaTrader',D.acc],['Serveur',D.srv],['Dépôt',D.dep],['Capture','Ajoutée ✓'],['Compte InvestPro','Ajouté à Mes comptes après envoi'],['Synchronisation','À activer dans Connexions MetaTrader']];
+function recap(){var r=[['Nom',D.pre+' '+D.nom],['Téléphone WhatsApp',D.tel],['E-mail',D.mail],['Telegram',D.tg],['Broker',D.bk],['Plateforme',D.plat],['Compte MetaTrader',D.acc],['Serveur',D.srv],['Dépôt',D.dep],['Capture','Ajoutée ✓'],['Compte InvestPro','Ajouté à Mes comptes après envoi'],['Compte InvestPro','Créé après validation de la demande']];
   var box=document.getElementById('recap');box.innerHTML='';r.forEach(function(x){var d=document.createElement('div'),s=document.createElement('span'),b=document.createElement('b');s.textContent=x[0];b.textContent=x[1]||'—';d.appendChild(s);d.appendChild(b);box.appendChild(d)})}
 
-function syncSend(){var b=document.getElementById('send');if(!b)return;b.innerHTML=serverState&&serverState.user&&serverState.user.email?'Envoyer et débloquer mon accès<span class="go">→</span>':'Continuer vers mon compte InvestPro<span class="go">→</span>'}
+function syncSend(){var b=document.getElementById('send');if(!b)return;b.innerHTML='Envoyer ma demande<span class="go">→</span>'}
 function ready2(){var ok=['pre','nom'].every(function(id){return document.getElementById(id).value.trim()})&&document.getElementById('tel').value.replace(/\D/g,'').length>=9&&!!normTg(document.getElementById('tg').value)&&/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(document.getElementById('mail').value.trim());document.querySelector('#f2 button[type=submit]').classList.toggle('off',!ok);if(ok)err(document.getElementById('f2'),'')}
 function ready3(){var ok=!!bk&&!!plat&&/^\d{4,12}$/.test(document.getElementById('acc').value.trim())&&!!document.getElementById('srv').value.trim()&&!!document.getElementById('dep').value&&proof&&document.getElementById('viaLien').checked;document.querySelector('#f3 button[type=submit]').classList.toggle('off',!ok);if(ok)err(document.getElementById('f3'),'')}
 ['pre','nom','tel','tg','mail'].forEach(function(id){document.getElementById(id).addEventListener('input',function(){this.removeAttribute('aria-invalid');ready2()})});
@@ -519,11 +519,10 @@ document.addEventListener('click',function(e){if(e.target.closest('.bk,.pl,#drop
 ready2();ready3();show(0);bootstrap();
 document.getElementById('send').onclick=async function(){
   var btn=this;if(btn.disabled)return;
-  if(!serverState||!serverState.user||!serverState.user.email){try{var proofSaved=await saveDraft();show(5);if(!proofSaved)draftNotice('Tes informations sont gardées. Après ton inscription, il faudra peut-être ajouter à nouveau la capture du dépôt.',false)}catch(e){draftNotice(e.message||'Le stockage local est désactivé. Ouvre le site dans Safari ou Chrome en mode normal, puis réessaie.',true);show(5);return}return}
   var file=document.getElementById('proofFile').files[0]||D.proof;if(!file)return;
   btn.disabled=true;btn.dataset.original=btn.innerHTML;btn.textContent='Envoi en cours…';
-  var data=new FormData();data.set('firstName',D.pre);data.set('lastName',D.nom);data.set('email',D.mail);data.set('telWhatsapp',D.tel);data.set('telegram',D.tg.replace(/^@/,''));data.set('broker',({ 'Bullwaves':'bullwaves','Raise FX':'raise_fx','VT Markets':'vtmarkets','PU Prime':'puprime','Axi':'axi' })[D.bk]);data.set('plateforme',D.plat==='MetaTrader 4'?'MT4':'MT5');data.set('compteMT',D.acc);data.set('serveur',D.srv);data.set('depot',({'300 $ à 499 $':'300-499','500 $ à 999 $ (VIP + Copy)':'500-999','1 000 $ ou plus':'1000-plus'})[D.dep]);data.set('viaEnrick',document.getElementById('viaLien').checked?'true':'false');data.set('capture',file);
-  try{var response=await fetch('/api/vip/nouveau-membre',{method:'POST',body:data,credentials:'same-origin'});var result=await response.json();if(!response.ok)throw new Error(result.error||'Envoi impossible. Réessaie.');await clearDraft();show(6);pollStatus()}
+  var data=new FormData();data.set('firstName',D.pre);data.set('lastName',D.nom);data.set('email',D.mail);data.set('telWhatsapp',D.tel);data.set('telegram',D.tg.replace(/^@/,''));data.set('broker',({ 'Bullwaves':'bullwaves','Raise FX':'raise_fx','VT Markets':'vtmarkets','PU Prime':'puprime','Axi':'axi' })[D.bk]);data.set('plateforme',D.plat==='MetaTrader 4'?'MT4':'MT5');data.set('compteMT',D.acc);data.set('serveur',D.srv);data.set('depot',({'300 $ à 499 $':'300-499','500 $ à 999 $ (VIP + Copy)':'500-999','1 000 $ ou plus':'1000-plus'})[D.dep]);data.set('viaEnrick',document.getElementById('viaLien').checked?'true':'false');data.set('capture',file);data.set('website',document.getElementById('website')?.value||'');
+  try{var response=await fetch('/api/vip/nouveau-membre/demande',{method:'POST',body:data,credentials:'same-origin'});var result=await response.json();if(!response.ok)throw new Error(result.error||'Envoi impossible. Réessaie.');await clearDraft();show(6)}
   catch(error){btn.disabled=false;btn.innerHTML=btn.dataset.original;var f=document.querySelector('[data-s="4"] .panel'),e=f.querySelector('[data-err]')||document.createElement('div');e.className='err';e.textContent=error.message||'Envoi impossible. Réessaie.';e.hidden=false;if(!e.parentNode)btn.before(e)}
 };
 function win(request){request=request||{};document.getElementById('prenomWin').textContent=request.first_name||D.pre||'';document.getElementById('cardName').textContent=((request.first_name||D.pre||'')+' '+(request.last_name||D.nom||'')).trim();document.getElementById('cardNo').textContent='N° '+String(request.member_number||'').padStart(4,'0');var invite=document.querySelector('[data-invite]');invite.href=request.channel_invite_url||'#';invite.target='_blank';invite.rel='noopener noreferrer';
