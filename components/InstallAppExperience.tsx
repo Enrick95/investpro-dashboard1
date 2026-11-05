@@ -1,5 +1,6 @@
 "use client";
 import { useLocale } from "@/components/i18n/LocaleProvider";
+import { usePathname } from "next/navigation";
 
 
 import { useEffect, useRef, useState } from "react";
@@ -53,6 +54,7 @@ function isIOSDevice() {
 
 export default function InstallAppExperience() {
   const { t } = useLocale();
+  const pathname = usePathname();
 
   const [guideOpen, setGuideOpen] = useState(false);
   const [tab, setTab] = useState<"ios" | "android">("ios");
@@ -63,6 +65,11 @@ export default function InstallAppExperience() {
   const dialogRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
+    if (pathname === "/vip/nouveau-membre") {
+      setBannerVisible(false);
+      setGuideOpen(false);
+      return;
+    }
     let installed = isStandaloneMode();
     const mobile = window.matchMedia("(max-width: 900px)");
     const displayMode = window.matchMedia("(display-mode: standalone)");
@@ -108,7 +115,7 @@ export default function InstallAppExperience() {
       mobile.removeEventListener("change", onMobile);
       displayMode.removeEventListener("change", onDisplayMode);
     };
-  }, []);
+  }, [pathname]);
 
   useEffect(() => {
     if (!guideOpen) return;
