@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type CSSProperties, type FormEvent } from "react";
 import { vipRequest } from "@/lib/vip/client";
 import { VIP_AFFILIATION_BROKERS, vipAffiliationBrokerLabel } from "@/lib/vip/identity";
 
@@ -11,7 +11,7 @@ type Application={
   deposit_range:string;declared_deposit_usd:number;proof_path:string;created_at:string;
   approval_email_sent_at:string|null;claim_expires_at:string|null;claimed_user_id:string|null;
 };
-const style:Record<string,React.CSSProperties>={
+const style:Record<string,CSSProperties>={
   section:{background:"#101110",border:"1px solid #2d302d",borderRadius:18,padding:20,marginBottom:18,color:"#f3efe6"},
   heading:{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap"},
   grid:{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))",gap:12,margin:"16px 0"},
