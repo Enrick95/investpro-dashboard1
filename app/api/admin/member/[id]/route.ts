@@ -79,6 +79,7 @@ export async function GET(
       prefsResult,
       planResult,
       logsResult,
+      vipRequestsResult,
     ] = await Promise.all([
       admin
         .from("profiles")
@@ -117,6 +118,13 @@ export async function GET(
         .eq("target_user_id", id)
         .order("created_at", { ascending: false })
         .limit(20),
+
+      admin
+        .from("vip_access_requests")
+        .select("id,email,first_name,last_name,telegram_username,type,affiliation_broker,status,created_at,reviewed_at,reviewed_by,phone_whatsapp,broker_account_id,mt_platform,mt_server,deposit_range,via_enrick_link,member_intake,member_number,rejection_reason,trading_account_id,verified_deposit_usd,verified_broker_linked,verified_payment,channel_joined_at")
+        .eq("user_id", id)
+        .order("created_at", { ascending: false })
+        .limit(50),
     ]);
 
     if (profileResult.error) throw profileResult.error;
@@ -125,6 +133,7 @@ export async function GET(
 
     // Si la table de logs n'a pas encore été créée, on ne casse pas toute la fiche.
     const adminLogs = logsResult.error ? [] : logsResult.data || [];
+    const vipRequests = vipRequestsResult.error ? [] : vipRequestsResult.data || [];
 
     const profile: any = profileResult.data || {};
     const accounts: any[] = accountsResult.data || [];
@@ -168,6 +177,7 @@ export async function GET(
       preferences: prefsResult.data || null,
       trading_plan: planResult.data || null,
       admin_logs: adminLogs,
+      vip_requests: vipRequests,
       metrics: {
         accounts_count: accounts.length,
         automatic_accounts_count: accounts.filter(

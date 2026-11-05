@@ -45,6 +45,7 @@ type Payload = {
   preferences: any | null;
   trading_plan: any | null;
   admin_logs: any[];
+  vip_requests?: any[];
   metrics: {
     accounts_count: number;
     automatic_accounts_count: number;
@@ -395,6 +396,19 @@ export default function AdminMemberPage() {
               )}
             </div>
           </section>
+
+          {data.vip_requests?.length ? <section className="mt-4 overflow-hidden rounded-2xl border border-amber-300/15 bg-white/[0.02]">
+            <div className="border-b border-white/[0.06] p-4"><div className="font-semibold text-white">{tr("Historique VIP")}</div><div className="mt-1 text-[10px] text-white/30">{tr("Demandes, décisions et rattachements associés à ce membre.")}</div></div>
+            <div className="divide-y divide-white/[0.05]">{data.vip_requests.map((item: any) => <div key={item.id} className="grid grid-cols-1 gap-3 p-4 md:grid-cols-3">
+              <Info label={tr("Parcours / statut")} value={`${item.member_intake ? tr("Nouveau membre · affiliation") : item.type === "abonnement" ? tr("Abonnement") : tr("Demande VIP")} · ${item.status === "approved" ? tr("Validée") : item.status === "denied" ? tr("Refusée") : tr("À vérifier")}`} />
+              <Info label={tr("Demande / décision")} value={`${dateLabel(item.created_at, locale)}${item.reviewed_at ? ` · ${dateLabel(item.reviewed_at, locale)}` : ""}`} />
+              <Info label={tr("Broker / MetaTrader")} value={[item.affiliation_broker, item.mt_platform, item.broker_account_id, item.mt_server].filter(Boolean).join(" · ") || "—"} />
+              <Info label={tr("WhatsApp / Telegram")} value={[item.phone_whatsapp, item.telegram_username ? `@${item.telegram_username}` : ""].filter(Boolean).join(" · ") || "—"} />
+              <Info label={tr("Dépôt / vérification")} value={[item.deposit_range, item.verified_deposit_usd ? `${item.verified_deposit_usd} USD vérifiés` : "", item.verified_broker_linked ? tr("rattachement vérifié") : ""].filter(Boolean).join(" · ") || "—"} />
+              <Info label={tr("Motif de refus / compte") } value={item.rejection_reason || (item.trading_account_id ? `Mes comptes #${item.trading_account_id}` : "—")} />
+              {item.channel_joined_at && <Info label={tr("Entrée dans le canal VIP")} value={dateLabel(item.channel_joined_at, locale)} />}
+            </div>)}</div>
+          </section> : null}
 
           <section className="mt-4 overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.02]">
             <div className="border-b border-white/[0.06] p-4">

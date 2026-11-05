@@ -1,7 +1,7 @@
 import { isVipAffiliationBroker, normalizeVipPersonName, validateVipIdentity } from "./identity";
 import { isVipMembershipType } from "./membership";
 
-export const VIP_ACCESS_REQUEST_COLUMNS = "id,user_id,email,first_name,last_name,telegram_username,type,affiliation_broker,paid_on,status,created_at,reviewed_at,verified_type,verified_affiliation_broker,verified_paid_on,verified_expires_at,request_kind,broker_account_kind,broker_account_id,broker_email,declared_deposit_usd,copy_requested,verified_deposit_usd,verified_broker_linked,verified_payment";
+export const VIP_ACCESS_REQUEST_COLUMNS = "id,user_id,email,first_name,last_name,telegram_username,type,affiliation_broker,paid_on,status,created_at,reviewed_at,verified_type,verified_affiliation_broker,verified_paid_on,verified_expires_at,request_kind,broker_account_kind,broker_account_id,broker_email,declared_deposit_usd,copy_requested,verified_deposit_usd,verified_broker_linked,verified_payment,phone_whatsapp,mt_platform,mt_server,deposit_range,proof_path,via_enrick_link,channel_invite_url,member_number,rejection_reason,trading_account_id,member_intake";
 
 export type VipAccessRequestInput = {
   firstName?: unknown; lastName?: unknown; telegramUsername?: unknown;

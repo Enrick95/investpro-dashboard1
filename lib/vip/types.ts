@@ -103,6 +103,18 @@ export type VipAccessRequest = {
   verified_deposit_usd: number | null;
   verified_broker_linked: boolean;
   verified_payment: boolean;
+  phone_whatsapp?: string | null;
+  mt_platform?: "MT4" | "MT5" | null;
+  mt_server?: string | null;
+  deposit_range?: "300-499" | "500-999" | "1000-plus" | null;
+  proof_path?: string | null;
+  via_enrick_link?: boolean;
+  channel_invite_url?: string | null;
+  member_number?: number | null;
+  rejection_reason?: string | null;
+  trading_account_id?: number | null;
+  member_intake?: boolean;
+  channel_joined_at?: string | null;
   revision?: number;
   completion_fields?: string[];
   completion_note?: string | null;

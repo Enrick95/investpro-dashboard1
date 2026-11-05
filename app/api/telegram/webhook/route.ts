@@ -1,6 +1,8 @@
 import {timingSafeEqual} from 'node:crypto';
 import {database,channel} from '@/lib/telegram/server';
 import {parseMessage} from '@/lib/telegram/engine';
+import {vipDatabase} from '@/lib/vip/membership-server';
+import {telegram} from '@/lib/telegram/server';
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
 export async function POST(req:Request){
@@ -11,6 +13,8 @@ export async function POST(req:Request){
   if(Number(req.headers.get('content-length')??0)>65536)return new Response(null,{status:413});
   const raw=await req.text();if(Buffer.byteLength(raw)>65536)return new Response(null,{status:413});
   let u;try{u=JSON.parse(raw);}catch{return new Response(null,{status:400});}
+  if(u.callback_query) return await handleVipMemberCallback(u.callback_query);
+  if(u.chat_member) return await handleVipChannelJoin(u.chat_member);
   const m=u.channel_post??u.edited_channel_post;
   if(!m||m.chat?.type!=='channel'||String(m.chat.id)!==channel())return Response.json({ok:true});
   if(!Number.isSafeInteger(u.update_id)||!Number.isSafeInteger(m.message_id)||!Number.isSafeInteger(m.date)||m.date<=0)return new Response(null,{status:400});
@@ -22,4 +26,62 @@ export async function POST(req:Request){
   if(error)return Response.json({error:'Sauvegarde indisponible'},{status:503});
   return Response.json({ok:true});
  }catch{return Response.json({error:'Service indisponible'},{status:503});}
+}
+
+async function handleVipChannelJoin(update:any) {
+ try {
+  const expected=process.env.TELEGRAM_VIP_CHAT_ID||'';
+  const user=update?.new_chat_member?.user;
+  const status=update?.new_chat_member?.status;
+  const oldStatus=update?.old_chat_member?.status;
+  const invite=update?.invite_link?.invite_link;
+  if(!expected||String(update?.chat?.id)!==expected||!invite||!user||!['member','administrator','creator'].includes(status)||['member','administrator','creator'].includes(oldStatus)) return Response.json({ok:true});
+  const db=vipDatabase();
+  const {data}=await db.from('vip_access_requests').select('id').eq('channel_invite_url',invite).eq('status','approved').eq('member_intake',true).maybeSingle();
+  if(data) await db.from('vip_access_requests').update({channel_joined_at:new Date().toISOString(),channel_user_id:Number.isSafeInteger(user.id)?user.id:null,channel_username:typeof user.username==='string'?user.username.slice(0,32):null}).eq('id',data.id).eq('status','approved');
+  return Response.json({ok:true});
+ } catch { return Response.json({ok:true}); }
+}
+
+async function handleVipMemberCallback(q:any) {
+ try {
+  const match=typeof q?.data==='string'?q.data.match(/^vipmember:(approve|deny):([0-9a-f-]{36})$/i):null;
+  const message=q?.message, chat=message?.chat, from=q?.from;
+  const adminChat=process.env.TELEGRAM_CHAT_ID||'';
+  const allowedIds=(process.env.TELEGRAM_ADMIN_TELEGRAM_IDS||'').split(',').map((v:string)=>v.trim()).filter(Boolean);
+  const privateOwner=chat?.type==='private'&&String(chat.id)===adminChat&&String(from?.id)===adminChat;
+  if(!match||!adminChat||String(chat?.id)!==adminChat||!(privateOwner||allowedIds.includes(String(from?.id)))) {
+    if(q?.id) await telegram('answerCallbackQuery',{callback_query_id:q.id,text:'Action réservée à l’équipe InvestPro.',show_alert:true}).catch(()=>{});
+    return Response.json({ok:true});
+  }
+  const [,action,id]=match;
+  const reviewer=(process.env.TELEGRAM_ADMIN_USER_IDS||'').split(',').map(v=>v.trim()).find(v=>/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(v));
+  if(!reviewer) { await telegram('answerCallbackQuery',{callback_query_id:q.id,text:'Admin InvestPro non configuré.',show_alert:true}).catch(()=>{}); return Response.json({ok:true}); }
+  const db=vipDatabase();
+  const {data:request,error:readError}=await db.from('vip_access_requests').select('id,user_id,first_name,last_name,type,affiliation_broker,paid_on,declared_deposit_usd,verified_deposit_usd,revision,status,request_kind,member_intake,broker_linked_verified').eq('id',id).maybeSingle();
+  if(readError||!request||request.status!=='pending'||request.member_intake!==true) { await telegram('answerCallbackQuery',{callback_query_id:q.id,text:'Cette demande n’est plus en attente.',show_alert:true}).catch(()=>{}); return Response.json({ok:true}); }
+  let inviteUrl:string|null=null;
+  if(action==='approve') {
+    const channelId=process.env.TELEGRAM_VIP_CHAT_ID;
+    if(!channelId) { await telegram('answerCallbackQuery',{callback_query_id:q.id,text:'Canal VIP non configuré.',show_alert:true}).catch(()=>{}); return Response.json({ok:true}); }
+    try { const invite=await telegram('createChatInviteLink',{chat_id:channelId,member_limit:1,expire_date:Math.floor(Date.now()/1000)+259200,name:`VIP-${id.slice(0,8)}`}) as {invite_link?:string}; inviteUrl=invite.invite_link||null; }
+    catch { inviteUrl=null; }
+    if(!inviteUrl) { await telegram('answerCallbackQuery',{callback_query_id:q.id,text:'Telegram n’a pas créé le lien. Réessaie depuis l’admin.',show_alert:true}).catch(()=>{}); return Response.json({ok:true}); }
+  }
+  const {error}=await db.rpc('vip_review_access_request_revision',{
+    p_request_id:id,p_expected_revision:request.revision||0,p_action:action,p_reviewed_by:reviewer,
+    p_first_name:request.first_name,p_last_name:request.last_name,p_type:'affiliation',p_affiliation_broker:request.affiliation_broker,p_paid_on:null,
+    p_verified_deposit_usd:action==='approve'?Math.max(300,Number(request.declared_deposit_usd)||300):null,
+    p_broker_linked_verified:action==='approve',p_payment_verified:false,
+  });
+  if(error) { if(inviteUrl) await telegram('revokeChatInviteLink',{chat_id:process.env.TELEGRAM_VIP_CHAT_ID,invite_link:inviteUrl}).catch(()=>{}); await telegram('answerCallbackQuery',{callback_query_id:q.id,text:'La demande n’a pas été modifiée. Actualise l’admin.',show_alert:true}).catch(()=>{}); return Response.json({ok:true}); }
+  if(action==='approve') {
+    const {data:member}=await db.from('vip_memberships').select('member_number').eq('user_id',request.user_id).maybeSingle();
+    if(member?.member_number) await db.from('vip_access_requests').update({channel_invite_url:inviteUrl,member_number:member.member_number}).eq('id',id).eq('status','approved');
+  } else await db.from('vip_access_requests').update({rejection_reason:'Refusée après vérification par l’équipe. Contacte @EquipeInvestPro si tu as une question.'}).eq('id',id).eq('status','denied');
+  await telegram('answerCallbackQuery',{callback_query_id:q.id,text:action==='approve'?'Accès VIP validé.':'Demande refusée.'}).catch(()=>{});
+  await telegram('editMessageReplyMarkup',{chat_id:chat.id,message_id:message.message_id,reply_markup:{inline_keyboard:[]}}).catch(()=>{});
+  await telegram('sendMessage',{chat_id:chat.id,text:action==='approve'?`✅ Accès validé pour ${request.first_name} ${request.last_name}. Le lien personnel a été créé.`:`❌ Demande de ${request.first_name} ${request.last_name} refusée. Le membre recevra le motif générique de refus.`}).catch(()=>{});
+  return Response.json({ok:true});
+ } catch { return Response.json({ok:true}); }
 }
