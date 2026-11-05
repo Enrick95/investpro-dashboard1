@@ -449,10 +449,10 @@ function show(n,rev){var prev=cur;cur=n;intro.hidden=n!==0;flow.hidden=!(n>=1&&n
     document.getElementById('ringFg').style.strokeDashoffset=157-157*(n===6?1:(st-.5)/5);
     document.querySelectorAll('#chips i').forEach(function(c,i){c.className=i+1<st||n===6?'ok':i+1===st?'on':''})}
   scrollTo({top:0,behavior:'smooth'});if(n===5)recap();if(n===7)win()}
-document.getElementById('start').onclick=function(){show(1)};
+document.getElementById('start').onclick=function(){show(serverState&&serverState.user&&serverState.user.email?2:1)};
 document.querySelectorAll('[data-prev]').forEach(function(b){b.onclick=function(){show(cur-1,true)}});
-var serverState=null,pollTimer=null;function applyState(data){serverState=data;if(data.user&&data.user.email){document.getElementById('who').classList.add('on');document.getElementById('whoTxt').textContent='Connecté';var m=document.getElementById('mail');if(!m.value)m.value=data.user.email}if(data.request){D.pre=data.request.first_name||'';D.nom=data.request.last_name||'';if(data.request.status==='approved'&&data.request.channel_invite_url){show(7);win(data.request);return}if(data.request.status==='pending'||data.request.status==='approved'){show(6);return}if(data.request.status==='denied'){show(2);var f=document.querySelector('#f2 [data-err]');f.textContent=data.request.rejection_reason?'Demande refusée : '+data.request.rejection_reason:'Ta demande a été refusée. Écris à @EquipeInvestPro si tu as une question.';f.hidden=false;return}}show(2)}
-async function bootstrap(){try{var res=await fetch('/api/vip/nouveau-membre',{credentials:'same-origin',cache:'no-store'});if(res.status===401){show(1);return}var data=await res.json();if(!res.ok)throw Error();applyState(data)}catch(e){show(1)}}
+var serverState=null,pollTimer=null;function applyState(data){serverState=data;if(data.user&&data.user.email){document.getElementById('who').classList.add('on');document.getElementById('whoTxt').textContent='Connecté';var m=document.getElementById('mail');if(!m.value)m.value=data.user.email}if(data.request){D.pre=data.request.first_name||'';D.nom=data.request.last_name||'';if(data.request.status==='approved'&&data.request.channel_invite_url){show(7);win(data.request);return}if(data.request.status==='pending'||data.request.status==='approved'){show(6);return}if(data.request.status==='denied'){show(2);var f=document.querySelector('#f2 [data-err]');f.textContent=data.request.rejection_reason?'Demande refusée : '+data.request.rejection_reason:'Ta demande a été refusée. Écris à @EquipeInvestPro si tu as une question.';f.hidden=false;return}}show(0)}
+async function bootstrap(){try{var res=await fetch('/api/vip/nouveau-membre',{credentials:'same-origin',cache:'no-store'});if(res.status===401){show(0);return}var data=await res.json();if(!res.ok)throw Error();applyState(data)}catch(e){show(0)}}
 async function pollStatus(){clearTimeout(pollTimer);try{var res=await fetch('/api/vip/nouveau-membre',{credentials:'same-origin',cache:'no-store'});if(res.ok){var data=await res.json();if(data.request&&data.request.status==='approved'&&data.request.channel_invite_url){applyState(data);return}if(data.request&&data.request.status==='denied'){applyState(data);return}}}finally{pollTimer=setTimeout(pollStatus,20000)}}
 function err(f,t){var e=f.querySelector('[data-err]');e.textContent=t;e.hidden=!t;return false}
 function normTg(v){v=(v||'').trim().replace(/^https?:\/\//i,'').replace(/^(www\.)?(t|telegram)\.me\//i,'').replace(/^@+/,'').replace(/\/+$/,'');return /^[A-Za-z][A-Za-z0-9_]{4,31}$/.test(v)?'@'+v:''}
@@ -483,7 +483,7 @@ function ready3(){var ok=!!bk&&!!plat&&/^\d{4,12}$/.test(document.getElementById
 ['pre','nom','tel','tg','mail'].forEach(function(id){document.getElementById(id).addEventListener('input',function(){this.removeAttribute('aria-invalid');ready2()})});
 ['acc','srv','dep','viaLien'].forEach(function(id){var e=document.getElementById(id);e.addEventListener('input',function(){e.removeAttribute('aria-invalid');ready3()});e.addEventListener('change',ready3)});
 document.addEventListener('click',function(e){if(e.target.closest('.bk,.pl,#drop'))setTimeout(ready3,0)});
-ready2();ready3();bootstrap();
+ready2();ready3();show(0);bootstrap();
 document.getElementById('send').onclick=async function(){
   var btn=this;if(btn.disabled)return;var file=document.getElementById('proofFile').files[0];if(!file)return;
   btn.disabled=true;btn.dataset.original=btn.innerHTML;btn.textContent='Envoi en cours…';
