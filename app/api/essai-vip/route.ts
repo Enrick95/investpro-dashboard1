@@ -6,8 +6,8 @@ export const runtime = "nodejs";
 
 const MAX_BODY_BYTES = 8192;
 
-function json(ok: boolean, status = 200, headers: Record<string, string> = {}) {
-  return Response.json({ ok }, { status, headers: { "Cache-Control": "no-store", ...headers } });
+function json(ok: boolean, status = 200, headers: Record<string, string> = {}, error?: string) {
+  return Response.json(error ? { ok, error } : { ok }, { status, headers: { "Cache-Control": "no-store", ...headers } });
 }
 
 function isSameOriginRequest(request: Request): boolean {
@@ -61,6 +61,7 @@ export async function POST(request: Request) {
   if ("status" in parsed) return json(false, parsed.status);
   const validation = validateEssaiVipPayload(parsed.value);
   if (validation.kind === "honeypot") return json(true);
+  if (validation.kind === "invalid-telegram") return json(false, 400, {}, "telegram");
   if (validation.kind === "invalid") return json(false, 400);
 
   // Previews must never forward demo credentials to the live team's Telegram.

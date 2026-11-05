@@ -6,7 +6,7 @@ import vm from "node:vm";
 import ts from "typescript";
 
 const project = path.resolve(import.meta.dirname, "..");
-const submission = { broker: "VT Markets", nom: "Test", telegram: "@test", compte: "1", serveur: "S", motdepasse: "x", website: "" };
+const submission = { broker: "VT Markets", nom: "Test", telegram: "@tester", compte: "1", serveur: "S", motdepasse: "x", website: "" };
 
 function compile(file, modules = {}, globals = {}) {
   const compiledModule = { exports: {} };
@@ -93,6 +93,24 @@ test("the documented curl submission sends exactly one HTML Telegram message", a
   assert.match(message.text, /<code>x<\/code>/);
 });
 
+test("Telegram usernames and t.me links normalize to a clickable @username; phone numbers and names are rejected", async () => {
+  for (const [telegram, expected] of [
+    ["julien", "@julien"], ["@julien_m", "@julien_m"], ["https://t.me/julien_95", "@julien_95"],
+  ]) {
+    const { post, calls } = fixture();
+    assert.equal((await post({ ...submission, telegram })).status, 200);
+    const message = JSON.parse(calls.fetch[0].options.body).text;
+    assert.ok(message.includes(`<a href="https://t.me/${expected.slice(1)}">${expected}</a>`));
+  }
+  for (const telegram of ["0612345678", "Julien Martin"]) {
+    const { post, calls } = fixture();
+    const response = await post({ ...submission, telegram });
+    assert.equal(response.status, 400);
+    assert.deepEqual(response.body, { ok: false, error: "telegram" });
+    assert.equal(calls.rate.length + calls.fetch.length, 0);
+  }
+});
+
 test("all five brokers are accepted and numeric group destinations stay server controlled", async () => {
   for (const broker of helpers.ESSAI_VIP_BROKERS) {
     const { post, calls } = fixture({ env: { TELEGRAM_CHAT_ID: "-1001234567890" } });
@@ -130,14 +148,15 @@ test("a nonempty honeypot returns success without validation, storage, quota or 
 test("HTML is escaped and a password is preserved without trimming, normalizing or truncation", async () => {
   const { post, calls } = fixture();
   const motdepasse = "  <a&>E\u0301" + "&".repeat(240) + "  ";
-  assert.equal((await post({ ...submission, nom: " <b>A&B</b> ", telegram: "@test&", serveur: "<S>", motdepasse })).status, 200);
+  assert.equal((await post({ ...submission, nom: " <b>A&B</b> ", telegram: "@test_user", serveur: "<S>", motdepasse })).status, 200);
   const message = JSON.parse(calls.fetch[0].options.body).text;
   assert.match(message, /&lt;b&gt;A&amp;B&lt;\/b&gt;/);
-  assert.match(message, /@test&amp;/);
+  assert.match(message, /<a href="https:\\/\\/t\\.me\\/test_user">@test_user<\\/a>/);
   assert.match(message, /&lt;S&gt;/);
   assert.ok(message.includes(`<code>${helpers.escapeEssaiVipHtml(motdepasse)}</code>`));
   assert.equal(message.includes("<b>A&B</b>"), false);
   const largest = Object.fromEntries(Object.entries(helpers.ESSAI_VIP_FIELD_LIMITS).map(([key, limit]) => [key, "&".repeat(limit)]));
+  largest.telegram = "@" + "a".repeat(31);
   const validated = helpers.validateEssaiVipPayload({ ...submission, ...largest });
   assert.equal(validated.kind, "valid");
   assert.ok(helpers.buildEssaiVipMessage(validated.value).length < 4096);
