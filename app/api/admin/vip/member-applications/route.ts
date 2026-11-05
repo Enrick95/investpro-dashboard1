@@ -91,12 +91,13 @@ async function sendApprovalEmail(app:Record<string,unknown>):Promise<boolean> {
   url.searchParams.set("application",id);
   const name=typeof app.verified_first_name==="string"?app.verified_first_name:(typeof app.first_name==="string"?app.first_name:"");
   const safeName=name.replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]!));
+  const safeEmail=email.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;").split(String.fromCharCode(34)).join("&quot;").split(String.fromCharCode(39)).join("&#39;");
   try {
     const response=await fetch("https://api.resend.com/emails",{
       method:"POST",headers:{Authorization:`Bearer ${apiKey}`,"Content-Type":"application/json"},
       body:JSON.stringify({
         from,to:[email],subject:"Ta demande VIP est validée · crée ton compte InvestPro",
-        html:`<div style="font-family:Arial,sans-serif;background:#0b0d0b;color:#f3efe6;padding:32px;border-radius:16px"><h1 style="color:#f0c575">Ta demande VIP est validée</h1><p>Bonjour ${safeName},</p><p>L’équipe a vérifié ton dossier. Tu peux maintenant créer ton compte InvestPro ou te connecter avec cette adresse e-mail pour ouvrir ton accès VIP.</p><p><a href="${url.toString()}" style="display:inline-block;background:#f0c575;color:#111;padding:14px 20px;border-radius:10px;text-decoration:none;font-weight:bold">Continuer sur InvestPro</a></p><p>Utilise bien l’adresse e-mail de ta demande : ${email}</p></div>`,
+        html:`<div style="font-family:Arial,sans-serif;background:#0b0d0b;color:#f3efe6;padding:32px;border-radius:16px"><h1 style="color:#f0c575">Ta demande VIP est validée</h1><p>Bonjour ${safeName},</p><p>L’équipe a vérifié ton dossier. Tu peux maintenant créer ton compte InvestPro ou te connecter avec cette adresse e-mail pour ouvrir ton accès VIP.</p><p><a href="${url.toString()}" style="display:inline-block;background:#f0c575;color:#111;padding:14px 20px;border-radius:10px;text-decoration:none;font-weight:bold">Continuer sur InvestPro</a></p><p>Utilise bien l’adresse e-mail de ta demande : ${safeEmail}</p></div>`,
         text:`Bonjour ${name}, ta demande VIP a été validée. Crée ton compte InvestPro ou connecte-toi avec ${email} : ${url.toString()}`,
       }),
       cache:"no-store",signal:AbortSignal.timeout(12000),
