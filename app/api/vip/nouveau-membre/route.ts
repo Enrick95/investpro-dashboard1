@@ -106,7 +106,7 @@ export async function POST(request: Request) {
 
     const inserted = await context.db.from("vip_access_requests").insert({
       user_id: context.user.id, email: memberEmail, first_name: firstName.normalize("NFC"), last_name: lastName.normalize("NFC"), telegram_username: rawTg.toLowerCase(),
-      type: "affiliation", affiliation_broker: broker, status: "pending", request_kind: "new",
+      member_intake: true, type: "affiliation", affiliation_broker: broker, status: "pending", request_kind: "new",
       broker_account_kind: "new", broker_account_id: account, broker_email: context.user.email.toLowerCase(), declared_deposit_usd: depositMin[deposit], copy_requested: false,
       phone_whatsapp: tel, mt_platform: platform, mt_server: server, deposit_range: deposit,
       proof_path: proofPath, via_enrick_link: viaLink, trading_account_id: accountId,
