@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 type RequestInfo={first_name?:string;last_name?:string;member_number?:number;channel_invite_url?:string};
-const box:React.CSSProperties={maxWidth:620,margin:"8vh auto",padding:28,background:"#111310",border:"1px solid #3b3526",borderRadius:22,color:"#f3efe6",fontFamily:"Manrope,Arial,sans-serif",boxShadow:"0 24px 90px #0008"};
+const box:CSSProperties={maxWidth:620,margin:"8vh auto",padding:28,background:"#111310",border:"1px solid #3b3526",borderRadius:22,color:"#f3efe6",fontFamily:"Manrope,Arial,sans-serif",boxShadow:"0 24px 90px #0008"};
 const button:React.CSSProperties={display:"inline-block",background:"#f0c575",color:"#15130e",padding:"13px 18px",borderRadius:10,fontWeight:800,textDecoration:"none",margin:"8px 8px 0 0"};
 const outline:React.CSSProperties={display:"inline-block",border:"1px solid #444",color:"#f3efe6",padding:"13px 18px",borderRadius:10,fontWeight:700,textDecoration:"none",margin:"8px 8px 0 0"};
 
