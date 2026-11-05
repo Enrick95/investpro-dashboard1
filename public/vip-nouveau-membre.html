@@ -253,6 +253,16 @@ input[readonly]{color:var(--muted)}
 .soon b{display:block}.soon small{color:var(--muted);font-size:13px}
 .soon em{margin-left:auto;font-style:normal;font-size:10.5px;font-weight:800;color:var(--gold);border:1px solid var(--line);padding:4px 9px;border-radius:999px}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.js .rv,.js .stg>*,.word{opacity:1!important;transform:none!important}}
+
+/* Installation proposée à la fin du parcours, sans bannière pendant l'inscription */
+.install-final{margin-top:28px;padding:18px;border:1px solid rgba(240,197,117,.24);border-radius:20px;background:linear-gradient(145deg,rgba(240,197,117,.08),rgba(145,214,208,.04))}
+.install-final h3{margin:0;font:600 18px/1.3 Unbounded,sans-serif;color:var(--fg)}
+.install-final>p{margin:8px 0 0;color:var(--muted);font-size:13.5px;line-height:1.55}
+.install-final-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px}
+.install-final-item{padding:13px;border:1px solid var(--line2);border-radius:14px;background:rgba(11,13,11,.48)}
+.install-final-item b{display:block;color:var(--gold);font-size:13px}
+.install-final-item span{display:block;margin-top:5px;color:var(--soft);font-size:12px;line-height:1.5}
+@media(max-width:400px){.install-final-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -431,6 +441,14 @@ input[readonly]{color:var(--muted)}
 <div class="soon"><span class="pi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#91D6D0" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M3 20h18M6 16l4-5 3 3 5-7"/></svg></span><div><b>Ton journal de trading</b><small>Compte enregistré · synchronisation à activer</small></div><em style="color:var(--gold);border-color:var(--line)">À lier</em></div>
 <a class="btn btn-ghost" href="/dashboard/connexions">Relier mon compte MetaTrader</a>
 <p class="note">Cette page reste accessible depuis ton compte.</p>
+<div class="install-final">
+<h3>Ajoute InvestPro à ton téléphone</h3>
+<p>Retrouve ton espace VIP en un geste depuis l’écran d’accueil.</p>
+<div class="install-final-grid">
+<div class="install-final-item"><b>iPhone · Safari</b><span>Appuie sur « Partager », puis « Sur l’écran d’accueil » et « Ajouter ».</span></div>
+<div class="install-final-item"><b>Android · Chrome</b><span>Ouvre le menu ⋮, choisis « Installer l’application » ou « Ajouter à l’écran d’accueil ».</span></div>
+</div>
+</div>
 
 </section>
 </div>
