@@ -23,6 +23,7 @@ const TOOLS = {
   backoffice: dynamic(() => import("@/app/dashboard/admin/backoffice/page"), { ssr: false, loading: LoadingTool }),
   copieur: dynamic(() => import("@/app/dashboard/admin/copieur/page"), { ssr: false, loading: LoadingTool }),
   feedback: dynamic(() => import("@/app/dashboard/admin/feedback/page"), { ssr: false, loading: LoadingTool }),
+  "essai-vip": dynamic(() => import("@/app/dashboard/admin/essai-vip/page"), { ssr: false, loading: LoadingTool }),
   finance: dynamic(() => import("@/app/dashboard/admin/finance/page"), { ssr: false, loading: LoadingTool }),
   inbox: dynamic(() => import("@/app/dashboard/admin/inbox/page"), { ssr: false, loading: LoadingTool }),
   moderation: dynamic(() => import("@/app/dashboard/admin/moderation/page"), { ssr: false, loading: LoadingTool }),
