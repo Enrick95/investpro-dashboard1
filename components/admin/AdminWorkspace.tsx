@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Activity, Sparkles, ArrowRight, Bell, Bot, CalendarClock, ChevronRight, Flame, Send, UserPlus, CircleHelp, Copy, CreditCard, Crown, FileText, Handshake, LayoutDashboard, Mail, MessageCircle, Megaphone, Menu, Server, Settings2, ShieldCheck, TrendingUp, Users, Wallet, X, type LucideIcon } from "lucide-react";
 import LanguageSwitcher from "@/components/i18n/LanguageSwitcher";
 import { useLocale } from "@/components/i18n/LocaleProvider";
-import AdminToolWorkspace from "@/app/admin-preview/AdminToolWorkspace";
+import AdminToolWorkspace, { preloadAdminTool, preloadAllAdminTools } from "@/app/admin-preview/AdminToolWorkspace";
 import { adminToolPreviewHref, parseAdminToolQuery, parseCurrentAdminPath, type AdminToolId, type AdminToolTarget, type VipAdminView } from "@/app/admin-preview/admin-tool-access";
 import s from "./AdminWorkspace.module.css";
 import { useAdminInboxCount } from "./useAdminInboxCount";
@@ -102,7 +102,7 @@ function Navigation({ target, navigate, tr, inboxCount }: { target: AdminToolTar
       {group.items.map(({ tool, view, fr, en, Icon }) => {
         const active = isCurrent(target, { tool, view, fr, en, Icon });
         const next = { tool, ...(view ? { vipView: view } : {}) };
-        return <Link href={adminToolPreviewHref(tool, undefined, "/dashboard/admin", view)} prefetch={false} key={tool + ":" + (view || "default")} onClick={event => activate(event, next)} aria-current={active ? "page" : undefined}><span className={s.navTile}><Icon size={16} aria-hidden="true" /></span><span>{tr(fr, en)}</span>{tool === "inbox" && <InboxBadge count={inboxCount} tr={tr} />}<ChevronRight size={13} className={s.openToolIcon} aria-hidden="true" /></Link>;
+        return <Link href={adminToolPreviewHref(tool, undefined, "/dashboard/admin", view)} prefetch={false} key={tool + ":" + (view || "default")} onClick={event => activate(event, next)} onMouseEnter={() => preloadAdminTool(tool)} onFocus={() => preloadAdminTool(tool)} aria-current={active ? "page" : undefined}><span className={s.navTile}><Icon size={16} aria-hidden="true" /></span><span>{tr(fr, en)}</span>{tool === "inbox" && <InboxBadge count={inboxCount} tr={tr} />}<ChevronRight size={13} className={s.openToolIcon} aria-hidden="true" /></Link>;
       })}
     </div></div>)}
   </nav>;
@@ -135,9 +135,19 @@ export default function AdminWorkspace() {
     heading.current?.focus({ preventScroll: true });
   }, [key]);
   function navigate(next: AdminToolTarget) {
-    router.push(adminToolPreviewHref(next.tool, next.memberId, "/dashboard/admin", next.vipView), { scroll: false });
+    // Changement de rubrique côté navigateur, sans aller-retour serveur : l’adresse est mise à jour
+    // et Next.js synchronise useSearchParams. Le serveur ne sert ici que les données de la rubrique.
+    const href = adminToolPreviewHref(next.tool, next.memberId, "/dashboard/admin", next.vipView);
+    if (typeof window !== "undefined" && window.history?.pushState) window.history.pushState(null, "", href);
+    else router.push(href, { scroll: false });
     navDialog.current?.close();
   }
+  useEffect(() => {
+    // Une fois l’admin affiché, on précharge le code de toutes les rubriques pendant que le navigateur est libre.
+    const idle = (window as Window & { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback;
+    const timer = window.setTimeout(() => { if (idle) idle(preloadAllAdminTools); else preloadAllAdminTools(); }, 1500);
+    return () => window.clearTimeout(timer);
+  }, []);
   function navigatePath(path: string) {
     const next = parseCurrentAdminPath(path);
     if (next) navigate(next);

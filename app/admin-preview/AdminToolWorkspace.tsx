@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { Component, useEffect, useId, useState, type MouseEvent, type ReactNode } from "react";
+import { Component, useEffect, useId, useState, type ComponentType, type MouseEvent, type ReactNode } from "react";
 import { ArrowRight, Bell, ChevronDown, Loader2, LockKeyhole, RefreshCw, ShieldCheck } from "lucide-react";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { AdminPreviewNavigationProvider } from "@/components/admin/AdminPreviewNavigation";
@@ -16,27 +16,50 @@ function LoadingTool() {
   return <div className={s.loading} role="status"><Loader2 size={20} aria-hidden="true" /><span>{locale === "en" ? "Loading the current tool…" : "Chargement de l’outil actuel…"}</span></div>;
 }
 
-// Import functions are declared statically, but a module is rendered and loaded only after the targeted server permission check succeeds.
+// Le code des rubriques peut être préchargé (aucune donnée) ; une rubrique ne s’affiche et ne charge ses données qu’après la vérification des droits.
+const TOOL_LOADERS = {
+  analytics: () => import("@/app/dashboard/admin/analytics/page"),
+  annonces: () => import("@/app/dashboard/admin/annonces/page"),
+  backoffice: () => import("@/app/dashboard/admin/backoffice/page"),
+  copieur: () => import("@/app/dashboard/admin/copieur/page"),
+  feedback: () => import("@/app/dashboard/admin/feedback/page"),
+  "essai-vip": () => import("@/app/dashboard/admin/essai-vip/page"),
+  finance: () => import("@/app/dashboard/admin/finance/page"),
+  inbox: () => import("@/app/dashboard/admin/inbox/page"),
+  moderation: () => import("@/app/dashboard/admin/moderation/page"),
+  navigation: () => import("@/app/dashboard/admin/navigation/page"),
+  "overview-current": () => import("@/components/admin/AdminOverview"),
+  serveurs: () => import("@/app/dashboard/admin/serveurs/page"),
+  staff: () => import("@/app/dashboard/admin/staff/page"),
+  systeme: () => import("@/app/dashboard/admin/systeme/page"),
+  telegram: () => import("@/app/dashboard/admin/telegram/TelegramAdmin"),
+  utilisateurs: () => import("@/app/dashboard/admin/utilisateurs/page"),
+  vip: () => import("@/app/dashboard/admin/vip/page"),
+  "vip-publications": () => import("./CurrentVipPostsTool"),
+} satisfies Record<AdminToolId, () => Promise<unknown>>;
 const TOOLS = {
-  analytics: dynamic(() => import("@/app/dashboard/admin/analytics/page"), { ssr: false, loading: LoadingTool }),
-  annonces: dynamic(() => import("@/app/dashboard/admin/annonces/page"), { ssr: false, loading: LoadingTool }),
-  backoffice: dynamic(() => import("@/app/dashboard/admin/backoffice/page"), { ssr: false, loading: LoadingTool }),
-  copieur: dynamic(() => import("@/app/dashboard/admin/copieur/page"), { ssr: false, loading: LoadingTool }),
-  feedback: dynamic(() => import("@/app/dashboard/admin/feedback/page"), { ssr: false, loading: LoadingTool }),
-  "essai-vip": dynamic(() => import("@/app/dashboard/admin/essai-vip/page"), { ssr: false, loading: LoadingTool }),
-  finance: dynamic(() => import("@/app/dashboard/admin/finance/page"), { ssr: false, loading: LoadingTool }),
-  inbox: dynamic(() => import("@/app/dashboard/admin/inbox/page"), { ssr: false, loading: LoadingTool }),
-  moderation: dynamic(() => import("@/app/dashboard/admin/moderation/page"), { ssr: false, loading: LoadingTool }),
-  navigation: dynamic(() => import("@/app/dashboard/admin/navigation/page"), { ssr: false, loading: LoadingTool }),
-  "overview-current": dynamic(() => import("@/components/admin/AdminOverview"), { ssr: false, loading: LoadingTool }),
-  serveurs: dynamic(() => import("@/app/dashboard/admin/serveurs/page"), { ssr: false, loading: LoadingTool }),
-  staff: dynamic(() => import("@/app/dashboard/admin/staff/page"), { ssr: false, loading: LoadingTool }),
-  systeme: dynamic(() => import("@/app/dashboard/admin/systeme/page"), { ssr: false, loading: LoadingTool }),
-  telegram: dynamic(() => import("@/app/dashboard/admin/telegram/TelegramAdmin"), { ssr: false, loading: LoadingTool }),
-  utilisateurs: dynamic(() => import("@/app/dashboard/admin/utilisateurs/page"), { ssr: false, loading: LoadingTool }),
-  vip: dynamic(() => import("@/app/dashboard/admin/vip/page"), { ssr: false, loading: LoadingTool }),
-  "vip-publications": dynamic(() => import("./CurrentVipPostsTool"), { ssr: false, loading: LoadingTool }),
+  analytics: dynamic(TOOL_LOADERS["analytics"] as () => Promise<{ default: ComponentType }>, { ssr: false, loading: LoadingTool }),
+  annonces: dynamic(TOOL_LOADERS["annonces"] as () => Promise<{ default: ComponentType }>, { ssr: false, loading: LoadingTool }),
+  backoffice: dynamic(TOOL_LOADERS["backoffice"] as () => Promise<{ default: ComponentType }>, { ssr: false, loading: LoadingTool }),
+  copieur: dynamic(TOOL_LOADERS["copieur"] as () => Promise<{ default: ComponentType }>, { ssr: false, loading: LoadingTool }),
+  feedback: dynamic(TOOL_LOADERS["feedback"] as () => Promise<{ default: ComponentType }>, { ssr: false, loading: LoadingTool }),
+  "essai-vip": dynamic(TOOL_LOADERS["essai-vip"] as () => Promise<{ default: ComponentType }>, { ssr: false, loading: LoadingTool }),
+  finance: dynamic(TOOL_LOADERS["finance"] as () => Promise<{ default: ComponentType }>, { ssr: false, loading: LoadingTool }),
+  inbox: dynamic(TOOL_LOADERS["inbox"] as () => Promise<{ default: ComponentType }>, { ssr: false, loading: LoadingTool }),
+  moderation: dynamic(TOOL_LOADERS["moderation"] as () => Promise<{ default: ComponentType }>, { ssr: false, loading: LoadingTool }),
+  navigation: dynamic(TOOL_LOADERS["navigation"] as () => Promise<{ default: ComponentType }>, { ssr: false, loading: LoadingTool }),
+  "overview-current": dynamic(TOOL_LOADERS["overview-current"] as () => Promise<{ default: ComponentType }>, { ssr: false, loading: LoadingTool }),
+  serveurs: dynamic(TOOL_LOADERS["serveurs"] as () => Promise<{ default: ComponentType }>, { ssr: false, loading: LoadingTool }),
+  staff: dynamic(TOOL_LOADERS["staff"] as () => Promise<{ default: ComponentType }>, { ssr: false, loading: LoadingTool }),
+  systeme: dynamic(TOOL_LOADERS["systeme"] as () => Promise<{ default: ComponentType }>, { ssr: false, loading: LoadingTool }),
+  telegram: dynamic(TOOL_LOADERS["telegram"] as () => Promise<{ default: ComponentType }>, { ssr: false, loading: LoadingTool }),
+  utilisateurs: dynamic(TOOL_LOADERS["utilisateurs"] as () => Promise<{ default: ComponentType }>, { ssr: false, loading: LoadingTool }),
+  vip: dynamic(TOOL_LOADERS["vip"] as () => Promise<{ default: ComponentType }>, { ssr: false, loading: LoadingTool }),
+  "vip-publications": dynamic(TOOL_LOADERS["vip-publications"] as () => Promise<{ default: ComponentType }>, { ssr: false, loading: LoadingTool }),
 };
+/** Charge le code d’une rubrique à l’avance (survol du menu, ou en tâche de fond) pour qu’elle s’ouvre sans attente. */
+export function preloadAdminTool(tool: AdminToolId) { void TOOL_LOADERS[tool]?.().catch(() => {}); }
+export function preloadAllAdminTools() { for (const tool of Object.keys(TOOL_LOADERS) as AdminToolId[]) preloadAdminTool(tool); }
 const CurrentMember = dynamic(() => import("@/app/dashboard/admin/utilisateurs/[id]/page"), { ssr: false, loading: LoadingTool });
 
 type Props = { tool: AdminToolId; memberId?: string; vipView?: VipAdminView; basePath?: AdminWorkspacePath; onNavigate: (path: string) => void };
