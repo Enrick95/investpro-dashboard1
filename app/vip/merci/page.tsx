@@ -33,6 +33,7 @@ export default async function VipThanks({ searchParams }: { searchParams: Search
       <p style={muted}>Ton paiement est confirmé. Clique ci-dessous pour rejoindre le canal VIP sur Telegram. Ce lien est personnel et ne marche qu’une seule fois : ne le partage pas.</p>
       {payment.channel_joined_at ? <p style={{ ...muted, color: "#7fdc9a" }}>✅ Tu as déjà rejoint le canal. Ouvre Telegram pour retrouver le VIP.</p>
         : <a style={gold} href={payment.invite_url as string} rel="noopener">Rejoindre le canal VIP ↗</a>}
+      <a href="/vip/abonne" style={{ ...muted, color: "#F0C575", fontWeight: 700 }}>Dernière étape : crée ton compte InvestPro en 1 minute (espace VIP, app et suivi de ton abonnement) →</a>
       <p style={muted}>Tu reçois aussi ce lien par e-mail. Une question ? Écris à <a href="https://t.me/EquipeInvestPro" style={{ color: "#F0C575", fontWeight: 700 }}>@EquipeInvestPro</a>.</p>
     </section> : <section style={card}>
       {sessionId && <meta httpEquiv="refresh" content="4" />}

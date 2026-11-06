@@ -12,12 +12,14 @@ import { telegram } from "@/lib/telegram/server";
  */
 
 const REMINDER_DAYS = [7, 5, 0] as const;
+/** Échéances signalées à Enrick dans le résumé du matin (abonnement par abonnement). */
+const ADMIN_ALERT_DAYS = [10, 7, 5, 3, 1, 0] as const;
 const RENEW_URL = "https://investprotrading.fr/dashboard/vip";
 const DAY = 86_400_000;
 
 type Membership = { user_id: string; email: string; first_name: string | null; last_name: string | null; type: string; expires_at: string | null; status: string };
 type Link = { user_id: string; channel_user_id: number | null; channel_username: string | null };
-export type DailyReport = { reminders: { name: string; days: number; telegram: boolean; email: boolean }[]; removed: { userId: string; name: string }[]; manual: string[]; pendingRequests: number; pendingApplications: number; expiringSoon: number; errors: string[] };
+export type DailyReport = { reminders: { name: string; days: number; telegram: boolean; email: boolean }[]; removed: { userId: string; name: string }[]; manual: string[]; pendingRequests: number; pendingApplications: number; expiringSoon: number; upcoming: { name: string; days: number; date: string }[]; errors: string[] };
 
 const esc = (value: string) => value.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c] as string));
 const name = (m: Pick<Membership, "first_name" | "last_name" | "email">) => [m.first_name, m.last_name].filter(Boolean).join(" ").trim() || m.email;
@@ -60,7 +62,7 @@ async function links(db: SupabaseClient, userIds: string[]): Promise<Map<string,
 }
 
 export async function runVipTelegramDaily(db: SupabaseClient, now = Date.now()): Promise<DailyReport> {
-  const report: DailyReport = { reminders: [], removed: [], manual: [], pendingRequests: 0, pendingApplications: 0, expiringSoon: 0, errors: [] };
+  const report: DailyReport = { reminders: [], removed: [], manual: [], pendingRequests: 0, pendingApplications: 0, expiringSoon: 0, upcoming: [], errors: [] };
   const channel = process.env.TELEGRAM_VIP_CHAT_ID || "";
 
   const { data, error } = await db.from("vip_memberships").select("user_id,email,first_name,last_name,type,expires_at,status").eq("type", "abonnement").eq("status", "active").not("expires_at", "is", null);
@@ -72,6 +74,7 @@ export async function runVipTelegramDaily(db: SupabaseClient, now = Date.now()):
     const days = parisDaysUntil(m.expires_at as string, now);
     const link = linked.get(m.user_id) || null;
     if (days >= 0 && days <= 7) report.expiringSoon++;
+    if ((ADMIN_ALERT_DAYS as readonly number[]).includes(days)) report.upcoming.push({ name: name(m), days, date: new Date(m.expires_at as string).toLocaleDateString("fr-FR", { timeZone: "Europe/Paris", day: "2-digit", month: "short" }) });
     if ((REMINDER_DAYS as readonly number[]).includes(days)) {
       const text = reminderText(m.first_name, days);
       const tg = await sendDm(link?.channel_user_id ?? null, text);
@@ -110,6 +113,7 @@ export async function sendMorningSummary(report: DailyReport): Promise<void> {
     "",
     `🆕 Demandes VIP à valider : <b>${pending}</b>`,
     `⏳ Abonnements qui finissent sous 7 jours : <b>${report.expiringSoon}</b>`,
+    ...(report.upcoming.length ? ["", "📅 <b>Fins d’abonnement à suivre</b>", ...report.upcoming.sort((a, b) => a.days - b.days).map(u => `   • ${esc(u.name)} — ${u.days === 0 ? "<b>aujourd’hui</b>" : u.days === 1 ? "<b>demain</b>" : `dans ${u.days} jours`} (${u.date})`), ""] : []),
     `🔔 Rappels envoyés aujourd’hui : <b>${report.reminders.length}</b>`,
     ...report.reminders.map(r => `   • ${esc(r.name)} — ${r.days === 0 ? "J0" : "J-" + r.days} ${r.telegram ? "(Telegram)" : r.email ? "(e-mail)" : "(⚠️ non joignable)"}`),
     `🚪 Retirés du canal : <b>${report.removed.length}</b>`,

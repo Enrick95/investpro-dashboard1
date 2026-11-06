@@ -62,7 +62,9 @@ export async function POST(request: Request) {
     if (checks && !checks.ok) return vipJson({ error: checks.error }, 400);
     const verified = checks?.ok ? checks.value : null;
     let inviteUrl: string | null = null;
-    if (body.action === "approve" && memberIntake) {
+    // Abonnés (formulaire /vip/abonne) : eux aussi reçoivent un lien personnel du canal à la validation.
+    const subscriberInvite = !memberIntake && (value?.type || source.data.type) === "abonnement";
+    if (body.action === "approve" && (memberIntake || subscriberInvite)) {
       if (process.env.VERCEL_ENV !== "production" || !process.env.TELEGRAM_BOT_TOKEN || !process.env.TELEGRAM_VIP_CHAT_ID) return vipJson({ error: "L’invitation Telegram personnelle n’est pas configurée." }, 503);
       try {
         const invite = await telegram("createChatInviteLink", { chat_id: process.env.TELEGRAM_VIP_CHAT_ID, member_limit: 1, expire_date: Math.floor(Date.now() / 1000) + 3 * 24 * 60 * 60, name: `VIP-${source.data.id.slice(0, 8)}` }) as { invite_link?: string };
@@ -93,6 +95,11 @@ export async function POST(request: Request) {
       const saved = await context.admin.from("vip_access_requests").update({ channel_invite_url: inviteUrl, member_number: member.data.member_number }).eq("id", body.id).eq("status", "approved");
       if (saved.error) return vipJson({ error: "L’accès est validé, mais le lien privé n’a pas pu être enregistré. Contacte l’équipe." }, 503);
     }
+    if (subscriberInvite && body.action === "approve" && inviteUrl) {
+      await context.admin.from("vip_access_requests").update({ channel_invite_url: inviteUrl }).eq("id", body.id).eq("status", "approved");
+      const row = source.data as unknown as { first_name?: string; last_name?: string; email?: string; phone_whatsapp?: string | null; telegram_username?: string | null };
+      after(async () => { await deliverSubscriberInvite(row, inviteUrl as string).catch(() => {}); });
+    }
     if (memberIntake && body.action === "deny") {
       const saved = await context.admin.from("vip_access_requests").update({ rejection_reason: denialReason }).eq("id", body.id).eq("status", "denied");
       if (saved.error) throw saved.error;
@@ -111,4 +118,25 @@ export async function POST(request: Request) {
     });
     return vipJson({ ok: true, request: data });
   } catch (error) { return vipErrorResponse(error); }
+}
+
+/** Abonné validé : lien du canal par e-mail au client, et copie à Enrick avec les boutons WhatsApp / Telegram. */
+async function deliverSubscriberInvite(row: { first_name?: string; last_name?: string; email?: string; phone_whatsapp?: string | null; telegram_username?: string | null }, invite: string) {
+  const first = row.first_name || "";
+  const text = `Salut${first ? " " + first : ""} 👋\n\nTon abonnement VIP InvestPro est validé 🎉\n\nVoici ton lien personnel pour rejoindre le canal VIP sur Telegram (utilisable une seule fois, valable 3 jours) :\n${invite}\n\nUne question ? Écris à @EquipeInvestPro sur Telegram.\n\nEnrick — InvestPro`;
+  const apiKey = process.env.RESEND_API_KEY, from = process.env.INVESTPRO_EMAIL_FROM;
+  let mailed = false;
+  if (apiKey && from && row.email) {
+    try { const r = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", "Idempotency-Key": `vip-sub-invite-${invite.slice(-16)}` }, body: JSON.stringify({ from, to: [row.email], subject: "Ton accès au VIP InvestPro est validé 🎉", text }), signal: AbortSignal.timeout(8000) }); mailed = r.ok; } catch { mailed = false; }
+  }
+  const chat = process.env.TELEGRAM_CHAT_ID || "";
+  if (!/^-?\d+$/.test(chat)) return;
+  const esc = (v: string) => v.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c] as string));
+  const buttons: { text: string; url: string }[] = [];
+  const phone = (row.phone_whatsapp || "").replace(/\D/g, "");
+  if (phone.length >= 8) buttons.push({ text: "💬 Lui envoyer sur WhatsApp", url: `https://wa.me/${phone}?text=${encodeURIComponent(text)}` });
+  if (row.telegram_username && /^[A-Za-z][A-Za-z0-9_]{4,31}$/.test(row.telegram_username)) buttons.push({ text: "✈️ Telegram", url: `https://t.me/${row.telegram_username}` });
+  await telegram("sendMessage", { chat_id: chat, parse_mode: "HTML", disable_web_page_preview: true,
+    text: `✅ <b>Abonné validé</b> : ${esc(`${row.first_name || ""} ${row.last_name || ""}`.trim() || row.email || "")}\n🔗 Son lien du canal : ${invite}\n${mailed ? "📧 Envoyé par e-mail." : "⚠️ E-mail non envoyé : transmets-lui le lien."}`,
+    ...(buttons.length ? { reply_markup: { inline_keyboard: [buttons] } } : {}) }).catch(() => {});
 }
