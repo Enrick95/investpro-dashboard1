@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { buildEssaiVipMessage, validateEssaiVipPayload } from "@/lib/essai-vip";
 import { consumeEssaiVipRateLimit } from "@/lib/essai-vip-rate-limit";
+import { encryptEssaiDemoPassword } from "@/lib/essai-vip-crypto";
 import { telegram } from "@/lib/telegram/server";
 
 export const runtime = "nodejs";
@@ -93,6 +94,8 @@ export async function POST(request: Request) {
       broker: lead.broker,
       compte: lead.compte,
       serveur: lead.serveur,
+      // Compte DÉMO uniquement ; chiffré, jamais journalisé, visible seulement par le propriétaire.
+      demo_password_encrypted: (() => { try { return encryptEssaiDemoPassword(lead.motdepasse); } catch { return null; } })(),
     });
     if (insertError) return json(false, 503);
     await telegram("sendMessage", {

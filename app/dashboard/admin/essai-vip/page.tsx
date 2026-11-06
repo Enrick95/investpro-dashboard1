@@ -1,123 +1,207 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarClock, Check, ExternalLink, Flame, MessageCircle, Phone, RefreshCw, Search, ShieldCheck, Signal, Users } from "lucide-react";
+import { Check, Copy, Eye, EyeOff, KeyRound, Loader2, MessageCircle, RefreshCw, Search, Send, ShieldCheck } from "lucide-react";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { vipRequest } from "@/lib/vip/client";
+import s from "./essai.module.css";
 
 type Status = "new" | "contacted" | "qualified" | "demo_active" | "completed" | "converted" | "lost";
-type Temperature = "unclassified" | "hot" | "warm" | "cold";
 type Lead = {
   id: string; nom: string; telegram: string | null; telephone: string | null; consentement_whatsapp: boolean;
-  broker: string; compte: string; serveur: string; status: Status; temperature: Temperature;
+  broker: string; compte: string; serveur: string; status: Status; temperature: string;
   broker_affiliation_verified: boolean; demo_account_verified: boolean; copy_linked: boolean; channel_joined: boolean;
-  copier_account_reference: string | null; admin_notes: string; next_follow_up_on: string | null;
-  last_contacted_at: string | null; submitted_at: string; updated_at: string;
+  copier_account_reference: string | null; admin_notes: string | null; next_follow_up_on: string | null;
+  last_contacted_at: string | null; submitted_at: string; updated_at: string; has_demo_password?: boolean;
 };
 const STATUS: Status[] = ["new", "contacted", "qualified", "demo_active", "completed", "converted", "lost"];
-const TEMP: Temperature[] = ["unclassified", "hot", "warm", "cold"];
-const statusFr: Record<Status, string> = { new: "Nouveau", contacted: "Contacté", qualified: "À qualifier", demo_active: "Démo branchée", completed: "Essai terminé", converted: "Converti", lost: "Clos / perdu" };
-const statusEn: Record<Status, string> = { new: "New", contacted: "Contacted", qualified: "Qualify", demo_active: "Demo connected", completed: "Trial completed", converted: "Converted", lost: "Closed / lost" };
-const tempFr: Record<Temperature, string> = { unclassified: "À classer", hot: "Chaud", warm: "Tiède", cold: "Froid" };
-const tempEn: Record<Temperature, string> = { unclassified: "Unclassified", hot: "Hot", warm: "Warm", cold: "Cold" };
+const statusFr: Record<Status, string> = { new: "Nouveau", contacted: "Contacté", qualified: "À vérifier", demo_active: "Démo branchée", completed: "Essai terminé", converted: "Converti en VIP", lost: "Clos" };
+const statusEn: Record<Status, string> = { new: "New", contacted: "Contacted", qualified: "To check", demo_active: "Demo connected", completed: "Trial completed", converted: "Converted to VIP", lost: "Closed" };
+const FILTERS = [["all", "Toutes"], ["new", "Nouvelles"], ["progress", "En cours"], ["demo_active", "Démo branchée"], ["converted", "Converties"], ["lost", "Closes"]] as const;
+const STEPS = [["broker_affiliation_verified", "Affiliation vérifiée"], ["demo_account_verified", "Compte démo vérifié"], ["copy_linked", "Ajouté à la copie"], ["channel_joined", "Canal Telegram rejoint"]] as const;
 
 function localDate(value: string | null | undefined, locale: string) {
   if (!value) return "—";
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "—" : new Intl.DateTimeFormat(locale === "en" ? "en-US" : "fr-FR", { day: "numeric", month: "short", year: "numeric", ...(value.includes("T") ? { hour: "2-digit", minute: "2-digit" } : {}) }).format(date);
+  return Number.isNaN(date.getTime()) ? "—" : new Intl.DateTimeFormat(locale === "en" ? "en-US" : "fr-FR", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" }).format(date);
 }
-function today() { return new Date().toISOString().slice(0, 10); }
-function contactHref(lead: Lead) { return lead.telephone ? `https://wa.me/${lead.telephone.replace(/\D/g, "")}` : lead.telegram ? `https://t.me/${lead.telegram.replace(/^@/, "")}` : ""; }
+function ago(value: string) {
+  const minutes = Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 60000));
+  if (minutes < 60) return `il y a ${minutes} min`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `il y a ${hours} h`;
+  return `il y a ${Math.round(hours / 24)} j`;
+}
+const initials = (name: string) => name.split(/[\s,]+/).filter(Boolean).slice(0, 2).map(part => part[0]?.toUpperCase()).join("") || "?";
+const waHref = (lead: Lead) => lead.telephone ? `https://wa.me/${lead.telephone.replace(/\D/g, "")}` : "";
+const tgHref = (lead: Lead) => lead.telegram ? `https://t.me/${lead.telegram.replace(/^@/, "")}` : "";
+const inProgress = (status: Status) => status === "contacted" || status === "qualified" || status === "completed";
 
 export default function EssaiVipAdminPage() {
   const { locale } = useLocale();
   const en = locale === "en";
-  const tr = (fr: string, english: string) => en ? english : fr;
   const [leads, setLeads] = useState<Lead[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [draft, setDraft] = useState<Lead | null>(null);
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState<(typeof FILTERS)[number][0]>("all");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [password, setPassword] = useState<{ id: string; value: string; shown: boolean } | null>(null);
+  const [revealing, setRevealing] = useState(false);
 
   const load = useCallback(async (signal?: AbortSignal) => {
     try {
       const response = await vipRequest<{ leads: Lead[] }>("/api/admin/essai-vip", { signal });
       if (signal?.aborted) return;
-      setLeads(response.leads || []);
+      const list = response.leads || [];
+      setLeads(list);
       setError("");
-      setSelectedId(current => current && response.leads.some(item => item.id === current) ? current : response.leads[0]?.id || "");
-      setDraft(current => current ? response.leads.find(item => item.id === current.id) || current : response.leads[0] || null);
+      setSelectedId(current => current && list.some(item => item.id === current) ? current : list[0]?.id || "");
+      setDraft(current => current ? list.find(item => item.id === current.id) || current : list[0] || null);
     } catch (cause) {
-      if (!signal?.aborted) setError(cause instanceof Error ? cause.message : tr("Chargement impossible.", "Unable to load leads."));
+      if (!signal?.aborted) setError(cause instanceof Error ? cause.message : "Chargement impossible.");
     } finally { if (!signal?.aborted) setLoading(false); }
-  }, [tr]);
-
+  }, []);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { const controller = new AbortController(); void load(controller.signal); return () => controller.abort(); }, [load]);
-  const selected = leads.find(item => item.id === selectedId) || null;
+
   const visible = useMemo(() => {
     const needle = search.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().trim();
     return leads.filter(lead => {
-      if (filter === "follow-up" && (!lead.next_follow_up_on || lead.next_follow_up_on > today())) return false;
-      if (filter === "telegram" && !lead.telegram) return false;
-      if (filter === "whatsapp" && !(lead.telephone && lead.consentement_whatsapp)) return false;
-      if (filter !== "all" && filter !== "follow-up" && filter !== "telegram" && filter !== "whatsapp" && (filter === "hot" || filter === "warm" || filter === "cold" ? lead.temperature !== filter : lead.status !== filter)) return false;
+      if (filter === "progress" ? !inProgress(lead.status) : filter !== "all" && lead.status !== filter) return false;
       const haystack = [lead.nom, lead.telegram, lead.telephone, lead.broker, lead.compte, lead.serveur].filter(Boolean).join(" ").normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
       return !needle || haystack.includes(needle);
     });
   }, [filter, leads, search]);
-  const due = leads.filter(lead => lead.next_follow_up_on && lead.next_follow_up_on <= today() && !["converted", "lost"].includes(lead.status)).length;
-  const linked = leads.filter(lead => lead.copy_linked).length;
-  const hot = leads.filter(lead => lead.temperature === "hot" && !["converted", "lost"].includes(lead.status)).length;
+  const counts = {
+    new: leads.filter(lead => lead.status === "new").length,
+    progress: leads.filter(lead => inProgress(lead.status)).length,
+    demo: leads.filter(lead => lead.status === "demo_active" || lead.copy_linked).length,
+    converted: leads.filter(lead => lead.status === "converted").length,
+  };
 
-  function choose(lead: Lead) { setSelectedId(lead.id); setDraft(lead); setNotice(""); }
+  function choose(lead: Lead) { setSelectedId(lead.id); setDraft(lead); setNotice(""); setError(""); setPassword(null); }
   function update<K extends keyof Lead>(key: K, value: Lead[K]) { setDraft(current => current ? { ...current, [key]: value } : current); }
+  async function copy(value: string, label: string) {
+    try { await navigator.clipboard.writeText(value); setNotice(`${label} copié.`); } catch { setError("Copie impossible : sélectionne le texte à la main."); }
+  }
+  async function reveal() {
+    if (!draft || revealing) return;
+    if (password?.id === draft.id) { setPassword({ ...password, shown: !password.shown }); return; }
+    setRevealing(true); setError("");
+    try {
+      const result = await vipRequest<{ password: string }>("/api/admin/essai-vip", { method: "POST", body: JSON.stringify({ action: "reveal", id: draft.id }) });
+      setPassword({ id: draft.id, value: result.password, shown: true });
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Mot de passe indisponible."); }
+    finally { setRevealing(false); }
+  }
   async function save(markContacted = false) {
     if (!draft) return;
     setSaving(true); setError(""); setNotice("");
     try {
       const response = await vipRequest<{ lead: Lead }>("/api/admin/essai-vip", { method: "PATCH", body: JSON.stringify({
-        id: draft.id, status: draft.status, temperature: draft.temperature,
+        id: draft.id, status: draft.status,
         broker_affiliation_verified: draft.broker_affiliation_verified, demo_account_verified: draft.demo_account_verified,
         copy_linked: draft.copy_linked, channel_joined: draft.channel_joined,
-        copier_account_reference: draft.copier_account_reference || "", admin_notes: draft.admin_notes,
+        copier_account_reference: draft.copier_account_reference || "", admin_notes: draft.admin_notes || "",
         next_follow_up_on: draft.next_follow_up_on, ...(markContacted ? { mark_contacted: true, status: draft.status === "new" ? "contacted" : draft.status } : {}),
       }) });
       setLeads(current => current.map(item => item.id === response.lead.id ? response.lead : item));
       setDraft(response.lead);
-      setNotice(markContacted ? tr("Contact enregistré.", "Contact recorded.") : tr("Suivi enregistré.", "Follow-up saved."));
-    } catch (cause) { setError(cause instanceof Error ? cause.message : tr("Enregistrement impossible.", "Unable to save.")); }
+      setNotice(markContacted ? "Contact enregistré." : "Suivi enregistré.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Enregistrement impossible."); }
     finally { setSaving(false); }
   }
 
-  const input = "w-full rounded-xl border border-white/10 bg-[#0c100f] px-3 py-2.5 text-sm text-white outline-none focus:border-[#F0C575]/70";
-  const select = input;
-  const card = "rounded-2xl border border-white/[.08] bg-[#101412]";
-  if (loading) return <div className="grid min-h-64 place-items-center text-sm text-white/45">{tr("Chargement des demandes Essai VIP…", "Loading VIP trial leads…")}</div>;
-  return <div className="space-y-5 pb-10 text-white">
-    <div className="flex flex-wrap items-end justify-between gap-3"><div><div className="text-[10px] font-semibold uppercase tracking-[.2em] text-[#F0C575]">{tr("Suivi commercial · espace privé", "Sales follow-up · private workspace")}</div><h2 className="mt-2 text-2xl font-semibold">{tr("Demandes Essai VIP", "VIP trial leads")}</h2><p className="mt-1 max-w-2xl text-sm text-white/50">{tr("Qualification, relances et branchement des comptes démo, séparés des demandes et statistiques VIP existantes.", "Qualify, follow up and connect demo accounts, separately from existing VIP requests and statistics.")}</p></div><button type="button" onClick={() => void load()} className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/10 px-3 text-xs text-white/75 hover:border-[#F0C575]/50"><RefreshCw size={14}/>{tr("Actualiser", "Refresh")}</button></div>
-    {error && <div role="alert" className="rounded-xl border border-rose-300/20 bg-rose-300/10 px-4 py-3 text-sm text-rose-200">{error}</div>}
-    {notice && <div role="status" className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 px-4 py-3 text-sm text-emerald-200">{notice}</div>}
-    <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-      {[{ label: tr("Nouvelles demandes", "New leads"), value: leads.filter(x => x.status === "new").length, Icon: Users }, { label: tr("Prospects chauds", "Hot leads"), value: hot, Icon: Flame }, { label: tr("Relances dues", "Follow-ups due"), value: due, Icon: CalendarClock }, { label: tr("Comptes branchés", "Demo accounts linked"), value: linked, Icon: Signal }].map(item => <div key={item.label} className={`${card} p-4`}><div className="flex items-center justify-between text-xs text-white/45"><span>{item.label}</span><item.Icon size={16} className="text-[#F0C575]"/></div><b className="mt-3 block text-2xl">{item.value}</b></div>)}
+  if (loading) return <div className={s.loading}><Loader2 size={18} className={s.spin} aria-hidden="true" /> Chargement des demandes d’essai…</div>;
+  const shownPassword = password && draft && password.id === draft.id ? password : null;
+  return <div className={s.root}>
+    <header className={s.head}>
+      <div><span className={s.kicker}>Essai VIP sans dépôt</span><h2>Les demandes d’essai <b>{leads.length}</b></h2><p>Tout ce que la personne a rempli sur le site : contact, broker et accès à son compte démo.</p></div>
+      <button type="button" className={s.ghost} onClick={() => { setLoading(true); void load(); }}><RefreshCw size={14} aria-hidden="true" />Actualiser</button>
+    </header>
+
+    <div className={s.kpis}>
+      <article data-tone="gold"><span>Nouvelles</span><strong>{counts.new}</strong><small>à contacter</small></article>
+      <article data-tone="blue"><span>En cours</span><strong>{counts.progress}</strong><small>contactées ou à vérifier</small></article>
+      <article data-tone="teal"><span>Démo branchée</span><strong>{counts.demo}</strong><small>sur InvestPro Copy</small></article>
+      <article data-tone="green"><span>Converties</span><strong>{counts.converted}</strong><small>passées au VIP</small></article>
     </div>
-    <div className="grid gap-4 xl:grid-cols-[minmax(320px,.9fr)_minmax(0,1.5fr)]">
-      <section className={`${card} overflow-hidden`} aria-label={tr("Liste des prospects", "Lead list")}>
-        <div className="space-y-3 border-b border-white/[.07] p-4"><label className="relative block"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/35"/><input className={`${input} pl-9`} value={search} onChange={event => setSearch(event.target.value)} placeholder={tr("Nom, Telegram, téléphone, broker…", "Name, Telegram, phone, broker…")}/></label><select className={select} value={filter} onChange={event => setFilter(event.target.value)}><option value="all">{tr("Tous les prospects", "All leads")}</option><option value="follow-up">{tr("Relance à faire", "Follow-up due")}</option><optgroup label={tr("Canal de contact", "Contact channel")}><option value="telegram">Telegram</option><option value="whatsapp">WhatsApp</option></optgroup><optgroup label={tr("Température", "Temperature")}><option value="hot">{tempFr.hot}</option><option value="warm">{tempFr.warm}</option><option value="cold">{tempFr.cold}</option></optgroup><optgroup label={tr("Étape", "Stage")}>{STATUS.map(value => <option key={value} value={value}>{en ? statusEn[value] : statusFr[value]}</option>)}</optgroup></select></div>
-        <div className="max-h-[680px] divide-y divide-white/[.06] overflow-y-auto">{visible.length ? visible.map(lead => <button type="button" key={lead.id} onClick={() => choose(lead)} aria-current={selectedId === lead.id ? "true" : undefined} className={`w-full p-4 text-left transition hover:bg-white/[.03] ${selectedId === lead.id ? "bg-[#F0C575]/[.07]" : ""}`}><div className="flex items-start justify-between gap-3"><span className="font-semibold">{lead.nom}</span><span className={`rounded-full px-2 py-1 text-[10px] ${lead.temperature === "hot" ? "bg-rose-300/15 text-rose-200" : lead.temperature === "warm" ? "bg-amber-200/10 text-amber-100" : lead.temperature === "cold" ? "bg-sky-300/10 text-sky-200" : "bg-white/[.07] text-white/55"}`}>{en ? tempEn[lead.temperature] : tempFr[lead.temperature]}</span></div><div className="mt-2 text-xs text-white/45">{lead.broker} · #{lead.compte}</div><div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-white/35"><span>{en ? statusEn[lead.status] : statusFr[lead.status]}</span><span>· {localDate(lead.submitted_at, locale)}</span>{lead.next_follow_up_on && <span className="text-[#F0C575]">· {tr("Relance", "Follow-up")} {localDate(lead.next_follow_up_on, locale)}</span>}</div></button>) : <div className="p-10 text-center text-sm text-white/35">{tr("Aucun prospect ne correspond.", "No matching leads.")}</div>}</div>
-      </section>
-      {draft ? <section className={`${card} space-y-5 p-4 sm:p-5`} aria-label={tr("Fiche de suivi", "Lead details")}>
-        <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="text-[10px] uppercase tracking-[.18em] text-white/35">{tr("Fiche prospect", "Lead record")}</div><h3 className="mt-1 text-xl font-semibold">{draft.nom}</h3><p className="mt-1 text-xs text-white/40">{draft.broker} · {tr("demande reçue", "received")} {localDate(draft.submitted_at, locale)}</p></div><a href={contactHref(draft)} target="_blank" rel="noopener noreferrer" className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#F0C575] px-3 text-xs font-semibold text-[#11130f]">{draft.telephone && draft.consentement_whatsapp ? <MessageCircle size={15}/> : <ExternalLink size={15}/>} {draft.telephone && draft.consentement_whatsapp ? tr("Ouvrir WhatsApp", "Open WhatsApp") : tr("Contacter", "Contact")}</a></div>
-        <div className="grid gap-3 rounded-xl border border-white/[.06] bg-black/20 p-3 sm:grid-cols-2"><div><span className="text-[10px] uppercase text-white/35">Telegram</span><div className="mt-1 text-sm">{draft.telegram || "—"}</div></div><div><span className="text-[10px] uppercase text-white/35">{tr("Téléphone", "Phone")}</span><div className="mt-1 flex items-center gap-2 text-sm">{draft.telephone ? <><a className="hover:text-[#F0C575]" href={`tel:${draft.telephone}`}>{draft.telephone}</a>{draft.consentement_whatsapp ? <span className="text-[10px] text-emerald-200">· {tr("accord WhatsApp", "WhatsApp consent")}</span> : null}</> : "—"}</div></div><div><span className="text-[10px] uppercase text-white/35">{tr("Compte démo", "Demo account")}</span><div className="mt-1 text-sm">{draft.compte} <span className="text-white/40">· {draft.serveur}</span></div></div><div><span className="text-[10px] uppercase text-white/35">{tr("Dernier contact", "Last contact")}</span><div className="mt-1 text-sm">{localDate(draft.last_contacted_at, locale)}</div></div></div>
-        <div className="grid gap-3 sm:grid-cols-2"><label className="space-y-1.5 text-xs text-white/55">{tr("Étape du suivi", "Follow-up stage")}<select className={select} value={draft.status} onChange={event => update("status", event.target.value as Status)}>{STATUS.map(value => <option key={value} value={value}>{en ? statusEn[value] : statusFr[value]}</option>)}</select></label><label className="space-y-1.5 text-xs text-white/55">{tr("Température commerciale", "Lead temperature")}<select className={select} value={draft.temperature} onChange={event => update("temperature", event.target.value as Temperature)}>{TEMP.map(value => <option key={value} value={value}>{en ? tempEn[value] : tempFr[value]}</option>)}</select></label><label className="space-y-1.5 text-xs text-white/55">{tr("Prochaine relance", "Next follow-up")}<input className={input} type="date" value={draft.next_follow_up_on || ""} onChange={event => update("next_follow_up_on", event.target.value || null)}/></label><label className="space-y-1.5 text-xs text-white/55">{tr("Référence du compte InvestPro Copy", "InvestPro Copy account reference")}<input className={input} value={draft.copier_account_reference || ""} onChange={event => update("copier_account_reference", event.target.value)} placeholder={tr("À saisir après ajout manuel", "Enter after manually adding")}/></label></div>
-        <div className="space-y-2 rounded-xl border border-white/[.06] p-3"><div className="text-xs font-medium text-white/75">{tr("Avancement de la demande", "Application progress")}</div>{([["broker_affiliation_verified", tr("Affiliation broker vérifiée", "Broker affiliation verified")], ["demo_account_verified", tr("Compte démo vérifié", "Demo account verified")], ["copy_linked", tr("Compte ajouté à la copie", "Account linked to copier")], ["channel_joined", tr("Canal Telegram rejoint", "Telegram channel joined")]] as const).map(([key, label]) => <label key={key} className="flex items-center gap-2 py-1 text-xs text-white/60"><input className="accent-[#F0C575]" type="checkbox" checked={draft[key]} onChange={event => update(key, event.target.checked)}/>{label}</label>)}</div>
-        <label className="block space-y-1.5 text-xs text-white/55">{tr("Notes internes", "Internal notes")}<textarea className={`${input} resize-y`} rows={4} maxLength={4000} value={draft.admin_notes || ""} onChange={event => update("admin_notes", event.target.value)} placeholder={tr("Intérêt, objectif de dépôt, objections, échange effectué…", "Interest, deposit goal, objections, conversation notes…")}/></label>
-        <div className="flex flex-wrap gap-2"><button type="button" disabled={saving} onClick={() => void save(false)} className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#F0C575] px-4 text-xs font-semibold text-[#11130f] disabled:opacity-50"><Check size={15}/>{saving ? tr("Enregistrement…", "Saving…") : tr("Enregistrer le suivi", "Save follow-up")}</button><button type="button" disabled={saving} onClick={() => void save(true)} className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/10 px-4 text-xs text-white/75 disabled:opacity-50"><Phone size={14}/>{tr("Marquer contacté", "Mark contacted")}</button></div>
-        <p className="text-[10px] leading-5 text-white/35"><ShieldCheck size={12} className="mr-1 inline-block"/>{tr("Le mot de passe du compte démo n’est pas conservé dans ce suivi. Le numéro sert uniquement au suivi demandé et autorisé.", "The demo account password is not stored in this tracker. The phone number is used only for the requested and consented follow-up.")}</p>
-      </section> : <div className={`${card} grid min-h-72 place-items-center p-8 text-sm text-white/35`}>{tr("Sélectionne une demande dans la liste.", "Select a lead from the list.")}</div>}
+
+    {error && <p role="alert" className={s.error}>{error}</p>}
+    {notice && <p role="status" className={s.notice}>{notice}</p>}
+
+    <div className={s.split}>
+      <aside className={s.listCard} aria-label="Demandes d’essai">
+        <label className={s.search}><Search size={15} aria-hidden="true" /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Nom, Telegram, téléphone, compte…" aria-label="Rechercher" /></label>
+        <div className={s.filters}>{FILTERS.map(([value, label]) => <button type="button" key={value} aria-pressed={filter === value} onClick={() => setFilter(value)}>{label}</button>)}</div>
+        <ul className={s.list}>{visible.map(lead => <li key={lead.id}><button type="button" aria-pressed={selectedId === lead.id} onClick={() => choose(lead)}>
+          <span className={s.avatar} aria-hidden="true">{initials(lead.nom)}</span>
+          <span className={s.who}><b>{lead.nom}</b><small>{lead.broker} · n° {lead.compte}</small><small className={s.when}>{ago(lead.submitted_at)}</small></span>
+          <span className={s.state} data-status={lead.status}>{en ? statusEn[lead.status] : statusFr[lead.status]}</span>
+        </button></li>)}</ul>
+        {!visible.length && <p className={s.empty}>Aucune demande ici.</p>}
+      </aside>
+
+      {draft ? <article className={s.sheet} aria-label="Fiche de la demande">
+        <header className={s.sheetHead}>
+          <span className={s.bigAvatar} aria-hidden="true">{initials(draft.nom)}</span>
+          <div><h3>{draft.nom}</h3><p>Demande reçue le {localDate(draft.submitted_at, locale)}</p></div>
+          <span className={s.state} data-status={draft.status}>{en ? statusEn[draft.status] : statusFr[draft.status]}</span>
+        </header>
+
+        <div className={s.contactRow}>
+          {draft.telephone && <a className={s.btnWa} href={waHref(draft)} target="_blank" rel="noopener noreferrer"><MessageCircle size={16} aria-hidden="true" />WhatsApp</a>}
+          {draft.telegram && <a className={s.btnTg} href={tgHref(draft)} target="_blank" rel="noopener noreferrer"><Send size={16} aria-hidden="true" />Telegram</a>}
+        </div>
+
+        <section className={s.block}>
+          <h4>Contact</h4>
+          <div className={s.facts}>
+            <div><span>Contact préféré</span>{draft.telephone ? "WhatsApp" : "Telegram"}</div>
+            <div><span>Téléphone</span>{draft.telephone ? <>{draft.telephone}{draft.consentement_whatsapp && <em>accord WhatsApp ✓</em>}</> : "—"}</div>
+            <div><span>Telegram</span>{draft.telegram || "—"}</div>
+          </div>
+        </section>
+
+        <section className={s.block}>
+          <h4>Compte démo à brancher</h4>
+          <div className={s.facts}>
+            <div><span>Broker</span>{draft.broker}</div>
+            <div className={s.copyable}><span>N° de compte</span><code>{draft.compte}</code><button type="button" onClick={() => void copy(draft.compte, "Numéro de compte")} aria-label="Copier le numéro de compte"><Copy size={14} /></button></div>
+            <div className={s.copyable}><span>Serveur</span><code>{draft.serveur}</code><button type="button" onClick={() => void copy(draft.serveur, "Serveur")} aria-label="Copier le serveur"><Copy size={14} /></button></div>
+            <div className={s.copyable + " " + s.secret}><span><KeyRound size={12} aria-hidden="true" /> Mot de passe démo</span>
+              {draft.has_demo_password ? <>
+                <code>{shownPassword?.shown ? shownPassword.value : "••••••••••"}</code>
+                <button type="button" onClick={() => void reveal()} aria-label={shownPassword?.shown ? "Masquer le mot de passe" : "Afficher le mot de passe"}>{revealing ? <Loader2 size={14} className={s.spin} /> : shownPassword?.shown ? <EyeOff size={14} /> : <Eye size={14} />}</button>
+                {shownPassword && <button type="button" onClick={() => void copy(shownPassword.value, "Mot de passe")} aria-label="Copier le mot de passe"><Copy size={14} /></button>}
+              </> : <small>Envoyé seulement sur Telegram (demande reçue avant l’enregistrement sécurisé).</small>}
+            </div>
+          </div>
+          {/live|real|r[ée]el/i.test(draft.serveur) && !/d[ée]mo/i.test(draft.serveur) && <p className={s.warn}>Serveur « Live » : vérifie que c’est bien un compte démo (solde fictif). Chez Bullwaves, les comptes démo s’affichent en Live.</p>}
+        </section>
+
+        <section className={s.block}>
+          <h4>Avancement</h4>
+          <div className={s.steps}>{STEPS.map(([key, label]) => <label key={key} data-on={draft[key] || undefined}><input type="checkbox" checked={draft[key]} onChange={event => update(key, event.target.checked)} /><span>{label}</span></label>)}</div>
+          <div className={s.fields}>
+            <label><span>Étape</span><select value={draft.status} onChange={event => update("status", event.target.value as Status)}>{STATUS.map(value => <option key={value} value={value}>{en ? statusEn[value] : statusFr[value]}</option>)}</select></label>
+            <label><span>Prochaine relance</span><input type="date" value={draft.next_follow_up_on || ""} onChange={event => update("next_follow_up_on", event.target.value || null)} /></label>
+            <label><span>Réf. du compte dans InvestPro Copy</span><input value={draft.copier_account_reference || ""} maxLength={100} onChange={event => update("copier_account_reference", event.target.value)} placeholder="Après l’ajout manuel" /></label>
+          </div>
+          <label className={s.notes}><span>Notes</span><textarea rows={3} maxLength={4000} value={draft.admin_notes || ""} onChange={event => update("admin_notes", event.target.value)} placeholder="Échange, objectif de dépôt, questions…" /></label>
+          <p className={s.meta}>Dernier contact : {localDate(draft.last_contacted_at, locale)}</p>
+        </section>
+
+        <footer className={s.actions}>
+          <button type="button" className={s.ghost} disabled={saving} onClick={() => void save(true)}><MessageCircle size={15} aria-hidden="true" />J’ai contacté la personne</button>
+          <button type="button" className={s.primary} disabled={saving} onClick={() => void save(false)}><Check size={15} aria-hidden="true" />{saving ? "Enregistrement…" : "Enregistrer"}</button>
+        </footer>
+        <p className={s.fine}><ShieldCheck size={12} aria-hidden="true" /> Compte démo uniquement. Le mot de passe est chiffré et ne s’affiche qu’à ta demande.</p>
+      </article> : <div className={s.emptySheet}>Sélectionne une demande dans la liste.</div>}
     </div>
   </div>;
 }

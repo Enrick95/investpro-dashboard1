@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { authenticateAdmin } from "@/lib/admin/permissions";
+import { isSameVipOrigin } from "@/lib/vip/membership";
+import { decryptEssaiDemoPassword } from "@/lib/essai-vip-crypto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,7 +23,9 @@ export async function GET(request: Request) {
   try {
     const { data, error } = await auth.context.admin.from("essai_vip_leads").select("*").order("submitted_at", { ascending: false }).limit(1000);
     if (error) throw error;
-    return NextResponse.json({ leads: data || [] }, { headers: { "Cache-Control": "no-store" } });
+    // Le mot de passe chiffré ne quitte jamais le serveur dans la liste : seulement « disponible ou non ».
+    const leads = (data || []).map(({ demo_password_encrypted, ...lead }: Record<string, unknown>) => ({ ...lead, has_demo_password: typeof demo_password_encrypted === "string" && demo_password_encrypted.length > 0 }));
+    return NextResponse.json({ leads }, { headers: { "Cache-Control": "no-store" } });
   } catch {
     return NextResponse.json({ error: "Impossible de charger les demandes Essai VIP." }, { status: 503 });
   }
@@ -69,8 +73,28 @@ export async function PATCH(request: Request) {
     const { data, error } = await auth.context.admin.from("essai_vip_leads").update(patch).eq("id", body.id).select("*").maybeSingle();
     if (error) throw error;
     if (!data) return NextResponse.json({ error: "Demande introuvable." }, { status: 404 });
-    return NextResponse.json({ lead: data }, { headers: { "Cache-Control": "no-store" } });
+    const { demo_password_encrypted, ...lead } = data as Record<string, unknown>;
+    return NextResponse.json({ lead: { ...lead, has_demo_password: typeof demo_password_encrypted === "string" && demo_password_encrypted.length > 0 } }, { headers: { "Cache-Control": "no-store" } });
   } catch {
     return NextResponse.json({ error: "Impossible d’enregistrer le suivi." }, { status: 503 });
+  }
+}
+
+/** Affiche le mot de passe du compte DÉMO d'un essai, à la demande, pour le propriétaire uniquement. */
+export async function POST(request: Request) {
+  if (!isSameVipOrigin(request)) return NextResponse.json({ error: "Origine refusée." }, { status: 403 });
+  const auth = await ownerContext(request);
+  if ("response" in auth) return auth.response;
+  let id = "";
+  try { const body = await request.json() as { action?: unknown; id?: unknown }; if (body.action === "reveal" && typeof body.id === "string") id = body.id; } catch { /* invalide */ }
+  if (!UUID.test(id)) return NextResponse.json({ error: "Demande invalide." }, { status: 400 });
+  try {
+    const { data, error } = await auth.context.admin.from("essai_vip_leads").select("demo_password_encrypted").eq("id", id).maybeSingle();
+    if (error) throw error;
+    const payload = (data as { demo_password_encrypted?: string | null } | null)?.demo_password_encrypted;
+    if (!payload) return NextResponse.json({ error: "Mot de passe non enregistré pour cette demande (envoyé seulement sur Telegram)." }, { status: 404 });
+    return NextResponse.json({ password: decryptEssaiDemoPassword(payload) }, { headers: { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
+  } catch {
+    return NextResponse.json({ error: "Mot de passe indisponible." }, { status: 503 });
   }
 }
