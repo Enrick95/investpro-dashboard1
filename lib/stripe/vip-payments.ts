@@ -14,6 +14,12 @@ import { telegram } from "@/lib/telegram/server";
  */
 
 const TOLERANCE_SECONDS = 300;
+/** Liens de paiement Stripe qui ouvrent l'accès au VIP (liste modifiable via STRIPE_VIP_PAYMENT_LINK_IDS). */
+const DEFAULT_VIP_PAYMENT_LINKS = ["plink_1SSkgJBLM49gqFRaju4UMGGE"]; // Abonnement VIP – Accès exclusif (80 €/mois)
+export function vipPaymentLinks(): string[] {
+  const custom = (process.env.STRIPE_VIP_PAYMENT_LINK_IDS || "").split(",").map(v => v.trim()).filter(v => v.startsWith("plink_"));
+  return custom.length ? custom : DEFAULT_VIP_PAYMENT_LINKS;
+}
 const INVITE_DAYS = 7;
 const ADMIN_URL = "https://investprotrading.fr/dashboard/admin?tool=telegram&view=subscriptions";
 
@@ -74,6 +80,9 @@ type Row = { id: string; full_name: string | null; email: string | null; phone: 
 
 async function handleCheckout(db: SupabaseClient, session: Record<string, any>) {
   if (session.payment_status !== "paid" && session.payment_status !== "no_payment_required") return;
+  // Le compte Stripe vend aussi d'autres produits : seuls les liens de paiement VIP donnent accès au canal.
+  const link = typeof session.payment_link === "string" ? session.payment_link : session.payment_link?.id;
+  if (!link || !vipPaymentLinks().includes(link)) return;
   const sessionId = clip(session.id, 255); if (!sessionId) return;
   const details = session.customer_details || {};
   const row = {
