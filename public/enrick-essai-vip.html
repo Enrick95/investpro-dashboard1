@@ -192,6 +192,7 @@ footer{border-top:1px solid var(--line);padding-block:32px 48px;font-size:14px;c
 .bw-ic{width:40px;height:40px;border-radius:10px;background:var(--gold);color:var(--ink);display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0}
 .bw b{display:block;font-size:16px}.bw small{display:block;color:var(--muted);font-size:13px;margin-top:2px}
 .bw-tag{position:absolute;top:-11px;right:12px;font-size:11px;font-weight:800;color:var(--ink);background:var(--gold);padding:5px 9px;border-radius:999px;white-space:nowrap}
+[data-only][hidden]{display:none!important}
 .bks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:4px}
 .bk{display:flex;align-items:center;gap:8px;min-width:0;overflow-wrap:anywhere;background:var(--panel2);border:1px solid var(--line2);border-radius:12px;padding:12px 10px;color:var(--fg);font:700 14px var(--body);cursor:pointer;transition:border-color .2s ease,background-color .2s ease,transform .2s ease;text-align:left}
 .bk:hover{border-color:var(--gold)}
@@ -273,15 +274,15 @@ footer{border-top:1px solid var(--line);padding-block:32px 48px;font-size:14px;c
 <h2 class="h2">4 étapes, <span class="gold">on s'occupe du reste.</span></h2>
 <p class="lead">Suis-les dans l'ordre : chaque bouton t'emmène au bon endroit.</p>
 <ol class="steps">
-<li class="step"><span class="num">1</span><div class="step-body"><h3>Ouvre ton compte Bullwaves</h3><p>L'essai se fait chez Bullwaves, mon broker partenaire. Ouvre ton compte avec mon lien juste en dessous.</p>
-<div class="bw"><span class="bw-ic">B</span><div><b>Bullwaves</b><small>Broker partenaire de l'essai VIP</small></div><span class="bw-tag">Choisi pour toi</span></div>
+<li class="step"><span class="num">1</span><div class="step-body"><h3>Ouvre ton compte chez mon broker partenaire</h3><p>L'essai se fait chez Bullwaves ou Raise FX, mes deux brokers partenaires. Choisis le tien, puis ouvre ton compte avec mon lien juste en dessous.</p>
+<div class="bks" role="group" aria-label="Choisis ton broker"><button type="button" class="bk" data-bk="bullwaves" aria-pressed="false"><span class="bk-ic">B</span>Bullwaves</button><button type="button" class="bk" data-bk="raisefx" aria-pressed="false"><span class="bk-ic">R</span>Raise FX</button></div>
 <div class="bk-panel" data-panel>
 <a class="btn btn-gold" data-link="aff" href="#" rel="noopener"><span>Ouvrir mon compte <span data-bkname></span> ↗</span></a>
 <ul class="bk-todo"><li>Crée ton compte <span data-bkname></span> avec ce lien.</li><li><b>Le broker te crée d'abord un compte réel : c'est normal, mais ce n'est pas celui-là qu'il nous faut.</b></li><li>Dans ton espace <span data-bkname></span>, ouvre un <b>compte démo</b> (souvent dans « Comptes » puis « Ouvrir un compte démo »).</li><li>Note le numéro, le serveur et le mot de passe de ce compte <b>démo</b> : tu en auras besoin à l'étape 2.</li></ul>
-<p class="demo-tip">ℹ️ <b>Normal chez Bullwaves&nbsp;:</b> ton compte démo apparaît sur un serveur <b>«&nbsp;Live&nbsp;»</b>. Pas d'inquiétude, c'est bien ton compte <b>démo</b> : c'est celui-là qu'il faut nous envoyer.</p>
+<p class="demo-tip" data-only="bullwaves">ℹ️ <b>Normal chez Bullwaves&nbsp;:</b> ton compte démo apparaît sur un serveur <b>«&nbsp;Live&nbsp;»</b>. Pas d'inquiétude, c'est bien ton compte <b>démo</b> : c'est celui-là qu'il faut nous envoyer.</p>
 <p class="bk-note">Obligatoire : ton accès n'est validé que si ton compte est ouvert avec ce lien.</p>
 </div>
-<p class="bk-old">Déjà un compte Bullwaves ? Écris-nous sur Telegram à <a href="https://t.me/EquipeInvestPro">@EquipeInvestPro</a> : on te guide pour le rattachement.</p>
+<p class="bk-old">Déjà un compte <span data-bkname></span> ? Écris-nous sur Telegram à <a href="https://t.me/EquipeInvestPro">@EquipeInvestPro</a> : on te guide pour le rattachement.</p>
 </div></li>
 <li class="step"><span class="num">2</span><div class="step-body"><h3>Envoie ta demande</h3><p>Remplis le formulaire et envoie-le : ta demande arrive directement chez nous. On te répond sur le moyen de contact que tu as choisi.</p>
 <div class="tg-need"><b>📲 On te recontacte sur WhatsApp ou Telegram</b> pour brancher ton essai. Tes informations servent uniquement au suivi de ton essai.</div>
@@ -294,7 +295,7 @@ footer{border-top:1px solid var(--line);padding-block:32px 48px;font-size:14px;c
 <label for="tg-srv">Serveur du compte démo</label><input id="tg-srv" name="serveur" type="text" required placeholder="Copie-le tel quel, même s'il contient « Live »">
 <label for="tg-pwd">Mot de passe du compte démo</label><input id="tg-pwd" name="motdepasse" type="text" autocomplete="off" spellcheck="false" required placeholder="Celui reçu par e-mail du broker">
 <p class="tg-warn">Uniquement le mot de passe de ton compte <b>démo</b>. N'envoie jamais celui d'un compte réel.</p>
-<label class="tg-check" for="tg-demo"><input id="tg-demo" name="confirmeDemo" type="checkbox"> <span>Je confirme que c'est mon compte <b>DÉMO</b> Bullwaves (même si le serveur s'appelle « Live »).</span></label>
+<label class="tg-check" for="tg-demo"><input id="tg-demo" name="confirmeDemo" type="checkbox"> <span>Je confirme que c'est mon compte <b>DÉMO</b> <span data-bkname></span><span data-only="bullwaves"> (même si le serveur s'appelle « Live »)</span>.</span></label>
 <div class="hp" aria-hidden="true"><label for="tg-web">Site web</label><input id="tg-web" name="website" type="text" tabindex="-1" autocomplete="off"></div>
 <p class="tg-err" data-err hidden></p>
 <button type="submit" class="btn btn-gold" data-send>Envoyer ma demande</button>
@@ -310,7 +311,7 @@ footer{border-top:1px solid var(--line);padding-block:32px 48px;font-size:14px;c
 <p class="bk-note" data-copied hidden>Message copié. Colle-le dans la conversation avec @EquipeInvestPro.</p>
 </div>
 </div></li>
-<li class="step"><span class="num">3</span><div class="step-body"><h3>On vérifie ton compte et on active la copie</h3><p>Notre équipe vérifie ton inscription Bullwaves et les infos de ton compte démo. Une fois validé, on l’ajoute à InvestPro Copy : les trades du VIP se répliquent alors automatiquement sur ton compte démo.</p></div></li>
+<li class="step"><span class="num">3</span><div class="step-body"><h3>On vérifie ton compte et on active la copie</h3><p>Notre équipe vérifie ton inscription chez le broker et les infos de ton compte démo. Une fois validé, on l’ajoute à InvestPro Copy : les trades du VIP se répliquent alors automatiquement sur ton compte démo.</p></div></li>
 <li class="step step-must" id="canal"><span class="num">4</span><div class="step-body">
 <span class="must-tag"><span aria-hidden="true">⚠️</span> Obligatoire</span>
 <h3>Rejoins le canal Essai VIP</h3>
@@ -355,12 +356,12 @@ footer{border-top:1px solid var(--line);padding-block:32px 48px;font-size:14px;c
 <section class="band rv">
 <div class="wrap" style="max-width:820px">
 <h2 class="h2">Questions <span class="gold">fréquentes</span></h2>
-<details><summary>Je dois déposer de l'argent ?</summary><p>Non. Pendant l'offre, tu découvres le VIP sur un compte démo : aucun dépôt, aucun abonnement. La seule condition : ouvrir ton compte Bullwaves avec mon lien.</p></details>
-<details><summary>Mon compte démo est sur un serveur « Live », c'est normal ?</summary><p>Oui, chez Bullwaves c'est normal : même si c'est écrit « Live », c'est bien ton compte démo. Envoie-nous ses infos.</p></details>
+<details><summary>Je dois déposer de l'argent ?</summary><p>Non. Pendant l'offre, tu découvres le VIP sur un compte démo : aucun dépôt, aucun abonnement. La seule condition : ouvrir ton compte chez Bullwaves ou Raise FX avec mon lien.</p></details>
+<details data-only="bullwaves"><summary>Mon compte démo est sur un serveur « Live », c'est normal ?</summary><p>Oui, chez Bullwaves c'est normal : même si c'est écrit « Live », c'est bien ton compte démo. Envoie-nous ses infos.</p></details>
 <details><summary>Pourquoi un compte démo ?</summary><p>Pour que tu puisses juger les résultats sans prendre de risque. Les trades du VIP sont copiés sur ton compte démo avec de l'argent fictif, et tu vois ce que ça donne.</p></details>
-<details><summary>Et à la fin de l'essai ?</summary><p>Rien n'est automatique. Si tu veux continuer, tu fais un dépôt de 300 $ minimum sur ton compte Bullwaves : tu gardes ton accès au VIP, sans abonnement, et tu profites d'un bonus de 100 % sur ton dépôt. Sinon, la copie s'arrête, c'est tout.</p></details>
-<details><summary>Je suis chez un autre broker, je peux faire l'essai ?</summary><p>L'essai se fait uniquement chez Bullwaves. Tu peux y ouvrir un compte en quelques minutes avec mon lien, même si tu as déjà un compte ailleurs.</p></details>
-<details><summary>J'ai déjà un compte Bullwaves ?</summary><p>Écris-nous sur Telegram à <a href="https://t.me/EquipeInvestPro" style="color:var(--gold);font-weight:700">@EquipeInvestPro</a> : on t'explique comment rattacher ton compte.</p></details>
+<details><summary>Et à la fin de l'essai ?</summary><p>Rien n'est automatique. Si tu veux continuer, tu fais un dépôt de 300 $ minimum sur ton compte <span data-bkname></span> : tu gardes ton accès au VIP, sans abonnement<span data-only="bullwaves">, et tu profites d'un bonus de 100 % sur ton dépôt</span>. Sinon, la copie s'arrête, c'est tout.</p></details>
+<details><summary>Je suis chez un autre broker, je peux faire l'essai ?</summary><p>L'essai se fait uniquement chez Bullwaves ou Raise FX. Tu peux y ouvrir un compte en quelques minutes avec mon lien, même si tu as déjà un compte ailleurs.</p></details>
+<details><summary>J'ai déjà un compte Bullwaves ou Raise FX ?</summary><p>Écris-nous sur Telegram à <a href="https://t.me/EquipeInvestPro" style="color:var(--gold);font-weight:700">@EquipeInvestPro</a> : on t'explique comment rattacher ton compte.</p></details>
 <details><summary>Je débute, c'est pour moi ?</summary><p>Oui, c'est même le bon moment : tu apprends à lire les analyses et à gérer un trade, sans pression puisque c'est en démo.</p></details>
 </div>
 </section>
@@ -402,15 +403,17 @@ footer{border-top:1px solid var(--line);padding-block:32px 48px;font-size:14px;c
   }
   tick(); setInterval(tick,1000);
   // Choix du broker : affiche le lien d'affiliation juste en dessous
-  var NAMES={bullwaves:"Bullwaves"};
+  var NAMES={bullwaves:"Bullwaves",raisefx:"Raise FX"};
   var AFF={
-    bullwaves:"https://go.bullwaves.com/visit/?bta=35465&brand=bullwaves&afp=enrick"
+    bullwaves:"https://go.bullwaves.com/visit/?bta=35465&brand=bullwaves&afp=enrick",
+    raisefx:"https://partners.raisefx.com/visit/?bta=153152&brand=raisefx&afp=support"
   };
   var current=null, panel=document.querySelector("[data-panel]");
   function setBroker(k,user){
     current=k;
     document.querySelectorAll(".bk").forEach(function(b){b.setAttribute("aria-pressed",b.dataset.bk===k?"true":"false");});
     document.querySelectorAll("[data-bkname]").forEach(function(e){e.textContent=NAMES[k];});
+    document.querySelectorAll("[data-only]").forEach(function(e){e.hidden=e.getAttribute("data-only")!==k;});
     var af=document.querySelector('[data-link="aff"]'); if(af) af.href=AFF[k];
     if(panel){panel.hidden=false; if(user){panel.style.animation="none";void panel.offsetWidth;panel.style.animation="";}}
     try{localStorage.setItem("essaiBroker",k);}catch(e){}
@@ -439,7 +442,7 @@ footer{border-top:1px solid var(--line);padding-block:32px 48px;font-size:14px;c
   if(form) form.addEventListener("submit",function(ev){
     ev.preventDefault(); if(err){err.hidden=true;}
     var missing=[]; Object.keys(F).forEach(function(k){var e=document.getElementById(F[k]); var bad=!e.value.trim(); e.setAttribute("aria-invalid",bad?"true":"false"); if(bad) missing.push(e);});
-    if(!current){ if(err){err.textContent="Choisis d'abord ton broker à l'étape 1.";err.hidden=false;} document.querySelector(".bw").scrollIntoView({behavior:"smooth",block:"center"}); return; }
+    if(!current){ if(err){err.textContent="Choisis d'abord ton broker à l'étape 1.";err.hidden=false;} document.querySelector(".bks").scrollIntoView({behavior:"smooth",block:"center"}); return; }
     if(missing.length){ if(err){err.textContent="Complète les champs en rouge.";err.hidden=false;} missing[0].focus(); return; }
     var emailValue=normEmail(val("email"));if(!emailValue){var em=document.getElementById("tg-email");em.setAttribute("aria-invalid","true");if(err){err.textContent="Indique une adresse e-mail valide (ex. julien.martin@gmail.com).";err.hidden=false;}em.focus();return;}
     var phoneValue=normPhone(phone.value),ph=document.getElementById("tg-phone-help");if(!phoneValue){phone.setAttribute("aria-invalid","true");if(ph)ph.classList.add("bad");if(err){err.textContent="Indique ton numéro WhatsApp au format international, avec l’indicatif du pays (ex. +33 6 12 34 56 78).";err.hidden=false;}phone.focus();return;}phone.value=phoneValue;phone.removeAttribute("aria-invalid");if(ph)ph.classList.remove("bad");
@@ -464,7 +467,8 @@ footer{border-top:1px solid var(--line);padding-block:32px 48px;font-size:14px;c
     if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(m).then(done,fallback); } else fallback();
   });
   document.querySelectorAll(".bk").forEach(function(b){b.addEventListener("click",function(){setBroker(b.dataset.bk,true);});});
-  setBroker("bullwaves",false);
+  var saved=null; try{saved=localStorage.getItem("essaiBroker");}catch(e){}
+  setBroker(NAMES[saved]?saved:"bullwaves",false);
 
   var els=document.querySelectorAll(".rv");
   if(!("IntersectionObserver" in window)){els.forEach(function(e){e.classList.add("in")});return;}
