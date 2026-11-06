@@ -1,4 +1,4 @@
-import { serverCatalog } from '@/lib/metasync/server-catalog';
+import { brokers } from '@/lib/metasync/hosted';
 import { randomBytes } from 'node:crypto';
 import { database, digest, sameOrigin } from '@/lib/metasync/server';
 import { body, hostedUser, seal } from '@/lib/metasync/hosted';
@@ -61,7 +61,7 @@ export async function GET(req?: Request) {
       .order('created_at');
 
     if (error) throw Error('hosted_read');
-    return reply({ enabled: true, brokers: await serverCatalog(), connections: data, requestToken: issueHostedRequestToken(user.id) });
+    return reply({ enabled: true, brokers: brokers(), connections: data, requestToken: issueHostedRequestToken(user.id) });
   } catch {
     return reply(
       { error: 'Connexion hébergée indisponible. Réessaie dans quelques instants.' },
@@ -134,9 +134,9 @@ export async function POST(req: Request) {
     return reply({ ok: true });
   }
 
-  let catalog: Awaited<ReturnType<typeof serverCatalog>>;
+  let catalog: ReturnType<typeof brokers>;
   try {
-    catalog = await serverCatalog();
+    catalog = brokers();
   } catch {
     return reply({ error: 'Le catalogue des serveurs InvestPro est indisponible.' }, 503);
   }
