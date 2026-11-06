@@ -88,6 +88,9 @@ export async function POST(request: Request) {
     const lead = validation.value;
     const { error: insertError } = await admin.from("essai_vip_leads").insert({
       nom: lead.nom,
+      prenom: lead.prenom || null,
+      nom_famille: lead.nomFamille || null,
+      email: lead.email || null,
       telegram: lead.telegram || null,
       telephone: lead.telephone || null,
       consentement_whatsapp: lead.contactMethod === "whatsapp",

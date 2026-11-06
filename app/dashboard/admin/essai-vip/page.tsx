@@ -13,6 +13,7 @@ type Lead = {
   broker_affiliation_verified: boolean; demo_account_verified: boolean; copy_linked: boolean; channel_joined: boolean;
   copier_account_reference: string | null; admin_notes: string | null; next_follow_up_on: string | null;
   last_contacted_at: string | null; submitted_at: string; updated_at: string; has_demo_password?: boolean;
+  prenom?: string | null; nom_famille?: string | null; email?: string | null;
 };
 const STATUS: Status[] = ["new", "contacted", "qualified", "demo_active", "completed", "converted", "lost"];
 const statusFr: Record<Status, string> = { new: "Nouveau", contacted: "Contacté", qualified: "À vérifier", demo_active: "Démo branchée", completed: "Essai terminé", converted: "Converti en VIP", lost: "Clos" };
@@ -78,7 +79,7 @@ export default function EssaiVipAdminPage() {
     const needle = search.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().trim();
     return leads.filter(lead => {
       if (filter === "progress" ? !inProgress(lead.status) : filter !== "all" && lead.status !== filter) return false;
-      const haystack = [lead.nom, lead.telegram, lead.telephone, lead.broker, lead.compte, lead.serveur].filter(Boolean).join(" ").normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+      const haystack = [lead.nom, lead.email, lead.telegram, lead.telephone, lead.broker, lead.compte, lead.serveur].filter(Boolean).join(" ").normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
       return !needle || haystack.includes(needle);
     });
   }, [filter, leads, search]);
@@ -181,7 +182,9 @@ export default function EssaiVipAdminPage() {
         <section className={s.block}>
           <h4>Contact</h4>
           <div className={s.facts}>
-            <div><span>Contact préféré</span>{draft.telephone ? "WhatsApp" : "Telegram"}</div>
+            {draft.prenom && <div><span>Prénom</span>{draft.prenom}</div>}
+            {draft.nom_famille && <div><span>Nom</span>{draft.nom_famille}</div>}
+            <div className={s.copyable}><span>E-mail</span>{draft.email ? <><a href={`mailto:${draft.email}`}>{draft.email}</a><button type="button" onClick={() => void copy(draft.email as string, "E-mail")} aria-label="Copier l’e-mail"><Copy size={14} /></button></> : <small>Non demandé (ancien formulaire)</small>}</div>
             <div><span>Téléphone</span>{draft.telephone ? <>{draft.telephone}{draft.consentement_whatsapp && <em>accord WhatsApp ✓</em>}</> : "—"}</div>
             <div><span>Telegram</span>{draft.telegram || "—"}</div>
           </div>

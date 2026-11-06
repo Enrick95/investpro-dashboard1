@@ -214,6 +214,7 @@ footer{border-top:1px solid var(--line);padding-block:32px 48px;font-size:14px;c
 .js .rv.in{transform:none;opacity:1}
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}.js .rv{transform:none!important;opacity:1!important}}
 @media (max-width:520px){.mini-count span.txt{display:none}.count-card{padding:22px}.step{padding:18px;gap:14px}}
+.tg-row{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}.tg-row>div{display:flex;flex-direction:column;min-width:0}@media (max-width:480px){.tg-row{grid-template-columns:1fr}}
 </style>
 
 </head>
@@ -283,16 +284,12 @@ footer{border-top:1px solid var(--line);padding-block:32px 48px;font-size:14px;c
 <p class="bk-old">Déjà un compte Bullwaves ? Écris-nous sur Telegram à <a href="https://t.me/EquipeInvestPro">@EquipeInvestPro</a> : on te guide pour le rattachement.</p>
 </div></li>
 <li class="step"><span class="num">2</span><div class="step-body"><h3>Envoie ta demande</h3><p>Remplis le formulaire et envoie-le : ta demande arrive directement chez nous. On te répond sur le moyen de contact que tu as choisi.</p>
-<div class="tg-need"><b>📲 WhatsApp est recommandé pour le suivi.</b> Tu peux aussi choisir Telegram si tu préfères. Un seul moyen de contact suffit.</div>
+<div class="tg-need"><b>📲 On te recontacte sur WhatsApp ou Telegram</b> pour brancher ton essai. Tes informations servent uniquement au suivi de ton essai.</div>
 <form class="tg-form" id="essai-form" novalidate>
-<label for="tg-name">Prénom et nom</label><input id="tg-name" name="nom" type="text" autocomplete="name" required placeholder="Ex. Julien Martin">
-<label>Comment préfères-tu être contacté ? <span class="req">obligatoire</span></label>
-<div class="contact-options" role="radiogroup" aria-label="Moyen de contact préféré">
-<label class="contact-option"><input type="radio" name="contactMethod" value="whatsapp" checked><span>WhatsApp <em>Recommandé</em><small>Le plus simple pour le suivi de ton essai.</small></span></label>
-<label class="contact-option"><input type="radio" name="contactMethod" value="telegram"><span>Telegram<small>Choisis cette option si tu préfères être contacté sur Telegram.</small></span></label>
-</div>
-<div class="contact-field" id="whatsapp-field"><label for="tg-phone">Ton numéro WhatsApp <span class="req">obligatoire</span></label><input id="tg-phone" name="telephone" type="tel" inputmode="tel" autocomplete="tel" required placeholder="Ex. +33 6 12 34 56 78" aria-describedby="tg-phone-help"><p class="tg-help" id="tg-phone-help">Ajoute l’indicatif de ton pays (ex. +33 pour la France). Ton numéro servira uniquement au suivi de ton essai.</p></div>
-<div class="contact-field" id="telegram-field" hidden><label for="tg-user">Ton nom d'utilisateur Telegram <span class="req">obligatoire si Telegram est choisi</span></label><input id="tg-user" name="telegram" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" disabled placeholder="Ex. @julienmartin" aria-describedby="tg-user-help"><p class="tg-help" id="tg-user-help">Tu le trouves dans Telegram › <b>Paramètres</b> › <b>Nom d'utilisateur</b>. Pas encore Telegram ? <a href="https://telegram.org/apps" rel="noopener">Télécharge l'app</a>.</p></div>
+<div class="tg-row"><div><label for="tg-first">Prénom</label><input id="tg-first" name="prenom" type="text" autocomplete="given-name" required placeholder="Ex. Julien" maxlength="60"></div><div><label for="tg-last">Nom</label><input id="tg-last" name="nomFamille" type="text" autocomplete="family-name" required placeholder="Ex. Martin" maxlength="60"></div></div>
+<label for="tg-email">Adresse e-mail</label><input id="tg-email" name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" required placeholder="Ex. julien.martin@gmail.com" maxlength="254">
+<label for="tg-phone">Ton numéro WhatsApp</label><input id="tg-phone" name="telephone" type="tel" inputmode="tel" autocomplete="tel" required placeholder="Ex. +33 6 12 34 56 78" aria-describedby="tg-phone-help"><p class="tg-help" id="tg-phone-help">Avec l’indicatif de ton pays (ex. +33 pour la France).</p>
+<label for="tg-user">Ton nom d'utilisateur Telegram</label><input id="tg-user" name="telegram" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" required placeholder="Ex. @julienmartin" aria-describedby="tg-user-help"><p class="tg-help" id="tg-user-help">Dans Telegram › <b>Paramètres</b> › <b>Nom d'utilisateur</b>. Pas encore Telegram ? <a href="https://telegram.org/apps" rel="noopener">Télécharge l'app</a>.</p>
 <label for="tg-acc">N° de ton compte démo</label><input id="tg-acc" name="compte" type="text" inputmode="numeric" required placeholder="Ex. 12345678">
 <label for="tg-srv">Serveur du compte démo</label><input id="tg-srv" name="serveur" type="text" required placeholder="Copie-le tel quel, même s'il contient « Live »">
 <label for="tg-pwd">Mot de passe du compte démo</label><input id="tg-pwd" name="motdepasse" type="text" autocomplete="off" spellcheck="false" required placeholder="Celui reçu par e-mail du broker">
@@ -422,20 +419,18 @@ footer{border-top:1px solid var(--line);padding-block:32px 48px;font-size:14px;c
   // Message de secours prêt à copier
   // Formulaire : envoi automatique vers le bot Telegram (route serveur), message à copier en secours
   var ENDPOINT="/api/essai-vip";
-  var F={nom:"tg-name",compte:"tg-acc",serveur:"tg-srv",motdepasse:"tg-pwd"};
+  var F={prenom:"tg-first",nomFamille:"tg-last",email:"tg-email",compte:"tg-acc",serveur:"tg-srv",motdepasse:"tg-pwd"};
   var form=document.getElementById("essai-form"), msgBox=document.querySelector("[data-msg]"), err=document.querySelector("[data-err]");
   function normTg(v){ v=(v||"").trim().replace(/^https?:\/\//i,"").replace(/^(www\.)?(t|telegram)\.me\//i,"").replace(/^@+/,"").replace(/\/+$/,""); return /^[A-Za-z][A-Za-z0-9_]{4,31}$/.test(v) ? "@"+v : ""; }
   function normPhone(v){var x=(v||"").trim().replace(/[()\s.-]/g,"").replace(/^00/,"+");return /^\+[1-9]\d{7,14}$/.test(x)?x:"";}
-  var phone=document.getElementById("tg-phone"),tg=document.getElementById("tg-user"),phoneField=document.getElementById("whatsapp-field"),tgField=document.getElementById("telegram-field");
-  function contactMethod(){var selected=document.querySelector('input[name="contactMethod"]:checked');return selected?selected.value:"whatsapp";}
-  function updateContactFields(){var usePhone=contactMethod()==="whatsapp";phoneField.hidden=!usePhone;phone.disabled=!usePhone;phone.required=usePhone;tgField.hidden=usePhone;tg.disabled=usePhone;tg.required=!usePhone;buildMsg();}
-  document.querySelectorAll('input[name="contactMethod"]').forEach(function(r){r.addEventListener("change",updateContactFields);});
+  var phone=document.getElementById("tg-phone"),tg=document.getElementById("tg-user");
+  function normEmail(v){v=(v||"").trim().toLowerCase();return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)?v:"";}
+  function updateContactFields(){buildMsg();}
   if(phone)phone.addEventListener("blur",function(){if(!phone.value.trim())return;var n=normPhone(phone.value),hp=document.getElementById("tg-phone-help");if(n){phone.value=n;phone.removeAttribute("aria-invalid");if(hp)hp.classList.remove("bad");}else{phone.setAttribute("aria-invalid","true");if(hp)hp.classList.add("bad");}buildMsg();});
   (function(){var hp=document.getElementById("tg-user-help");if(tg)tg.addEventListener("blur",function(){if(!tg.value.trim())return;var n=normTg(tg.value);if(n){tg.value=n;tg.removeAttribute("aria-invalid");if(hp)hp.classList.remove("bad");}else{tg.setAttribute("aria-invalid","true");if(hp)hp.classList.add("bad");}buildMsg();});})();
   function val(k){var e=document.getElementById(F[k]);return e?e.value.trim():"";}
   function buildMsg(){
-    var method=contactMethod(),contact=method==="whatsapp"?"WhatsApp : "+(phone&&phone.value.trim()?phone.value.trim():"…"):"Telegram : "+(tg&&tg.value.trim()?tg.value.trim():"…");
-    var m="C'est fait ✅ Essai VIP sans dépôt\nNom : "+(val("nom")||"…")+"\nContact préféré : "+contact+"\nBroker : "+(current?NAMES[current]:"…")+"\nCompte démo n° "+(val("compte")||"…")+"\nServeur : "+(val("serveur")||"…")+"\nMot de passe démo : "+(val("motdepasse")||"…");
+    var m="C'est fait ✅ Essai VIP sans dépôt\nNom : "+((val("prenom")+" "+val("nomFamille")).trim()||"…")+"\nE-mail : "+(val("email")||"…")+"\nWhatsApp : "+(phone&&phone.value.trim()?phone.value.trim():"…")+"\nTelegram : "+(tg&&tg.value.trim()?tg.value.trim():"…")+"\nBroker : "+(current?NAMES[current]:"…")+"\nCompte démo n° "+(val("compte")||"…")+"\nServeur : "+(val("serveur")||"…")+"\nMot de passe démo : "+(val("motdepasse")||"…");
     if(msgBox) msgBox.textContent=m; return m;
   }
   Object.keys(F).forEach(function(k){var e=document.getElementById(F[k]); if(e) e.addEventListener("input",function(){e.removeAttribute("aria-invalid");buildMsg();});});
@@ -446,14 +441,14 @@ footer{border-top:1px solid var(--line);padding-block:32px 48px;font-size:14px;c
     var missing=[]; Object.keys(F).forEach(function(k){var e=document.getElementById(F[k]); var bad=!e.value.trim(); e.setAttribute("aria-invalid",bad?"true":"false"); if(bad) missing.push(e);});
     if(!current){ if(err){err.textContent="Choisis d'abord ton broker à l'étape 1.";err.hidden=false;} document.querySelector(".bw").scrollIntoView({behavior:"smooth",block:"center"}); return; }
     if(missing.length){ if(err){err.textContent="Complète les champs en rouge.";err.hidden=false;} missing[0].focus(); return; }
-    var method=contactMethod(),contactValue="",contactHelp;
-    if(method==="whatsapp"){contactValue=normPhone(phone.value);contactHelp=document.getElementById("tg-phone-help");if(!contactValue){phone.setAttribute("aria-invalid","true");if(contactHelp)contactHelp.classList.add("bad");if(err){err.textContent="Indique ton numéro WhatsApp au format international, avec l’indicatif du pays (ex. +33 6 12 34 56 78).";err.hidden=false;}phone.focus();return;}phone.value=contactValue;phone.removeAttribute("aria-invalid");if(contactHelp)contactHelp.classList.remove("bad");}
-    else{contactValue=normTg(tg.value);contactHelp=document.getElementById("tg-user-help");if(!contactValue){tg.setAttribute("aria-invalid","true");if(contactHelp)contactHelp.classList.add("bad");if(err){err.textContent="Indique ton nom d'utilisateur Telegram (ex. @julienmartin).";err.hidden=false;}tg.focus();return;}tg.value=contactValue;tg.removeAttribute("aria-invalid");if(contactHelp)contactHelp.classList.remove("bad");}
+    var emailValue=normEmail(val("email"));if(!emailValue){var em=document.getElementById("tg-email");em.setAttribute("aria-invalid","true");if(err){err.textContent="Indique une adresse e-mail valide (ex. julien.martin@gmail.com).";err.hidden=false;}em.focus();return;}
+    var phoneValue=normPhone(phone.value),ph=document.getElementById("tg-phone-help");if(!phoneValue){phone.setAttribute("aria-invalid","true");if(ph)ph.classList.add("bad");if(err){err.textContent="Indique ton numéro WhatsApp au format international, avec l’indicatif du pays (ex. +33 6 12 34 56 78).";err.hidden=false;}phone.focus();return;}phone.value=phoneValue;phone.removeAttribute("aria-invalid");if(ph)ph.classList.remove("bad");
+    var tgValue=normTg(tg.value),th=document.getElementById("tg-user-help");if(!tgValue){tg.setAttribute("aria-invalid","true");if(th)th.classList.add("bad");if(err){err.textContent="Indique ton nom d'utilisateur Telegram (ex. @julienmartin).";err.hidden=false;}tg.focus();return;}tg.value=tgValue;tg.removeAttribute("aria-invalid");if(th)th.classList.remove("bad");
     var ck=document.getElementById("tg-demo"), ckl=document.querySelector(".tg-check");
     if(ck && !ck.checked){ if(ckl) ckl.classList.add("bad"); if(err){err.textContent="Coche la case pour confirmer que c'est un compte démo.";err.hidden=false;} ck.focus(); return; }
     if(ckl) ckl.classList.remove("bad");
     var btn=form.querySelector("[data-send]"); btn.disabled=true; btn.textContent="Envoi en cours…";
-    var data={broker:NAMES[current],contactMethod:method,telephone:method==="whatsapp"?contactValue:"",telegram:method==="telegram"?contactValue:"",confirmeDemo:true,website:(document.getElementById("tg-web")||{}).value||""}; Object.keys(F).forEach(function(k){data[k]=val(k);});
+    var data={broker:NAMES[current],contactMethod:"whatsapp",telephone:phoneValue,telegram:tgValue,confirmeDemo:true,website:(document.getElementById("tg-web")||{}).value||""}; Object.keys(F).forEach(function(k){data[k]=val(k);});
     function fail(){ btn.disabled=false; btn.textContent="Envoyer ma demande"; buildMsg(); document.querySelector("[data-fallback]").hidden=false; }
     try{
       fetch(ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)})

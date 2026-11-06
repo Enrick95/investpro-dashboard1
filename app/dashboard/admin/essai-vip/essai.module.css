@@ -102,3 +102,4 @@
 .addPassword input{flex:1 1 220px}
 .addPassword .primary{flex:0 0 auto;white-space:nowrap;padding:0 16px}
 .copyable button{flex:0 0 auto}
+.facts a{color:var(--gold);text-decoration:none;overflow-wrap:anywhere}
