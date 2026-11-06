@@ -136,6 +136,18 @@ export default function HostedSyncPanel({ initialPlatform = "MT5" }: { initialPl
     ready: "Prêt",
   };
 
+  const needsReconnect = connections.some((connection) => {
+    const mt = connection.investpro_mt_connections;
+    const stale =
+      !mt.last_sync || Date.now() - Date.parse(mt.last_sync) > 180000;
+
+    return (
+      connection.active &&
+      (connection.status === "error" ||
+        (connection.status === "syncing" && stale))
+    );
+  });
+
   return (
     <section
       data-investpro-hosted="true"
@@ -166,6 +178,27 @@ export default function HostedSyncPanel({ initialPlatform = "MT5" }: { initialPl
       <div className="border-b border-white/[0.06] px-5 py-4 md:px-6">
         <ServerRequests platformDefault={platform} />
       </div>
+
+      {needsReconnect ? (
+        <div
+          role="status"
+          className="mx-5 mt-5 flex items-start gap-3 rounded-xl border border-amber-500/25 bg-amber-500/[0.07] p-4 text-xs leading-5 text-amber-100 md:mx-6"
+        >
+          <AlertTriangle size={16} className="mt-0.5 shrink-0 text-amber-300" />
+          <div>
+            <p className="font-semibold">
+              {locale === "en"
+                ? "Action needed: restore your MetaTrader connection"
+                : "Action requise : rétablissez votre connexion MetaTrader"}
+            </p>
+            <p className="mt-1 text-amber-100/80">
+              {locale === "en"
+                ? "In the form below, submit the same platform, broker/server and account number with your current MetaTrader investor password, then choose “Connect my account”. This reactivates the existing link; do not disconnect it or create a duplicate journal account. Trades already imported stay in your journal. If it is still failing after a few minutes, contact support with the platform, server and error time—never send your password."
+                : "Dans le formulaire ci-dessous, renvoyez la même plateforme, le même broker/serveur et le même numéro de compte avec votre mot de passe investisseur MetaTrader actuel, puis cliquez sur « Connecter mon compte ». Cela réactive la liaison existante : ne la déconnectez pas et ne créez pas de compte journal en double. Les trades déjà importés restent dans votre journal. Si l’échec persiste après quelques minutes, contactez le support avec la plateforme, le serveur et l’heure de l’erreur — jamais avec votre mot de passe."}
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 gap-px bg-white/[0.05] xl:grid-cols-[1.05fr_.95fr]">
         <form
