@@ -8,7 +8,7 @@ import { useLocale } from "@/components/i18n/LocaleProvider";
 import { AdminPreviewNavigationProvider } from "@/components/admin/AdminPreviewNavigation";
 import AdminPhoneAlerts from "@/components/admin/AdminPhoneAlerts";
 import AdminActivityBell from "@/components/admin/AdminActivityBell";
-import { adminToolPreviewHref, checkAdminToolAccess, parseCurrentAdminPath, type AdminToolCheck, type AdminToolId, type AdminWorkspacePath, type VipAdminView } from "./admin-tool-access";
+import { adminToolPreviewHref, canOpenAdminTool, checkAdminToolAccess, parseCurrentAdminPath, type AdminToolCheck, type AdminToolId, type AdminWorkspacePath, type VipAdminView } from "./admin-tool-access";
 import s from "./admin-tool-workspace.module.css";
 
 function LoadingTool() {
@@ -41,6 +41,19 @@ const CurrentMember = dynamic(() => import("@/app/dashboard/admin/utilisateurs/[
 
 type Props = { tool: AdminToolId; memberId?: string; vipView?: VipAdminView; basePath?: AdminWorkspacePath; onNavigate: (path: string) => void };
 type Gate = { key: string } & (AdminToolCheck | { status: "checking" });
+type AllowedAccess = Extract<AdminToolCheck, { status: "allowed" }>["access"];
+
+/**
+ * Droits admin gardés quelques minutes en mémoire pour ouvrir les rubriques sans attente.
+ * La vérification serveur est quand même relancée en arrière-plan à chaque ouverture,
+ * et chaque API vérifie toujours les droits elle-même : ce cache ne sert qu'à l'affichage.
+ */
+const ACCESS_CACHE_MS = 5 * 60_000;
+let accessCache: { at: number; access: AllowedAccess } | null = null;
+function cachedGate(key: string, tool: AdminToolId, memberId?: string): Gate {
+  if (accessCache && Date.now() - accessCache.at < ACCESS_CACHE_MS && canOpenAdminTool(accessCache.access, tool, memberId)) return { key, status: "allowed", access: accessCache.access };
+  return { key, status: "checking" };
+}
 
 class ToolBoundary extends Component<{ children: ReactNode; retry: () => void; english: boolean }, { failed: boolean }> {
   state = { failed: false };
@@ -59,7 +72,7 @@ export default function AdminToolWorkspace({ tool, memberId, vipView, basePath =
   const [attempt, setAttempt] = useState(0);
   const [alertsOpen, setAlertsOpen] = useState(false);
   const alertsId = useId();
-  const [gate, setGate] = useState<Gate>({ key, status: "checking" });
+  const [gate, setGate] = useState<Gate>(() => cachedGate(key, tool, memberId));
 
   useEffect(() => {
     const controller = new AbortController();
@@ -74,6 +87,7 @@ export default function AdminToolWorkspace({ tool, memberId, vipView, basePath =
         const { data: subscription } = supabase.auth.onAuthStateChange((event, session) => {
           if (disposed || event === "INITIAL_SESSION") return;
           if (event === "SIGNED_OUT" || !session?.access_token) {
+            accessCache = null;
             controller.abort();
             setGate({ key, status: "signedOut" });
           } else if (event === "USER_UPDATED" || session.access_token !== lastToken) {
@@ -89,9 +103,12 @@ export default function AdminToolWorkspace({ tool, memberId, vipView, basePath =
           lastToken = data.session?.access_token || null;
           return lastToken;
         } });
-        if (!disposed && !controller.signal.aborted && result.status !== "aborted") setGate({ key, ...result });
+        if (result.status === "allowed") accessCache = { at: Date.now(), access: result.access };
+        else if (result.status === "signedOut" || result.status === "denied") accessCache = null;
+        // Une erreur réseau passagère ne referme pas une rubrique déjà ouverte grâce au cache.
+        if (!disposed && !controller.signal.aborted && result.status !== "aborted") setGate(previous => result.status === "unavailable" && previous.key === key && previous.status === "allowed" ? previous : { key, ...result });
       } catch {
-        if (!disposed) setGate({ key, status: "unavailable" });
+        if (!disposed) setGate(previous => previous.key === key && previous.status === "allowed" ? previous : { key, status: "unavailable" });
       }
     }
     void verify();
