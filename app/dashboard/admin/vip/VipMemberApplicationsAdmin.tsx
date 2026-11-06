@@ -10,6 +10,7 @@ type Application={
   first_name:string;last_name:string;email:string;telegram_username:string;phone_whatsapp:string;
   affiliation_broker:string;mt_platform:string;broker_account_id:string;mt_server:string;
   deposit_range:string;declared_deposit_usd:number;proof_path:string;created_at:string;
+  broker_account_kind?:"new"|"existing";broker_email?:string|null;transfer_requested_on?:string|null;
   approval_email_sent_at:string|null;claim_expires_at:string|null;claimed_user_id:string|null;
 };
 function depositLabel(value:string){return value==="300-499"?"300 $ à 499 $":value==="500-999"?"500 $ à 999 $":"1 000 $ ou plus";}
@@ -57,10 +58,12 @@ export default function VipMemberApplicationsAdmin(){
   }
   const update=(item:Application,key:string,value:string|boolean)=>setValues(old=>({...old,[item.id]:{...formValue(item),[key]:value}}));
   const [filter,setFilter]=useState<"submitted"|"done">("submitted");
+  const [kind,setKind]=useState<"all"|"new"|"existing">("all");
   const [selectedId,setSelectedId]=useState("");
   const pending=(items||[]).filter(item=>item.status==="submitted");
   const done=(items||[]).filter(item=>item.status!=="submitted");
-  const shown=filter==="submitted"?pending:done;
+  const isTransfer=(item:Application)=>item.broker_account_kind==="existing";
+  const shown=(filter==="submitted"?pending:done).filter(item=>kind==="all"||(kind==="existing")===isTransfer(item));
   const selected=shown.find(item=>item.id===selectedId)||shown[0]||null;
   const statusLabel=(item:Application)=>item.status==="submitted"?"À vérifier":item.status==="claimed"?"Compte créé · VIP ouvert":item.status==="denied"?"Refusé":"Validé · compte en attente";
   return <section className={a.section}>
@@ -69,11 +72,16 @@ export default function VipMemberApplicationsAdmin(){
       <button type="button" role="tab" aria-selected={filter==="submitted"} onClick={()=>setFilter("submitted")}>À vérifier <b>{pending.length}</b></button>
       <button type="button" role="tab" aria-selected={filter==="done"} onClick={()=>setFilter("done")}>Traités <b>{done.length}</b></button>
     </div>
+    <div className={a.tabs} role="group" aria-label="Type d’adhésion">
+      <button type="button" aria-pressed={kind==="all"} aria-selected={kind==="all"} onClick={()=>setKind("all")}>Tous</button>
+      <button type="button" aria-pressed={kind==="new"} aria-selected={kind==="new"} onClick={()=>setKind("new")}>Nouveau compte (lien) <b>{(items||[]).filter(item=>!isTransfer(item)).length}</b></button>
+      <button type="button" aria-pressed={kind==="existing"} aria-selected={kind==="existing"} onClick={()=>setKind("existing")}>🔗 Rattachements <b>{(items||[]).filter(isTransfer).length}</b></button>
+    </div>
     {error&&<p role="alert" className={a.error}>{error}</p>}
     {items===null?<p className={a.muted}>Chargement des dossiers…</p>:!shown.length?<p className={a.empty}>{filter==="submitted"?"Aucun nouveau dossier pour le moment.":"Aucun dossier traité."}</p>:<div className={a.split}>
       <ul className={a.list}>{shown.map(item=><li key={item.id}><button type="button" aria-pressed={selected?.id===item.id} onClick={()=>setSelectedId(item.id)}>
         <span className={a.avatar} aria-hidden="true">{item.first_name.charAt(0).toUpperCase()}{item.last_name.charAt(0).toUpperCase()}</span>
-        <span className={a.who}><b>{item.first_name} {item.last_name}</b><small>{vipAffiliationBrokerLabel(item.affiliation_broker)||item.affiliation_broker} · {dateLabel(item.created_at)}</small></span>
+        <span className={a.who}><b>{item.first_name} {item.last_name}</b><small>{isTransfer(item)?"🔗 Rattachement · ":""}{vipAffiliationBrokerLabel(item.affiliation_broker)||item.affiliation_broker} · {dateLabel(item.created_at)}</small></span>
         <span className={a.state} data-status={item.status}>{item.status==="submitted"?"Nouveau":item.status==="denied"?"Refusé":"Validé"}</span>
       </button></li>)}</ul>
       {selected&&(()=>{const item=selected;const form=formValue(item);return <article className={a.sheet} key={item.id}>
@@ -83,7 +91,9 @@ export default function VipMemberApplicationsAdmin(){
           <div><span>Telegram</span><a href={`https://t.me/${encodeURIComponent(item.telegram_username)}`} target="_blank" rel="noreferrer">@{item.telegram_username} ↗</a></div>
           <div><span>Reçu le</span>{dateLabel(item.created_at)}</div>
         </div></div>
-        <div className={a.block}><h4>Compte de trading</h4><div className={a.facts}>
+        <div className={a.block}><h4>{isTransfer(item)?"🔗 Rattachement d’un compte existant":"Compte de trading · nouveau compte (lien d’Enrick)"}</h4><div className={a.facts}>
+          {isTransfer(item)&&<div><span>E-mail chez le broker</span>{item.broker_email||"—"}</div>}
+          {isTransfer(item)&&<div><span>Rattachement demandé le</span>{item.transfer_requested_on?dateLabel(item.transfer_requested_on):"Non précisé"}</div>}
           <div><span>Broker</span>{vipAffiliationBrokerLabel(item.affiliation_broker)||item.affiliation_broker}</div>
           <div><span>Compte MetaTrader</span>{item.mt_platform} · {item.broker_account_id}</div>
           <div><span>Serveur</span>{item.mt_server}</div>

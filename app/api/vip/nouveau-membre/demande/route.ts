@@ -51,6 +51,10 @@ export async function POST(request: Request) {
   const server=String(form.get("serveur")||"").trim();
   const deposit=String(form.get("depot")||"");
   const viaEnrick=form.get("viaEnrick")==="true";
+  const transfer=form.get("typeCompte")==="rattachement";
+  const brokerEmail=typeof form.get("emailBroker")==="string"?String(form.get("emailBroker")).trim().toLowerCase():"";
+  const transferDateRaw=String(form.get("dateRattachement")||"").trim();
+  const transferDate=/^\d{4}-\d{2}-\d{2}$/.test(transferDateRaw)&&!Number.isNaN(Date.parse(transferDateRaw))&&Date.parse(transferDateRaw)<=Date.now()+86400000?transferDateRaw:null;
   const proof=form.get("capture");
   if(!firstName||!lastName) return json({error:"Renseigne ton prénom et ton nom."},400);
   if(email.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return json({error:"Adresse e-mail invalide."},400);
@@ -60,7 +64,8 @@ export async function POST(request: Request) {
   if(!/^\d{4,12}$/.test(account)||server.length<2||server.length>100||/[\r\n\0]/.test(server)) return json({error:"Vérifie ton numéro de compte et le serveur MetaTrader."},400);
   const depositMin:Record<string,number>={"300-499":300,"500-999":500,"1000-plus":1000};
   if(!(deposit in depositMin)) return json({error:"Choisis une tranche de dépôt valide."},400);
-  if(!viaEnrick) return json({error:"Confirme que tu as ouvert le compte avec le lien d’Enrick."},400);
+  if(transfer&&(brokerEmail.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(brokerEmail))) return json({error:"Indique l’adresse e-mail de ton compte chez le broker."},400);
+  if(!viaEnrick) return json({error:transfer?"Confirme que tu as demandé le rattachement de ton compte à Enrick auprès du broker.":"Confirme que tu as ouvert le compte avec le lien d’Enrick."},400);
   if(!(proof instanceof File)) return json({error:"Ajoute une capture de ton dépôt."},400);
   const extension=ALLOWED.get(proof.type);
   if(!extension||proof.size<1||proof.size>MAX_FILE) return json({error:"Ajoute une image ou un PDF de 8 Mo maximum."},400);
@@ -80,6 +85,7 @@ export async function POST(request: Request) {
     id,email,first_name:firstName,last_name:lastName,telegram_username:telegram,phone_whatsapp:phone,
     affiliation_broker:broker,mt_platform:platform,broker_account_id:account,mt_server:server,
     deposit_range:deposit,declared_deposit_usd:depositMin[deposit],via_enrick_link:true,proof_path:proofPath,
+    broker_account_kind:transfer?"existing":"new",broker_email:transfer?brokerEmail:null,transfer_requested_on:transfer?transferDate:null,
   }).select("id").single();
   if(inserted.error) {
     await admin.storage.from("vip-membership-proofs").remove([proofPath]).catch(()=>{});
@@ -87,19 +93,19 @@ export async function POST(request: Request) {
     return json({error:"La demande n’a pas pu être enregistrée. Réessaie dans un instant."},503);
   }
   after(async()=>{
-    try { await notifyAdminNewApplication({firstName:String(firstName),lastName:String(lastName),telegram,phone:String(phone),broker,platform,account,server,deposit}); }
+    try { await notifyAdminNewApplication({firstName:String(firstName),lastName:String(lastName),telegram,phone:String(phone),broker,platform,account,server,deposit,transfer,brokerEmail,transferDate}); }
     catch { console.error("VIP_APPLICATION_TELEGRAM_DEFERRED_FAILED"); }
-    await pushAdminNotice(admin, inserted.data.id as string, "🆕 Nouveau membre VIP (affiliation)", `${String(firstName)} ${String(lastName)} · ${vipAffiliationBrokerLabel(broker) || broker} · à vérifier`);
+    await pushAdminNotice(admin, inserted.data.id as string, transfer?"🔗 Nouveau membre VIP (rattachement)":"🆕 Nouveau membre VIP (affiliation)", `${String(firstName)} ${String(lastName)} · ${vipAffiliationBrokerLabel(broker) || broker} · à vérifier`);
   });
   return json({ok:true,applicationId:inserted.data.id},201);
 }
 
 /** Alerte Telegram à Enrick pour chaque dossier « nouveau membre ». Le mot de passe investisseur n’y figure jamais. */
-async function notifyAdminNewApplication(d:{firstName:string;lastName:string;telegram:string;phone:string;broker:string;platform:string;account:string;server:string;deposit:string}) {
+async function notifyAdminNewApplication(d:{firstName:string;lastName:string;telegram:string;phone:string;broker:string;platform:string;account:string;server:string;deposit:string;transfer:boolean;brokerEmail:string;transferDate:string|null}) {
   const chat=process.env.TELEGRAM_CHAT_ID||"";
   if(!process.env.TELEGRAM_BOT_TOKEN||!/^-?\d+$/.test(chat)) return;
   const esc=(value:string)=>String(value).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c] as string));
   const deposit=d.deposit==="300-499"?"300 $ à 499 $":d.deposit==="500-999"?"500 $ à 999 $":"1 000 $ ou plus";
-  const text=`🆕 <b>Nouveau membre VIP à vérifier</b>\n👤 ${esc(d.firstName)} ${esc(d.lastName)} · @${esc(d.telegram)} · <a href="https://wa.me/${d.phone.replace(/\D/g,"")}">WhatsApp</a>\n🏦 ${esc(vipAffiliationBrokerLabel(d.broker)||d.broker)} · ${esc(d.platform)} n° ${esc(d.account)} · ${esc(d.server)}\n💰 Dépôt déclaré : ${deposit} · 📎 capture jointe\n\nÀ valider ici : https://investprotrading.fr/dashboard/admin?tool=vip&view=requests`;
+  const text=`${d.transfer?`🔗 <b>Nouveau membre VIP · RATTACHEMENT à vérifier</b>\n📧 E-mail chez le broker : ${esc(d.brokerEmail)}${d.transferDate?` · demandé le ${esc(d.transferDate)}`:""}`:"🆕 <b>Nouveau membre VIP à vérifier</b>"}\n👤 ${esc(d.firstName)} ${esc(d.lastName)} · @${esc(d.telegram)} · <a href="https://wa.me/${d.phone.replace(/\D/g,"")}">WhatsApp</a>\n🏦 ${esc(vipAffiliationBrokerLabel(d.broker)||d.broker)} · ${esc(d.platform)} n° ${esc(d.account)} · ${esc(d.server)}\n💰 Dépôt déclaré : ${deposit} · 📎 capture jointe\n\nÀ valider ici : https://investprotrading.fr/dashboard/admin?tool=vip&view=requests`;
   if(!(await telegramAdmin(text))) throw new Error("VIP_APPLICATION_TELEGRAM_FAILED");
 }

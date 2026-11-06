@@ -100,7 +100,7 @@ function RequestReview({ request, onRefresh }: { request: VipAccessRequest; onRe
         <div><dt>{text("Fin d’abonnement", "Renewal due")}</dt><dd>{request.paid_on && vipPaymentExpiry(request.paid_on) ? vipDate(vipPaymentExpiry(request.paid_on), locale) : "—"}</dd></div>
         <div data-tone="warn"><dt>Stripe</dt><dd>{text("À vérifier avant de valider", "Check before approving")}</dd></div>
       </> : <>
-        <div><dt>{text("Broker", "Broker")}</dt><dd>{vipAffiliationBrokerLabel(request.affiliation_broker) || text("À confirmer", "To confirm")}</dd></div>
+        <div data-tone={request.broker_account_kind === "existing" ? "warn" : undefined}><dt>{text("Broker", "Broker")}</dt><dd>{vipAffiliationBrokerLabel(request.affiliation_broker) || text("À confirmer", "To confirm")}{request.broker_account_kind === "existing" ? text(" · rattachement", " · transfer") : request.broker_account_kind === "new" ? text(" · nouveau compte", " · new account") : ""}</dd></div>
         <div><dt>{text("Compte", "Account")}</dt><dd>{request.broker_account_id ? `${request.mt_platform ? request.mt_platform + " · " : ""}${request.broker_account_id}` : "—"}</dd></div>
         <div><dt>{text("Dépôt déclaré", "Declared deposit")}</dt><dd>{request.declared_deposit_usd !== null && request.declared_deposit_usd !== undefined ? usd(request.declared_deposit_usd) : request.deposit_range ? (request.deposit_range === "300-499" ? "300 $ à 499 $" : request.deposit_range === "500-999" ? "500 $ à 999 $" : "1 000 $ ou plus") : "—"}</dd></div>
       </>}
@@ -185,7 +185,7 @@ export default function VipAccessRequestsAdmin({ requests, error, onRefresh }: P
     const matches = `${request.first_name} ${request.last_name} ${request.email} ${request.telegram_username} ${request.broker_account_id || ""} ${request.broker_email || ""}`.toLocaleLowerCase("fr").includes(query);
     const matchesKind = kind === "all" || (request.request_kind || "existing") === kind;
     const matchesCompletion = completionState === "all" || completionState === "needed" && needsVipCompletion(request) || completionState === "submitted" && !!request.completion_submitted_at && !needsVipCompletion(request);
-    return matches && matchesKind && matchesCompletion && (origin === "all" || origin === "affiliation-any" && request.type === "affiliation" || origin === "abonnement" && request.type === "abonnement" || origin === "unknown" && request.type === "affiliation" && !request.affiliation_broker || request.type === "affiliation" && request.affiliation_broker === origin);
+    return matches && matchesKind && matchesCompletion && (origin === "all" || origin === "transfer" && request.type === "affiliation" && request.broker_account_kind === "existing" || origin === "affiliation-any" && request.type === "affiliation" || origin === "abonnement" && request.type === "abonnement" || origin === "unknown" && request.type === "affiliation" && !request.affiliation_broker || request.type === "affiliation" && request.affiliation_broker === origin);
   }), [requests, search, origin, kind, completionState]);
   const [selectedId, setSelectedId] = useState("");
   const selected = filtered.find(request => request.id === selectedId) || filtered[0] || null;
@@ -221,7 +221,7 @@ export default function VipAccessRequestsAdmin({ requests, error, onRefresh }: P
       <div className={r.filterBar}>
         <label className={r.search}><span className={r.srOnly}>{tr("Rechercher un membre")}</span><input value={search} onChange={event => setSearch(event.target.value)} placeholder={tr("Nom, e-mail, pseudo Telegram…")} /></label>
         <div className={r.chips} role="group" aria-label={text("Type de demande", "Request type")}>
-          {([["all", text("Toutes", "All")], ["abonnement", text("Abonnement", "Subscription")], ["affiliation-any", text("Affiliation", "Referral")]] as const).map(([value, label]) => <button type="button" key={value} aria-pressed={origin === value} onClick={() => setOrigin(value)}>{label}</button>)}
+          {([["all", text("Toutes", "All")], ["abonnement", text("Abonnement", "Subscription")], ["affiliation-any", text("Affiliation", "Referral")], ["transfer", text("Rattachement", "Account transfer")]] as const).map(([value, label]) => <button type="button" key={value} aria-pressed={origin === value} onClick={() => setOrigin(value)}>{label}</button>)}
         </div>
       </div>
       <details className={r.more}><summary>{text("Plus de filtres", "More filters")}</summary><div className={s.listFilters}><label className={s.originFilter}>{text("Parcours", "Application type")}<select value={kind} onChange={event => setKind(event.target.value)}><option value="all">{text("Tous les parcours", "All applications")}</option><option value="new">{text("Nouvelles adhésions", "New members")}</option><option value="existing">{text("Déjà membres", "Existing members")}</option></select></label><label className={s.originFilter}>{tr("Origine déclarée")}<select value={origin} onChange={event => setOrigin(event.target.value)}><option value="all">{tr("Toutes les origines")}</option><option value="affiliation-any">{text("Toutes les affiliations", "All referrals")}</option>{VIP_AFFILIATION_BROKERS.map(broker => <option value={broker.value} key={broker.value}>{broker.label}</option>)}<option value="unknown">{tr("Broker à confirmer")}</option><option value="abonnement">{tr("Abonnement")}</option></select></label>
@@ -232,7 +232,7 @@ export default function VipAccessRequestsAdmin({ requests, error, onRefresh }: P
           const state = waiting ? "waiting" : request.completion_submitted_at ? "updated" : "new";
           return <li key={request.id}><button type="button" aria-pressed={selected?.id === request.id} onClick={() => setSelectedId(request.id)}>
             <span className={`${s.reviewAvatar} ${r.avatar}`} data-kind={kindOf(request)} aria-hidden="true">{initials(request)}</span>
-            <span className={s.reviewWho}><b>{request.first_name} {request.last_name}</b><small>{request.type === "abonnement" ? tr("Abonnement") : (tr("Affiliation · ") + (vipAffiliationBrokerLabel(request.affiliation_broker) || "?"))} · {ago(request.created_at, locale)}</small></span>
+            <span className={s.reviewWho}><b>{request.first_name} {request.last_name}</b><small>{request.type === "abonnement" ? tr("Abonnement") : ((request.broker_account_kind === "existing" ? text("Rattachement · ", "Transfer · ") : tr("Affiliation · ")) + (vipAffiliationBrokerLabel(request.affiliation_broker) || "?"))} · {ago(request.created_at, locale)}</small></span>
             <span className={s.reviewState} data-state={state}>{state === "waiting" ? text("À compléter", "Waiting") : state === "updated" ? text("Complété", "Updated") : text("À vérifier", "To review")}</span>
           </button></li>;
         })}</ul>
