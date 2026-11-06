@@ -94,3 +94,11 @@
 .confirm h4{display:flex;align-items:center;gap:7px;margin:0;font-size:13px;color:var(--green);font-weight:700}
 .confirm p{margin:0;font-size:13px;color:var(--muted)}
 .confirm blockquote{margin:0;padding:12px 14px;border-left:3px solid var(--green);border-radius:0 10px 10px 0;background:#0b0d0c;font-size:13.5px;line-height:1.6;white-space:pre-line}
+/* Mot de passe : carte sur toute la largeur, boutons lisibles */
+.facts>.secret{grid-column:1/-1;grid-template-columns:minmax(0,1fr) auto auto;gap:8px 10px}
+.secret code{font-size:16px;letter-spacing:.06em}
+.secret .addPassword{grid-column:1/-1}
+.addPassword>div{align-items:center}
+.addPassword input{flex:1 1 220px}
+.addPassword .primary{flex:0 0 auto;white-space:nowrap;padding:0 16px}
+.copyable button{flex:0 0 auto}

@@ -199,7 +199,7 @@ export default function EssaiVipAdminPage() {
                 <button type="button" onClick={() => void reveal()} aria-label={shownPassword?.shown ? "Masquer le mot de passe" : "Afficher le mot de passe"}>{revealing ? <Loader2 size={14} className={s.spin} /> : shownPassword?.shown ? <EyeOff size={14} /> : <Eye size={14} />}</button>
                 {shownPassword && <button type="button" onClick={() => void copy(shownPassword.value, "Mot de passe")} aria-label="Copier le mot de passe"><Copy size={14} /></button>}
               </> : <div className={s.addPassword}>
-                <small>Pas encore enregistré pour cette demande : colle ici le mot de passe reçu sur Telegram.</small>
+                <small>Cette demande date d’avant l’enregistrement sécurisé : le mot de passe n’a été envoyé que sur Telegram. Colle-le ici une seule fois, il s’affichera ensuite avec l’œil 👁.</small>
                 <div><input type="password" autoComplete="off" value={manualPassword} maxLength={256} onChange={event => setManualPassword(event.target.value)} placeholder="Mot de passe démo" aria-label="Mot de passe démo" /><button type="button" className={s.primary} disabled={!manualPassword || revealing} onClick={() => void storePassword()}>{revealing ? <Loader2 size={14} className={s.spin} /> : <Check size={14} />}Enregistrer</button></div>
               </div>}
             </div>
