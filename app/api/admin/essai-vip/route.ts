@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { authenticateAdmin } from "@/lib/admin/permissions";
 import { isSameVipOrigin } from "@/lib/vip/membership";
-import { decryptEssaiDemoPassword } from "@/lib/essai-vip-crypto";
+import { decryptEssaiDemoPassword, encryptEssaiDemoPassword } from "@/lib/essai-vip-crypto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -85,9 +85,24 @@ export async function POST(request: Request) {
   if (!isSameVipOrigin(request)) return NextResponse.json({ error: "Origine refusée." }, { status: 403 });
   const auth = await ownerContext(request);
   if ("response" in auth) return auth.response;
-  let id = "";
-  try { const body = await request.json() as { action?: unknown; id?: unknown }; if (body.action === "reveal" && typeof body.id === "string") id = body.id; } catch { /* invalide */ }
-  if (!UUID.test(id)) return NextResponse.json({ error: "Demande invalide." }, { status: 400 });
+  let id = "", action = "", password = "";
+  try {
+    const body = await request.json() as { action?: unknown; id?: unknown; password?: unknown };
+    if (typeof body.id === "string") id = body.id;
+    if (typeof body.action === "string") action = body.action;
+    if (typeof body.password === "string") password = body.password;
+  } catch { /* invalide */ }
+  if (!UUID.test(id) || (action !== "reveal" && action !== "store")) return NextResponse.json({ error: "Demande invalide." }, { status: 400 });
+  if (action === "store") {
+    // Ajout manuel (ex. mot de passe reçu sur Telegram pour une ancienne demande) : chiffré avant enregistrement.
+    if (!password || password.length > 256 || /[\u0000-\u001f\u007f]/.test(password)) return NextResponse.json({ error: "Mot de passe invalide." }, { status: 400 });
+    try {
+      const { data, error } = await auth.context.admin.from("essai_vip_leads").update({ demo_password_encrypted: encryptEssaiDemoPassword(password), updated_by: auth.context.user.id, updated_at: new Date().toISOString() }).eq("id", id).select("id").maybeSingle();
+      if (error) throw error;
+      if (!data) return NextResponse.json({ error: "Demande introuvable." }, { status: 404 });
+      return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
+    } catch { return NextResponse.json({ error: "Enregistrement impossible." }, { status: 503 }); }
+  }
   try {
     const { data, error } = await auth.context.admin.from("essai_vip_leads").select("demo_password_encrypted").eq("id", id).maybeSingle();
     if (error) throw error;

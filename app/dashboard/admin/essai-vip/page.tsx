@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, Copy, Eye, EyeOff, KeyRound, Loader2, MessageCircle, RefreshCw, Search, Send, ShieldCheck } from "lucide-react";
+import { BadgeCheck, Check, Copy, Eye, EyeOff, KeyRound, Loader2, MessageCircle, RefreshCw, Search, Send, ShieldCheck } from "lucide-react";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { vipRequest } from "@/lib/vip/client";
 import s from "./essai.module.css";
@@ -35,6 +35,11 @@ function ago(value: string) {
 const initials = (name: string) => name.split(/[\s,]+/).filter(Boolean).slice(0, 2).map(part => part[0]?.toUpperCase()).join("") || "?";
 const waHref = (lead: Lead) => lead.telephone ? `https://wa.me/${lead.telephone.replace(/\D/g, "")}` : "";
 const tgHref = (lead: Lead) => lead.telegram ? `https://t.me/${lead.telegram.replace(/^@/, "")}` : "";
+const firstName = (name: string) => name.split(/[\s,]+/).filter(Boolean)[0] || "";
+function confirmationText(lead: Lead) {
+  const hello = firstName(lead.nom) ? `Salut ${firstName(lead.nom)} 👋` : "Salut 👋";
+  return `${hello}\nBonne nouvelle : ton compte démo ${lead.broker} n° ${lead.compte} est bien connecté à InvestPro Copy ✅\nLes trades du VIP vont arriver directement dessus pendant ton essai, tu n’as rien à faire.\nUne question ? Réponds-moi ici. — Enrick`;
+}
 const inProgress = (status: Status) => status === "contacted" || status === "qualified" || status === "completed";
 
 export default function EssaiVipAdminPage() {
@@ -51,6 +56,7 @@ export default function EssaiVipAdminPage() {
   const [notice, setNotice] = useState("");
   const [password, setPassword] = useState<{ id: string; value: string; shown: boolean } | null>(null);
   const [revealing, setRevealing] = useState(false);
+  const [manualPassword, setManualPassword] = useState("");
 
   const load = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -83,7 +89,21 @@ export default function EssaiVipAdminPage() {
     converted: leads.filter(lead => lead.status === "converted").length,
   };
 
-  function choose(lead: Lead) { setSelectedId(lead.id); setDraft(lead); setNotice(""); setError(""); setPassword(null); }
+  function choose(lead: Lead) { setSelectedId(lead.id); setDraft(lead); setNotice(""); setError(""); setPassword(null); setManualPassword(""); }
+  async function storePassword() {
+    if (!draft || !manualPassword || revealing) return;
+    setRevealing(true); setError("");
+    try {
+      await vipRequest<{ ok: true }>("/api/admin/essai-vip", { method: "POST", body: JSON.stringify({ action: "store", id: draft.id, password: manualPassword }) });
+      const updated = { ...draft, has_demo_password: true };
+      setLeads(current => current.map(item => item.id === draft.id ? { ...item, has_demo_password: true } : item));
+      setDraft(updated);
+      setPassword({ id: draft.id, value: manualPassword, shown: false });
+      setManualPassword("");
+      setNotice("Mot de passe enregistré (chiffré).");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Enregistrement impossible."); }
+    finally { setRevealing(false); }
+  }
   function update<K extends keyof Lead>(key: K, value: Lead[K]) { setDraft(current => current ? { ...current, [key]: value } : current); }
   async function copy(value: string, label: string) {
     try { await navigator.clipboard.writeText(value); setNotice(`${label} copié.`); } catch { setError("Copie impossible : sélectionne le texte à la main."); }
@@ -178,7 +198,10 @@ export default function EssaiVipAdminPage() {
                 <code>{shownPassword?.shown ? shownPassword.value : "••••••••••"}</code>
                 <button type="button" onClick={() => void reveal()} aria-label={shownPassword?.shown ? "Masquer le mot de passe" : "Afficher le mot de passe"}>{revealing ? <Loader2 size={14} className={s.spin} /> : shownPassword?.shown ? <EyeOff size={14} /> : <Eye size={14} />}</button>
                 {shownPassword && <button type="button" onClick={() => void copy(shownPassword.value, "Mot de passe")} aria-label="Copier le mot de passe"><Copy size={14} /></button>}
-              </> : <small>Envoyé seulement sur Telegram (demande reçue avant l’enregistrement sécurisé).</small>}
+              </> : <div className={s.addPassword}>
+                <small>Pas encore enregistré pour cette demande : colle ici le mot de passe reçu sur Telegram.</small>
+                <div><input type="password" autoComplete="off" value={manualPassword} maxLength={256} onChange={event => setManualPassword(event.target.value)} placeholder="Mot de passe démo" aria-label="Mot de passe démo" /><button type="button" className={s.primary} disabled={!manualPassword || revealing} onClick={() => void storePassword()}>{revealing ? <Loader2 size={14} className={s.spin} /> : <Check size={14} />}Enregistrer</button></div>
+              </div>}
             </div>
           </div>
           {/live|real|r[ée]el/i.test(draft.serveur) && !/d[ée]mo/i.test(draft.serveur) && <p className={s.warn}>Serveur « Live » : vérifie que c’est bien un compte démo (solde fictif). Chez Bullwaves, les comptes démo s’affichent en Live.</p>}
@@ -195,6 +218,17 @@ export default function EssaiVipAdminPage() {
           <label className={s.notes}><span>Notes</span><textarea rows={3} maxLength={4000} value={draft.admin_notes || ""} onChange={event => update("admin_notes", event.target.value)} placeholder="Échange, objectif de dépôt, questions…" /></label>
           <p className={s.meta}>Dernier contact : {localDate(draft.last_contacted_at, locale)}</p>
         </section>
+
+        {draft.copy_linked && <section className={s.confirm}>
+          <h4><BadgeCheck size={14} aria-hidden="true" /> Prévenir {firstName(draft.nom)} que son compte est connecté</h4>
+          <p>Le message est prêt : clique sur WhatsApp ou Telegram, vérifie-le et appuie sur Envoyer.</p>
+          <blockquote>{confirmationText(draft)}</blockquote>
+          <div className={s.contactRow}>
+            {draft.telephone && <a className={s.btnWa} href={`${waHref(draft)}?text=${encodeURIComponent(confirmationText(draft))}`} target="_blank" rel="noopener noreferrer"><MessageCircle size={16} aria-hidden="true" />Envoyer sur WhatsApp</a>}
+            {draft.telegram && <a className={s.btnTg} href={`tg://resolve?domain=${encodeURIComponent(draft.telegram.replace(/^@/, ""))}&text=${encodeURIComponent(confirmationText(draft))}`} onClick={() => void copy(confirmationText(draft), "Message")}><Send size={16} aria-hidden="true" />Envoyer sur Telegram</a>}
+            <button type="button" className={s.ghost} onClick={() => void copy(confirmationText(draft), "Message")}><Copy size={14} aria-hidden="true" />Copier le message</button>
+          </div>
+        </section>}
 
         <footer className={s.actions}>
           <button type="button" className={s.ghost} disabled={saving} onClick={() => void save(true)}><MessageCircle size={15} aria-hidden="true" />J’ai contacté la personne</button>
