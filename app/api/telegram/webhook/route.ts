@@ -1,4 +1,5 @@
 import {timingSafeEqual} from 'node:crypto';
+import {recordStripeChannelJoin} from '@/lib/stripe/vip-payments';
 import {database,channel} from '@/lib/telegram/server';
 import {parseMessage} from '@/lib/telegram/engine';
 import {vipDatabase} from '@/lib/vip/membership-server';
@@ -42,6 +43,7 @@ async function handleVipChannelJoin(update:any) {
   const db=vipDatabase();
   const {data}=await db.from('vip_access_requests').select('id').eq('channel_invite_url',invite).eq('status','approved').eq('member_intake',true).maybeSingle();
   if(data) await db.from('vip_access_requests').update({channel_joined_at:new Date().toISOString(),channel_user_id:Number.isSafeInteger(user.id)?user.id:null,channel_username:typeof user.username==='string'?user.username.slice(0,32):null}).eq('id',data.id).eq('status','approved');
+  else await recordStripeChannelJoin(db,invite,user).catch(()=>false);
   return Response.json({ok:true});
  } catch { return Response.json({ok:true}); }
 }

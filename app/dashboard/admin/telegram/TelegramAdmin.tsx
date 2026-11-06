@@ -11,6 +11,7 @@ import { TELEGRAM_ADMIN_VIEWS, type TelegramAdminView } from "@/app/admin-previe
 import s from "./TelegramAdmin.module.css";
 import AgentTelegram from "./AgentTelegram";
 import BotConnection from "./BotConnection";
+import StripePayments from "./StripePayments";
 
 type Application = {
   id: string; status: "submitted" | "approved" | "denied" | "claimed";
@@ -193,6 +194,7 @@ export default function TelegramAdmin() {
         </div>
       </section>}
 
+      {view === "subscriptions" && <StripePayments />}
       {view === "subscriptions" && <section className={s.card}>
         <header><h3>Échéances des abonnements</h3></header>
         <div className={s.steps}><span>J-7 rappel</span><span>J-5 rappel</span><span>J0 dernier rappel</span><span data-tone="bad">J+1 retrait du canal</span></div>
