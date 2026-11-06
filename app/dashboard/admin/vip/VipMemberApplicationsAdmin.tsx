@@ -10,7 +10,7 @@ type Application={
   first_name:string;last_name:string;email:string;telegram_username:string;phone_whatsapp:string;
   affiliation_broker:string;mt_platform:string;broker_account_id:string;mt_server:string;
   deposit_range:string;declared_deposit_usd:number;proof_path:string;created_at:string;
-  broker_account_kind?:"new"|"existing";broker_email?:string|null;transfer_requested_on?:string|null;
+  broker_account_kind?:"new"|"existing";broker_email?:string|null;transfer_requested_on?:string|null;transfer_proof_path?:string|null;
   approval_email_sent_at:string|null;claim_expires_at:string|null;claimed_user_id:string|null;
 };
 function depositLabel(value:string){return value==="300-499"?"300 $ à 499 $":value==="500-999"?"500 $ à 999 $":"1 000 $ ou plus";}
@@ -33,6 +33,7 @@ export default function VipMemberApplicationsAdmin(){
     for(const item of items||[]){
       if(!item.proof_path||proofs[item.id])continue;
       void vipRequest<{url:string}>(`/api/admin/vip/member-applications/${item.id}/preuve`).then(r=>{if(active)setProofs(old=>({...old,[item.id]:r.url}))}).catch(()=>{});
+      if(item.transfer_proof_path) void vipRequest<{url:string}>(`/api/admin/vip/member-applications/${item.id}/preuve?type=rattachement`).then(r=>{if(active)setProofs(old=>({...old,[`${item.id}:rattachement`]:r.url}))}).catch(()=>{});
     }
     return()=>{active=false};
   },[items,proofs]);
@@ -99,6 +100,7 @@ export default function VipMemberApplicationsAdmin(){
           <div><span>Serveur</span>{item.mt_server}</div>
           <div><span>Dépôt déclaré</span>{depositLabel(item.deposit_range)}</div>
         </div></div>
+        {isTransfer(item)&&<div className={a.block}><h4>🔗 Preuve du rattachement</h4>{proofs[`${item.id}:rattachement`]?<a className={a.proof} href={proofs[`${item.id}:rattachement`]} target="_blank" rel="noreferrer">Ouvrir la capture du rattachement ↗</a>:<p className={a.muted}>{item.transfer_proof_path?"Chargement de la capture privée…":"Aucune capture du rattachement jointe."}</p>}</div>}
         <div className={a.block}><h4>Preuve de dépôt</h4>{proofs[item.id]?<a className={a.proof} href={proofs[item.id]} target="_blank" rel="noreferrer">Ouvrir la preuve de dépôt ↗</a>:<p className={a.muted}>{item.proof_path?"Chargement de la preuve privée…":"Aucune preuve jointe."}</p>}</div>
         {item.status==="submitted"?<form onSubmit={event=>void act(item,"approve",event)} className={a.verify}>
           <h4>✅ Ta vérification</h4>

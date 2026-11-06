@@ -29,7 +29,7 @@ export async function POST(request: Request) {
   if(process.env.VERCEL_ENV!=="production") return json({error:"Les demandes sont ouvertes depuis le site principal."},403);
   if(!sameOrigin(request)) return json({error:"Origine de la demande refusée."},403);
   const length=Number(request.headers.get("content-length")||0);
-  if(length>MAX_FILE+256*1024) return json({error:"La capture ne doit pas dépasser 8 Mo."},413);
+  if(length>2*MAX_FILE+256*1024) return json({error:"La capture ne doit pas dépasser 8 Mo."},413);
 
   let form: FormData;
   try { form=await request.formData(); } catch { return json({error:"Formulaire invalide."},400); }
@@ -65,8 +65,12 @@ export async function POST(request: Request) {
   const depositMin:Record<string,number>={"300-499":300,"500-999":500,"1000-plus":1000};
   if(!(deposit in depositMin)) return json({error:"Choisis une tranche de dépôt valide."},400);
   if(transfer&&(brokerEmail.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(brokerEmail))) return json({error:"Indique l’adresse e-mail de ton compte chez le broker."},400);
-  if(!viaEnrick) return json({error:transfer?"Confirme que tu as demandé le rattachement de ton compte à Enrick auprès du broker.":"Confirme que tu as ouvert le compte avec le lien d’Enrick."},400);
+  if(!viaEnrick) return json({error:transfer?"Confirme que le broker a bien rattaché ton compte à Enrick.":"Confirme que tu as ouvert le compte avec le lien d’Enrick."},400);
   if(!(proof instanceof File)) return json({error:"Ajoute une capture de ton dépôt."},400);
+  const transferProof=form.get("captureRattachement");
+  if(transfer&&!(transferProof instanceof File)) return json({error:"Ajoute la capture qui prouve que ton compte a bien été rattaché à Enrick."},400);
+  const transferExtension=transfer&&transferProof instanceof File?ALLOWED.get(transferProof.type):null;
+  if(transfer&&(!transferExtension||!(transferProof instanceof File)||transferProof.size<1||transferProof.size>MAX_FILE)) return json({error:"Capture du rattachement : image ou PDF de 8 Mo maximum."},400);
   const extension=ALLOWED.get(proof.type);
   if(!extension||proof.size<1||proof.size>MAX_FILE) return json({error:"Ajoute une image ou un PDF de 8 Mo maximum."},400);
 
@@ -81,14 +85,19 @@ export async function POST(request: Request) {
   const proofPath=`${id}/${randomUUID()}.${extension}`;
   const upload=await admin.storage.from("vip-membership-proofs").upload(proofPath,proof,{contentType:proof.type,upsert:false});
   if(upload.error) return json({error:"La capture n’a pas pu être enregistrée. Réessaie avec un fichier plus léger."},503);
+  const transferProofPath=transfer?`${id}/rattachement-${randomUUID()}.${transferExtension}`:null;
+  if(transferProofPath&&transferProof instanceof File){
+    const up2=await admin.storage.from("vip-membership-proofs").upload(transferProofPath,transferProof,{contentType:transferProof.type,upsert:false});
+    if(up2.error){ await admin.storage.from("vip-membership-proofs").remove([proofPath]).catch(()=>{}); return json({error:"La capture du rattachement n’a pas pu être enregistrée. Réessaie avec un fichier plus léger."},503); }
+  }
   const inserted=await admin.from("vip_member_applications").insert({
     id,email,first_name:firstName,last_name:lastName,telegram_username:telegram,phone_whatsapp:phone,
     affiliation_broker:broker,mt_platform:platform,broker_account_id:account,mt_server:server,
     deposit_range:deposit,declared_deposit_usd:depositMin[deposit],via_enrick_link:true,proof_path:proofPath,
-    broker_account_kind:transfer?"existing":"new",broker_email:transfer?brokerEmail:null,transfer_requested_on:transfer?transferDate:null,
+    broker_account_kind:transfer?"existing":"new",broker_email:transfer?brokerEmail:null,transfer_requested_on:transfer?transferDate:null,transfer_proof_path:transferProofPath,
   }).select("id").single();
   if(inserted.error) {
-    await admin.storage.from("vip-membership-proofs").remove([proofPath]).catch(()=>{});
+    await admin.storage.from("vip-membership-proofs").remove(transferProofPath?[proofPath,transferProofPath]:[proofPath]).catch(()=>{});
     if(inserted.error.code==="23505") return json({error:"Une demande est déjà enregistrée pour cette adresse e-mail."},409);
     return json({error:"La demande n’a pas pu être enregistrée. Réessaie dans un instant."},503);
   }
@@ -106,6 +115,6 @@ async function notifyAdminNewApplication(d:{firstName:string;lastName:string;tel
   if(!process.env.TELEGRAM_BOT_TOKEN||!/^-?\d+$/.test(chat)) return;
   const esc=(value:string)=>String(value).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c] as string));
   const deposit=d.deposit==="300-499"?"300 $ à 499 $":d.deposit==="500-999"?"500 $ à 999 $":"1 000 $ ou plus";
-  const text=`${d.transfer?`🔗 <b>Nouveau membre VIP · RATTACHEMENT à vérifier</b>\n📧 E-mail chez le broker : ${esc(d.brokerEmail)}${d.transferDate?` · demandé le ${esc(d.transferDate)}`:""}`:"🆕 <b>Nouveau membre VIP à vérifier</b>"}\n👤 ${esc(d.firstName)} ${esc(d.lastName)} · @${esc(d.telegram)} · <a href="https://wa.me/${d.phone.replace(/\D/g,"")}">WhatsApp</a>\n🏦 ${esc(vipAffiliationBrokerLabel(d.broker)||d.broker)} · ${esc(d.platform)} n° ${esc(d.account)} · ${esc(d.server)}\n💰 Dépôt déclaré : ${deposit} · 📎 capture jointe\n\nÀ valider ici : https://investprotrading.fr/dashboard/admin?tool=vip&view=requests`;
+  const text=`${d.transfer?`🔗 <b>Nouveau membre VIP · RATTACHEMENT à vérifier</b>\n📧 E-mail chez le broker : ${esc(d.brokerEmail)}${d.transferDate?` · demandé le ${esc(d.transferDate)}`:""}\n📎 Capture du rattachement jointe`:"🆕 <b>Nouveau membre VIP à vérifier</b>"}\n👤 ${esc(d.firstName)} ${esc(d.lastName)} · @${esc(d.telegram)} · <a href="https://wa.me/${d.phone.replace(/\D/g,"")}">WhatsApp</a>\n🏦 ${esc(vipAffiliationBrokerLabel(d.broker)||d.broker)} · ${esc(d.platform)} n° ${esc(d.account)} · ${esc(d.server)}\n💰 Dépôt déclaré : ${deposit} · 📎 capture jointe\n\nÀ valider ici : https://investprotrading.fr/dashboard/admin?tool=vip&view=requests`;
   if(!(await telegramAdmin(text))) throw new Error("VIP_APPLICATION_TELEGRAM_FAILED");
 }
