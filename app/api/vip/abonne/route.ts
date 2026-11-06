@@ -1,6 +1,6 @@
 import { after } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { telegram } from "@/lib/telegram/server";
+import { pushAdminNotice, telegramAdmin } from "@/lib/vip/admin-push";
 import { readVipMembership, vipDatabase, vipJson } from "@/lib/vip/membership-server";
 import { validateVipAccessRequest, vipPaymentExpiry } from "@/lib/vip/access-requests";
 
@@ -87,8 +87,7 @@ export async function POST(request: Request) {
   // 3. Alerte à Enrick avec tout le dossier (+ paiement Stripe retrouvé si le webhook l'a reçu).
   const v = validation.value;
   after(async () => {
-    const chat = process.env.TELEGRAM_CHAT_ID || "";
-    if (!process.env.TELEGRAM_BOT_TOKEN || !/^-?\d+$/.test(chat)) return;
+    await pushAdminNotice(db, inserted?.id as string, "💳 Nouvel abonné VIP", `${v.first_name} ${v.last_name} · abonnement payé le ${v.paid_on} · à valider`);
     let stripe = "";
     try {
       const { data } = await db.from("vip_stripe_payments").select("full_name,created_at,status").ilike("email", email).order("created_at", { ascending: false }).limit(1).maybeSingle();
@@ -107,7 +106,7 @@ export async function POST(request: Request) {
       "",
       "👉 Valider : https://investprotrading.fr/dashboard/admin?tool=vip&view=requests",
     ].join("\n");
-    await telegram("sendMessage", { chat_id: chat, text, parse_mode: "HTML", disable_web_page_preview: true, reply_markup: { inline_keyboard: [[{ text: "💬 WhatsApp", url: `https://wa.me/${phone.slice(1)}` }, { text: "✈️ Telegram", url: `https://t.me/${telegramRaw}` }]] } }).catch(() => {});
+    await telegramAdmin(text, [{ text: "💬 WhatsApp", url: `https://wa.me/${phone.slice(1)}` }, { text: "✈️ Telegram", url: `https://t.me/${telegramRaw}` }]);
   });
 
   return vipJson({ ok: true, requestId: inserted?.id, session }, 201);

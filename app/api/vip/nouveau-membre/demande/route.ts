@@ -1,9 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
+import { pushAdminNotice, telegramAdmin } from "@/lib/vip/admin-push";
 import { randomUUID } from "node:crypto";
 import { consumeEssaiVipRateLimit } from "@/lib/essai-vip-rate-limit";
 import { isVipAffiliationBroker, normalizeVipPersonName, vipAffiliationBrokerLabel } from "@/lib/vip/identity";
 import { after } from "next/server";
-import { telegram as telegramApi } from "@/lib/telegram/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -89,6 +89,7 @@ export async function POST(request: Request) {
   after(async()=>{
     try { await notifyAdminNewApplication({firstName:String(firstName),lastName:String(lastName),telegram,phone:String(phone),broker,platform,account,server,deposit}); }
     catch { console.error("VIP_APPLICATION_TELEGRAM_DEFERRED_FAILED"); }
+    await pushAdminNotice(admin, inserted.data.id as string, "🆕 Nouveau membre VIP (affiliation)", `${String(firstName)} ${String(lastName)} · ${vipAffiliationBrokerLabel(broker) || broker} · à vérifier`);
   });
   return json({ok:true,applicationId:inserted.data.id},201);
 }
@@ -100,5 +101,5 @@ async function notifyAdminNewApplication(d:{firstName:string;lastName:string;tel
   const esc=(value:string)=>String(value).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c] as string));
   const deposit=d.deposit==="300-499"?"300 $ à 499 $":d.deposit==="500-999"?"500 $ à 999 $":"1 000 $ ou plus";
   const text=`🆕 <b>Nouveau membre VIP à vérifier</b>\n👤 ${esc(d.firstName)} ${esc(d.lastName)} · @${esc(d.telegram)} · <a href="https://wa.me/${d.phone.replace(/\D/g,"")}">WhatsApp</a>\n🏦 ${esc(vipAffiliationBrokerLabel(d.broker)||d.broker)} · ${esc(d.platform)} n° ${esc(d.account)} · ${esc(d.server)}\n💰 Dépôt déclaré : ${deposit} · 📎 capture jointe\n\nÀ valider ici : https://investprotrading.fr/dashboard/admin?tool=vip&view=requests`;
-  await telegramApi("sendMessage",{chat_id:chat,text,parse_mode:"HTML",disable_web_page_preview:true});
+  if(!(await telegramAdmin(text))) throw new Error("VIP_APPLICATION_TELEGRAM_FAILED");
 }

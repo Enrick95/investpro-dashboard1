@@ -2,6 +2,7 @@ import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { telegram } from "@/lib/telegram/server";
+import { pushAdminNotice } from "@/lib/vip/admin-push";
 
 /**
  * Abonnement VIP payé sur Stripe → accès automatique au canal.
@@ -123,6 +124,7 @@ async function handleCheckout(db: SupabaseClient, session: Record<string, any>) 
     invite ? `🔗 Lien d’accès créé${mailed ? " et envoyé par e-mail" : " (⚠️ e-mail non envoyé : transmets-le toi-même)"} :\n${invite}` : "⚠️ Le lien d’accès n’a pas pu être créé : vérifie les droits du bot sur le canal, puis crée-le depuis l’admin.",
   ];
   await notifyAdmin(lines.join("\n"), [{ text: "Ouvrir dans l’admin", url: ADMIN_URL }]);
+  await pushAdminNotice(db, id, "💳 Nouveau paiement VIP (Stripe)", `${row.full_name || row.email || "Client"} · ${money(row.amount_total, row.currency)}`);
 }
 
 async function findBySubscription(db: SupabaseClient, subscriptionId: string | null): Promise<Row | null> {
