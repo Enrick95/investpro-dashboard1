@@ -1,10 +1,16 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import Link from "next/link";
+import dynamic from "next/dynamic";
 import { createClient } from "@/lib/supabase/client";
 import { normalizeAccessCode } from "@/lib/vip/access-code";
 import s from "./claim.module.css";
+
+// Le portail membre ne se charge qu’une fois l’accès ouvert : la page d’accès reste légère.
+const VipPortal = dynamic(() => import("@/components/vip/VipPortal"), {
+  ssr: false,
+  loading: () => <p className={s.portalLoading}>Ouverture de ton espace VIP…</p>,
+});
 
 type ClaimedRequest = { first_name?: string; last_name?: string; member_number?: number; channel_invite_url?: string };
 
@@ -39,8 +45,8 @@ function MissingLink() {
   return (
     <>
       <h1 className={s.title}>Ouvre le lien de ton e-mail</h1>
-      <p className={s.lead}>Ce lien est incomplet. Clique sur le bouton de l’e-mail de validation : il ouvre directement ton accès VIP.</p>
-      <p className={s.help}>Tu ne retrouves pas cet e-mail ? Écris à @EquipeInvestPro sur Telegram.</p>
+      <p className={s.lead}>Ce lien est incomplet. Clique sur le bouton de l’<span className={s.nowrap}>e-mail</span> de validation : il ouvre directement ton accès VIP.</p>
+      <p className={s.help}>Tu ne retrouves pas cet <span className={s.nowrap}>e-mail</span> ? Écris à @EquipeInvestPro sur Telegram.</p>
     </>
   );
 }
@@ -59,21 +65,19 @@ function Loading() {
 
 function Welcome({ request }: { request: ClaimedRequest }) {
   return (
-    <>
-      <h1 className={s.title}>Bienvenue dans le VIP{request.first_name ? `, ${request.first_name}` : ""}.</h1>
-      <p className={s.ok}>Ton accès est ouvert.</p>
-      {request.member_number ? <p className={s.meta}>Membre n° {request.member_number}</p> : null}
-      <div className={s.actions}>
-        {request.channel_invite_url ? (
-          <a className={s.primary} href={request.channel_invite_url} target="_blank" rel="noreferrer">
-            Rejoindre le canal VIP
-          </a>
-        ) : null}
-        <Link className={request.channel_invite_url ? s.secondary : s.primary} href="/dashboard/vip">
-          Ouvrir mon espace VIP
-        </Link>
+    <header className={s.welcome}>
+      <div className={s.welcomeText}>
+        <h1 className={s.welcomeTitle}>Bienvenue dans le VIP{request.first_name ? `, ${request.first_name}` : ""}.</h1>
+        <p className={s.welcomeMeta}>
+          {request.member_number ? `Membre n° ${request.member_number}. ` : ""}Ton accès est ouvert.
+        </p>
       </div>
-    </>
+      {request.channel_invite_url ? (
+        <a className={s.welcomeAction} href={request.channel_invite_url} target="_blank" rel="noreferrer">
+          Rejoindre le canal VIP
+        </a>
+      ) : null}
+    </header>
   );
 }
 
@@ -139,6 +143,17 @@ export default function VipMemberClaimClient({ applicationId }: { applicationId:
     }
   }
 
+  if (request) {
+    return (
+      <main className={`${s.page} ${s.embedded}`}>
+        <Welcome request={request} />
+        <div className={s.portalSlot}>
+          <VipPortal />
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className={s.page}>
       <section className={s.card}>
@@ -147,12 +162,12 @@ export default function VipMemberClaimClient({ applicationId }: { applicationId:
           <MissingLink />
         ) : loading ? (
           <Loading />
-        ) : request ? (
-          <Welcome request={request} />
         ) : (
           <>
             <h1 className={s.title}>Ta demande est validée</h1>
-            <p className={s.lead}>Entre ton identifiant et le code reçus par e-mail pour ouvrir ton accès VIP.</p>
+            <p className={s.lead}>
+              Entre ton identifiant et le code reçus par <span className={s.nowrap}>e-mail</span> pour ouvrir ton accès VIP.
+            </p>
             {error ? (
               <p role="alert" className={s.error}>
                 {error}
@@ -174,7 +189,9 @@ export default function VipMemberClaimClient({ applicationId }: { applicationId:
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                 />
-                <span className={s.hint}>L’adresse e-mail de ta demande.</span>
+                <span className={s.hint}>
+                  L’adresse <span className={s.nowrap}>e-mail</span> de ta demande.
+                </span>
               </div>
               <div className={s.field}>
                 <label className={s.label} htmlFor="vip-code">
@@ -197,7 +214,9 @@ export default function VipMemberClaimClient({ applicationId }: { applicationId:
                     {showCode ? "Masquer" : "Afficher"}
                   </button>
                 </div>
-                <span className={s.hint}>Reçu par e-mail. Majuscules et minuscules comptent. Si tu avais déjà un compte, entre ton mot de passe habituel.</span>
+                <span className={s.hint}>
+                  Reçu par <span className={s.nowrap}>e-mail</span>. Majuscules et minuscules comptent. Si tu avais déjà un compte, entre ton mot de passe habituel.
+                </span>
               </div>
               <button type="submit" className={s.primary} disabled={busy}>
                 {busy ? "Vérification…" : "Ouvrir mon accès VIP"}
