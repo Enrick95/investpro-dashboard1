@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { pushAdminNotice, telegramAdmin } from "@/lib/vip/admin-push";
-import { randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { consumeEssaiVipRateLimit } from "@/lib/essai-vip-rate-limit";
 import { isVipAffiliationBroker, normalizeVipPersonName, vipAffiliationBrokerLabel } from "@/lib/vip/identity";
 import { after } from "next/server";
@@ -90,11 +90,13 @@ export async function POST(request: Request) {
     const up2=await admin.storage.from("vip-membership-proofs").upload(transferProofPath,transferProof,{contentType:transferProof.type,upsert:false});
     if(up2.error){ await admin.storage.from("vip-membership-proofs").remove([proofPath]).catch(()=>{}); return json({error:"La capture du rattachement n’a pas pu être enregistrée. Réessaie avec un fichier plus léger."},503); }
   }
+  // Jeton de suivi : donné une seule fois au navigateur du client. Seule son empreinte est gardée en base.
+  const suiviToken=randomBytes(24).toString("base64url");
   const inserted=await admin.from("vip_member_applications").insert({
     id,email,first_name:firstName,last_name:lastName,telegram_username:telegram,phone_whatsapp:phone,
     affiliation_broker:broker,mt_platform:platform,broker_account_id:account,mt_server:server,
     deposit_range:deposit,declared_deposit_usd:depositMin[deposit],via_enrick_link:true,proof_path:proofPath,
-    broker_account_kind:transfer?"existing":"new",broker_email:transfer?brokerEmail:null,transfer_requested_on:transfer?transferDate:null,transfer_proof_path:transferProofPath,
+    broker_account_kind:transfer?"existing":"new",broker_email:transfer?brokerEmail:null,transfer_requested_on:transfer?transferDate:null,transfer_proof_path:transferProofPath,suivi_token_hash:createHash("sha256").update(suiviToken).digest("hex"),
   }).select("id").single();
   if(inserted.error) {
     await admin.storage.from("vip-membership-proofs").remove(transferProofPath?[proofPath,transferProofPath]:[proofPath]).catch(()=>{});
@@ -106,7 +108,7 @@ export async function POST(request: Request) {
     catch { console.error("VIP_APPLICATION_TELEGRAM_DEFERRED_FAILED"); }
     await pushAdminNotice(admin, inserted.data.id as string, transfer?"🔗 Nouveau membre VIP (rattachement)":"🆕 Nouveau membre VIP (affiliation)", `${String(firstName)} ${String(lastName)} · ${vipAffiliationBrokerLabel(broker) || broker} · à vérifier`);
   });
-  return json({ok:true,applicationId:inserted.data.id},201);
+  return json({ok:true,applicationId:inserted.data.id,suiviToken},201);
 }
 
 /** Alerte Telegram à Enrick pour chaque dossier « nouveau membre ». Le mot de passe investisseur n’y figure jamais. */
