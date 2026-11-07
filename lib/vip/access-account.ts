@@ -22,11 +22,17 @@ export function vipSiteOrigin(): string {
   return process.env.NEXT_PUBLIC_SITE_URL || DEFAULT_SITE_URL;
 }
 
-/** Code de 12 caractères tiré avec un générateur cryptographique, affiché en blocs de 4 : ABCD-EFGH-JKMN. */
+/**
+ * Code de 12 caractères tiré avec un générateur cryptographique, affiché en blocs de 4 : Ab3d-Ef7g-Hk9m.
+ * Il contient toujours des majuscules, des minuscules et des chiffres, pour passer les règles de mot de passe courantes.
+ */
 export function generateAccessCode(): string {
-  let raw = "";
-  for (let i = 0; i < 12; i += 1) raw += ACCESS_CODE_ALPHABET[randomInt(ACCESS_CODE_ALPHABET.length)];
-  return normalizeAccessCode(raw) ?? raw;
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    let raw = "";
+    for (let i = 0; i < 12; i += 1) raw += ACCESS_CODE_ALPHABET[randomInt(ACCESS_CODE_ALPHABET.length)];
+    if (/[A-Z]/.test(raw) && /[a-z]/.test(raw) && /[0-9]/.test(raw)) return normalizeAccessCode(raw) ?? raw;
+  }
+  throw new Error("VIP_CODE_GENERATION_FAILED");
 }
 
 function alreadyRegistered(error: unknown): boolean {
@@ -86,7 +92,7 @@ async function sendAccessEmail(app: VipApplicationAccess, firstName: string, cod
   const email = escapeHtml(app.email);
   const hello = firstName ? `Bonjour ${escapeHtml(firstName)},` : "Bonjour,";
   const intro = code
-    ? `<p>L’équipe a vérifié ton dossier. Voici tes identifiants pour ouvrir ton accès VIP :</p><p style="margin:18px 0;padding:16px 18px;border:1px solid #3b3526;border-radius:12px;background:#111310;line-height:1.9">Identifiant : <strong>${email}</strong><br>Code : <strong style="letter-spacing:.08em">${escapeHtml(code)}</strong></p>`
+    ? `<p>L’équipe a vérifié ton dossier. Voici tes identifiants pour ouvrir ton accès VIP :</p><p style="margin:18px 0;padding:16px 18px;border:1px solid #3b3526;border-radius:12px;background:#111310;line-height:1.9">Identifiant : <strong>${email}</strong><br>Code (majuscules et minuscules comptent) : <strong style="letter-spacing:.08em">${escapeHtml(code)}</strong></p>`
     : "<p>L’équipe a vérifié ton dossier. Tu as déjà un compte InvestPro avec cette adresse : connecte-toi avec ton mot de passe habituel.</p>";
   const help = code
     ? "Tu peux changer ce code à tout moment avec « Mot de passe oublié » sur la page de connexion. Ne transfère pas cet e-mail."
@@ -95,7 +101,7 @@ async function sendAccessEmail(app: VipApplicationAccess, firstName: string, cod
   const text = [
     firstName ? `Bonjour ${firstName},` : "Bonjour,",
     "Ta demande VIP est validée.",
-    code ? `Identifiant : ${app.email}\nCode : ${code}` : `Tu as déjà un compte InvestPro avec ${app.email} : connecte-toi avec ton mot de passe habituel.`,
+    code ? `Identifiant : ${app.email}\nCode (majuscules et minuscules comptent) : ${code}` : `Tu as déjà un compte InvestPro avec ${app.email} : connecte-toi avec ton mot de passe habituel.`,
     `Connexion : ${href}`,
   ].join("\n");
   try {

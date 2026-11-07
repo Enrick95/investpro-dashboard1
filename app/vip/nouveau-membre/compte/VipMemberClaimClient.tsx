@@ -90,8 +90,8 @@ export default function VipMemberClaimClient({applicationId}:{applicationId:stri
         <form onSubmit={submit}>
           <label htmlFor="vip-identifiant" style={label}>Identifiant (ton adresse e-mail)</label>
           <input id="vip-identifiant" type="email" autoComplete="username" required value={identifier} onChange={e=>setIdentifier(e.target.value)} style={field}/>
-          <label htmlFor="vip-code" style={label}>Code reçu par e-mail</label>
-          <input id="vip-code" type="text" autoComplete="current-password" autoCapitalize="characters" spellCheck={false} required value={code} onChange={e=>setCode(e.target.value)} style={field}/>
+          <label htmlFor="vip-code" style={label}>Code reçu par e-mail (majuscules et minuscules comptent)</label>
+          <input id="vip-code" type="text" autoComplete="current-password" autoCapitalize="none" autoCorrect="off" spellCheck={false} required value={code} onChange={e=>setCode(e.target.value)} style={field}/>
           <button type="submit" disabled={busy} style={{...button,opacity:busy?.7:1,cursor:busy?"wait":"pointer"}}>{busy?"Vérification…":"Ouvrir mon accès VIP"}</button>
         </form>
         <p style={{color:"#8c938b",fontSize:13,marginTop:22,lineHeight:1.6}}>Mot de passe oublié ? <Link href={login} style={{color:"#f0c575"}}>Connexion</Link>. Pas de compte ni de code ? <Link href={signup} style={{color:"#f0c575"}}>Créer un compte avec cette adresse</Link>.</p>
