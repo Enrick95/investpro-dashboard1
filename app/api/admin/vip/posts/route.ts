@@ -5,6 +5,7 @@ import { isVipPostId, validateVipPostInput } from "@/lib/vip/post-validation";
 import type { VipPost } from "@/lib/vip/types";
 import { assertVipImageExists, assertVipMutationEnvironment, hydrateVipPosts, VIP_POST_COLUMNS, vipPostErrorResponse, type VipStoredPost } from "@/lib/vip/posts-server";
 import { after } from "next/server";
+import { copyVipPublicationToTelegram } from "@/lib/vip/telegram-copy";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -39,6 +40,8 @@ export async function POST(request: Request) {
       try { await deliverVipNotifications(access.admin); }
       catch { console.error("VIP_NOTIFICATION_DELIVERY_RETRY_PENDING"); }
     });
+    // Copie Telegram : seulement à la création. Une modification ou un retrait n'envoie rien.
+    after(() => copyVipPublicationToTelegram(access.admin, post as VipStoredPost));
     // Do not report a successful insert as failed merely because a subsequent read is unavailable.
     let published: VipPost | VipStoredPost = post as VipStoredPost;
     try { [published] = await hydrateVipPosts(access.admin, [post as VipStoredPost], access.user.id, { admin: true }); }

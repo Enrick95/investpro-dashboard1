@@ -1,6 +1,8 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { authenticateAdmin } from "@/lib/admin/permissions";
 import { readVipJson, vipErrorResponse, vipJson } from "@/lib/vip/membership-server";
 import { validateVipIdentity } from "@/lib/vip/identity";
+import { issueMemberAccess, type VipAccessIssue, type VipApplicationAccess } from "@/lib/vip/access-account";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -40,9 +42,9 @@ export async function POST(request:Request) {
       const expiresAt=new Date(Date.now()+14*24*60*60*1000).toISOString();
       const saved=await context.admin.from("vip_member_applications").update({claim_expires_at:expiresAt,revision:app.revision+1}).eq("id",app.id).eq("revision",app.revision).select("*").single();
       if(saved.error) throw saved.error;
-      const emailSent=await sendApprovalEmail(saved.data);
-      if(emailSent) await context.admin.from("vip_member_applications").update({approval_email_sent_at:new Date().toISOString()}).eq("id",app.id).eq("status","approved");
-      return vipJson({ok:true,emailSent});
+      const access=await issueAccess(context.admin,saved.data);
+      if(access.emailSent) await context.admin.from("vip_member_applications").update({approval_email_sent_at:new Date().toISOString()}).eq("id",app.id).eq("status","approved");
+      return vipJson({ok:true,emailSent:access.emailSent,accountCreated:access.accountCreated});
     }
 
     if(app.status!=="submitted") return vipJson({error:"Cette demande a déjà été traitée."},409);
@@ -72,36 +74,17 @@ export async function POST(request:Request) {
     }).eq("id",app.id).eq("status","submitted").eq("revision",app.revision).select("*").maybeSingle();
     if(updated.error) throw updated.error;
     if(!updated.data) return vipJson({error:"Cette demande a déjà été traitée."},409);
-    const emailSent=await sendApprovalEmail(updated.data);
-    if(emailSent) {
+    const access=await issueAccess(context.admin,updated.data);
+    if(access.emailSent) {
       const saved=await context.admin.from("vip_member_applications").update({approval_email_sent_at:new Date().toISOString()}).eq("id",app.id).eq("status","approved");
       if(saved.error) console.error("VIP_MEMBER_APPLICATION_EMAIL_STATUS_SAVE_FAILED");
     }
-    return vipJson({ok:true,emailSent});
+    return vipJson({ok:true,emailSent:access.emailSent,accountCreated:access.accountCreated});
   } catch(error) { return vipErrorResponse(error); }
 }
 
-async function sendApprovalEmail(app:Record<string,unknown>):Promise<boolean> {
-  const apiKey=process.env.RESEND_API_KEY,from=process.env.INVESTPRO_EMAIL_FROM;
-  const email=typeof app.email==="string"?app.email:"";
-  const id=typeof app.id==="string"?app.id:"";
-  if(!apiKey||!from||!email||!uuid.test(id)) return false;
-  const origin=process.env.NEXT_PUBLIC_SITE_URL||"https://investprotrading.fr";
-  const url=new URL("/vip/nouveau-membre/compte",origin);
-  url.searchParams.set("application",id);
-  const name=typeof app.verified_first_name==="string"?app.verified_first_name:(typeof app.first_name==="string"?app.first_name:"");
-  const safeName=name.replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]!));
-  const safeEmail=email.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;").split(String.fromCharCode(34)).join("&quot;").split(String.fromCharCode(39)).join("&#39;");
-  try {
-    const response=await fetch("https://api.resend.com/emails",{
-      method:"POST",headers:{Authorization:`Bearer ${apiKey}`,"Content-Type":"application/json"},
-      body:JSON.stringify({
-        from,to:[email],subject:"Ta demande VIP est validée · crée ton compte InvestPro",
-        html:`<div style="font-family:Arial,sans-serif;background:#0b0d0b;color:#f3efe6;padding:32px;border-radius:16px"><h1 style="color:#f0c575">Ta demande VIP est validée</h1><p>Bonjour ${safeName},</p><p>L’équipe a vérifié ton dossier. Tu peux maintenant créer ton compte InvestPro ou te connecter avec cette adresse e-mail pour ouvrir ton accès VIP.</p><p><a href="${url.toString()}" style="display:inline-block;background:#f0c575;color:#111;padding:14px 20px;border-radius:10px;text-decoration:none;font-weight:bold">Continuer sur InvestPro</a></p><p>Utilise bien l’adresse e-mail de ta demande : ${safeEmail}</p></div>`,
-        text:`Bonjour ${name}, ta demande VIP a été validée. Crée ton compte InvestPro ou connecte-toi avec ${email} : ${url.toString()}`,
-      }),
-      cache:"no-store",signal:AbortSignal.timeout(12000),
-    });
-    return response.ok;
-  } catch { return false; }
+/** Crée ou prépare le compte puis envoie le mail. Un échec ici ne défait pas la validation : « Renvoyer » reprend. */
+async function issueAccess(admin:SupabaseClient,app:VipApplicationAccess):Promise<VipAccessIssue> {
+  try { return await issueMemberAccess(admin,app); }
+  catch { console.error("VIP_MEMBER_ACCESS_ISSUE_FAILED"); return {emailSent:false,accountCreated:false}; }
 }

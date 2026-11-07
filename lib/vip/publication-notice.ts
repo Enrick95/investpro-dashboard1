@@ -112,3 +112,34 @@ export function formatVipPublicationNotice(post: VipNoticePost): { title: string
     ? `${detail} — ${message}` : message || detail;
   return { title: heading, body: excerpt(body || "À découvrir dans votre espace VIP.", 239) };
 }
+
+const telegramIcons: Record<string, string> = { signal: "🚨", analysis: "📊", performance: "📈", followup: "🔄", partnership: "🤝" };
+export const VIP_SPACE_URL = "https://investprotrading.fr/dashboard/vip";
+
+function customPostTitle(post: VipNoticePost): string {
+  const title = plain(post.title || "");
+  return defaultTitles.has(normalize(title)) ? "" : title;
+}
+
+function clipText(value: string, max: number): string {
+  if (value.length <= max) return value;
+  if (max <= 1) return "";
+  return value.slice(0, max - 1).replace(/[\uD800-\uDBFF]$/, "").trimEnd() + "…";
+}
+
+/** Texte de la copie Telegram : titre, texte complet (ou niveaux d’un signal), lien vers l’espace VIP. Jamais plus de `limit` caractères. */
+export function formatVipTelegramCopy(post: VipNoticePost, limit = 4000): string {
+  const notice = formatVipPublicationNotice(post);
+  const body = (post.body || "").trim();
+  const isSignal = post.category === "signal";
+  const explicit = isSignal && Object.keys(signalFields(body)).length > 0;
+  const heading = `${telegramIcons[post.category] ?? "📣"} ${notice.title}`;
+  const extraTitle = isSignal ? "" : customPostTitle(post);
+  const top = extraTitle ? `${heading}\n${extraTitle}` : heading;
+  // Texte libre sans champs : on ajoute les niveaux structurés, sauf s'ils figurent déjà dans le texte.
+  const levels = isSignal && !explicit && notice.body && !body.includes(notice.body.replace(/…$/, "")) ? notice.body : "";
+  const footer = `Espace VIP : ${VIP_SPACE_URL}`;
+  const room = limit - [top, levels, footer].filter(Boolean).join("\n\n").length - 2;
+  const main = body ? clipText(body, room) : "";
+  return [top, levels, main, footer].filter(Boolean).join("\n\n");
+}
