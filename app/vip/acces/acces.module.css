@@ -1,0 +1,169 @@
+.page {
+  min-height: 100vh;
+  background: radial-gradient(900px 500px at 75% 10%, #f0c57518, transparent), #070a09;
+  color: #f6f2e8;
+  font-family: Inter, system-ui, sans-serif;
+  overflow-x: hidden;
+}
+
+.page a:focus-visible {
+  outline: 2px solid #f0c575;
+  outline-offset: 2px;
+}
+
+.banner {
+  padding: 8px 16px;
+  background: #0b0f0e;
+  border-bottom: 1px solid #1d2320;
+  color: #a9b4ae;
+  font-size: 12px;
+  text-align: center;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 22px 56px;
+}
+
+.brand {
+  font-size: 18px;
+}
+
+.headerNote {
+  margin-left: auto;
+  font-size: 14px;
+  color: #a9b4ae;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 40px;
+  align-items: center;
+  padding: 40px 56px 64px;
+}
+
+.heroText {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.kicker {
+  align-self: flex-start;
+  padding: 6px 14px;
+  border-radius: 99px;
+  border: 1px solid #f0c57566;
+  color: #f0c575;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.title {
+  margin: 0;
+  font-family: "Space Grotesk", Inter, system-ui, sans-serif;
+  font-size: clamp(38px, 5vw, 58px);
+  font-weight: 700;
+  line-height: 1.02;
+  text-wrap: balance;
+}
+
+.accent {
+  color: #f0c575;
+}
+
+.lead {
+  margin: 0;
+  max-width: 520px;
+  font-size: 17px;
+  line-height: 1.6;
+  color: #b8c2bc;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.btnPrimary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  padding: 0 22px;
+  border-radius: 14px;
+  background: #f0c575;
+  color: #17140d;
+  font: 800 15px Inter, system-ui, sans-serif;
+  text-decoration: none;
+}
+
+.channels {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 20px;
+  border-radius: 18px;
+  background: #0f1412;
+  border: 1px solid #1d2320;
+}
+
+.itemGold {
+  border-color: #f0c57555;
+}
+
+.itemRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.symbol {
+  font-family: "Space Grotesk", Inter, system-ui, sans-serif;
+  font-size: 20px;
+}
+
+.itemText {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #c9d1cc;
+}
+
+.tagGold {
+  margin-left: auto;
+  color: #f0c575;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tagBlue {
+  margin-left: auto;
+  color: #8fc9ff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .header {
+    padding: 16px;
+  }
+
+  .hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+    padding: 24px 16px 40px;
+  }
+}
