@@ -40,20 +40,25 @@ const defaultTitles = new Set([
 ]);
 const normalize = (value: string) => value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 
+/** Template labels, normalised (no accents, lower case), each naming the field it fills. */
+const signalAliases: Record<string, string> = {
+  actif: "asset", asset: "asset", symbole: "asset", symbol: "asset", instrument: "asset",
+  direction: "direction", sens: "direction", ordre: "direction", order: "direction",
+  entree: "entry", entry: "entry", "zone d'entree": "entry", "zone d’entrée": "entry",
+  "stop loss": "sl", stoploss: "sl", sl: "sl", tp1: "tp1", "tp 1": "tp1",
+  tp2: "tp2", "tp 2": "tp2", tp3: "tp3", "tp 3": "tp3",
+};
+
+/** A template line reads "Label : value"; the label is what decides which field it is. */
+const signalLine = /^[^\p{L}\p{N}]*([\p{L}\p{N} '’]+?)\s*[:：]\s*(.*)$/u;
+
 /** Read only explicit template labels; never infer an order from commentary or a price. */
 function signalFields(body: string): Record<string, string> {
-  const aliases: Record<string, string> = {
-    actif: "asset", asset: "asset", symbole: "asset", symbol: "asset", instrument: "asset",
-    direction: "direction", sens: "direction", ordre: "direction", order: "direction",
-    entree: "entry", entry: "entry", "zone d'entree": "entry", "zone d’entrée": "entry",
-    "stop loss": "sl", stoploss: "sl", sl: "sl", tp1: "tp1", "tp 1": "tp1",
-    tp2: "tp2", "tp 2": "tp2", tp3: "tp3", "tp 3": "tp3",
-  };
   const fields: Record<string, string> = {};
   for (const line of body.split(/\r?\n/)) {
-    const match = plain(line).match(/^[^\p{L}\p{N}]*([\p{L}\p{N} '’]+?)\s*[:：]\s*(.*)$/u);
+    const match = plain(line).match(signalLine);
     if (!match) continue;
-    const key = aliases[normalize(match[1].trim())];
+    const key = signalAliases[normalize(match[1].trim())];
     const value = match[2].trim();
     if (!key) continue;
     const actual = !value || /^(?:[-–—…._]+|n\/?a|a renseigner|to fill|\[[^\]]*\])$/i.test(normalize(value)) ? "" : value;
@@ -74,6 +79,26 @@ function signalOrder(fields: Record<string, string>, fallback?: string | null) {
 /** Only explicit orders get a direction colour; empty/conflicting text overrides legacy metadata. */
 export function vipSignalOrder(post: VipNoticePost) {
   return post.category === "signal" ? signalOrder(signalFields(post.body || ""), post.direction) : null;
+}
+
+/** The lines of a signal that are not template fields: the team’s own update or comment, kept as written. */
+export function signalFreeText(body: string): string {
+  return body.split(/\r?\n/)
+    .filter(line => {
+      const match = plain(line).match(signalLine);
+      return !(match && signalAliases[normalize(match[1].trim())]);
+    })
+    .map(line => line.trim())
+    .filter(Boolean)
+    .join("\n");
+}
+
+/** The take-profit 3 written in the signal template (`TP3 : 2 350`), when it reads as a price. */
+export function signalTakeProfit3(body: string): number | null {
+  const value = signalFields(body).tp3;
+  if (!value) return null;
+  const price = Number(value.replace(/\s/g, "").replace(",", "."));
+  return Number.isFinite(price) && price > 0 ? price : null;
 }
 
 export function formatVipPublicationNotice(post: VipNoticePost): { title: string; body: string } {

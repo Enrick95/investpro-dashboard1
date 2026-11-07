@@ -130,14 +130,20 @@ function parisMonth(time) {
   const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris", year: "numeric", month: "2-digit" }).formatToParts(new Date(time));
   return `${parts.find(part => part.type === "year").value}-${parts.find(part => part.type === "month").value}`;
 }
+/** Calendar day in Paris, as YYYY-MM-DD: the day of a publication or of a trade. */
+function parisDate(time) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(time));
+}
 const month = parisMonth(now);
+// The fixed trades sit far from today, so that they never close the signals of these tests by accident.
+const tradeDay = Number(parisDate(now).slice(8, 10)) <= 15 ? "28" : "01";
 const member = { type: "affiliation", email: "camille@example.invalid", first_name: "Camille", started_at: "2026-10-01T10:00:00Z", expires_at: null, renewal_requested_at: null, status: "active" };
 const post = (id, category, extra = {}) => ({ id, category, title: "Publication " + id, body: "Texte " + id, symbol: null, direction: null, levels: {}, image_url: null, created_at: ago(3600000), ...extra });
 const xau = post("xau", "signal", { symbol: "XAUUSD", direction: "buy", body: "Signal XAUUSD", levels: { entry: 2318.5, stopLoss: 2310, takeProfit: 2327, takeProfit2: 2336 }, created_at: ago(2 * 3600000) });
 const nas = post("nas", "signal", { symbol: "NAS100", direction: "sell", body: "Signal NAS100", levels: { entry: 18420, stopLoss: 18510, takeProfit: 18330 }, created_at: ago(1800000) });
 const analysis = post("plan", "analysis", { title: "Plan de la semaine", created_at: ago(5 * 3600000) });
-const win = { id: 1, source: "telegram", trade_date: `${month}-05`, symbol: "XAUUSD", direction: "buy", status: "win", result_r: 2, pips: 0, target: 2 };
-const loss = { id: 2, source: "telegram", trade_date: `${month}-07`, symbol: "EURUSD", direction: "sell", status: "loss", result_r: -1, pips: 0, target: null };
+const win = { id: 1, source: "telegram", trade_date: `${month}-${tradeDay}`, symbol: "XAUUSD", direction: "buy", status: "win", result_r: 2, pips: 0, target: 2 };
+const loss = { id: 2, source: "telegram", trade_date: `${month}-${tradeDay}`, symbol: "EURUSD", direction: "sell", status: "loss", result_r: -1, pips: 0, target: null };
 
 function props(overrides = {}) {
   return {
@@ -172,6 +178,9 @@ function render(overrides = {}, { trades = [], failPerformance = false } = {}) {
   return { host, requests };
 }
 
+/** The section of the trades still open, as the side of Le fil shows them. */
+const openTrades = host => text(nodes(host.tree, node => node.props["aria-labelledby"] === "vip-espace-open")[0]);
+
 test("a new account opens on Le fil with honest empty states and no placeholder figures", async () => {
   const { host, requests } = render({ membership: { ...member, first_name: null } });
   await host.settle();
@@ -179,21 +188,25 @@ test("a new account opens on Le fil with honest empty states and no placeholder 
   assert.equal(button(host, "Le fil").props["aria-pressed"], true);
   assert.equal(button(host, "La salle des signaux").props["aria-pressed"], false);
   const copy = text(host.tree);
-  assert.match(copy, /Aucun signal publié ces dernières 24 heures\./);
+  assert.match(copy, /Les premières publications apparaîtront ici\./);
+  assert.match(copy, /Aucun trade en cours pour l’instant\./);
   assert.match(copy, /Aucun trade clôturé ce mois-ci\./);
-  for (const placeholder of ["[+X R]", "[X %]", "[N]", "214 membres", "Julien", "2 trades ouverts", "Enrick", "Trades ouverts"]) {
+  assert.match(copy, /Résultat—Réussite—/);
+  for (const placeholder of ["[+X R]", "[X %]", "[N]", "214 membres", "Julien", "2 trades ouverts", "Enrick"]) {
     assert.equal(copy.includes(placeholder), false, placeholder);
   }
 });
 
-test("Le fil shows the last 24 hours, the monthly figures from the Bilan logic, and the feed once", async () => {
+test("Le fil shows the trades still open, oldest first, the monthly figures from the Bilan logic, and the feed once", async () => {
   const { host } = render({ posts: [xau, nas, analysis] }, { trades: [win, loss] });
   await host.settle();
   const copy = text(host.tree);
-  assert.match(copy, /Signaux des 24 dernières heures/);
-  assert.match(copy, /XAUUSD/);
-  assert.match(copy, /BUY/);
-  assert.match(copy, /SELL/);
+  assert.match(copy, /Trades en cours/);
+  assert.match(copy, /XAUUSD · BUY/);
+  assert.match(copy, /NAS100 · SELL/);
+  const side = openTrades(host);
+  assert.ok(side.indexOf("XAUUSD") < side.indexOf("NAS100"), "The open trades are listed oldest first");
+  assert.match(copy, /Ce mois-ci/);
   assert.match(copy, /3 nouvelles publications/);
   assert.match(copy, /\+1,0 R/);
   assert.match(copy, /50 %/);
@@ -210,21 +223,28 @@ test("channel buttons select a channel and carry the posts of the last 24 hours"
   assert.deepEqual(selected, ["signal", "analysis"]);
 });
 
-test("La salle des signaux greets the member and shows four figures, with no invented open trades", async () => {
+test("La salle des signaux greets the member, shows the four figures and the trades still open", async () => {
   const { host } = render({ posts: [xau, nas, analysis] }, { trades: [win, loss] });
   await host.settle();
   button(host, "La salle des signaux").props.onClick(); await host.settle();
   const copy = text(host.tree);
-  assert.match(copy, /Bonjour Camille\./);
-  for (const label of ["Signaux \\(24 h\\)", "Résultat du mois", "Taux de réussite", "Signaux ce mois", "Dernières publications", "Trades clôturés"]) {
-    assert.match(copy, new RegExp(label));
-  }
-  assert.equal(copy.includes("Trades ouverts"), false);
+  assert.match(copy, /Bonjour Camille, 2 trades sont ouverts/);
+  assert.match(copy, /Trades ouverts2/);
+  assert.match(copy, /Résultat du mois\+1,0 R/);
+  assert.match(copy, /Taux de réussite50 %/);
+  assert.match(copy, /Signaux ce mois2/);
+  for (const label of ["Dernières publications", "Trades clôturés"]) assert.match(copy, new RegExp(label));
+  assert.equal(copy.includes("Signaux (24 h)"), false);
   assert.equal(copy.includes("Derniers signaux"), false);
+  const cards = nodes(host.tree, node => node.type === "article" && String(node.props.className).startsWith("sigCard "));
+  assert.equal(cards.length, 2);
+  assert.match(text(cards[0]), /^XAUUSD/, "The older trade comes first, as in the maquette");
+  assert.match(text(cards[1]), /^NAS100/);
+  assert.match(copy, /TP1 2 327/);
+  assert.match(copy, /TP2 2 336/);
+  assert.match(copy, /TP1 18 330/);
   assert.match(copy, /XAUUSD · BUY/);
-  assert.match(copy, /EURUSD · SELL/);
-  assert.match(copy, /Stop-1,0 R/);
-  assert.match(copy, /TP1/);
+  assert.match(copy, /EURUSD · SELLStop/);
   // Les signaux ont leurs cartes ; la liste des publications ne reprend que le reste.
   assert.equal(nodes(host.tree, node => node.props.className === "row").length, 1);
 });
@@ -264,22 +284,22 @@ test("renewal is offered only close to the end of an abonnement, and a request i
   const requests = [];
   const abonnement = render({ membership: { ...member, type: "abonnement", expires_at: soon }, onRenew: () => requests.push("renew") });
   await abonnement.host.settle();
-  button(abonnement.host, "Demander mon renouvellement").props.onClick();
+  button(abonnement.host, "Renouveler").props.onClick();
   assert.deepEqual(requests, ["renew"]);
 
   const affiliation = render({ membership: { ...member, type: "affiliation", expires_at: soon } });
   await affiliation.host.settle();
-  assert.match(text(affiliation.host.tree), /Votre accès se termine le/);
-  assert.equal(nodes(affiliation.host.tree, node => node.type === "button" && text(node) === "Demander mon renouvellement").length, 0);
+  assert.match(text(affiliation.host.tree), /Ton accès se termine le/);
+  assert.equal(nodes(affiliation.host.tree, node => node.type === "button" && text(node) === "Renouveler").length, 0);
 
   const far = render({ membership: { ...member, type: "abonnement", expires_at: ahead(200 * DAY) } });
   await far.host.settle();
-  assert.equal(text(far.host.tree).includes("Votre accès se termine le"), false);
+  assert.equal(text(far.host.tree).includes("se termine le"), false);
 
   const pending = render({ membership: { ...member, type: "abonnement", expires_at: soon, renewal_requested_at: ago(3600000) } });
   await pending.host.settle();
   assert.match(text(pending.host.tree), /Renouvellement demandé · en attente de vérification par l’équipe\./);
-  assert.equal(nodes(pending.host.tree, node => node.type === "button" && text(node) === "Demander mon renouvellement").length, 0);
+  assert.equal(nodes(pending.host.tree, node => node.type === "button" && text(node) === "Renouveler").length, 0);
 });
 
 test("when public performance cannot load, the figures say so instead of showing zeros", async () => {
@@ -299,4 +319,49 @@ test("the account tools sit inside the space, above the channel panel", async ()
   const [account] = nodes(host.tree, node => node.props.className === "account");
   assert.ok(account, "The account strip is rendered");
   assert.equal(nodes(account, node => node.props["data-probe"] === "account").length, 1);
+});
+
+test("a signal stays open for two weeks unless a trade of its instrument and side closes it", async () => {
+  const closedAt = ago(2 * DAY);
+  const closedSignal = post("closed", "signal", { symbol: "GBPJPY", direction: "buy", body: "Signal GBPJPY", levels: { entry: 1.9 }, created_at: closedAt });
+  const closure = { ...win, id: 9, symbol: "GBPJPY", direction: "buy", trade_date: parisDate(Date.parse(closedAt)), status: "loss", result_r: -1, target: null };
+  const stale = post("stale", "signal", { symbol: "NAS100", direction: "sell", body: "Signal ancien", levels: {}, created_at: ago(15 * DAY) });
+  const { host } = render({ posts: [xau, closedSignal, stale] }, { trades: [closure] });
+  await host.settle();
+  assert.match(openTrades(host), /XAUUSD · BUY/);
+  assert.equal(openTrades(host).includes("GBPJPY"), false, "A signal closed by a trade is not open");
+  assert.equal(openTrades(host).includes("NAS100"), false, "A signal older than two weeks is not open");
+  button(host, "La salle des signaux").props.onClick(); await host.settle();
+  assert.match(text(host.tree), /GBPJPY · BUY/, "The closed trade is in the closed list");
+});
+
+test("a trade closes a signal only with the same instrument and side, on the same day or the day after", async () => {
+  const signalAt = ago(3 * 3600000);
+  const sell = post("sell", "signal", { symbol: "NAS100", direction: "sell", body: "Signal NAS100", levels: {}, created_at: signalAt });
+  const otherSide = { ...win, id: 10, symbol: "NAS100", direction: "buy", trade_date: parisDate(Date.parse(signalAt)), status: "win", result_r: 1, target: 1 };
+  const threeDaysBefore = { ...win, id: 11, symbol: "NAS100", direction: "sell", trade_date: parisDate(Date.parse(signalAt) - 3 * DAY), status: "loss", result_r: -1, target: null };
+  const stillOpen = render({ posts: [sell] }, { trades: [otherSide, threeDaysBefore] });
+  await stillOpen.host.settle();
+  assert.match(openTrades(stillOpen.host), /NAS100 · SELL/, "A trade of the other side, or three days away, does not close it");
+  const dayAfter = { ...win, id: 12, symbol: "NAS100", direction: "sell", trade_date: parisDate(Date.parse(signalAt) + DAY), status: "win", result_r: 1, target: 1 };
+  const closed = render({ posts: [sell] }, { trades: [dayAfter] });
+  await closed.host.settle();
+  assert.equal(openTrades(closed.host).includes("NAS100"), false, "A trade of the same side the day after closes it");
+});
+
+test("the TP3 and the team’s note come from the signal text, without its template lines", async () => {
+  const update = post("update", "signal", { symbol: "XAUUSD", direction: "buy", body: "Entrée : 2 318\nTP3 : 2 350\nMise à jour 11:05 · TP1 touché, stop déplacé au point d’entrée (BE).", levels: { entry: 2318, stopLoss: 2310, takeProfit: 2327 }, created_at: ago(3600000) });
+  const closure = { ...win, id: 9, symbol: "XAUUSD", direction: "buy", trade_date: parisDate(Date.parse(update.created_at)), status: "win", result_r: 1, target: 1 };
+  const template = post("template", "signal", { symbol: "NAS100", direction: "sell", body: "TP3 : 18 120", levels: { entry: 18420, stopLoss: 18510, takeProfit: 18330 }, created_at: ago(1800000) });
+  const { host } = render({ posts: [update, template] }, { trades: [closure] });
+  await host.settle();
+  const copy = text(host.tree);
+  assert.match(copy, /Mise à jour 11:05 · TP1 touché, stop déplacé au point d’entrée \(BE\)\./);
+  assert.equal(copy.includes("Entrée : 2 318"), false, "A template line is not repeated as a note");
+  assert.equal(copy.includes("TP3 : 18 120"), false, "A template line is not repeated as a note");
+  assert.match(copy, /TP1 ✓2 327/, "A reached target is ticked");
+  const card = nodes(host.tree, node => node.props.id === "publication-update")[0];
+  assert.match(card.props.className, /signalNews/, "A signal with a closing result takes the gold frame");
+  button(host, "La salle des signaux").props.onClick(); await host.settle();
+  assert.match(text(host.tree), /TP3 18 120/, "La salle des signaux shows the third target under its bar");
 });
