@@ -9,9 +9,10 @@ import { validateVipApproval, vipParisPaymentDate, vipPaymentExpiry } from "@/li
 import type { VipAccessRequest } from "@/lib/vip/types";
 import s from "./VipAdmin.module.css";
 import r from "./RequestsRedesign.module.css";
+import VipApplicationReview, { type VipMemberApplication } from "./VipApplicationReview";
 import { allowedCompletionFields, completionFieldLabel, needsVipCompletion, requestRevision, type CompletionField } from "@/lib/vip/request-completions";
 
-const initials = (request: VipAccessRequest) => `${(request.first_name || "?").charAt(0)}${(request.last_name || "").charAt(0)}`.toUpperCase();
+const initials = (person: { first_name: string; last_name: string }) => `${(person.first_name || "?").charAt(0)}${(person.last_name || "").charAt(0)}`.toUpperCase();
 function ago(value: string | null | undefined, locale: string) {
   if (!value) return "";
   const minutes = Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 60000));
@@ -23,7 +24,19 @@ function ago(value: string | null | undefined, locale: string) {
 }
 const kindOf = (request: VipAccessRequest) => request.type === "abonnement" ? "sub" : "aff";
 
-type Props = { requests: VipAccessRequest[] | null; error: string; onRefresh: () => Promise<void> };
+type Props = { requests: VipAccessRequest[] | null; applications: VipMemberApplication[] | null; applicationsError: string; error: string; onRefresh: () => Promise<void> };
+// Une ligne de la liste « Demandes VIP » : soit une demande classique, soit un dossier « nouveau membre ».
+type Entry = { key: string; at: string; kind: "request"; request: VipAccessRequest } | { key: string; at: string; kind: "application"; application: VipMemberApplication };
+type EntryView = { searchText: string; type: string; broker: string; transfer: boolean; requestKind: string; needsCompletion: boolean; completionSubmitted: boolean; toReview: boolean };
+function entryView(entry: Entry): EntryView {
+  if (entry.kind === "request") {
+    const request = entry.request;
+    const needsCompletion = needsVipCompletion(request);
+    return { searchText: `${request.first_name} ${request.last_name} ${request.email} ${request.telegram_username} ${request.broker_account_id || ""} ${request.broker_email || ""}`, type: request.type, broker: request.affiliation_broker || "", transfer: request.broker_account_kind === "existing", requestKind: request.request_kind || "existing", needsCompletion, completionSubmitted: !!request.completion_submitted_at && !needsCompletion, toReview: !needsCompletion };
+  }
+  const application = entry.application;
+  return { searchText: `${application.first_name} ${application.last_name} ${application.email} ${application.telegram_username} ${application.broker_account_id || ""} ${application.broker_email || ""}`, type: "affiliation", broker: application.affiliation_broker || "", transfer: application.broker_account_kind === "existing", requestKind: "new", needsCompletion: false, completionSubmitted: false, toReview: application.status === "submitted" };
+}
 type Review = { firstName: string; lastName: string; type: string; affiliationBroker: string; paidOn: string; confirmed: boolean; brokerLinkedVerified: boolean; verifiedDepositUsd: string; depositVerified: boolean; paymentVerified: boolean };
 
 function RequestReview({ request, onRefresh }: { request: VipAccessRequest; onRefresh: () => Promise<void> }) {
@@ -168,7 +181,7 @@ function RequestReview({ request, onRefresh }: { request: VipAccessRequest; onRe
   </article>;
 }
 
-export default function VipAccessRequestsAdmin({ requests, error, onRefresh }: Props) {
+export default function VipAccessRequestsAdmin({ requests, applications, applicationsError, error, onRefresh }: Props) {
   const { t: tr, locale } = useLocale();
   const text = (fr: string, en: string) => locale === "en" ? en : fr;
   const [search, setSearch] = useState("");
@@ -180,15 +193,22 @@ export default function VipAccessRequestsAdmin({ requests, error, onRefresh }: P
   const [history, setHistory] = useState<VipAccessRequest[] | null>(null);
   const [historyError, setHistoryError] = useState("");
   const [historyBusy, setHistoryBusy] = useState(false);
-  const filtered = useMemo(() => (requests || []).filter(request => {
+  const entries = useMemo<Entry[]>(() => [
+    ...(requests || []).map((request): Entry => ({ key: `request:${request.id}`, at: request.created_at, kind: "request", request })),
+    ...(applications || []).filter(application => application.status === "submitted" || application.status === "approved").map((application): Entry => ({ key: `application:${application.id}`, at: application.created_at, kind: "application", application })),
+  ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()), [requests, applications]);
+  const toReviewCount = entries.filter(entry => entryView(entry).toReview).length;
+  const filtered = useMemo(() => entries.filter(entry => {
+    const view = entryView(entry);
     const query = search.trim().toLocaleLowerCase("fr");
-    const matches = `${request.first_name} ${request.last_name} ${request.email} ${request.telegram_username} ${request.broker_account_id || ""} ${request.broker_email || ""}`.toLocaleLowerCase("fr").includes(query);
-    const matchesKind = kind === "all" || (request.request_kind || "existing") === kind;
-    const matchesCompletion = completionState === "all" || completionState === "needed" && needsVipCompletion(request) || completionState === "submitted" && !!request.completion_submitted_at && !needsVipCompletion(request);
-    return matches && matchesKind && matchesCompletion && (origin === "all" || origin === "transfer" && request.type === "affiliation" && request.broker_account_kind === "existing" || origin === "affiliation-any" && request.type === "affiliation" || origin === "abonnement" && request.type === "abonnement" || origin === "unknown" && request.type === "affiliation" && !request.affiliation_broker || request.type === "affiliation" && request.affiliation_broker === origin);
-  }), [requests, search, origin, kind, completionState]);
+    const matches = view.searchText.toLocaleLowerCase("fr").includes(query);
+    const matchesKind = kind === "all" || view.requestKind === kind;
+    const matchesCompletion = completionState === "all" || completionState === "needed" && view.needsCompletion || completionState === "submitted" && view.completionSubmitted;
+    const matchesOrigin = origin === "all" || origin === "transfer" && view.type === "affiliation" && view.transfer || origin === "affiliation-any" && view.type === "affiliation" || origin === "abonnement" && view.type === "abonnement" || origin === "unknown" && view.type === "affiliation" && !view.broker || view.type === "affiliation" && view.broker === origin;
+    return matches && matchesKind && matchesCompletion && matchesOrigin;
+  }), [entries, search, origin, kind, completionState]);
   const [selectedId, setSelectedId] = useState("");
-  const selected = filtered.find(request => request.id === selectedId) || filtered[0] || null;
+  const selected = filtered.find(entry => entry.key === selectedId) || filtered[0] || null;
   async function copyLink(path: string) {
     setCopyError("");
     try { await navigator.clipboard.writeText(new URL(path, window.location.origin).toString()); setCopied(path); }
@@ -203,20 +223,21 @@ export default function VipAccessRequestsAdmin({ requests, error, onRefresh }: P
   async function refreshed() { await onRefresh(); if (history !== null) await loadHistory(); }
   return <section className={s.card}>
     <div className={r.top}>
-      <div><span className={r.kicker}>{text("Mon VIP", "My VIP")}</span><h2 className={r.title}>{text("Demandes VIP", "VIP requests")}{requests && <b>{requests.length}</b>}</h2></div>
+      <div><span className={r.kicker}>{text("Mon VIP", "My VIP")}</span><h2 className={r.title}>{text("Demandes VIP", "VIP requests")}{(requests || applications) && <b>{toReviewCount}</b>}</h2></div>
       <button type="button" className={r.ghost} onClick={() => void onRefresh()}><RefreshCw size={16} />{tr("Actualiser")}</button>
     </div>
-    {requests && <div className={r.kpis}>
-      <article><span>{text("À vérifier", "To review")}</span><strong>{requests.filter(item => !needsVipCompletion(item)).length}</strong></article>
-      <article data-kind="sub"><span>{text("Abonnements", "Subscriptions")}</span><strong>{requests.filter(item => item.type === "abonnement").length}</strong></article>
-      <article data-kind="aff"><span>{text("Affiliations", "Referrals")}</span><strong>{requests.filter(item => item.type === "affiliation").length}</strong></article>
-      <article data-kind="warn"><span>{text("Infos manquantes", "Missing info")}</span><strong>{requests.filter(item => needsVipCompletion(item)).length}</strong></article>
+    {(requests || applications) && <div className={r.kpis}>
+      <article><span>{text("À vérifier", "To review")}</span><strong>{toReviewCount}</strong></article>
+      <article data-kind="sub"><span>{text("Abonnements", "Subscriptions")}</span><strong>{entries.filter(entry => entryView(entry).type === "abonnement").length}</strong></article>
+      <article data-kind="aff"><span>{text("Affiliations", "Referrals")}</span><strong>{entries.filter(entry => entryView(entry).type === "affiliation").length}</strong></article>
+      <article data-kind="warn"><span>{text("Infos manquantes", "Missing info")}</span><strong>{entries.filter(entry => entryView(entry).needsCompletion).length}</strong></article>
     </div>}
     <details className={s.shareLinks}><summary>{text("Liens à partager", "Links to share")}</summary><div className={s.intakeLinks}>
       <div className={s.intakeLink}><a href="/vip/rejoindre" target="_blank" rel="noopener noreferrer">{text("Nouvelles adhésions · abonnement ou affiliation ↗", "New members · subscription or referral ↗")}</a><button type="button" className={s.secondary} onClick={() => void copyLink("/vip/rejoindre")}><Copy size={15} />{copied === "/vip/rejoindre" ? tr("Lien copié") : tr("Copier le lien à partager")}</button><span className={s.fine}>/vip/rejoindre</span></div>
       <div className={s.intakeLink}><a href="/vip/deja-membre" target="_blank" rel="noopener noreferrer">{tr("Ouvrir la page « Déjà membre Telegram » ↗")}</a><button type="button" className={s.secondary} onClick={() => void copyLink("/vip/deja-membre")}><Copy size={15} />{copied === "/vip/deja-membre" ? tr("Lien copié") : tr("Copier le lien à partager")}</button><span className={s.fine}>/vip/deja-membre</span></div>
     </div></details>
     {copyError && <p className={s.error} role="status">{copyError}</p>}
+    {applicationsError && <p className={s.error} role="alert">{tr(applicationsError)}</p>}
     {error ? <p className={s.error} role="alert">{tr(error)}</p> : <>
       <div className={r.filterBar}>
         <label className={r.search}><span className={r.srOnly}>{tr("Rechercher un membre")}</span><input value={search} onChange={event => setSearch(event.target.value)} placeholder={tr("Nom, e-mail, pseudo Telegram…")} /></label>
@@ -226,18 +247,24 @@ export default function VipAccessRequestsAdmin({ requests, error, onRefresh }: P
       </div>
       <details className={r.more}><summary>{text("Plus de filtres", "More filters")}</summary><div className={s.listFilters}><label className={s.originFilter}>{text("Parcours", "Application type")}<select value={kind} onChange={event => setKind(event.target.value)}><option value="all">{text("Tous les parcours", "All applications")}</option><option value="new">{text("Nouvelles adhésions", "New members")}</option><option value="existing">{text("Déjà membres", "Existing members")}</option></select></label><label className={s.originFilter}>{tr("Origine déclarée")}<select value={origin} onChange={event => setOrigin(event.target.value)}><option value="all">{tr("Toutes les origines")}</option><option value="affiliation-any">{text("Toutes les affiliations", "All referrals")}</option>{VIP_AFFILIATION_BROKERS.map(broker => <option value={broker.value} key={broker.value}>{broker.label}</option>)}<option value="unknown">{tr("Broker à confirmer")}</option><option value="abonnement">{tr("Abonnement")}</option></select></label>
       <label className={s.completionFilter}>{text("État du dossier", "Application status")}<select value={completionState} onChange={event => setCompletionState(event.target.value)}><option value="all">{text("Tous les dossiers", "All applications")}</option><option value="needed">{text("À compléter", "Awaiting member update")}</option><option value="submitted">{text("Compléments reçus", "Update received")}</option></select></label></div></details>
-      {requests === null ? <p className={s.empty}>{tr("Chargement des demandes…")}</p> : filtered.length ? <div className={`${s.reviewSplit} ${r.split}`}>
-        <ul className={`${s.reviewList} ${r.list}`} aria-label={text("Demandes à vérifier", "Applications to review")}>{filtered.map(request => {
-          const waiting = needsVipCompletion(request);
-          const state = waiting ? "waiting" : request.completion_submitted_at ? "updated" : "new";
-          return <li key={request.id}><button type="button" aria-pressed={selected?.id === request.id} onClick={() => setSelectedId(request.id)}>
-            <span className={`${s.reviewAvatar} ${r.avatar}`} data-kind={kindOf(request)} aria-hidden="true">{initials(request)}</span>
-            <span className={s.reviewWho}><b>{request.first_name} {request.last_name}</b><small>{request.type === "abonnement" ? tr("Abonnement") : ((request.broker_account_kind === "existing" ? text("Rattachement · ", "Transfer · ") : tr("Affiliation · ")) + (vipAffiliationBrokerLabel(request.affiliation_broker) || "?"))} · {ago(request.created_at, locale)}</small></span>
-            <span className={s.reviewState} data-state={state}>{state === "waiting" ? text("À compléter", "Waiting") : state === "updated" ? text("Complété", "Updated") : text("À vérifier", "To review")}</span>
+      {requests === null && applications === null ? <p className={s.empty}>{tr("Chargement des demandes…")}</p> : filtered.length ? <div className={`${s.reviewSplit} ${r.split}`}>
+        <ul className={`${s.reviewList} ${r.list}`} aria-label={text("Demandes à vérifier", "Applications to review")}>{filtered.map(entry => {
+          const view = entryView(entry);
+          const person = entry.kind === "request" ? entry.request : entry.application;
+          const sentLink = entry.kind === "application" && entry.application.status === "approved";
+          const dataState = view.needsCompletion ? "waiting" : sentLink || view.completionSubmitted ? "updated" : "new";
+          const label = view.needsCompletion ? text("À compléter", "Waiting") : sentLink ? text("Lien envoyé", "Link sent") : view.completionSubmitted ? text("Complété", "Updated") : text("À vérifier", "To review");
+          const offer = entry.kind === "request" && entry.request.type === "abonnement" ? tr("Abonnement") : `${view.transfer ? text("Rattachement · ", "Transfer · ") : tr("Affiliation · ")}${vipAffiliationBrokerLabel(view.broker) || "?"}`;
+          return <li key={entry.key}><button type="button" aria-pressed={selected?.key === entry.key} onClick={() => setSelectedId(entry.key)}>
+            <span className={`${s.reviewAvatar} ${r.avatar}`} data-kind={entry.kind === "request" ? kindOf(entry.request) : "aff"} aria-hidden="true">{initials(person)}</span>
+            <span className={s.reviewWho}><b>{person.first_name} {person.last_name}</b><small>{offer} · {ago(person.created_at, locale)}</small></span>
+            <span className={s.reviewState} data-state={dataState}>{label}</span>
           </button></li>;
         })}</ul>
-        <div className={`${s.reviewSheet} ${r.sheetWrap}`}>{selected && <RequestReview request={selected} key={`${selected.id}:${requestRevision(selected)}`} onRefresh={refreshed} />}</div>
-      </div> : <p className={s.empty}>{requests.length ? tr("Aucune demande ne correspond aux filtres.") : tr("Aucune demande en attente. Les prochains membres apparaîtront ici après leur inscription sur la page dédiée.")}</p>}
+        <div className={`${s.reviewSheet} ${r.sheetWrap}`}>{selected && (selected.kind === "request"
+          ? <RequestReview request={selected.request} key={`${selected.request.id}:${requestRevision(selected.request)}`} onRefresh={refreshed} />
+          : <VipApplicationReview item={selected.application} key={selected.application.id} onChanged={refreshed} />)}</div>
+      </div> : <p className={s.empty}>{entries.length ? tr("Aucune demande ne correspond aux filtres.") : tr("Aucune demande en attente. Les prochains membres apparaîtront ici après leur inscription sur la page dédiée.")}</p>}
     </>}
     <details className={s.optional} onToggle={event => { if (event.currentTarget.open && history === null && !historyBusy) void loadHistory(); }}><summary>{text("Adhésions et rattachements validés", "Approved applications and transfers")}</summary><p className={s.fine}>{text("Les 100 derniers dossiers validés. Le paiement et le dépôt affichés correspondent à votre vérification lors de la validation ; les renouvellements ultérieurs restent gérés sur la fiche membre.", "The last 100 approved applications. Payment and deposit details reflect your checks at approval; later renewals are managed on the member’s profile.")}</p>
       {historyBusy ? <p role="status" className={s.fine}>{tr("Chargement…")}</p> : historyError ? <p className={s.error} role="alert">{tr(historyError)}</p> : history && <div className={s.invitations}>{history.length ? history.map(item => <article className={s.invitationRow} key={item.id}><div><b>{item.first_name} {item.last_name}</b><span className={s.memberEmail}>{item.email}</span><small>{item.request_kind === "new" ? text("Nouvelle adhésion", "New member") : text("Déjà membre", "Existing member")}</small><small>{item.verified_type === "abonnement" ? (tr("Abonnement · Paiement confirmé au rattachement : ") + (vipDate(item.verified_paid_on, locale)) + tr(" · Renouvellement dû : ") + (vipDate(item.verified_expires_at, locale))) : (tr("Affiliation · ") + (vipAffiliationBrokerLabel(item.verified_affiliation_broker) || tr("Broker non renseigné")))}</small>{item.request_kind === "new" && item.verified_type === "affiliation" && <small>{text("Dépôt vérifié : ", "Verified deposit: ")}{item.verified_deposit_usd === null ? "—" : new Intl.NumberFormat(locale, { style: "currency", currency: "USD" }).format(item.verified_deposit_usd)}{item.copy_requested && text(" · Copy demandé, configuration séparée", " · Copy requested, separate setup")}</small>}</div></article>) : <p className={s.empty}>{tr("Aucun rattachement validé.")}</p>}</div>}

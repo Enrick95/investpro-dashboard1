@@ -9,7 +9,8 @@ import { ArrowUpRight, Check, Copy, KeyRound, MessageCircle, Pencil, Plus, Refre
 import { vipDate, vipRequest, type VipMembership } from "@/lib/vip/client";
 import type { VipAccessRequest, VipInvitation } from "@/lib/vip/types";
 import VipAccessRequestsAdmin from "./VipAccessRequestsAdmin";
-import VipMemberApplicationsAdmin from "./VipMemberApplicationsAdmin";
+import type { VipMemberApplication } from "./VipApplicationReview";
+import { needsVipCompletion } from "@/lib/vip/request-completions";
 import { VIP_AFFILIATION_BROKERS, validateVipIdentity, vipAffiliationBrokerLabel, type VipAffiliationBroker } from "@/lib/vip/identity";
 import s from "./VipAdmin.module.css";
 
@@ -40,6 +41,8 @@ export default function VipAdminPage() {
   const [data, setData] = useState<MembersPayload | null>(null);
   const [requests, setRequests] = useState<VipAccessRequest[] | null>(null);
   const [requestsError, setRequestsError] = useState("");
+  const [applications, setApplications] = useState<VipMemberApplication[] | null>(null);
+  const [applicationsError, setApplicationsError] = useState("");
   const [asOf, setAsOf] = useState(0);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
@@ -57,14 +60,16 @@ export default function VipAdminPage() {
   const [editing, setEditing] = useState<{ userId: string; firstName: string; lastName: string; affiliationBroker: Broker | "" } | null>(null);
   const load = useCallback(async (signal?: AbortSignal, includeSettings = false) => {
     try {
-      const [members, settings, intake] = await Promise.all([
+      const [members, settings, intake, applicationsResult] = await Promise.all([
         vipRequest<MembersPayload>("/api/admin/vip/members", { signal }),
         includeSettings ? vipRequest<{ telegramInviteUrl: string | null }>("/api/admin/vip/settings", { signal }) : Promise.resolve(null),
         vipRequest<{ requests: VipAccessRequest[] }>("/api/admin/vip/requests", { signal }).then(value => ({ value, error: "" })).catch(cause => ({ value: null, error: cause instanceof Error ? cause.message : tr("Demandes indisponibles.") })),
+        vipRequest<{ applications: VipMemberApplication[] }>("/api/admin/vip/member-applications", { signal }).then(value => ({ value: value.applications, error: "" })).catch(cause => ({ value: null, error: cause instanceof Error ? cause.message : tr("Nouveaux dossiers indisponibles.") })),
       ]);
       if (signal?.aborted) return;
       setError(""); setData(members); setAsOf(Date.now()); if (settings) setTelegramUrl(settings.telegramInviteUrl || "");
       setRequests(intake.value?.requests || null); setRequestsError(intake.error);
+      setApplications(applicationsResult.value); setApplicationsError(applicationsResult.error);
     } catch (cause) { if (!signal?.aborted) { setError(cause instanceof Error ? cause.message : tr("Impossible de charger l’administration VIP.")); setData(null); } }
     finally { if (!signal?.aborted) setLoading(false); }
   }, [tr]);
@@ -119,13 +124,14 @@ export default function VipAdminPage() {
     const matchesOrigin = originFilter === "all" || (originFilter === "abonnement" ? member.type === "abonnement" : originFilter === "affiliation" ? member.type === "affiliation" : originFilter === "unknown" ? member.type === "affiliation" && !member.affiliation_broker : member.type === "affiliation" && member.affiliation_broker === originFilter);
     return matchesOrigin && searchable(`${memberName(member, tr)} ${member.email} ${originLabel(member, tr)} ${member.affiliation_broker || ""}`).includes(query);
   }) || [];
+  const toReviewCount = requests ? requests.filter(item => !needsVipCompletion(item)).length + (applications || []).filter(item => item.status === "submitted").length : null;
   return <div className={s.admin}>
     {!previewNavigation && <header className={s.heading}><div><span className={s.eyebrow}>{tr("ADMINISTRATION INVESTPRO")}</span><h1>{tr("Votre cercle.")}<br /><em>{tr("Des accès clairs.")}</em></h1><p>{tr("Invitez vos membres, publiez vos contenus et suivez les échéances.")}</p></div><Link className={s.secondary} href="/dashboard/vip">{tr("Voir l’espace VIP ")}<ArrowUpRight size={16} /></Link></header>}
     {loading ? <div className={s.empty} role="status">{tr("Chargement de l’administration VIP…")}</div> : <>
       {error && <p className={s.error} role="alert">{tr(error)}</p>}{message && <p className={s.message} role="status">{message}</p>}
       {data ? <>
-        <nav className={s.tabs} aria-label={tr("Administration VIP")}>{[{ key: "members", title: tr("Membres"), Icon: Users }, { key: "requests", title: (tr("À vérifier") + (requests ? ` · ${requests.length}` : "")), Icon: ShieldCheck }, { key: "posts", title: tr("Publications"), Icon: Send }, { key: "settings", title: tr("Paramètres"), Icon: Settings }].map(({ key, title, Icon }) => <button type="button" aria-pressed={tab === key} key={key} onClick={() => key === "posts" ? (previewNavigation ? previewNavigation.onNavigate("/dashboard/vip?mode=admin") : router.push("/dashboard/vip?mode=admin")) : setTab(key as Tab)}><Icon size={16} />{title}</button>)}<button type="button" className={s.reload} aria-label={tr("Actualiser les accès")} onClick={() => void load()} disabled={Boolean(busy)}><RefreshCw size={16} /></button></nav>
-        {tab === "requests" && <><VipMemberApplicationsAdmin /><VipAccessRequestsAdmin requests={requests} error={requestsError} onRefresh={() => load()} /></>}
+        <nav className={s.tabs} aria-label={tr("Administration VIP")}>{[{ key: "members", title: tr("Membres"), Icon: Users }, { key: "requests", title: (tr("À vérifier") + (toReviewCount !== null ? ` · ${toReviewCount}` : "")), Icon: ShieldCheck }, { key: "posts", title: tr("Publications"), Icon: Send }, { key: "settings", title: tr("Paramètres"), Icon: Settings }].map(({ key, title, Icon }) => <button type="button" aria-pressed={tab === key} key={key} onClick={() => key === "posts" ? (previewNavigation ? previewNavigation.onNavigate("/dashboard/vip?mode=admin") : router.push("/dashboard/vip?mode=admin")) : setTab(key as Tab)}><Icon size={16} />{title}</button>)}<button type="button" className={s.reload} aria-label={tr("Actualiser les accès")} onClick={() => void load()} disabled={Boolean(busy)}><RefreshCw size={16} /></button></nav>
+        {tab === "requests" && <VipAccessRequestsAdmin requests={requests} applications={applications} applicationsError={applicationsError} error={requestsError} onRefresh={() => load()} />}
         {tab === "members" && <>
           <div className={s.summary}><div><span>{tr("Membres")}</span><b>{data.members.length}</b></div><div><span>{tr("À renouveler")}</span><b>{data.members.filter((member) => member.renewal_requested_at).length}</b></div><div><span>{tr("Invitations en attente")}</span><b>{data.invitations.filter((invitation) => !invitation.redeemed_at && !invitation.revoked_at && new Date(invitation.expires_at).getTime() > asOf).length}</b></div></div>
           <section className={s.card}>
