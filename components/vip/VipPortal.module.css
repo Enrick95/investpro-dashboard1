@@ -43,6 +43,7 @@
 .workspace { display: flex; flex: 1; min-height: 0; min-width: 0; overflow: hidden; }
 .workspace[hidden], .editorWorkspace[hidden] { display: none; }
 .editorWorkspace { display: flex; flex: 1; min-height: 0; min-width: 0; overflow: hidden; }
+.espaceColumn { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
 .modeSwitch { display: flex; align-items: center; gap: 5px; flex-shrink: 0; padding: 5px 8px; background: #10190f; border-bottom: 1px solid var(--v-border); }
 .portal .modeSwitch button { display: flex; justify-content: center; align-items: center; gap: 8px; flex: 1; min-width: 0; min-height: 44px; border: 0; border-radius: 11px; background: transparent; color: #acb6a4; font-size: 12px; padding: 9px 5px; }
 .modeSwitch button[aria-pressed="true"] { background: var(--v-gold); color: #251e10; }

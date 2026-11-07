@@ -166,9 +166,15 @@ function fixture(initialAdminMode = false) {
     ...common, "./VipPublicationsEditor.module.css": css,
     "@/lib/supabase/client": { createClient() { throw Error("Storage must never be accessed by mode tests"); } },
   }, browser).default;
+  const Espace = compile("components/vip/VipEspace.tsx", {
+    ...common, "./VipEspace.module.css": css,
+    "@/lib/vip/performance-report": compile("lib/vip/performance-report.ts", {}),
+    "@/lib/vip/publication-notice": compile("lib/vip/publication-notice.ts", {}),
+    "@/lib/vip/signal-risk-preset": { riskSignalHref: postId => "/dashboard/simulateur?signal=" + encodeURIComponent(postId) },
+  }, browser).default;
   const Portal = compile("components/vip/VipPortal.tsx", {
     ...common, "@/components/i18n/LanguageSwitcher": () => element("select", { "aria-label": "Language" }),
-    "./VipPublicationsEditor": Editor, "./VipPortal.module.css": css, "./VipPortalShell.css": {},
+    "./VipPublicationsEditor": Editor, "./VipEspace": Espace, "./VipPortal.module.css": css, "./VipPortalShell.css": {},
     "./VipChat": function VipChat(props) { return element("section", { "data-chat-user": props.userId, "data-chat-admin": props.admin, children: "Private chat fixture" }); },
     "./VipFavorites": function VipFavorites(props) { return element("section", { "data-favorites-user": props.userId, children: "Private saved posts fixture" }); },
     "@/lib/supabase/client": { createClient: () => ({ auth: { onAuthStateChange(callback) { authCallback = callback; callback("INITIAL_SESSION", { user: { id: "offline-user" } }); return { data: { subscription: { unsubscribe() { authCallback = undefined; } } } }; } } }) },
