@@ -14,8 +14,18 @@ const VipPortal = dynamic(() => import("@/components/vip/VipPortal"), {
 
 type ClaimedRequest = { first_name?: string; last_name?: string; member_number?: number; channel_invite_url?: string };
 
-/** Rattache le dossier au compte connecté. Le serveur vérifie l’adresse e-mail et l’état de la demande. */
-async function claimApplication(applicationId: string, accessToken: string): Promise<ClaimedRequest> {
+/** Erreur renvoyée par l’API, avec son code pour traiter à part le cas « aucune demande validée ». */
+class ClaimError extends Error {
+  code: string;
+
+  constructor(message: string, code = "") {
+    super(message);
+    this.code = code;
+  }
+}
+
+/** Rattache la demande validée au compte connecté. Le serveur la retrouve par l’adresse e-mail du compte. */
+async function claimApplication(accessToken: string, applicationId: string): Promise<ClaimedRequest> {
   const response = await fetch("/api/vip/nouveau-membre/claim", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
@@ -23,7 +33,12 @@ async function claimApplication(applicationId: string, accessToken: string): Pro
     cache: "no-store",
   });
   const payload = await response.json().catch(() => null);
-  if (!response.ok) throw new Error(typeof payload?.error === "string" ? payload.error : "Impossible de rattacher le dossier au compte.");
+  if (!response.ok) {
+    throw new ClaimError(
+      typeof payload?.error === "string" ? payload.error : "Impossible de rattacher ta demande à ton compte.",
+      typeof payload?.code === "string" ? payload.code : "",
+    );
+  }
   return (payload?.request as ClaimedRequest | undefined) || {};
 }
 
@@ -41,25 +56,40 @@ function Brand() {
   );
 }
 
-function MissingLink() {
+function Steps() {
   return (
-    <>
-      <h1 className={s.title}>Ouvre le lien de ton e-mail</h1>
-      <p className={s.lead}>Ce lien est incomplet. Clique sur le bouton de l’<span className={s.nowrap}>e-mail</span> de validation : il ouvre directement ton accès VIP.</p>
-      <p className={s.help}>Tu ne retrouves pas cet <span className={s.nowrap}>e-mail</span> ? Écris à @EquipeInvestPro sur Telegram.</p>
-    </>
+    <ol className={s.steps}>
+      <li>
+        <span className={s.stepNumber} aria-hidden="true">1</span>
+        <div>
+          <span className={s.stepTitle}>Ton identifiant</span>
+          <span className={s.stepText}>L’adresse e-mail de ta demande.</span>
+        </div>
+      </li>
+      <li>
+        <span className={s.stepNumber} aria-hidden="true">2</span>
+        <div>
+          <span className={s.stepTitle}>Ton code</span>
+          <span className={s.stepText}>Celui reçu par e-mail à la validation.</span>
+        </div>
+      </li>
+      <li>
+        <span className={s.stepNumber} aria-hidden="true">3</span>
+        <div>
+          <span className={s.stepTitle}>Ton accès</span>
+          <span className={s.stepText}>Le canal VIP et ton espace membre s’ouvrent sur cette page.</span>
+        </div>
+      </li>
+    </ol>
   );
 }
 
-function Loading() {
+function Checking() {
   return (
-    <>
-      <h1 className={s.title}>Un instant</h1>
-      <p className={s.loadingRow}>
-        <span className={s.dot} aria-hidden="true" />
-        On rattache ton dossier à ton compte…
-      </p>
-    </>
+    <p className={s.loadingRow} role="status">
+      <span className={s.dot} aria-hidden="true" />
+      On vérifie ton accès…
+    </p>
   );
 }
 
@@ -82,8 +112,7 @@ function Welcome({ request }: { request: ClaimedRequest }) {
 }
 
 export default function VipMemberClaimClient({ applicationId }: { applicationId: string }) {
-  const validLink = /^[0-9a-f-]{36}$/i.test(applicationId);
-  const [loading, setLoading] = useState(validLink);
+  const [checking, setChecking] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [request, setRequest] = useState<ClaimedRequest | null>(null);
@@ -91,29 +120,30 @@ export default function VipMemberClaimClient({ applicationId }: { applicationId:
   const [code, setCode] = useState("");
   const [showCode, setShowCode] = useState(false);
 
+  // Une session déjà ouverte est rattachée tout de suite. Sans demande validée, le formulaire s’affiche sans message.
   useEffect(() => {
-    if (!validLink) return;
     let active = true;
-    async function finish() {
+    async function resume() {
       try {
         const { data, error: sessionError } = await createClient().auth.getSession();
         if (sessionError) throw sessionError;
         const token = data.session?.access_token;
         if (token) {
-          const info = await claimApplication(applicationId, token);
+          const info = await claimApplication(token, applicationId);
           if (active) setRequest(info);
         }
       } catch (e) {
-        if (active) setError(e instanceof Error ? e.message : "Impossible de terminer la demande.");
+        const silent = e instanceof ClaimError && e.code === "no_application";
+        if (active && !silent) setError(e instanceof Error ? e.message : "Impossible de terminer la demande.");
       } finally {
-        if (active) setLoading(false);
+        if (active) setChecking(false);
       }
     }
-    void finish();
+    void resume();
     return () => {
       active = false;
     };
-  }, [applicationId, validLink]);
+  }, [applicationId]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -122,12 +152,13 @@ export default function VipMemberClaimClient({ applicationId }: { applicationId:
     setError("");
     try {
       const client = createClient();
+      const email = identifier.trim().toLowerCase();
       // D’abord la saisie telle quelle (mot de passe déjà existant), puis la forme canonique du code généré.
       const attempts = [code, normalizeAccessCode(code) ?? ""].filter((value, index, all) => value.length > 0 && all.indexOf(value) === index);
       let token: string | null = null;
       let lastMessage = "";
       for (const password of attempts) {
-        const { data, error: signError } = await client.auth.signInWithPassword({ email: identifier.trim().toLowerCase(), password });
+        const { data, error: signError } = await client.auth.signInWithPassword({ email, password });
         if (!signError && data.session) {
           token = data.session.access_token;
           break;
@@ -135,7 +166,7 @@ export default function VipMemberClaimClient({ applicationId }: { applicationId:
         lastMessage = signError?.message ?? "";
       }
       if (!token) throw new Error(signInMessage(lastMessage));
-      setRequest(await claimApplication(applicationId, token));
+      setRequest(await claimApplication(token, applicationId));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Impossible de terminer la connexion.");
     } finally {
@@ -156,76 +187,92 @@ export default function VipMemberClaimClient({ applicationId }: { applicationId:
 
   return (
     <main className={s.page}>
-      <section className={s.card}>
-        <Brand />
-        {!validLink ? (
-          <MissingLink />
-        ) : loading ? (
-          <Loading />
-        ) : (
-          <>
-            <h1 className={s.title}>Ta demande est validée</h1>
-            <p className={s.lead}>
-              Entre ton identifiant et le code reçus par <span className={s.nowrap}>e-mail</span> pour ouvrir ton accès VIP.
-            </p>
-            {error ? (
-              <p role="alert" className={s.error}>
-                {error}
-              </p>
-            ) : null}
-            <form className={s.form} onSubmit={submit}>
-              <div className={s.field}>
-                <label className={s.label} htmlFor="vip-identifiant">
-                  Identifiant
-                </label>
-                <input
-                  id="vip-identifiant"
-                  className={s.input}
-                  type="email"
-                  autoComplete="username"
-                  autoCapitalize="none"
-                  spellCheck={false}
-                  required
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
-                />
-                <span className={s.hint}>
-                  L’adresse <span className={s.nowrap}>e-mail</span> de ta demande.
-                </span>
-              </div>
-              <div className={s.field}>
-                <label className={s.label} htmlFor="vip-code">
-                  Code
-                </label>
-                <div className={s.inputWrap}>
+      <div className={s.layout}>
+        <section className={s.intro} aria-labelledby="vip-acces-titre">
+          <Brand />
+          <h1 id="vip-acces-titre" className={s.title}>
+            Ouvre ton accès VIP
+          </h1>
+          <p className={s.lead}>
+            Entre l’identifiant et le code reçus par <span className={s.nowrap}>e-mail</span> : ton accès s’ouvre directement ici.
+          </p>
+          <Steps />
+        </section>
+
+        <section className={s.card} aria-labelledby="vip-connexion">
+          <h2 id="vip-connexion" className={s.cardTitle}>
+            Connexion
+          </h2>
+          {checking ? (
+            <Checking />
+          ) : (
+            <>
+              {error ? (
+                <p role="alert" className={s.error}>
+                  {error}
+                </p>
+              ) : null}
+              <form className={s.form} onSubmit={submit}>
+                <div className={s.field}>
+                  <label className={s.label} htmlFor="vip-identifiant">
+                    Identifiant
+                  </label>
                   <input
-                    id="vip-code"
-                    className={`${s.input} ${s.codeInput}`}
-                    type={showCode ? "text" : "password"}
-                    autoComplete="current-password"
+                    id="vip-identifiant"
+                    className={s.input}
+                    type="email"
+                    autoComplete="username"
                     autoCapitalize="none"
-                    autoCorrect="off"
                     spellCheck={false}
                     required
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
                   />
-                  <button type="button" className={s.toggle} aria-controls="vip-code" onClick={() => setShowCode((shown) => !shown)}>
-                    {showCode ? "Masquer" : "Afficher"}
-                  </button>
                 </div>
-                <span className={s.hint}>
-                  Reçu par <span className={s.nowrap}>e-mail</span>. Majuscules et minuscules comptent. Si tu avais déjà un compte, entre ton mot de passe habituel.
-                </span>
+                <div className={s.field}>
+                  <label className={s.label} htmlFor="vip-code">
+                    Code
+                  </label>
+                  <div className={s.inputWrap}>
+                    <input
+                      id="vip-code"
+                      className={`${s.input} ${s.codeInput}`}
+                      type={showCode ? "text" : "password"}
+                      autoComplete="current-password"
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      spellCheck={false}
+                      required
+                      value={code}
+                      onChange={(e) => setCode(e.target.value)}
+                    />
+                    <button type="button" className={s.toggle} aria-controls="vip-code" onClick={() => setShowCode((shown) => !shown)}>
+                      {showCode ? "Masquer" : "Afficher"}
+                    </button>
+                  </div>
+                  <span className={s.hint}>Majuscules et minuscules comptent.</span>
+                </div>
+                <button type="submit" className={s.primary} disabled={busy}>
+                  {busy ? "Vérification…" : "Ouvrir mon accès VIP"}
+                </button>
+              </form>
+
+              <div className={s.links}>
+                <p className={s.linkRow}>
+                  <span>Code perdu ?</span>
+                  <a href="https://t.me/EquipeInvestPro" target="_blank" rel="noreferrer">
+                    Écris à @EquipeInvestPro
+                  </a>
+                </p>
+                <p className={s.linkRow}>
+                  <span>Pas encore membre ?</span>
+                  <a href="/vip/rejoindre">Découvrir le VIP</a>
+                </p>
               </div>
-              <button type="submit" className={s.primary} disabled={busy}>
-                {busy ? "Vérification…" : "Ouvrir mon accès VIP"}
-              </button>
-            </form>
-            <p className={s.help}>Tu ne trouves pas le code ? Écris à @EquipeInvestPro sur Telegram.</p>
-          </>
-        )}
-      </section>
+            </>
+          )}
+        </section>
+      </div>
     </main>
   );
 }

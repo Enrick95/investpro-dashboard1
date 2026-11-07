@@ -15,11 +15,14 @@ export async function POST(request:Request) {
   if(!context.user.email||!context.user.email_confirmed_at) return vipJson({error:"Confirme ton adresse e-mail avant de continuer."},403);
   try {
     const body=await readVipJson(request);
-    const applicationId=typeof body.applicationId==="string"?body.applicationId:"";
-    if(!uuid.test(applicationId)) return vipJson({error:"Lien de demande invalide."},400);
-    const {data:app,error}=await context.db.from("vip_member_applications").select("*").eq("id",applicationId).eq("email",context.user.email.toLowerCase()).maybeSingle();
+    // Le lien de l’e-mail est facultatif : la demande validée se retrouve par l’adresse e-mail du compte connecté.
+    const requestedId=typeof body.applicationId==="string"&&uuid.test(body.applicationId)?body.applicationId:"";
+    const {data:candidates,error}=await context.db.from("vip_member_applications").select("*").eq("email",context.user.email.toLowerCase()).in("status",["approved","claimed"]).order("created_at",{ascending:false});
     if(error) throw error;
-    if(!app) return vipJson({error:"Cette demande ne correspond pas à l’adresse e-mail de ton compte."},403);
+    const list=candidates||[];
+    const app=list.find((row:{id?:string})=>row.id===requestedId)||list[0];
+    if(!app) return vipJson({code:"no_application",error:"Aucune demande validée n’est liée à cette adresse e-mail. Vérifie l’identifiant ou écris à @EquipeInvestPro."},404);
+    const applicationId=String(app.id);
 
     if(app.status==="claimed") {
       if(app.claimed_user_id!==context.user.id||!app.claim_request_id) return vipJson({error:"Cette demande a déjà été rattachée à un autre compte."},409);
