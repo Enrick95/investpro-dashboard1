@@ -38,3 +38,10 @@ body:has([data-investpro-vip-portal="true"]) .aura-content-inner > [data-investp
   margin: 0;
   animation: none !important;
 }
+/* The VIP space is a full-width page with its own rail, so the global sidebar steps aside there. */
+body:has([data-vip-space="true"]) .aura-sidebar {
+  display: none;
+}
+body:has([data-vip-space="true"]) .aura-main {
+  margin-left: 0;
+}

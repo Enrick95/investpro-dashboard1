@@ -9,7 +9,7 @@ import VipPostCard from "./VipPostCard";
 import VipPublicationsEditor from "./VipPublicationsEditor";
 import VipChat from "./VipChat";
 import VipFavorites from "./VipFavorites";
-import VipEspace, { type VipChannel } from "./VipEspace";
+import VipEspace, { feedChannels, type VipChannel } from "./VipEspace";
 import { createClient } from "@/lib/supabase/client";
 import "./VipPortalShell.css";
 import { Activity, ArrowRight, ArrowUpRight, Bell, Bookmark, BookOpen, Calculator, ChartColumn, ChartNoAxesCombined, ChevronDown, Crown, GitBranch, GraduationCap, Handshake, LockKeyhole, MessageCircle, PenLine, Radio, RefreshCw, Send, Settings, ShieldCheck, Smartphone, UserRound } from "lucide-react";
@@ -158,20 +158,21 @@ export default function VipPortal({ initialAdminMode = false }: { initialAdminMo
     {membership.type === "abonnement" && <button type="button" className={s.secondary} onClick={renewal} disabled={busy || Boolean(membership.renewal_requested_at)}>{membership.renewal_requested_at ? t("Demande transmise") : t("Demander mon renouvellement")}</button>}
   </div>;
   // Account tools live inside the space for active members, and keep their existing controls.
-  const accountTools = <details className={s.accountTools}>
+  const accountTools = <div className={`${s.portal} ${s.inline}`}><details className={s.accountTools}>
     <summary><ShieldCheck size={15} aria-hidden="true" /><span>{t("Mon accès & application")}</span><ChevronDown size={15} aria-hidden="true" /></summary>
     <div className={s.accountPanel}>
       {membershipCard}
       <section className={s.mobileStart}>
         <div><Smartphone size={21} aria-hidden="true" /><div><b>{t("Votre VIP, aussi sur téléphone.")}</b><p>{t("iPhone, Android et Samsung : votre espace vous accompagne.")}</p></div></div>
         <button className={s.secondary} type="button" onClick={enableAlerts} disabled={busy || alertsOn || !publicKey}>{alertsOn ? <ShieldCheck size={16} /> : <Bell size={16} />}{alertsOn ? t("Alertes activées") : t("Activer les alertes")}</button>
-        <details><summary>{t("Installer InvestPro et recevoir les alertes")}</summary><p><b>{t("iPhone · Safari :")}</b> {t("Partager → Sur l’écran d’accueil → Ouvrir comme app web si proposé → Ajouter. iOS 16.4 minimum pour les alertes.")}</p><p><b>{t("Android et Samsung · Chrome :")}</b> {t("menu ⋮ → Installer et créer un raccourci, ou Installer l’application → Installer. Sur Samsung Internet, utilisez l’icône d’installation si elle apparaît.")}</p><p>{t("Ouvrez l’icône InvestPro et autorisez les notifications. Une connexion Internet est nécessaire.")}{!publicKey && t(" Les alertes seront proposées dès leur activation par l’équipe.")}</p></details>
+        <details><summary>{t("Installer InvestPro et recevoir les alertes")}</summary><p><b>{t("iPhone · Safari :")}</b> {t("Partager → Sur l’écran d’accueil → Ouvrir comme app web si proposé → Ajouter. iOS 16.4 minimum pour les alertes.")}</p><p><b>{t("Android et Samsung · Chrome :")}</b> {t("menu ⋮ → Installer et créer un raccourci, ou Installer l’application → Installer. Sur Samsung Internet, utilisez l’icône d’installation si elle apparaît.")}</p><p>{t("Ouvrez l’icône InvestPro et autorisez les notifications. Une connexion Internet est nécessaire.")}{!publicKey && <> {t("Les alertes seront proposées dès leur activation par l’équipe.")}</>}</p></details>
       </section>
       <Link className={s.helpLink} href="/dashboard/contact"><MessageCircle size={15} aria-hidden="true" />{t("Contacter le support")}</Link>
     </div>
-  </details>;
+  </details></div>;
   // Chat and favourites mount only for a verified active member outside administrator mode.
-  const channelContent = access?.active ? (view === "chat" ? !effectiveAdminMode && <VipChat key={access.user.id} userId={access.user.id} admin={access.admin} locale={locale === "en" ? "en" : "fr"} /> : view === "favorites" ? !effectiveAdminMode && <VipFavorites key={access.user.id} userId={access.user.id} refreshKey={favoriteRefreshKey} onFavoriteChange={favoriteChanged} /> : <VipViewContent view={view} posts={posts} telegramUrl={telegramUrl} userId={access.user.id} onFavoriteChange={favoriteChanged} />) : null;
+  // The space draws its own feed channels. The portal supplies only the other channels, inside the scoped portal styles.
+  const channelContent = access?.active && !feedChannels.includes(view) ? <div className={`${s.portal} ${s.inline}`}>{view === "chat" ? !effectiveAdminMode && <VipChat key={access.user.id} userId={access.user.id} admin={access.admin} locale={locale === "en" ? "en" : "fr"} /> : view === "favorites" ? !effectiveAdminMode && <VipFavorites key={access.user.id} userId={access.user.id} refreshKey={favoriteRefreshKey} onFavoriteChange={favoriteChanged} /> : <VipViewContent view={view} posts={posts} telegramUrl={telegramUrl} userId={access.user.id} onFavoriteChange={favoriteChanged} />}</div> : null;
 
   return <VipPortalFrame view={view} onSelect={setView} admin={access?.admin === true} adminMode={effectiveAdminMode} onModeChange={setAdminMode} onRefresh={() => { setFavoriteRefreshKey(key => key + 1); void refresh(); }} loading={loading} espace={access?.active === true} editor={access?.admin === true ? <VipPublicationsEditor active={adminMode} embedded onPublished={() => void refresh()} /> : undefined}>
         {loading ? <div className={s.empty} role="status">{t("Chargement de votre espace privé…")}</div> : <>
@@ -193,8 +194,10 @@ export default function VipPortal({ initialAdminMode = false }: { initialAdminMo
             refreshKey={favoriteRefreshKey}
             loading={loading}
             onRefresh={() => { setFavoriteRefreshKey(key => key + 1); void refresh(); }}
+            onFavoriteChange={favoriteChanged}
             accountTools={accountTools}
             channelContent={channelContent}
+            languageControl={<LanguageSwitcher />}
           />}
         </>}
   </VipPortalFrame>;
@@ -222,6 +225,18 @@ function VipPortalFrame({ view, onSelect, admin = false, adminMode = false, onMo
   function select(next: VipChannel) {
     onSelect(next);
     content.current?.scrollTo({ top: 0 });
+  }
+  if (espace) {
+    // Verified members get the space itself: its own top bar, rail and links, without the portal header.
+    return <div className={s.portalSpace} data-investpro-vip-portal="true" data-vip-space="true">
+      {admin && <div className={`${s.portal} ${s.inline}`}><nav className={s.modeSwitch} aria-label={t("Vue de l’espace VIP")}>
+        <button type="button" aria-pressed={!adminMode} onClick={() => onModeChange?.(false)}><UserRound size={16} aria-hidden="true" />{t("Membre")}</button>
+        <button type="button" aria-pressed={adminMode} onClick={() => onModeChange?.(true)}><PenLine size={16} aria-hidden="true" />{t("Administrateur")}</button>
+        <Link className={s.accessSettings} href="/dashboard/admin/vip" aria-label={t("Membres et réglages VIP")} title={t("Membres et réglages VIP")}><Settings size={18} aria-hidden="true" /></Link>
+      </nav></div>}
+      <div className={s.workspace} hidden={adminMode}><div className={s.espaceColumn}>{children}</div></div>
+      {admin && <div className={s.editorWorkspace} hidden={!adminMode}><div className={`${s.portal} ${s.fill}`}>{editor}</div></div>}
+    </div>;
   }
   return <div className={s.portal} data-investpro-vip-portal="true">
     <header className={s.portalHeader}>

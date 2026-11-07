@@ -116,8 +116,10 @@ function text(node) {
   if (node === null || node === undefined || typeof node === "boolean") return "";
   return typeof node === "object" ? text(node.props.children) : String(node);
 }
+// Une rubrique de l’espace porte une puce (« # » ou « ★ ») qui ne fait pas partie de son nom.
+const buttonText = node => text(node).replace(/^[#★] /, "");
 function button(host, label) {
-  const result = nodes(host.tree, node => node.type === "button" && text(node) === label);
+  const result = nodes(host.tree, node => node.type === "button" && buttonText(node) === label);
   assert.equal(result.length, 1, "Expected one button: " + label); return result[0];
 }
 function access(admin = false, active = true) {
@@ -166,15 +168,16 @@ function fixture(initialAdminMode = false) {
     ...common, "./VipPublicationsEditor.module.css": css,
     "@/lib/supabase/client": { createClient() { throw Error("Storage must never be accessed by mode tests"); } },
   }, browser).default;
-  const Espace = compile("components/vip/VipEspace.tsx", {
+  // Le portail lit aussi feedChannels, exporté à côté de l’espace par défaut.
+  const EspaceModule = compile("components/vip/VipEspace.tsx", {
     ...common, "./VipEspace.module.css": css,
     "@/lib/vip/performance-report": compile("lib/vip/performance-report.ts", {}),
     "@/lib/vip/publication-notice": compile("lib/vip/publication-notice.ts", {}),
     "@/lib/vip/signal-risk-preset": { riskSignalHref: postId => "/dashboard/simulateur?signal=" + encodeURIComponent(postId) },
-  }, browser).default;
+  }, browser);
   const Portal = compile("components/vip/VipPortal.tsx", {
     ...common, "@/components/i18n/LanguageSwitcher": () => element("select", { "aria-label": "Language" }),
-    "./VipPublicationsEditor": Editor, "./VipEspace": Espace, "./VipPortal.module.css": css, "./VipPortalShell.css": {},
+    "./VipPublicationsEditor": Editor, "./VipEspace": EspaceModule, "./VipPortal.module.css": css, "./VipPortalShell.css": {},
     "./VipChat": function VipChat(props) { return element("section", { "data-chat-user": props.userId, "data-chat-admin": props.admin, children: "Private chat fixture" }); },
     "./VipFavorites": function VipFavorites(props) { return element("section", { "data-favorites-user": props.userId, children: "Private saved posts fixture" }); },
     "@/lib/supabase/client": { createClient: () => ({ auth: { onAuthStateChange(callback) { authCallback = callback; callback("INITIAL_SESSION", { user: { id: "offline-user" } }); return { data: { subscription: { unsubscribe() { authCallback = undefined; } } } }; } } }) },
@@ -308,7 +311,7 @@ test("Favorites follows Chat and only mounts for a verified active member", asyn
 
 test("Favorites unmounts on effective admin mode, a different view, or logout", async () => {
   const state = fixture(); state.resolve(access(true, true)); await state.host.settle();
-  button(state.host, "Favoris").props.onClick(); await state.host.settle();
+  button(state.host, "Mes favoris").props.onClick(); await state.host.settle();
   assert.ok(state.host.instance("VipFavorites"));
   button(state.host, "Administrateur").props.onClick(); await state.host.settle();
   assert.equal(state.host.instance("VipFavorites"), undefined);
@@ -316,7 +319,7 @@ test("Favorites unmounts on effective admin mode, a different view, or logout", 
   assert.ok(state.host.instance("VipFavorites"));
   button(state.host, "Analyses").props.onClick(); await state.host.settle();
   assert.equal(state.host.instance("VipFavorites"), undefined);
-  button(state.host, "Favoris").props.onClick(); await state.host.settle();
+  button(state.host, "Mes favoris").props.onClick(); await state.host.settle();
   state.auth("SIGNED_OUT", null); await state.host.settle();
   assert.equal(state.host.instance("VipFavorites"), undefined);
   assert.equal(nodes(state.host.tree, node => node.props["data-favorites-user"]).length, 0);
@@ -324,7 +327,7 @@ test("Favorites unmounts on effective admin mode, a different view, or logout", 
 
 test("mode=admin query cannot hide Chat from an ordinary verified member", async () => {
   const state = fixture(true); state.resolve(access(false, true)); await state.host.settle();
-  button(state.host, "Chat").props.onClick(); await state.host.settle();
+  button(state.host, "Discussion").props.onClick(); await state.host.settle();
   assert.ok(state.host.instance("VipChat"));
   assert.equal(nodes(state.host.tree, node => node.props.className === "workspace")[0].props.hidden, false);
   assert.equal(state.calls.some(call => call.url.startsWith("/api/admin/")), false);
@@ -332,11 +335,11 @@ test("mode=admin query cannot hide Chat from an ordinary verified member", async
 
 test("Chat unmounts when leaving its view or entering effective admin mode", async () => {
   const state = fixture(); state.resolve(access(true, true)); await state.host.settle();
-  button(state.host, "Chat").props.onClick(); await state.host.settle();
+  button(state.host, "Discussion").props.onClick(); await state.host.settle();
   assert.ok(state.host.instance("VipChat"));
   button(state.host, "Telegram").props.onClick(); await state.host.settle();
   assert.equal(state.host.instance("VipChat"), undefined);
-  button(state.host, "Chat").props.onClick(); await state.host.settle();
+  button(state.host, "Discussion").props.onClick(); await state.host.settle();
   assert.ok(state.host.instance("VipChat"));
   button(state.host, "Administrateur").props.onClick(); await state.host.settle();
   assert.equal(state.host.instance("VipChat"), undefined, "Hidden member workspace cannot leave Chat polling mounted");
@@ -346,7 +349,7 @@ test("Chat unmounts when leaving its view or entering effective admin mode", asy
 
 test("logout clears Chat immediately without waiting for another access request", async () => {
   const state = fixture(); state.resolve(access(false, true)); await state.host.settle();
-  button(state.host, "Chat").props.onClick(); await state.host.settle();
+  button(state.host, "Discussion").props.onClick(); await state.host.settle();
   assert.ok(state.host.instance("VipChat"));
   const reads = state.calls.length;
   state.auth("SIGNED_OUT", null); await state.host.settle();
@@ -357,7 +360,7 @@ test("logout clears Chat immediately without waiting for another access request"
 
 test("switching accounts invalidates an old pending access response before Chat can reopen", async () => {
   const state = fixture(); state.resolve(access(false, true)); await state.host.settle();
-  button(state.host, "Chat").props.onClick(); await state.host.settle();
+  button(state.host, "Discussion").props.onClick(); await state.host.settle();
   const stale = state.deferNextAccess(); state.focus(); await state.host.settle();
   const next = state.deferNextAccess();
   state.auth("SIGNED_IN", "second-offline-user"); await state.host.settle();

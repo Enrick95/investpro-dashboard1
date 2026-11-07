@@ -127,6 +127,11 @@
 .personalNav { display: flex; flex-shrink: 0; gap: 0; border-top: 1px solid var(--v-border); background: #0e170f; padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px)); }
 .personalNav a { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; min-width: 0; min-height: 45px; padding: 3px; border-radius: 11px; color: #91a284; font-size: 9px; line-height: 1.4; }
 .personalNav a[aria-current="page"] { color: var(--v-gold); background: #2b281a; }
+/* The VIP space: its own full-height root, and the portal rules kept for the controls it still hosts. */
+.portalSpace { display: flex; flex-direction: column; width: 100%; height: 100%; min-width: 0; min-height: 0; margin: 0; overflow: hidden; background: #090c0c; }
+.portal.inline { display: block; height: auto; min-height: 0; overflow: visible; background: transparent; }
+.portal.inline > .accountTools { margin: 0; max-width: none; }
+.portal.fill { flex: 1; height: auto; min-height: 0; overflow: hidden; }
 @media (min-width: 760px) {
   .content { padding: 24px clamp(18px, 4vw, 50px) 30px; }
   .heading, .accountTools, .posts, .feature, .locked, .notice, .performanceLink { max-width: 760px; margin-left: auto; margin-right: auto; }

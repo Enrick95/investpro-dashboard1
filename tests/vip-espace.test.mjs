@@ -115,8 +115,10 @@ function text(node) {
   if (node === null || node === undefined || typeof node === "boolean") return "";
   return typeof node === "object" ? text(node.props.children) : String(node);
 }
+// Une rubrique du fil porte une puce (« # » ou « ★ ») qui ne fait pas partie de son nom.
+const buttonText = node => text(node).replace(/^[#★] /, "");
 function button(host, label) {
-  const result = nodes(host.tree, node => node.type === "button" && text(node) === label);
+  const result = nodes(host.tree, node => node.type === "button" && buttonText(node) === label);
   assert.equal(result.length, 1, "Expected one button: " + label); return result[0];
 }
 
@@ -160,6 +162,7 @@ function render(overrides = {}, { trades = [], failPerformance = false } = {}) {
     "next/link": link => element("a", link),
     "lucide-react": new Proxy({}, { get: () => icon }),
     "@/components/i18n/LocaleProvider": { useLocale: () => ({ t: identity, locale: "fr" }) },
+    "@/lib/vip/client": { vipRequest: async () => { throw Error("Reactions are not part of these offline tests"); } },
     "@/lib/vip/performance-report": compile("lib/vip/performance-report.ts", {}),
     "@/lib/vip/publication-notice": compile("lib/vip/publication-notice.ts", {}),
     "@/lib/vip/signal-risk-preset": { riskSignalHref: postId => "/dashboard/simulateur?signal=" + encodeURIComponent(postId) },
@@ -191,17 +194,17 @@ test("Le fil shows the last 24 hours, the monthly figures from the Bilan logic, 
   assert.match(copy, /XAUUSD/);
   assert.match(copy, /BUY/);
   assert.match(copy, /SELL/);
-  assert.match(copy, /3 nouvelles publications ces 24 dernières heures/);
-  assert.match(copy, /\+1,00 R/);
+  assert.match(copy, /3 nouvelles publications/);
+  assert.match(copy, /\+1,0 R/);
   assert.match(copy, /50 %/);
-  assert.equal(nodes(host.tree, node => node.props["data-probe"] === "channel").length, 1);
+  assert.equal(nodes(host.tree, node => node.type === "main").length, 1, "The feed is rendered once");
 });
 
 test("channel buttons select a channel and carry the posts of the last 24 hours", async () => {
   const selected = [];
   const { host } = render({ posts: [xau, nas, analysis], onSelect: channel => selected.push(channel) });
   await host.settle();
-  assert.deepEqual(nodes(host.tree, node => node.props.className === "count").map(text), ["3", "2", "1"]);
+  assert.deepEqual(nodes(host.tree, node => node.props.className === "badge").map(text), ["3", "2", "1"]);
   button(host, "Signaux").props.onClick();
   button(host, "Analyses").props.onClick();
   assert.deepEqual(selected, ["signal", "analysis"]);
@@ -213,35 +216,43 @@ test("La salle des signaux greets the member and shows four figures, with no inv
   button(host, "La salle des signaux").props.onClick(); await host.settle();
   const copy = text(host.tree);
   assert.match(copy, /Bonjour Camille\./);
-  for (const label of ["Signaux \\(24 h\\)", "Résultat du mois", "Taux de réussite", "Signaux ce mois", "Derniers signaux", "Trades clôturés"]) {
+  for (const label of ["Signaux \\(24 h\\)", "Résultat du mois", "Taux de réussite", "Signaux ce mois", "Dernières publications", "Trades clôturés"]) {
     assert.match(copy, new RegExp(label));
   }
   assert.equal(copy.includes("Trades ouverts"), false);
-  assert.match(copy, /XAUUSD · Achat/);
-  assert.match(copy, /EURUSD · Vente/);
-  assert.match(copy, /Stop · -1,00 R/);
-  assert.equal(nodes(host.tree, node => node.type === "dt" && text(node) === "TP1").length >= 1, true);
+  assert.equal(copy.includes("Derniers signaux"), false);
+  assert.match(copy, /XAUUSD · BUY/);
+  assert.match(copy, /EURUSD · SELL/);
+  assert.match(copy, /Stop-1,0 R/);
+  assert.match(copy, /TP1/);
+  // Les signaux ont leurs cartes ; la liste des publications ne reprend que le reste.
+  assert.equal(nodes(host.tree, node => node.props.className === "row").length, 1);
 });
 
-test("Chat from La salle des signaux opens the feed on Chat, once", async () => {
+test("Discussion from La salle des signaux opens the feed on the chat, once", async () => {
   const selected = [];
   const { host } = render({ onSelect: channel => selected.push(channel) });
   await host.settle();
   button(host, "La salle des signaux").props.onClick(); await host.settle();
-  button(host, "Chat").props.onClick(); await host.settle();
+  button(host, "Discussion").props.onClick(); await host.settle();
   assert.deepEqual(selected, ["chat"]);
   assert.equal(button(host, "Le fil").props["aria-pressed"], true);
 });
 
 test("Le téléphone is one column with channel chips, the portal content, and alerts only when available", async () => {
   const alerts = [];
-  const { host } = render({ view: "signal", alertsAvailable: true, onEnableAlerts: () => alerts.push("on") });
+  const { host } = render({ view: "chat", alertsAvailable: true, onEnableAlerts: () => alerts.push("on") });
   await host.settle();
   button(host, "Le téléphone").props.onClick(); await host.settle();
-  assert.equal(button(host, "Signaux").props["aria-pressed"], true);
+  assert.equal(button(host, "Discussion").props["aria-pressed"], true);
   assert.equal(nodes(host.tree, node => node.props["data-probe"] === "channel").length, 1);
   nodes(host.tree, node => node.type === "button" && node.props["aria-label"] === "Activer les alertes")[0].props.onClick();
   assert.deepEqual(alerts, ["on"]);
+
+  const feed = render({ view: "signal" });
+  button(feed.host, "Le téléphone").props.onClick(); await feed.host.settle();
+  assert.equal(button(feed.host, "Signaux").props["aria-pressed"], true);
+  assert.equal(nodes(feed.host.tree, node => node.props["data-probe"] === "channel").length, 0);
 
   const quiet = render({ alertsAvailable: false });
   button(quiet.host, "Le téléphone").props.onClick(); await quiet.host.settle();
