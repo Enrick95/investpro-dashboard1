@@ -18,6 +18,8 @@ export const vipEspaceMessages: Record<string, string> = {
   "Les trades clôturés apparaîtront ici.": "Closed trades will appear here.",
   "Les alertes seront proposées dès leur activation par l’équipe.": "Alerts will be offered once the team activates them.",
   "Aucun trade clôturé ce mois-ci.": "No closed trade this month.",
+  "Clôturés ce mois-ci": "Closed this month",
+  "Voir tout le mois": "See the whole month",
   "Performances indisponibles pour le moment.": "Performance figures are unavailable for now.",
   "Bonjour": "Hello",
   "Salle des signaux · VIP": "Signal room · VIP",

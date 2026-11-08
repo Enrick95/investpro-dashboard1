@@ -222,6 +222,8 @@ function computeStats(posts: VipPost[], trades: PublicVipPerformanceTrade[], now
     monthTotalR: current.totalR,
     monthWinrate: current.winrate,
     monthClosed: current.counts.closed,
+    // Signaux lists only this month’s closed trades, newest first, like the month’s figures above them.
+    monthClosedRows: [...current.closedRows].sort((a, b) => b.date.localeCompare(a.date)),
     closed,
   };
 }
@@ -716,14 +718,17 @@ function Signaux({ ctx }: { ctx: Ctx }) {
     <button type="button" className={s.textButton} onClick={() => openHistory(true)}>{t("Historique mois par mois")} ›</button>
     <Renewal ctx={ctx} />
     <section className={s.section} aria-labelledby="vip-closed">
-      <h2 id="vip-closed" className={s.sectionTitle}>{t("Derniers clôturés")}</h2>
+      <h2 id="vip-closed" className={s.sectionTitle}>{t("Clôturés ce mois-ci")}</h2>
       {unavailable ? <p className={s.small}>{t("Performances indisponibles pour le moment.")}</p>
-        : stats.closed.length ? <ul className={s.rows}>
-          {stats.closed.slice(0, 4).map(row => <li key={row.id} className={s.row}>
-            <span><b>{row.symbol}</b> <span className={s.muted}>{sideLabel(row.direction, t)} · {outcomeLabel(row, t)}</span></span>
-            <b className={`${s.num} ${s[toneClass[outcomeTone(row)]]}`}>{row.resultR === null ? outcomeLabel(row, t) : fmt.r(row.resultR)}</b>
-          </li>)}
-        </ul> : <p className={s.small}>{t("Les trades clôturés apparaîtront ici.")}</p>}
+        : stats.monthClosedRows.length ? <>
+          <ul className={s.rows}>
+            {stats.monthClosedRows.slice(0, 4).map(row => <li key={row.id} className={s.row}>
+              <span><b>{row.symbol}</b> <span className={s.muted}>{sideLabel(row.direction, t)} · {outcomeLabel(row, t)}</span></span>
+              <b className={`${s.num} ${s[toneClass[outcomeTone(row)]]}`}>{row.resultR === null ? outcomeLabel(row, t) : fmt.r(row.resultR)}</b>
+            </li>)}
+          </ul>
+          {stats.monthClosedRows.length > 4 ? <button type="button" className={s.textButton} onClick={() => openHistory(true)}>{t("Voir tout le mois")} ›</button> : null}
+        </> : <p className={s.small}>{t(stats.closed.length ? "Aucun trade clôturé ce mois-ci." : "Les trades clôturés apparaîtront ici.")}</p>}
     </section>
   </div>;
 }

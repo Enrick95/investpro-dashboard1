@@ -540,6 +540,35 @@ test("the month comes from the public figures of the Bilan logic, in the loss co
   assert.equal(nodes(figure, node => node.type === "b")[0].props.className, "loss");
 });
 
+test("Signaux lists only the trades closed this month; earlier months stay in the history", async () => {
+  const last = shiftMonth(month, -1);
+  const earlier = [
+    { id: 21, source: "telegram", trade_date: `${last}-26`, symbol: "GBPUSD", direction: "sell", status: "loss", result_r: -1, pips: 0, target: null },
+    { id: 22, source: "telegram", trade_date: `${last}-27`, symbol: "NAS100", direction: "sell", status: "loss", result_r: -1, pips: 0, target: null },
+  ];
+  const ger = { id: 23, source: "telegram", trade_date: `${month}-${tradeDay}`, symbol: "GER30", direction: "sell", status: "loss", result_r: -1, pips: 0, target: null };
+  const rows = host => nodes(host.tree, node => node.type === "li" && node.props.className === "row").map(text);
+
+  const current = render({}, { trades: [...earlier, ger] });
+  await current.host.settle();
+  assert.match(text(current.host.tree), /Clôturés ce mois-ci/);
+  assert.equal(rows(current.host).length, 1);
+  assert.match(rows(current.host)[0], /GER30.*−1,0 R/);
+
+  const quiet = render({}, { trades: earlier });
+  await quiet.host.settle();
+  assert.equal(rows(quiet.host).length, 0, "Last month’s trades are not listed as this month’s");
+  assert.match(text(quiet.host.tree), /Aucun trade clôturé ce mois-ci\./);
+
+  // Past four trades this month, the list keeps the latest four and the history shows the whole month.
+  const busy = [1, 2, 3, 4, 5].map(n => ({ id: 30 + n, source: "telegram", trade_date: `${month}-${tradeDay}`, symbol: "XAUUSD", direction: "buy", status: "win", result_r: 1, pips: 0, target: 1 }));
+  const full = render({}, { trades: [...earlier, ...busy] });
+  await full.host.settle();
+  assert.equal(rows(full.host).length, 4);
+  button(full.host, "Voir tout le mois ›").props.onClick(); await full.host.settle();
+  assert.equal(rows(full.host).length, 5);
+});
+
 test("when public performance cannot load, the figures say so instead of showing zeros", async () => {
   const { host } = render({ posts: [xau] }, { failPerformance: true });
   await host.settle();
