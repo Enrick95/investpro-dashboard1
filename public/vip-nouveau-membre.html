@@ -11,6 +11,7 @@
 <link rel="preload" href="/brand/investpro-mark.webp" as="image">
 <link rel="preload" href="/brand/investpro-wordmark.webp" as="image">
 <link rel="stylesheet" href="/vip-carte.css">
+<script src="/vip-apercu.js"></script>
 <style>
 :root{--bg:#0b0d0b;--card:#121511;--card2:#171b14;--gold:#F0C575;--gold2:#c99a45;--teal:#91D6D0;--rose:#e8a39a;--fg:#F3EFE6;--muted:#A8ADA3;--soft:#B9BDB2;--dim:#8E938A;--line:rgba(240,197,117,.2);--line2:rgba(255,255,255,.08)}
 *{box-sizing:border-box}
@@ -127,7 +128,7 @@ h2{margin:6px 0 0;font:500 clamp(22px,6.4vw,27px)/1.18 Unbounded,sans-serif;lett
 .pl[aria-pressed=true]{border-color:var(--gold);background:#1b1f17;color:var(--gold);box-shadow:inset 0 0 0 1px var(--gold),0 0 24px rgba(240,197,117,.15)}
 /* Subscription: third way in, full width under the two broker choices */
 .plat .kd[data-kd=abonnement]{grid-column:1/-1}
-[data-ab][hidden],[data-aff][hidden],[data-abpwd2][hidden]{display:none!important}
+[data-ab][hidden],[data-aff][hidden],[data-abpwd2][hidden],[data-apercu][hidden]{display:none!important}
 .seg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding:4px;border-radius:14px;background:#0c0f0b;border:1px solid #2a3026}
 .seg button{min-height:44px;border-radius:10px;border:0;background:none;color:var(--muted);font:700 13.5px Manrope,sans-serif;cursor:pointer;transition:all .2s}
 .seg button[aria-pressed=true]{background:#1b1f17;color:var(--gold);box-shadow:inset 0 0 0 1px var(--gold)}
@@ -261,6 +262,7 @@ input[readonly]{color:var(--muted)}
 .install-final-item span{display:block;margin-top:5px;color:var(--soft);font-size:12px;line-height:1.5}
 @media(max-width:400px){.install-final-grid{grid-template-columns:1fr}}
 </style>
+<link rel="stylesheet" href="/vip-theme-logo.css">
 </head>
 <body>
 <script>document.documentElement.classList.add('js')</script>
@@ -437,6 +439,7 @@ input[readonly]{color:var(--muted)}
 <li class="n"><i>4</i><span><b>Accès VIP</b><small>Ouvert après création de ton compte InvestPro</small></span></li>
 </ul>
 <p class="note" id="wNote">Tu peux fermer cette page. Surveille ta boîte e-mail pour la suite.</p>
+<button class="btn btn-ghost" type="button" id="apercuFinal" data-apercu hidden>Voir l’écran final (aperçu)</button>
 
 </div></section>
 </div>
@@ -488,7 +491,8 @@ document.getElementById('start').onclick=function(){show(1)};
 document.querySelectorAll('[data-prev]').forEach(function(b){b.onclick=function(){show(cur===4&&kind==='abonnement'?2:cur-1,true)}});
 var serverState=null,pollTimer=null;function applyState(data){serverState=data;syncSend();if(data.user&&data.user.email){document.getElementById('who').classList.add('on');document.getElementById('whoTxt').textContent='Connecté';var m=document.getElementById('mail');if(!m.value)m.value=data.user.email}if(data.request){D.pre=data.request.first_name||'';D.nom=data.request.last_name||'';if(data.request.status==='approved'&&data.request.channel_invite_url){show(7);win(data.request);return}if(data.request.status==='pending'||data.request.status==='approved'){show(6);if(data.request.type==='abonnement')subWaiting({signedIn:true});return}if(data.request.status==='denied'){show(1);var f=document.querySelector('#f2 [data-err]');f.textContent=data.request.rejection_reason?'Demande refusée : '+data.request.rejection_reason:'Ta demande a été refusée. Écris à @EquipeInvestPro si tu as une question.';f.hidden=false;return}}show(0)}
 async function bootstrap(){try{var res=await fetch('/api/vip/nouveau-membre',{credentials:'same-origin',cache:'no-store'});if(res.status===401){serverState=null;syncSend();await restoreDraft();show(0);refreshSuivi();return}var data=await res.json();if(!res.ok)throw Error();applyState(data);if(!data.request&&await restoreDraft()){if(D.proof){show(4)}else{show(2);var proofErr=document.querySelector('#f3 [data-err]');proofErr.textContent='Tes informations ont été conservées. Ajoute à nouveau ta capture du dépôt pour continuer.';proofErr.hidden=false}}if(cur===0)refreshSuivi()}catch(e){show(0);refreshSuivi()}}
-var SUIVI_KEY='vip-nouveau-membre-suivi',suiviTimer=null;
+var APERCU=document.documentElement.classList.contains('apercu');
+var SUIVI_KEY='vip-nouveau-membre-suivi'+(APERCU?'-apercu':''),suiviTimer=null;
 function saveSuivi(token){try{localStorage.setItem(SUIVI_KEY,token)}catch(e){}}
 function readSuivi(){try{return localStorage.getItem(SUIVI_KEY)||''}catch(e){return ''}}
 function clearSuivi(){try{localStorage.removeItem(SUIVI_KEY)}catch(e){}}
@@ -538,7 +542,7 @@ document.querySelectorAll('[data-abm]').forEach(function(b){b.onclick=function()
 (function(){var d=document.getElementById('abDate');d.max=parisToday();if(!d.value)d.value=d.max})();
 var plat=null;document.querySelectorAll('.pl').forEach(function(b){b.onclick=function(){plat=b.dataset.pl;document.querySelectorAll('.pl').forEach(function(x){x.setAttribute('aria-pressed',x===b)})}});
 var proof=false,dr=document.getElementById('drop'),fileInput=document.getElementById('proofFile');
-var DRAFT_DB='investpro-vip-new-member',DRAFT_KEY='new-member-form';
+var DRAFT_DB='investpro-vip-new-member',DRAFT_KEY='new-member-form'+(document.documentElement.classList.contains('apercu')?'-apercu':'');
 function draftStore(mode){return new Promise(function(resolve,reject){if(!window.indexedDB){reject(new Error('IndexedDB indisponible'));return}var req=indexedDB.open(DRAFT_DB,1);req.onupgradeneeded=function(){if(!req.result.objectStoreNames.contains('drafts'))req.result.createObjectStore('drafts')};req.onerror=function(){reject(req.error||new Error('Ouverture du stockage impossible'))};req.onblocked=function(){reject(new Error('Stockage occupé par un autre onglet'))};req.onsuccess=function(){try{var db=req.result,tx=db.transaction('drafts',mode),store=tx.objectStore('drafts');resolve({db:db,store:store,tx:tx})}catch(e){req.result.close();reject(e)}}})}
 function finishTx(ref){return new Promise(function(resolve,reject){ref.tx.oncomplete=function(){resolve()};ref.tx.onabort=ref.tx.onerror=function(){reject(ref.tx.error||new Error('Écriture du stockage impossible'))}})}
 function removeFallbackDraft(){try{localStorage.removeItem(DRAFT_KEY)}catch(e){}try{sessionStorage.removeItem(DRAFT_KEY)}catch(e){}}
@@ -610,7 +614,8 @@ function subWaiting(result){result=result||{};var already=!!result.already,pendi
   var note=document.getElementById('wNote');note.hidden=already;note.textContent=signedIn?'Tu peux fermer cette page et revenir plus tard.':'Pour suivre ta demande, connecte-toi avec ton e-mail et ton mot de passe.';
   document.getElementById('stepName').textContent=already?'Accès actif':'En vérification';
   var act=document.getElementById('wAction'),link=document.getElementById('wLink');link.onclick=null;act.hidden=signedIn&&!already;link.innerHTML=(already?'Ouvrir mon espace VIP':'Me connecter')+'<span class="go">→</span>';link.setAttribute('href',already?'/login?next=%2Fdashboard%2Fvip':'/login?next=%2Fvip%2Fnouveau-membre');link.setAttribute('target','_top')}
-function win(request){request=request||{};document.getElementById('prenomWin').textContent=request.first_name||D.pre||'';IPCard.name(cardWin,request.first_name||D.pre||'',request.last_name||D.nom||'');IPCard.meta(cardWin,{since:request.reviewed_at||new Date().toISOString(),number:request.member_number||null});if(!cardWin._opened){cardWin._opened=true;var seenCard=false;try{seenCard=localStorage.getItem('vip-carte-ouverte')==='1'}catch(e){}if(seenCard)IPCard.state(cardWin,'active');else{IPCard.state(cardWin,'locked');setTimeout(function(){IPCard.unlock(cardWin);try{localStorage.setItem('vip-carte-ouverte','1')}catch(e){}},700)}}var invite=document.querySelector('[data-invite]');invite.href=request.channel_invite_url||'#';invite.target='_blank';invite.rel='noopener noreferrer';
+document.getElementById('apercuFinal').onclick=function(){show(7);win({first_name:D.pre||'Julien',last_name:D.nom||'Martin',member_number:427,channel_invite_url:'#'})};
+function win(request){request=request||{};document.getElementById('prenomWin').textContent=request.first_name||D.pre||'';IPCard.name(cardWin,request.first_name||D.pre||'',request.last_name||D.nom||'');IPCard.meta(cardWin,{since:request.reviewed_at||new Date().toISOString(),number:request.member_number||null});if(!cardWin._opened){cardWin._opened=true;var seenCard=false,apercuCard=document.documentElement.classList.contains('apercu');try{seenCard=!apercuCard&&localStorage.getItem('vip-carte-ouverte')==='1'}catch(e){}if(seenCard)IPCard.state(cardWin,'active');else{IPCard.state(cardWin,'locked');setTimeout(function(){IPCard.unlock(cardWin);if(!apercuCard){try{localStorage.setItem('vip-carte-ouverte','1')}catch(e){}}},700)}}var invite=document.querySelector('[data-invite]');invite.href=request.channel_invite_url||'#';invite.target='_blank';invite.rel='noopener noreferrer';
   var c=document.getElementById('conf');c.innerHTML='';var col=['#F0C575','#91D6D0','#F3EFE6','#E2AE55'];for(var i=0;i<46;i++){var s=document.createElement('span');s.style.left=Math.random()*100+'%';s.style.background=col[i%4];s.style.animationDelay=(Math.random()*.9)+'s';c.appendChild(s)}}
 })();
 </script>

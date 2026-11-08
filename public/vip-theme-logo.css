@@ -1,0 +1,116 @@
+/* Thème « logo InvestPro Trading » : noir, or et argent, avec l'art de la bannière.
+   Actif seulement quand <html> porte la classe « iplogo » (aperçu ?apercu=1 pour l'instant). */
+html.iplogo{
+  --bg:#060606;--card:#0f0e0c;--card2:#151310;
+  --gold:#F7C350;--gold2:#C6861C;
+  --teal:#DADDE1;
+  --fg:#F5F2EA;--muted:#ABA69B;--soft:#C6C1B5;--dim:#878175;
+  --line:rgba(247,195,80,.26);--line2:rgba(230,232,236,.10);
+  --metal-gold:linear-gradient(180deg,#FFEAA6 0%,#FBCC56 30%,#E8AA39 60%,#C6861C 84%,#EDB548 100%);
+  --metal-silver:linear-gradient(180deg,#FFFFFF 0%,#EFEFEF 34%,#C6C6C6 62%,#949494 84%,#DADADA 100%);
+  background:#060606;
+}
+html.iplogo body{background:var(--bg)}
+html.iplogo body::before{
+  background:
+    linear-gradient(90deg,rgba(6,6,6,0) 0%,rgba(6,6,6,.62) 26%,rgba(6,6,6,.62) 74%,rgba(6,6,6,0) 100%),
+    url(/brand/banniere-gauche.webp) left -40px top -30px/auto min(82vh,640px) no-repeat,
+    url(/brand/banniere-droite.webp) right -30px bottom -20px/auto min(78vh,620px) no-repeat,
+    radial-gradient(70% 42% at 50% -6%,rgba(232,170,57,.22),transparent 70%),
+    #060606;
+}
+@media (min-width:900px){html.iplogo body::before{background:
+    url(/brand/banniere-gauche.webp) left top/auto 100vh no-repeat,
+    url(/brand/banniere-droite.webp) right bottom/auto 100vh no-repeat,
+    radial-gradient(60% 40% at 50% -6%,rgba(232,170,57,.2),transparent 70%),#060606}}
+
+/* Bandeau d'aperçu */
+.apercu-bar{position:relative;z-index:5;display:block;padding:8px 14px;font:700 12px/1.3 Manrope,system-ui,sans-serif;color:#1A1206;background:var(--metal-gold,linear-gradient(180deg,#FFEAA6,#E8AA39));text-align:center}
+.apercu-bar b{font-weight:800}
+
+/* En-tête : le vrai logo */
+html.iplogo .logo{font-size:0;gap:10px}
+html.iplogo .logo>svg,html.iplogo .logo>img{display:none}
+html.iplogo .logo::before{content:"";display:block;width:clamp(128px,38vw,156px);aspect-ratio:1164/284;background:url(/brand/investpro-logo.webp) left center/contain no-repeat;filter:drop-shadow(0 0 10px rgba(232,170,57,.25))}
+html.iplogo .logo::after{content:"VIP";font:800 10.5px/1 Manrope,system-ui,sans-serif;letter-spacing:.18em;color:#1A1206;background:var(--metal-gold);padding:5px 7px 5px 9px;border-radius:999px}
+html.iplogo .who{border-color:rgba(230,232,236,.18);background:rgba(8,8,8,.72);color:#CFCBC1}
+html.iplogo .who.on i{background:#E9EBEE;animation:ipPingSilver 1.8s ease-out infinite}
+@keyframes ipPingSilver{0%{box-shadow:0 0 0 0 rgba(233,235,238,.6)}100%{box-shadow:0 0 0 10px rgba(233,235,238,0)}}
+
+/* Titres : or et argent, comme INVEST / PRO */
+html.iplogo h1 .word{background:var(--metal-silver);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;padding-bottom:.05em}
+html.iplogo h1 .word:has(.shine){background:none;-webkit-text-fill-color:initial}
+html.iplogo .shine{background:linear-gradient(100deg,transparent 0 42%,rgba(255,250,228,.9) 50%,transparent 58%),var(--metal-gold);background-size:250% 100%,100% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
+html.iplogo .win h1{background:var(--metal-silver);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+html.iplogo h2,html.iplogo .sec-t{color:#F3F0E8}
+html.iplogo .lead,html.iplogo .vcard-cap,html.iplogo .card-cap{color:#CDC8BC;text-shadow:0 1px 14px rgba(0,0,0,.85)}
+
+/* L'étiquette « — TRADING — » du logo devient la signature des titres de section */
+html.iplogo .k{color:var(--gold);letter-spacing:.24em}
+html.iplogo .hero .k{background:none;border:0;padding:0;gap:12px;margin-top:6px}
+html.iplogo .hero .k i{display:none}
+html.iplogo .hero .k::before,html.iplogo .hero .k::after{content:"";width:30px;height:1.5px;border-radius:2px;background:linear-gradient(90deg,transparent,var(--gold))}
+html.iplogo .hero .k::after{background:linear-gradient(270deg,transparent,var(--gold))}
+html.iplogo .sec>.k{display:flex;align-items:center;gap:12px}
+html.iplogo .sec>.k::after{content:"";flex:0 1 110px;height:1.5px;border-radius:2px;background:linear-gradient(90deg,var(--gold),transparent)}
+
+/* La carte est la pièce maîtresse de l'accueil */
+html.iplogo .orbit{display:none}
+
+/* Boutons : or massif, et argent pour le reste */
+html.iplogo .btn-gold{background:linear-gradient(180deg,#FFE9A3 0%,#FBCC56 32%,#E8AA39 68%,#CD8F26 100%);color:#1A1206;box-shadow:inset 0 1px 0 rgba(255,255,255,.55),inset 0 -2px 0 rgba(120,70,0,.22),0 12px 30px rgba(232,170,57,.28)}
+html.iplogo .btn-ghost{color:var(--fg);border:1.5px solid transparent;background:linear-gradient(#0c0b0a,#0c0b0a) padding-box,var(--metal-silver) border-box;animation:none}
+html.iplogo .btn-teal{background:var(--metal-silver);color:#141414;box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 10px 26px rgba(0,0,0,.4)}
+html.iplogo .mini{background:linear-gradient(180deg,#FFE9A3,#FBCC56 40%,#E8AA39);color:#1A1206}
+html.iplogo .mini.ghost{background:#121110;color:var(--fg);border-color:rgba(230,232,236,.3)}
+html.iplogo .back{color:#ABA69B}
+
+/* Panneaux et champs */
+html.iplogo .panel{background:linear-gradient(180deg,#131210,#0b0b0a);border:1px solid rgba(230,232,236,.09);box-shadow:0 24px 60px rgba(0,0,0,.6)}
+html.iplogo .panel::before{background:linear-gradient(90deg,transparent,#FBCC56,transparent)}
+html.iplogo .ph .pi,html.iplogo .soon .pi,html.iplogo .perk .pi,html.iplogo .al .pi{background:rgba(247,195,80,.10);border:1px solid rgba(247,195,80,.28)}
+html.iplogo input,html.iplogo select,html.iplogo .kd,html.iplogo .pl,html.iplogo .bk,html.iplogo .seg,html.iplogo .recap,html.iplogo .tick,html.iplogo .codebox,html.iplogo .al{background:#0a0a09;border-color:#2c2a25}
+html.iplogo input:focus,html.iplogo select:focus{border-color:var(--gold);box-shadow:0 0 0 4px rgba(247,195,80,.14)}
+html.iplogo input::placeholder{color:#6b665d}
+html.iplogo .bk span{background:#1a1813}
+html.iplogo .kd[aria-pressed=true],html.iplogo .pl[aria-pressed=true],html.iplogo .bk[aria-pressed=true],html.iplogo .seg button[aria-pressed=true]{background:#1a1712}
+html.iplogo .opt{border-color:#3a372f;color:#9d978b}
+html.iplogo .req{background:var(--metal-silver);color:#141414}
+html.iplogo .login-box,html.iplogo .hint{background:rgba(247,195,80,.06);border-color:rgba(247,195,80,.3)}
+html.iplogo .drop.ok{background:rgba(230,232,236,.06)}
+
+/* Progression : de l'or vers l'argent */
+html.iplogo #gr stop:first-child{stop-color:#FBCC56}
+html.iplogo #gr stop:last-child{stop-color:#DADDE1}
+html.iplogo .ring .bgc{stroke:#1f1d19}
+html.iplogo .chips i{background:#2a2822}
+html.iplogo .road::before{background:rgba(247,195,80,.16)}
+html.iplogo .road::after{background:linear-gradient(var(--gold),#DADDE1)}
+html.iplogo .road .ri{background:#0c0b0a;border-color:rgba(247,195,80,.34)}
+html.iplogo .road li:last-child .ri{background:var(--metal-gold)}
+html.iplogo .tl::before{background:rgba(247,195,80,.18)}
+html.iplogo .radar::after{border-color:rgba(230,232,236,.42)}
+html.iplogo .radar span{background:linear-gradient(145deg,#1a1814,#0e0d0b);border-color:rgba(247,195,80,.3)}
+html.iplogo .tl .d i{background:var(--metal-silver);color:#141414}
+html.iplogo .tl .c i{background:#060606}
+
+/* Bloc confidentialité, badges et liens : argent au lieu de turquoise */
+html.iplogo .priv{background:linear-gradient(135deg,rgba(230,232,236,.07),rgba(230,232,236,.02));border-color:rgba(230,232,236,.2)}
+html.iplogo .priv .pi{background:rgba(230,232,236,.08)}
+html.iplogo .priv small{color:#CDD0D4}
+html.iplogo svg[stroke="#91D6D0"]{stroke:#DADDE1}
+html.iplogo .badge-ok{background:rgba(230,232,236,.08);border-color:rgba(230,232,236,.38);color:#ECEEF1}
+html.iplogo .on-badge{border-color:rgba(230,232,236,.4);color:#ECEEF1}
+html.iplogo .note a{color:#E9D9AE}
+html.iplogo .perk{background:#0e0d0b;border-color:rgba(230,232,236,.08)}
+html.iplogo .perk.big{background:linear-gradient(140deg,rgba(247,195,80,.13),rgba(247,195,80,.02) 70%);border-color:rgba(247,195,80,.36)}
+html.iplogo .perk.big .pi{background:rgba(247,195,80,.15)}
+html.iplogo .tgbox::before{background:conic-gradient(from 0deg,transparent 0 70%,rgba(251,204,86,.6) 80%,transparent 90%)}
+html.iplogo .tgbox::after{background:#0e0d0b}
+html.iplogo .tgbox p{color:#E3DFD6}
+html.iplogo .soon,html.iplogo .tip,html.iplogo .quote{background:#0e0d0b;border-color:rgba(230,232,236,.08)}
+html.iplogo .tip .pi{background:rgba(230,232,236,.08)}
+html.iplogo .install-final{border-color:rgba(247,195,80,.28);background:linear-gradient(145deg,rgba(247,195,80,.09),rgba(230,232,236,.03))}
+html.iplogo .err{background:rgba(232,163,154,.1)}
+html.iplogo .sticky{background:rgba(6,6,6,.92);border-top-color:rgba(247,195,80,.24)}
+html.iplogo .proto{background:#0e0d0b}

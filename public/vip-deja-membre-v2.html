@@ -15,6 +15,7 @@
 <link rel="preload" href="/brand/investpro-mark.webp" as="image">
 <link rel="preload" href="/brand/investpro-wordmark.webp" as="image">
 <link rel="stylesheet" href="/vip-carte.css">
+<script src="/vip-apercu.js"></script>
 <style>
 :root{--bg:#0b0d0b;--card:#121511;--gold:#F0C575;--gold2:#c99a45;--teal:#91D6D0;--rose:#e8a39a;--fg:#F3EFE6;--muted:#A8ADA3;--soft:#B9BDB2;--dim:#8E938A;--line:rgba(240,197,117,.2);--line2:rgba(255,255,255,.08);color-scheme:dark}
 *{box-sizing:border-box}
@@ -192,6 +193,7 @@ input[readonly]{color:var(--muted)}
 @media(max-width:340px){.row2{grid-template-columns:1fr;gap:0}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.js .rv,.word{opacity:1!important;transform:none!important}}
 </style>
+<link rel="stylesheet" href="/vip-theme-logo.css">
 </head>
 <body>
 <script>document.documentElement.classList.add('js')</script>
@@ -300,6 +302,7 @@ input[readonly]{color:var(--muted)}
 <div class="hint" data-push-hint hidden style="text-align:left"></div>
 <div id="wAction" hidden><a class="btn btn-gold" id="wLink" href="#"><span id="wLinkTxt"></span><span class="go" aria-hidden="true">→</span></a></div>
 <p class="note" id="wNote">Cette page se met à jour toute seule. Identifiant : <b id="wMail"></b>. Code oublié ? <a href="/forgot-password">Mot de passe oublié</a>.</p>
+<button class="btn btn-ghost" type="button" id="apercuValidate" data-apercu hidden>Simuler ta validation (aperçu)</button>
 </div></section>
 </main>
 
@@ -331,7 +334,8 @@ input[readonly]{color:var(--muted)}
 <script>
 (function(){
 var $=function(id){return document.getElementById(id)};
-var API='/api/vip/deja-membre',CODE_KEY='vip-deja-membre-code',SEEN_KEY='vip-carte-ouverte';
+var APERCU=document.documentElement.classList.contains('apercu');
+var API='/api/vip/deja-membre',CODE_KEY='vip-deja-membre-code'+(APERCU?'-apercu':''),SEEN_KEY='vip-carte-ouverte';
 var intro=$('intro'),flow=$('flow'),done=$('done'),sticky=$('sticky');
 var cards={};['intro','live','wait','done'].forEach(function(k){cards[k]=IPCard.mount(document.querySelector('[data-card='+k+']'),k==='wait'?'pending':'locked')});
 var S={cur:0,signedIn:false,email:'',code:null,phone:'',memberNumber:null,since:null,loginMode:false,first:'',last:'',waitKind:null};
@@ -466,6 +470,7 @@ function setPush(state){
   $('wPush').hidden=S.waitKind!=='pending'||state==='on'||state==='unsupported';
 }
 async function enablePush(silent){
+  if(APERCU){setPush(silent?'off':'on');return}
   if(!pushSupported()){setPush(isIos()&&!standalone()?'ios':'unsupported');return}
   var perm=Notification.permission;
   if(perm==='denied'){setPush('denied');return}
@@ -514,9 +519,10 @@ async function check(){
   try{var r=await fetch(API,{credentials:'same-origin',cache:'no-store'});if(!r.ok)return;var d=await r.json();if(d.state==='active'){S.memberNumber=d.memberNumber||null;S.since=d.since||null;names(d.firstName||S.first,d.lastName||S.last);finish(true)}else if(d.state==='denied'||d.state==='completion'){waiting(d.state,d.state==='denied'?d.rejectionReason:d.completionNote)}}catch(e){}
 }
 document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&pollTimer)check()});
+$('apercuValidate').onclick=function(){if(window.VIP_APERCU){window.VIP_APERCU.validate();check()}};
 
 /* ---------- carte débloquée ---------- */
-function seen(){try{return localStorage.getItem(SEEN_KEY)==='1'}catch(e){return false}}
+function seen(){if(APERCU)return false;try{return localStorage.getItem(SEEN_KEY)==='1'}catch(e){return false}}
 function confetti(){var c=$('conf'),colors=['#F0C575','#91D6D0','#FFE3A3','#E9ECEF','#c99a45'];c.innerHTML='';for(var i=0;i<46;i++){var s=document.createElement('span');s.style.left=Math.random()*100+'%';s.style.background=colors[i%colors.length];s.style.animationDelay=(Math.random()*.9)+'s';s.style.transform='rotate('+Math.random()*360+'deg)';c.appendChild(s)}}
 function finish(animate){
   stopPoll();
@@ -525,7 +531,7 @@ function finish(animate){
   show(5);
   if(animate&&!seen()){
     IPCard.state(cards.done,'locked');
-    setTimeout(function(){IPCard.unlock(cards.done).then(function(){});confetti();try{localStorage.setItem(SEEN_KEY,'1')}catch(e){}},700);
+    setTimeout(function(){IPCard.unlock(cards.done).then(function(){});confetti();if(!APERCU){try{localStorage.setItem(SEEN_KEY,'1')}catch(e){}}},700);
   }else IPCard.state(cards.done,'active');
 }
 

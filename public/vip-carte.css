@@ -25,10 +25,10 @@
 .ipcard-chip::after{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:rgba(80,55,15,.45)}
 .ipcard-mid{position:absolute;left:6.4cqw;right:6.4cqw;bottom:20.5%;z-index:2;display:grid;gap:1.3cqw}
 .ipcard-label{font:800 clamp(9px,2.9cqw,11px)/1 Manrope,system-ui,sans-serif;letter-spacing:.22em;text-transform:uppercase;color:#EBC57D}
-.ipcard-name{display:block;white-space:nowrap;overflow:hidden;font:600 7cqw/1.15 Unbounded,system-ui,sans-serif;letter-spacing:.02em;text-transform:uppercase;color:#F1F2F4;background:linear-gradient(180deg,#FFFFFF 0%,#EDEFF2 46%,#B4B9BF 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 1px 0 rgba(0,0,0,.7));transition:opacity .3s}
+.ipcard-name{display:block;white-space:nowrap;overflow:hidden;padding-top:.14em;margin-top:-.14em;font:600 7cqw/1.2 Unbounded,system-ui,sans-serif;letter-spacing:.02em;text-transform:uppercase;color:#F1F2F4;background:linear-gradient(180deg,#FFFFFF 0%,#EDEFF2 46%,#B4B9BF 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 1px 0 rgba(0,0,0,.7));transition:opacity .3s}
 .ipcard-name.is-empty{opacity:.5}
-.ipcard-name.two{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-height:1.12;text-wrap:balance;overflow-wrap:anywhere}
-.ipcard-bot{position:absolute;left:6.4cqw;right:6.4cqw;bottom:5.4cqw;z-index:2;display:flex;justify-content:space-between;align-items:baseline;gap:3cqw;font:700 clamp(9px,2.9cqw,11px)/1.2 Manrope,system-ui,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#CDD1D6;text-shadow:0 1px 2px rgba(0,0,0,.85)}
+.ipcard-name.two{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-height:1.2;text-wrap:balance;overflow-wrap:anywhere}
+.ipcard-bot{position:absolute;left:6.4cqw;right:6.4cqw;bottom:4.6cqw;z-index:2;display:flex;justify-content:space-between;align-items:baseline;gap:3cqw;font:700 clamp(9px,2.9cqw,11px)/1.6 Manrope,system-ui,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#CDD1D6;text-shadow:0 1px 2px rgba(0,0,0,.85)}
 .ipcard-bot span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ipcard-bot [data-card-no]{flex-shrink:0;color:#F0C575;font-family:Unbounded,system-ui,sans-serif;font-weight:600;letter-spacing:.06em}
 .ipcard-burst{position:absolute;top:9%;right:9%;width:16cqw;height:16cqw;margin:-8cqw -8cqw 0 0;border-radius:50%;border:2px solid #91D6D0;opacity:0;z-index:5;pointer-events:none}
