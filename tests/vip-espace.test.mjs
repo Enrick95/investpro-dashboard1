@@ -308,13 +308,29 @@ test("the lot is calculated in the space from the member’s account and risk, w
   const { host } = render({ posts: [xau] }, { member: { accounts: [account], account, rates: { EUR: 1, USD: 1.08 }, risk: 1 } });
   await host.settle();
   const card = text(tradeCards(host)[0]);
-  assert.match(card, /Ton lot0,13 lot/, "1 % of 10 470 € with a stop 8.5 dollars away is 0.13 lot");
-  assert.match(card, /≈ 102\s€ de risque/);
-  assert.match(card, /1 % · Compte principal/);
-  assert.match(card, /Place l’ordre à 0,13 lot/);
+  assert.match(card, /Ton lot0\.13 lot/, "1 % of 10 470 € with a stop 8.5 dollars away is 0.13 lot, written like MetaTrader’s Volume field");
+  assert.match(card, /Si le stop est touché, tu perds ≈\s102\s€, soit 1\s% de ton compte «\sCompte principal\s»\./, "The loss at the stop is said in a sentence, in the account currency");
+  assert.match(card, /Mets 0\.13 dans «\sVolume\s»/, "The last step says what to type, and where");
+  assert.match(card, /1 lot = 100 onces\./, "Gold is in standard lots of 100 ounces");
+  assert.equal(card.includes("le réglage le plus courant"), false, "A standard lot needs no broker check");
+  const [change] = nodes(tradeCards(host)[0], node => node.type === "button" && text(node) === "Changer mon risque");
+  assert.ok(change, "The risk can be changed from the card");
   const index = render({ posts: [nas] }, { member: { accounts: [account], account, rates: { EUR: 1, USD: 1.08 }, risk: 0.5 } });
   await index.host.settle();
-  assert.match(text(tradeCards(index.host)[0]), /Ton volume0,62 USD\/point/, "0.5 % of 10 470 € over a 90-point stop: 0.62 dollar per point, never broker lots");
+  const indexCard = text(tradeCards(index.host)[0]);
+  assert.match(indexCard, /Ton lot0\.62 lot/, "0.5 % of 10 470 € over a 90-point stop: 0.62 lot of one dollar per point");
+  assert.match(indexCard, /1 lot = 1\s\$ par point, le réglage le plus courant\. Pour vérifier\s: dans MetaTrader, la spécification de NAS100 doit indiquer une taille de contrat de 1\./, "An index lot says its basis and how to check it");
+  assert.equal(indexCard.includes("USD/point"), false);
+});
+
+test("a lot below MetaTrader’s minimum says what 0.01 lot would lose, and offers to change the risk", async () => {
+  const btc = post("btc", "signal", { symbol: "BTCUSD", direction: "buy", body: "BTCUSD BUY LIMIT", levels: { entry: 75143.5, stopLoss: 74760, takeProfit: 75744 } });
+  const account = { id: 1, name: "Petit compte", platform: "MT5", broker: null, currency: "USD", current_balance: 150, connection_type: "automatic" };
+  const { host } = render({ posts: [btc] }, { member: { accounts: [account], account } });
+  await host.settle();
+  const card = text(tradeCards(host)[0]);
+  assert.match(card, /Le plus petit lot, 0\.01, te ferait perdre ≈\s3,8\d\s\$ au stop\s: plus que ton risque de 1\s%\./, "1 % of 150 $ is 1.50 $; 0.01 lot over 383.50 points loses 3.84 $");
+  assert.ok(nodes(tradeCards(host)[0], node => node.type === "button" && text(node) === "Changer mon risque").length === 1);
 });
 
 test("Copier les niveaux gives the levels in the order MetaTrader asks for them", async () => {
@@ -480,12 +496,16 @@ test("a limit or stop order is named with its side, so nobody enters at market b
   button(host, "Le fil du trade").props.onClick(); await host.settle();
   assert.equal(text(nodes(host.tree, node => node.props.className === "pageTitle")[0]), "BTCUSD · Achat limite");
 
-  // A quantity of crypto reads with four significant digits, rounded down.
+  // Crypto is sized in MetaTrader lots too: one lot is one coin, rounded down to 0.01 lot.
   const account = { id: 1, name: "Compte crypto", platform: "MT5", broker: null, currency: "USD", current_balance: 10000, connection_type: "automatic" };
   const sized = render({ posts: [btc] }, { member: { accounts: [account], account } });
   await sized.host.settle();
-  assert.match(text(sized.host.tree), /0,2607 BTC/);
-  assert.equal(text(sized.host.tree).includes("0,26075"), false);
+  const card = text(tradeCards(sized.host)[0]);
+  assert.match(card, /Ton lot0\.26 lot/, "1 % of 10 000 $ over 383.50 points is 0.26075, so 0.26 lot");
+  assert.match(card, /tu perds ≈\s100\s\$/, "0.26 lot over 383.50 points loses 99.71 $");
+  assert.match(card, /Mets 0\.26 dans «\sVolume\s»/);
+  assert.match(card, /1 lot = 1 BTC, le réglage le plus courant\. Pour vérifier\s: dans MetaTrader, la spécification de BTCUSD doit indiquer une taille de contrat de 1\. Sinon, utilise le calculateur\./);
+  assert.equal(card.replace("1 lot = 1 BTC", "").replace(/BTCUSD/g, "").includes("BTC"), false, "No quantity of bitcoin is given as the lot");
 });
 
 test("the Journal counts a member’s XAUUSD trade as following the team’s GOLD signal", async () => {

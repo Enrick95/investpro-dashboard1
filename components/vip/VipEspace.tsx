@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Bell, BellRing, Bookmark, CalendarDays, ChevronLeft, ChevronRight, Copy, MessageSquare, TrendingUp, UserRound } from "lucide-react";
+import { ArrowUpRight, Bell, BellRing, Bookmark, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Copy, MessageSquare, TrendingUp, UserRound } from "lucide-react";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { vipRequest } from "@/lib/vip/client";
 import { buildVipPerformanceReport, type ReportRow, type ReportTrade, type VipPerformanceReport } from "@/lib/vip/performance-report";
@@ -12,7 +12,7 @@ import type { VipMembership, VipPost, VipPostCategory, VipPostReactions, VipReac
 import type { PublicVipPerformanceTrade } from "@/lib/vip/public-performance";
 import VipJournal from "./VipJournal";
 import VipCompte from "./VipCompte";
-import { sizeSignal, useVipMember, type SignalSize, type VipMember } from "./vipMember";
+import { sizeSignal, useVipMember, type LotBasis, type SignalSize, type VipMember } from "./vipMember";
 import { espaceFont } from "./espaceFont";
 import s from "./VipEspace.module.css";
 
@@ -319,9 +319,10 @@ function formatters(lang: Lang) {
     },
     monthShort: (key: string) => { const date = fromKey(key); return date ? monthShort.format(date).replace(/\.$/, "") : key; },
     day: (value: string) => { const date = fromKey(value); return date ? dayMonth.format(date) : value; },
-    money: (value: number, currency: string) => {
-      try { return new Intl.NumberFormat(tag, { style: "currency", currency, maximumFractionDigits: 0 }).format(value); }
-      catch { return `${Math.round(value)} ${currency}`; }
+    /** « 206 $ » rather than « 206 $US »; cents only for small amounts (« 3,83 $ »). */
+    money: (value: number, currency: string, digits = Math.abs(value) < 10 ? 2 : 0) => {
+      try { return new Intl.NumberFormat(tag, { style: "currency", currency, currencyDisplay: "narrowSymbol", minimumFractionDigits: digits, maximumFractionDigits: digits }).format(value); }
+      catch { return `${value.toFixed(digits)} ${currency}`; }
     },
   };
 }
@@ -849,19 +850,22 @@ function Chart({ ctx, post, area, top, labels }: { ctx: Ctx; post: VipPost; area
   </div>;
 }
 
-/** Rounded down to four significant digits: 0.29485267 BTC reads 0.2948, never more than the risk allows. */
-function readableUnits(value: number): number {
-  if (!(value > 0) || !Number.isFinite(value)) return value;
-  const power = 10 ** (4 - Math.ceil(Math.log10(value)));
-  return Math.floor(value * power + 1e-9) / power;
+/** A volume written the way MetaTrader’s « Volume » field shows it, with a dot like the prices: 0.53. */
+function lotNumber(lots: number): string {
+  return lots.toFixed(2);
 }
 
-function volumeText(size: Extract<SignalSize, { ok: true }>, fmt: Formatters): string {
-  // Lots and amounts per point keep their two decimals; a quantity of crypto shows four significant digits, not eight decimals.
-  const fine = size.step < 0.01;
-  const volume = new Intl.NumberFormat(fmt.tag, { minimumFractionDigits: fine ? 0 : 2, maximumFractionDigits: fine ? 8 : 2 }).format(fine ? readableUnits(size.volume) : size.volume);
-  if (size.kind === "standard_lot") return `${volume} ${size.volume >= 2 ? "lots" : "lot"}`;
-  return `${volume} ${size.unit}`;
+function lotText(lots: number, en: boolean): string {
+  // French keeps the singular below 2 (« 1,5 lot »); English only for exactly one (« 0.5 lots »).
+  return `${lotNumber(lots)} ${(en ? lots === 1 : lots < 2) ? "lot" : "lots"}`;
+}
+
+/** What one lot is, for the explanation: « 1 lot = 1 BTC », « 1 lot = 100 onces », « 1 lot = 1 $ par point ». */
+function basisText(basis: LotBasis, fmt: Formatters, en: boolean): string {
+  const amount = new Intl.NumberFormat(fmt.tag, { maximumFractionDigits: 2 });
+  if (basis.kind === "ounces") return `1 lot = ${amount.format(basis.amount)} ${en ? "ounces" : "onces"}`;
+  if (basis.kind === "point") return `1 lot = ${fmt.money(1, basis.currency, 0)} ${en ? "per point" : "par point"}`;
+  return `1 lot = ${amount.format(basis.amount)} ${basis.unit}`;
 }
 
 const sizeProblems: Record<Exclude<SignalSize, { ok: true }>["reason"], string> = {
@@ -874,9 +878,21 @@ const sizeProblems: Record<Exclude<SignalSize, { ok: true }>["reason"], string> 
   budget: "Ton risque est trop faible pour le lot minimum.",
 };
 
+function sizeProblem(size: Exclude<SignalSize, { ok: true }>, risk: string, fmt: Formatters, t: Translate, en: boolean): string {
+  if (size.reason === "budget" && size.minimumRisk !== null) {
+    const loss = fmt.money(size.minimumRisk, size.currency);
+    return en ? `The smallest lot, 0.01, would lose about ${loss} at the stop: more than your ${risk}% risk.`
+      : `Le plus petit lot, 0.01, te ferait perdre ≈ ${loss} au stop : plus que ton risque de ${risk} %.`;
+  }
+  return t(sizeProblems[size.reason]);
+}
+
 function TradeBlock({ ctx, post }: { ctx: Ctx; post: VipPost }) {
   const { t, fmt, now, member, go, openThread, copyLevels } = ctx;
+  const en = fmt.tag === "en-US";
   const size = sizeSignal(member, post.symbol || "", levelOf(post, "Entrée"), levelOf(post, "Stop"));
+  const risk = new Intl.NumberFormat(fmt.tag).format(member.risk);
+  const symbol = (post.symbol || "").trim().toUpperCase();
   return <article className={s.trade}>
     <div className={s.tradeHead}>
       <p className={s.sub}><b className={s.gold}>{[post.symbol || post.title || t("Signal"), orderLabel(post, t)].filter(Boolean).join(" · ")}</b> · {since(post, now, fmt, t)}</p>
@@ -886,17 +902,33 @@ function TradeBlock({ ctx, post }: { ctx: Ctx; post: VipPost }) {
     <div className={s.lot}>
       {size.ok ? <>
         <div className={s.lotRow}>
-          <div><span className={s.small}>{t(size.kind === "point_value" ? "Ton volume" : "Ton lot")}</span><b className={s.lotBig}>{volumeText(size, fmt)}</b></div>
-          <div className={s.lotMeta}><b>≈ {fmt.money(size.risk, size.currency)} {t("de risque")}</b><span>{`${new Intl.NumberFormat(fmt.tag).format(member.risk)} % · ${size.account.name}`}</span></div>
+          <div><span className={s.small}>{t("Ton lot")}</span><b className={s.lotBig}>{lotText(size.lots, en)}</b></div>
+          <button type="button" className={s.lotChange} onClick={() => go("compte")}>{t("Changer mon risque")}</button>
         </div>
+        <p className={s.lotLoss}>{en
+          ? <>If the stop is hit, you lose <b>{`about ${fmt.money(size.risk, size.currency)}`}</b>{`, ${risk}% of your “${size.account.name}” account.`}</>
+          : <>Si le stop est touché, tu perds <b>{`≈ ${fmt.money(size.risk, size.currency)}`}</b>{`, soit ${risk} % de ton compte « ${size.account.name} ».`}</>}</p>
         <ol className={s.steps}>
           <li><b>1</b>{t("Copie les niveaux")}</li>
-          <li><b>2</b>{t("Ouvre MetaTrader")}</li>
-          <li><b>3</b>{`${t("Place l’ordre à")} ${volumeText(size, fmt)}`}</li>
+          <li><b>2</b>{t("Nouvel ordre sur MetaTrader")}</li>
+          <li><b>3</b>{en ? <>Enter <strong>{lotNumber(size.lots)}</strong> as the volume</> : <>Mets <strong>{lotNumber(size.lots)}</strong>{" dans « Volume »"}</>}</li>
         </ol>
+        <details className={s.lotHow}>
+          <summary>{t("Comment ce lot est calculé")}<ChevronDown size={15} aria-hidden="true" /></summary>
+          <ul>
+            <li>{en ? `It is chosen so that the stop costs you at most ${risk}% of your account.` : `Il est choisi pour que le stop te coûte au plus ${risk} % de ton compte.`}</li>
+            <li>{en ? "It is rounded down to the nearest 0.01 lot, so the risk is never exceeded." : "Il est arrondi vers le bas, à 0.01 lot près, pour ne jamais dépasser ce risque."}</li>
+            <li>{`${basisText(size.basis, fmt, en)}${size.basis.varies
+              ? en ? `, the most common setting. To check: in MetaTrader, the ${symbol} specification should show a contract size of 1. If it doesn’t, use the calculator.`
+                : `, le réglage le plus courant. Pour vérifier : dans MetaTrader, la spécification de ${symbol} doit indiquer une taille de contrat de 1. Sinon, utilise le calculateur.`
+              : "."}`}</li>
+          </ul>
+          {size.basis.varies ? <Link className={s.textButton} href={riskSignalHref(post.id)}>{t("Ouvrir le calculateur")} <ArrowUpRight size={14} aria-hidden="true" /></Link> : null}
+        </details>
       </> : <div className={s.lotProblem}>
-        <p className={s.small}>{t(sizeProblems[size.reason])}</p>
+        <p className={s.small}>{sizeProblem(size, risk, fmt, t, en)}</p>
         {size.reason === "account" || size.reason === "balance" ? <button type="button" className={s.textButton} onClick={() => go("compte")}>{t(size.reason === "account" ? "Ajouter mon compte" : "Voir mes comptes")}</button>
+          : size.reason === "budget" ? <button type="button" className={s.textButton} onClick={() => go("compte")}>{t("Changer mon risque")}</button>
           : size.reason !== "loading" ? <Link className={s.textButton} href={riskSignalHref(post.id)}>{t("Ouvrir le calculateur")} <ArrowUpRight size={14} aria-hidden="true" /></Link> : null}
       </div>}
       <div className={s.buttons}>

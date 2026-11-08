@@ -124,11 +124,26 @@ export function useVipMember(): VipMember {
   return { ...state, account, risk, rates, setRisk, setAccount, reload };
 }
 
-export type SignalSize =
-  | { ok: true; volume: number; unit: string; kind: "standard_lot" | "point_value" | "asset_units"; step: number; risk: number; currency: string; account: MemberAccount }
-  | { ok: false; reason: "loading" | "account" | "balance" | "levels" | "instrument" | "rate" | "budget" };
+/**
+ * What one MetaTrader lot is worth for this instrument. Forex and metals have standard lots (100 000 units,
+ * 100 ounces of gold). For indices and crypto a lot is one contract (1 unit of currency per point, one coin):
+ * the most common broker setting, but not every broker’s, so the card says it and how to check it.
+ */
+export type LotBasis =
+  | { kind: "units"; amount: number; unit: string; varies: boolean }
+  | { kind: "ounces"; amount: number; varies: false }
+  | { kind: "point"; currency: string; varies: true };
 
-/** The size of a signal for the member’s account and risk, with the simulator’s own rules. */
+/** MetaTrader takes volumes in steps of 0.01 lot, from 0.01 lot. */
+export const LOT_STEP = 0.01;
+
+export type SignalSize =
+  | { ok: true; lots: number; basis: LotBasis; risk: number; currency: string; account: MemberAccount }
+  | { ok: false; reason: "loading" | "account" | "balance" | "levels" | "instrument" | "rate" }
+  /** Even 0.01 lot would lose more than the member’s risk; `minimumRisk` is what it would lose. */
+  | { ok: false; reason: "budget"; minimumRisk: number | null; currency: string };
+
+/** The lot of a signal for the member’s account and risk, in MetaTrader lots, with the simulator’s rounding rules. */
 export function sizeSignal(member: VipMember, symbol: string, entry: number | undefined, stop: number | undefined): SignalSize {
   if (member.status === "loading") return { ok: false, reason: "loading" };
   const account = member.account;
@@ -142,11 +157,19 @@ export function sizeSignal(member: VipMember, symbol: string, entry: number | un
   const currency = (account.currency || "EUR").toUpperCase();
   const conversion = resolveConversion({ profitCurrency: convention.profitCurrency, accountCurrency: currency, baseCurrency: convention.baseCurrency, stop, target: Number.NaN, rates: member.rates ?? undefined });
   if (!(conversion.lossRate > 0)) return { ok: false, reason: "rate" };
+  const basis: LotBasis = convention.sizingKind === "point_value" ? { kind: "point", currency: convention.profitCurrency, varies: true }
+    : convention.market === "metals" ? { kind: "ounces", amount: convention.contractSize, varies: false }
+    : convention.sizingKind === "asset_units" ? { kind: "units", amount: 1, unit: convention.displayUnit, varies: true }
+    : { kind: "units", amount: convention.contractSize, unit: convention.baseCurrency ?? "", varies: false };
   const result = calculatePosition({
     symbol: asset, balance, budget: balance * member.risk / 100, entry, stop, mode: "contract",
+    // One lot of an index or a coin is one contract: the conventions already count 1 per point or 1 coin.
     contractSize: convention.contractSize, lossRate: conversion.lossRate, gainRate: Number.NaN,
-    tickSize: Number.NaN, tickValue: Number.NaN, minLot: convention.displayMinimum, lotStep: convention.displayStep,
+    tickSize: Number.NaN, tickValue: Number.NaN, minLot: LOT_STEP, lotStep: LOT_STEP,
   });
-  if (result.error || !(result.lots > 0)) return { ok: false, reason: "budget" };
-  return { ok: true, volume: result.lots, unit: convention.displayUnit, kind: convention.sizingKind, step: convention.displayStep, risk: result.actualRisk, currency, account };
+  if (result.error || !(result.lots > 0)) {
+    const minimumRisk = Number.isFinite(result.lossPerLot) && result.lossPerLot > 0 ? LOT_STEP * result.lossPerLot : null;
+    return { ok: false, reason: "budget", minimumRisk, currency };
+  }
+  return { ok: true, lots: result.lots, basis, risk: result.actualRisk, currency, account };
 }

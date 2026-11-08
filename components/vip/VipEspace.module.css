@@ -252,14 +252,25 @@
 
 /* The member's lot, ready */
 .lot { display: flex; flex-direction: column; gap: 12px; padding: 14px 16px; }
-.lotRow { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.lotRow { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .lotBig { display: block; margin-top: 4px; color: var(--gold); font-size: 38px; font-weight: 800; font-stretch: 72%; line-height: 1; font-variant-numeric: tabular-nums; }
-.lotMeta { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; color: var(--mute); font-size: 13px; line-height: 1.35; text-align: right; }
-.lotMeta b { color: var(--text); font-weight: 600; }
+.lotChange { flex: 0 0 auto; min-height: 32px; padding: 0 12px; border: 1px solid var(--line) !important; border-radius: 999px; background: transparent !important; color: var(--soft) !important; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.lotLoss { margin: -2px 0 0; color: var(--soft); font-size: 14px; line-height: 1.45; text-wrap: pretty; }
+.lotLoss b { color: var(--loss); font-weight: 700; white-space: nowrap; }
 .lotProblem { display: flex; flex-direction: column; gap: 8px; }
 .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 0; padding: 0; list-style: none; }
 .steps li { padding: 9px 9px 10px; border-radius: 10px; background: var(--surface); color: var(--soft); font-size: 12px; font-weight: 500; line-height: 1.3; }
 .steps li b { display: block; margin-bottom: 5px; color: var(--gold); font-size: 15px; font-weight: 800; }
+.steps li strong { color: var(--gold); font-weight: 800; font-variant-numeric: tabular-nums; }
+/* Comment ce lot est calculé: closed by default, the card reads without it */
+.lotHow { margin-top: -4px; }
+.lotHow summary { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; color: var(--mute); font-size: 13px; font-weight: 600; list-style: none; cursor: pointer; }
+.lotHow summary::-webkit-details-marker { display: none; }
+.lotHow summary svg { transition: transform 0.2s ease; }
+.lotHow[open] summary svg { transform: rotate(180deg); }
+.lotHow ul { display: grid; gap: 6px; margin: 4px 0 10px; padding: 0 0 0 18px; color: var(--mute); font-size: 13px; line-height: 1.45; }
+.lotHow li::marker { color: var(--gold); }
+@media (prefers-reduced-motion: reduce) { .lotHow summary svg { transition: none; } }
 .mini { display: flex; flex-wrap: wrap; gap: 6px 18px; }
 .mini .stat { color: var(--mute); font-size: 13px; }
 .mini .stat b { display: inline; margin: 0 0 0 5px; font-size: 20px; font-weight: 800; font-stretch: 72%; font-variant-numeric: tabular-nums; }
