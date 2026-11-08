@@ -80,6 +80,8 @@ export async function GET(
       planResult,
       logsResult,
       vipRequestsResult,
+      mtConnectionsResult,
+      mtHostedResult,
     ] = await Promise.all([
       admin
         .from("profiles")
@@ -125,6 +127,20 @@ export async function GET(
         .eq("user_id", id)
         .order("created_at", { ascending: false })
         .limit(50),
+
+      // Comptes MetaTrader reliés au journal, à titre indicatif : jamais le mot de passe (colonne « secret » non lue).
+      admin
+        .from("investpro_mt_connections")
+        .select("id,platform,login,server,currency,last_sync,revoked,created_at")
+        .eq("user_id", id)
+        .order("created_at", { ascending: false })
+        .limit(20),
+
+      admin
+        .from("investpro_mt_hosted")
+        .select("connection_id,active,status,updated_at")
+        .eq("user_id", id)
+        .limit(20),
     ]);
 
     if (profileResult.error) throw profileResult.error;
@@ -134,6 +150,22 @@ export async function GET(
     // Si la table de logs n'a pas encore été créée, on ne casse pas toute la fiche.
     const adminLogs = logsResult.error ? [] : logsResult.data || [];
     const vipRequests = vipRequestsResult.error ? [] : vipRequestsResult.data || [];
+    const hostedByConnection = new Map(
+      (mtHostedResult.error ? [] : mtHostedResult.data || []).map((row: any) => [row.connection_id, row])
+    );
+    const mtConnections = (mtConnectionsResult.error ? [] : mtConnectionsResult.data || []).map((row: any) => {
+      const hosted: any = hostedByConnection.get(row.id) || null;
+      return {
+        id: row.id,
+        platform: row.platform || null,
+        login: row.login || null,
+        server: row.server || null,
+        currency: row.currency || null,
+        last_sync: row.last_sync || null,
+        created_at: row.created_at || null,
+        status: row.revoked ? "revoked" : hosted ? (hosted.active ? String(hosted.status || "pending") : "stopped") : "connected",
+      };
+    });
 
     const profile: any = profileResult.data || {};
     const accounts: any[] = accountsResult.data || [];
@@ -178,6 +210,7 @@ export async function GET(
       trading_plan: planResult.data || null,
       admin_logs: adminLogs,
       vip_requests: vipRequests,
+      mt_connections: mtConnections,
       metrics: {
         accounts_count: accounts.length,
         automatic_accounts_count: accounts.filter(

@@ -41,6 +41,7 @@ type Payload = {
     provider: string;
   };
   accounts: any[];
+  mt_connections?: { id: string; platform: string | null; login: string | null; server: string | null; currency: string | null; last_sync: string | null; created_at: string | null; status: string }[];
   trades: any[];
   preferences: any | null;
   trading_plan: any | null;
@@ -394,6 +395,23 @@ export default function AdminMemberPage() {
               ) : (
                 <div className="p-8 text-center text-sm text-white/25">{tr("Aucun compte de trading.")}</div>
               )}
+            </div>
+          </section>
+
+          <section className="mt-4 overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.02]">
+            <div className="border-b border-white/[0.06] p-4">
+              <div className="font-semibold text-white">{tr("Connexions MetaTrader")}</div>
+              <div className="mt-1 text-[10px] text-white/30">{tr("Comptes reliés au journal par le membre, à titre indicatif.")}</div>
+            </div>
+            <div className="divide-y divide-white/[0.05]">
+              {data.mt_connections?.length ? data.mt_connections.map((connection) => (
+                <div key={connection.id} className="grid grid-cols-1 gap-3 p-4 md:grid-cols-4">
+                  <Info label={tr("Plateforme / serveur")} value={[connection.platform, connection.server].filter(Boolean).join(" · ") || "—"} />
+                  <Info label={tr("Numéro de compte")} value={connection.login || "—"} />
+                  <Info label={tr("Synchro")} value={connection.status === "syncing" ? tr("Active") : connection.status === "error" ? tr("En erreur") : connection.status === "stopped" ? tr("Arrêtée") : connection.status === "revoked" ? tr("Déconnectée") : connection.status === "connected" ? tr("Reliée") : tr("En attente")} />
+                  <Info label={tr("Dernière synchro")} value={connection.last_sync ? dateLabel(connection.last_sync, locale) : "—"} />
+                </div>
+              )) : <div className="p-8 text-center text-sm text-white/25">{tr("Aucun compte MetaTrader relié.")}</div>}
             </div>
           </section>
 
