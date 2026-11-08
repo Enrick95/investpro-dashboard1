@@ -75,6 +75,8 @@ function apiFixture(options = {}) {
     "next/server": { after() {} },
     "@/lib/vip/access-requests": validators, "@/lib/vip/request-completions": completions, "@/lib/vip/membership": membership,
     "@/lib/vip/admin-activity": { async queueVipAdminActivity() {} }, "@/lib/vip/notifications": { async deliverVipNotifications() {} },
+    "@/lib/telegram/server": { async telegram() { return {}; } },
+    "@/lib/vip/admin-request-alert": { async notifyAdminNewVipRequest() {}, async notifyAdminExistingMemberApproved() {} },
     "@/lib/vip/access-confirmations": { async deliverVipAccessConfirmations() {} },
     "@/lib/vip/request-completion-notifications": { async deliverVipRequestCompletionNotifications() {} },
     "@/lib/admin/permissions": { async authenticateAdmin(_req, permission) { calls.auth.push(permission); return options.admin === false ? { error: "Forbidden", status: 403 } : { admin: db, user: { id: other } }; } },

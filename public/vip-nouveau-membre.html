@@ -8,6 +8,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="preload" href="/brand/investpro-mark.webp" as="image">
+<link rel="preload" href="/brand/investpro-wordmark.webp" as="image">
+<link rel="stylesheet" href="/vip-carte.css">
 <style>
 :root{--bg:#0b0d0b;--card:#121511;--card2:#171b14;--gold:#F0C575;--gold2:#c99a45;--teal:#91D6D0;--rose:#e8a39a;--fg:#F3EFE6;--muted:#A8ADA3;--soft:#B9BDB2;--dim:#8E938A;--line:rgba(240,197,117,.2);--line2:rgba(255,255,255,.08)}
 *{box-sizing:border-box}
@@ -90,20 +93,8 @@ h1{margin:16px 0 0;font:600 clamp(29px,8.4vw,40px)/1.08 Unbounded,sans-serif;let
 h2{margin:6px 0 0;font:500 clamp(22px,6.4vw,27px)/1.18 Unbounded,sans-serif;letter-spacing:-.02em}
 .lead{margin:14px auto 0;max-width:420px;font-size:15.5px;line-height:1.65;color:var(--soft)}
 
-/* carte membre */
-.vcard-wrap{margin:34px auto 0;max-width:340px;position:relative}
-.vcard{position:relative;aspect-ratio:1.586;border-radius:20px;padding:18px 20px;overflow:hidden;color:#1a140a;background:radial-gradient(120% 140% at 0% 0%,#FCE6B4 0%,#F0C575 35%,#C99A45 75%,#9c7330 100%);box-shadow:0 30px 60px rgba(0,0,0,.55),0 0 60px rgba(240,197,117,.25),inset 0 1px 0 rgba(255,255,255,.5);animation:tilt 7s ease-in-out infinite;text-align:left}
-.vcard::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(115deg,rgba(255,255,255,.0) 0 14px,rgba(255,255,255,.07) 14px 15px);mix-blend-mode:overlay}
-.vcard::after{content:"";position:absolute;top:0;left:-70%;width:45%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.75),transparent);transform:skewX(-20deg);animation:cardShine 4.2s ease-in-out infinite}
-.vc-top{display:flex;justify-content:space-between;align-items:center;position:relative;z-index:1}
-.vc-brand{display:flex;align-items:center;gap:7px;font:700 12.5px Unbounded,sans-serif;letter-spacing:.02em}
-.vc-chip{width:38px;height:28px;border-radius:6px;background:linear-gradient(135deg,#fff3cf,#d6a956);border:1px solid rgba(80,55,15,.35);position:relative}
-.vc-chip::before{content:"";position:absolute;inset:6px 8px;border:1px solid rgba(80,55,15,.35);border-radius:3px}
-.vc-mid{position:absolute;left:20px;right:20px;bottom:44px;z-index:1}
-.vc-name{font:700 clamp(16px,4.8vw,19px) Unbounded,sans-serif;letter-spacing:.02em;text-transform:uppercase}
-.vc-bot{position:absolute;left:20px;right:20px;bottom:16px;display:flex;justify-content:space-between;font-size:10.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;opacity:.8;z-index:1}
-.vc-lock{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:rgba(11,13,11,.52);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);color:var(--fg);font-size:13px;font-weight:800}
-.vc-lock span{display:flex;align-items:center;justify-content:center;width:46px;height:46px;border-radius:50%;background:rgba(11,13,11,.7);border:1px solid var(--line);animation:bob 2.6s ease-in-out infinite}
+/* carte membre : voir /vip-carte.css */
+.vcard-wrap{margin:34px auto 0;max-width:350px;position:relative}
 .vcard-cap{margin-top:16px;font-size:13px;color:var(--muted);text-align:center}
 
 /* parcours */
@@ -247,7 +238,6 @@ input[readonly]{color:var(--muted)}
 .win{text-align:center;position:relative}
 .conf{position:absolute;left:-18px;right:-18px;top:-20px;height:420px;pointer-events:none;overflow:hidden}
 .conf span{position:absolute;top:-12px;width:7px;height:13px;border-radius:2px;opacity:0;animation:fall 3s ease-in forwards}
-.win .vcard{animation:flipIn 1s cubic-bezier(.2,.8,.2,1) .2s both,tilt 7s ease-in-out 1.3s infinite}
 .badge-ok{display:inline-flex;align-items:center;gap:8px;margin-top:24px;padding:8px 14px;border-radius:999px;background:rgba(145,214,208,.12);border:1px solid rgba(145,214,208,.45);color:var(--teal);font-size:12.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
 .tgbox{margin-top:22px;position:relative;border-radius:24px;padding:20px 16px;overflow:hidden;text-align:left}
 .tgbox::before{content:"";position:absolute;inset:-40%;background:conic-gradient(from 0deg,transparent 0 70%,rgba(145,214,208,.55) 80%,transparent 90%);animation:spin 6s linear infinite}
@@ -291,12 +281,8 @@ input[readonly]{color:var(--muted)}
 </section>
 
 <div class="vcard-wrap rv">
-<div class="vcard"><div class="vc-top"><span class="vc-brand"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1a140a" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"/></svg>INVESTPRO VIP</span><span class="vc-chip"></span></div>
-<div class="vc-mid"><div style="font-size:10px;font-weight:800;letter-spacing:.14em;opacity:.7">MEMBRE</div><div class="vc-name">Ton nom ici</div></div>
-<div class="vc-bot"><span>Enrick95 × InvestPro</span><span>N° ••••</span></div>
-<div class="vc-lock"><span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>Se débloque après validation</div>
-</div>
-<p class="vcard-cap">Ta carte membre, à ton nom, t'attend au bout du parcours.</p>
+<div data-card="intro"></div>
+<p class="vcard-cap">Ta carte membre InvestPro Trading, à ton nom. Elle se débloque dès que l’équipe valide ta demande.</p>
 </div>
 
 <section class="sec">
@@ -461,10 +447,7 @@ input[readonly]{color:var(--muted)}
 <span class="badge-ok"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Accès débloqué</span>
 <h1 style="margin-top:14px">Bienvenue dans<br><span class="shine">le VIP, <span id="prenomWin">Julien</span>.</span></h1>
 <div class="vcard-wrap" style="margin-top:28px">
-<div class="vcard"><div class="vc-top"><span class="vc-brand"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1a140a" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"/></svg>INVESTPRO VIP</span><span class="vc-chip"></span></div>
-<div class="vc-mid"><div style="font-size:10px;font-weight:800;letter-spacing:.14em;opacity:.7">MEMBRE</div><div class="vc-name" id="cardName">Julien Martin</div></div>
-<div class="vc-bot"><span id="cardSince">Membre depuis nov. 2026</span><span id="cardNo">N° 0427</span></div>
-</div></div>
+<div data-card="win"></div>
 </div>
 <div class="tgbox"><h3>Ton canal VIP Telegram</h3><p>Signaux, suivis et annonces. Ce lien est personnel : il ne marche qu'une fois.</p>
 <a class="btn btn-teal" href="#" data-invite><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M21 4L3 11l6 2 2 6 3-4 5 4z"/></svg>Rejoindre le canal VIP</a></div>
@@ -486,8 +469,11 @@ input[readonly]{color:var(--muted)}
 
 <div class="sticky" id="sticky"><div class="in"><button class="btn btn-gold" id="start">Je débloque mon accès<span class="go">→</span></button></div></div>
 
+<script src="/vip-carte.js"></script>
 <script>
 (function(){
+var cardIntro=IPCard.mount(document.querySelector('[data-card=intro]'),'locked'),cardWin=IPCard.mount(document.querySelector('[data-card=win]'),'locked');
+['pre','nom'].forEach(function(id){var i=document.getElementById(id);if(i)i.addEventListener('input',function(){IPCard.name(cardIntro,document.getElementById('pre').value,document.getElementById('nom').value)})});
 var cur=0,D={},names=['','Tes infos','Broker & MetaTrader','Enregistrement','Récapitulatif','Compte InvestPro','En vérification'];
 var intro=document.getElementById('intro'),flow=document.getElementById('flow'),done=document.getElementById('done'),sticky=document.getElementById('sticky');
 var els=document.querySelectorAll('.rv,.stg');
@@ -624,7 +610,7 @@ function subWaiting(result){result=result||{};var already=!!result.already,pendi
   var note=document.getElementById('wNote');note.hidden=already;note.textContent=signedIn?'Tu peux fermer cette page et revenir plus tard.':'Pour suivre ta demande, connecte-toi avec ton e-mail et ton mot de passe.';
   document.getElementById('stepName').textContent=already?'Accès actif':'En vérification';
   var act=document.getElementById('wAction'),link=document.getElementById('wLink');link.onclick=null;act.hidden=signedIn&&!already;link.innerHTML=(already?'Ouvrir mon espace VIP':'Me connecter')+'<span class="go">→</span>';link.setAttribute('href',already?'/login?next=%2Fdashboard%2Fvip':'/login?next=%2Fvip%2Fnouveau-membre');link.setAttribute('target','_top')}
-function win(request){request=request||{};document.getElementById('prenomWin').textContent=request.first_name||D.pre||'';document.getElementById('cardName').textContent=((request.first_name||D.pre||'')+' '+(request.last_name||D.nom||'')).trim();document.getElementById('cardNo').textContent='N° '+String(request.member_number||'').padStart(4,'0');var invite=document.querySelector('[data-invite]');invite.href=request.channel_invite_url||'#';invite.target='_blank';invite.rel='noopener noreferrer';
+function win(request){request=request||{};document.getElementById('prenomWin').textContent=request.first_name||D.pre||'';IPCard.name(cardWin,request.first_name||D.pre||'',request.last_name||D.nom||'');IPCard.meta(cardWin,{since:request.reviewed_at||new Date().toISOString(),number:request.member_number||null});if(!cardWin._opened){cardWin._opened=true;var seenCard=false;try{seenCard=localStorage.getItem('vip-carte-ouverte')==='1'}catch(e){}if(seenCard)IPCard.state(cardWin,'active');else{IPCard.state(cardWin,'locked');setTimeout(function(){IPCard.unlock(cardWin);try{localStorage.setItem('vip-carte-ouverte','1')}catch(e){}},700)}}var invite=document.querySelector('[data-invite]');invite.href=request.channel_invite_url||'#';invite.target='_blank';invite.rel='noopener noreferrer';
   var c=document.getElementById('conf');c.innerHTML='';var col=['#F0C575','#91D6D0','#F3EFE6','#E2AE55'];for(var i=0;i<46;i++){var s=document.createElement('span');s.style.left=Math.random()*100+'%';s.style.background=col[i%4];s.style.animationDelay=(Math.random()*.9)+'s';c.appendChild(s)}}
 })();
 </script>

@@ -7,8 +7,7 @@ import { deliverVipNotifications } from "@/lib/vip/notifications";
 import { deliverVipRequestCompletionNotifications } from "@/lib/vip/request-completion-notifications";
 import { completionColumns, completionRevisionValid, validateCompletionSubmission } from "@/lib/vip/request-completions";
 import type { VipAccessRequest } from "@/lib/vip/types";
-import { telegram } from "@/lib/telegram/server";
-import { vipAffiliationBrokerLabel } from "@/lib/vip/identity";
+import { notifyAdminNewVipRequest } from "@/lib/vip/admin-request-alert";
 const REQUEST_COLUMNS = `${VIP_ACCESS_REQUEST_COLUMNS},${completionColumns}`;
 
 export const runtime = "nodejs";
@@ -46,7 +45,7 @@ export async function POST(request: Request) {
     after(async () => {
       try { await queueVipAdminActivity(context.db); await deliverVipNotifications(context.db); }
       catch { console.error("VIP_ADMIN_ACTIVITY_DEFERRED_FAILED"); }
-      try { await notifyAdminNewRequest(data as unknown as VipAccessRequest); }
+      try { await notifyAdminNewVipRequest(data as unknown as VipAccessRequest); }
       catch { console.error("VIP_REQUEST_TELEGRAM_DEFERRED_FAILED"); }
     });
     return vipJson({ request: data }, 201);
@@ -83,21 +82,4 @@ export async function PATCH(request: Request) {
     });
     return vipJson({ ok: true, request: data });
   } catch (error) { return vipErrorResponse(error); }
-}
-
-/** Alerte Telegram envoyée à Enrick pour chaque nouvelle demande (abonnement ou affiliation). */
-async function notifyAdminNewRequest(request: VipAccessRequest) {
-  const chat = process.env.TELEGRAM_CHAT_ID || "";
-  if (!process.env.TELEGRAM_BOT_TOKEN || !/^-?\d+$/.test(chat)) return;
-  const esc = (value: string) => value.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c] as string));
-  const who = esc(`${request.first_name || ""} ${request.last_name || ""}`.trim() || request.email);
-  const tg = request.telegram_username ? ` · @${esc(request.telegram_username)}` : "";
-  const kind = request.request_kind === "existing" ? "Déjà membre Telegram" : "Nouvelle adhésion";
-  const detail = request.type === "abonnement"
-    ? `💳 Abonnement 80 €/mois · paiement déclaré le ${esc(request.paid_on || "—")} → à vérifier dans Stripe`
-    : `🏦 Affiliation · ${esc(vipAffiliationBrokerLabel(request.affiliation_broker) || "broker à confirmer")}${request.declared_deposit_usd ? ` · dépôt déclaré ${request.declared_deposit_usd} $` : ""}${request.copy_requested ? " · Copy demandé" : ""}`;
-  await telegram("sendMessage", {
-    chat_id: chat, parse_mode: "HTML", disable_web_page_preview: true,
-    text: `🆕 <b>Nouvelle demande VIP</b> (${kind})\n👤 ${who}${tg}\n${detail}\n\nÀ valider ici : https://investprotrading.fr/dashboard/admin?tool=vip&view=requests`,
-  });
 }

@@ -9,6 +9,7 @@ import { ArrowRight, Eye, EyeOff, Loader2, LockKeyhole, Mail } from "lucide-reac
 
 import { createClient } from "@/lib/supabase/client";
 import { safeNextPath } from "@/lib/auth-next-path";
+import { normalizeAccessCode } from "@/lib/vip/access-code";
 import AuthExperienceShell, {
   AuthCardHeader,
   AuthFeatureStrip,
@@ -65,10 +66,15 @@ export default function LoginPage() {
 
     try {
       setBusy(true);
-      const { error } = await supabase.auth.signInWithPassword({
+      let { error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       });
+      // Code d'accès VIP recopié sans ses tirets ou avec des espaces : on réessaie avec sa forme exacte.
+      const accessCode = normalizeAccessCode(password);
+      if (error?.message === "Invalid login credentials" && accessCode && accessCode !== password) {
+        ({ error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: accessCode }));
+      }
 
       if (error) throw error;
       router.push(safeNextPath(new URLSearchParams(window.location.search).get("next")));

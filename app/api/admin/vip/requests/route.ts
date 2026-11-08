@@ -9,6 +9,7 @@ import { deliverVipRequestCompletionNotifications } from "@/lib/vip/request-comp
 import { completionColumns, completionRevisionValid, validateCompletionRequest } from "@/lib/vip/request-completions";
 import type { VipAccessRequest } from "@/lib/vip/types";
 import { telegram } from "@/lib/telegram/server";
+import { notifyAdminExistingMemberApproved } from "@/lib/vip/admin-request-alert";
 const REQUEST_COLUMNS = `${VIP_ACCESS_REQUEST_COLUMNS},${completionColumns}`;
 
 export const runtime = "nodejs";
@@ -63,7 +64,8 @@ export async function POST(request: Request) {
     const verified = checks?.ok ? checks.value : null;
     let inviteUrl: string | null = null;
     // Abonnés (formulaire /vip/abonne) : eux aussi reçoivent un lien personnel du canal à la validation.
-    const subscriberInvite = !memberIntake && (value?.type || source.data.type) === "abonnement";
+    // Les membres déjà dans le canal (« Déjà membre ») n’ont pas besoin de lien d’invitation.
+    const subscriberInvite = !memberIntake && source.data.request_kind === "new" && (value?.type || source.data.type) === "abonnement";
     if (body.action === "approve" && (memberIntake || subscriberInvite)) {
       if (process.env.VERCEL_ENV !== "production" || !process.env.TELEGRAM_BOT_TOKEN || !process.env.TELEGRAM_VIP_CHAT_ID) return vipJson({ error: "L’invitation Telegram personnelle n’est pas configurée." }, 503);
       try {
@@ -99,6 +101,10 @@ export async function POST(request: Request) {
       await context.admin.from("vip_access_requests").update({ channel_invite_url: inviteUrl }).eq("id", body.id).eq("status", "approved");
       const row = source.data as unknown as { first_name?: string; last_name?: string; email?: string; phone_whatsapp?: string | null; telegram_username?: string | null };
       after(async () => { await deliverSubscriberInvite(row, inviteUrl as string).catch(() => {}); });
+    }
+    if (body.action === "approve" && source.data.request_kind === "existing" && source.data.phone_whatsapp) {
+      const row = source.data as unknown as VipAccessRequest;
+      after(async () => { await notifyAdminExistingMemberApproved(row).catch(() => {}); });
     }
     if (memberIntake && body.action === "deny") {
       const saved = await context.admin.from("vip_access_requests").update({ rejection_reason: denialReason }).eq("id", body.id).eq("status", "denied");

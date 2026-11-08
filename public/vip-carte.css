@@ -1,0 +1,59 @@
+/* Carte membre InvestPro Trading : noir, or et argent, comme le logo. Partagée par /vip/deja-membre et /vip/nouveau-membre. */
+.ipcard{position:relative;width:100%;max-width:360px;margin:0 auto;container-type:inline-size;perspective:1100px}
+.ipcard-face{position:relative;aspect-ratio:1.586;border-radius:clamp(14px,5.6cqw,21px);overflow:hidden;isolation:isolate;color:#F3EFE6;text-align:left;
+  background:
+    radial-gradient(75% 95% at 0% 0%,rgba(240,197,117,.22),transparent 62%),
+    radial-gradient(60% 75% at 100% 100%,rgba(240,197,117,.17),transparent 62%),
+    linear-gradient(135deg,#1b170e 0%,#0e0e0c 44%,#080808 100%);
+  border:1px solid rgba(240,197,117,.42);
+  box-shadow:0 28px 60px rgba(0,0,0,.62),0 0 46px rgba(240,197,117,.12),inset 0 1px 0 rgba(255,255,255,.12);
+  transform-style:preserve-3d;animation:ipTilt 9s ease-in-out infinite}
+/* Traits de lumière dorés en diagonale, comme sur la bannière */
+.ipcard-face::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:linear-gradient(135deg,transparent 0 9.6%,rgba(255,221,152,.62) 10%,transparent 10.9%,transparent 14.4%,rgba(240,197,117,.24) 14.7%,transparent 15.4%,transparent 93.4%,rgba(240,197,117,.3) 93.7%,transparent 94.4%,transparent 96.6%,rgba(255,221,152,.7) 97%,transparent 97.8%)}
+.ipcard-face::after{content:"";position:absolute;top:-25%;bottom:-25%;left:-60%;width:36%;z-index:4;pointer-events:none;opacity:0;background:linear-gradient(100deg,transparent,rgba(255,243,210,.34),transparent);transform:skewX(-18deg)}
+.ipcard-chart{position:absolute;right:5%;top:24%;width:47%;height:auto;z-index:0;opacity:.15;pointer-events:none}
+.ipcard-top{position:absolute;left:6.4cqw;right:5.6cqw;top:5.8cqw;z-index:2;display:flex;align-items:center;gap:2.2cqw}
+.ipcard-mark{width:12.6cqw;height:auto;flex-shrink:0;filter:drop-shadow(0 0 7px rgba(240,197,117,.35))}
+.ipcard-word{width:33cqw;height:auto;flex-shrink:0}
+.ipcard-status{margin-left:auto;display:inline-flex;align-items:center;gap:1.5cqw;padding:1.5cqw 2.7cqw;border-radius:999px;white-space:nowrap;font:800 clamp(9.5px,3.1cqw,11.5px)/1 Manrope,system-ui,sans-serif;letter-spacing:.07em;text-transform:uppercase;color:#F6D48C;background:rgba(8,8,8,.78);border:1px solid rgba(240,197,117,.5);transition:color .4s,border-color .4s,background .4s}
+.ipcard-status svg{width:clamp(11px,3.4cqw,13px);height:auto;flex-shrink:0}
+.ipcard-status .ic-ok{display:none}
+.ipcard-status .shackle{transform-origin:16px 11px;transition:transform .45s cubic-bezier(.2,.8,.2,1)}
+.ipcard-chip{position:absolute;left:6.4cqw;top:35.5%;z-index:2;width:12.4cqw;aspect-ratio:1.3;border-radius:1.9cqw;background:linear-gradient(135deg,#FFE9B4 0%,#D8A752 42%,#F6D58E 62%,#B78431 100%);box-shadow:inset 0 0 0 1px rgba(80,55,15,.5),0 2px 6px rgba(0,0,0,.4)}
+.ipcard-chip::before{content:"";position:absolute;inset:24% 30%;border:1px solid rgba(80,55,15,.5);border-radius:1cqw}
+.ipcard-chip::after{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:rgba(80,55,15,.45)}
+.ipcard-mid{position:absolute;left:6.4cqw;right:6.4cqw;bottom:20.5%;z-index:2;display:grid;gap:1.3cqw}
+.ipcard-label{font:800 clamp(9px,2.9cqw,11px)/1 Manrope,system-ui,sans-serif;letter-spacing:.22em;text-transform:uppercase;color:#EBC57D}
+.ipcard-name{display:block;white-space:nowrap;overflow:hidden;font:600 7cqw/1.15 Unbounded,system-ui,sans-serif;letter-spacing:.02em;text-transform:uppercase;color:#F1F2F4;background:linear-gradient(180deg,#FFFFFF 0%,#EDEFF2 46%,#B4B9BF 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 1px 0 rgba(0,0,0,.7));transition:opacity .3s}
+.ipcard-name.is-empty{opacity:.5}
+.ipcard-name.two{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-height:1.12;text-wrap:balance;overflow-wrap:anywhere}
+.ipcard-bot{position:absolute;left:6.4cqw;right:6.4cqw;bottom:5.4cqw;z-index:2;display:flex;justify-content:space-between;align-items:baseline;gap:3cqw;font:700 clamp(9px,2.9cqw,11px)/1.2 Manrope,system-ui,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#CDD1D6;text-shadow:0 1px 2px rgba(0,0,0,.85)}
+.ipcard-bot span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ipcard-bot [data-card-no]{flex-shrink:0;color:#F0C575;font-family:Unbounded,system-ui,sans-serif;font-weight:600;letter-spacing:.06em}
+.ipcard-burst{position:absolute;top:9%;right:9%;width:16cqw;height:16cqw;margin:-8cqw -8cqw 0 0;border-radius:50%;border:2px solid #91D6D0;opacity:0;z-index:5;pointer-events:none}
+
+/* Verrouillée : tout reste lisible, seule la puce est éteinte */
+.ipcard[data-state=locked] .ipcard-chip{filter:saturate(.35) brightness(.72)}
+/* En vérification */
+.ipcard[data-state=pending] .ipcard-status{color:#F6D48C}
+.ipcard[data-state=pending] .ipcard-status .ic-lock{animation:ipBreath 2.2s ease-in-out infinite}
+/* Ouverture */
+.ipcard[data-state=unlocking] .ipcard-status .shackle{transform:translateY(-2.5px) rotate(-28deg)}
+.ipcard[data-state=unlocking] .ipcard-face{animation:ipPop .9s cubic-bezier(.2,.8,.2,1)}
+.ipcard[data-state=unlocking] .ipcard-face::after{opacity:1;animation:ipSweep .9s ease-out}
+.ipcard[data-state=unlocking] .ipcard-burst{animation:ipBurst .9s ease-out}
+/* Active */
+.ipcard[data-state=active] .ipcard-status{color:#0b0d0b;background:#91D6D0;border-color:#91D6D0}
+.ipcard[data-state=active] .ipcard-status .ic-lock{display:none}
+.ipcard[data-state=active] .ipcard-status .ic-ok{display:block}
+.ipcard[data-state=active] .ipcard-face{box-shadow:0 28px 60px rgba(0,0,0,.62),0 0 60px rgba(240,197,117,.26),inset 0 1px 0 rgba(255,255,255,.14);border-color:rgba(246,212,140,.7)}
+.ipcard[data-state=active] .ipcard-face::after{opacity:1;animation:ipSweep 5.8s ease-in-out 1s infinite}
+.ipcard.just-opened .ipcard-face{animation:ipPop .9s cubic-bezier(.2,.8,.2,1),ipTilt 9s ease-in-out .9s infinite}
+
+@keyframes ipTilt{0%,100%{transform:rotateX(4deg) rotateY(-7deg)}50%{transform:rotateX(-2deg) rotateY(7deg)}}
+@keyframes ipPop{0%{transform:scale(1)}40%{transform:scale(1.06) rotateY(-10deg)}100%{transform:scale(1)}}
+@keyframes ipSweep{0%,52%{left:-60%}100%{left:130%}}
+@keyframes ipBurst{0%{transform:scale(.4);opacity:.9}100%{transform:scale(3.4);opacity:0}}
+@keyframes ipBreath{50%{opacity:.45}}
+@media (prefers-reduced-motion:reduce){.ipcard *,.ipcard *::before,.ipcard *::after,.ipcard-face,.ipcard-face::before,.ipcard-face::after{animation:none!important;transition:none!important}}

@@ -80,6 +80,11 @@ function fixture({ authorized = true, adminAuthorized = true, confirmed = true, 
     "@/lib/vip/access-confirmations": { async deliverVipAccessConfirmations() { return { sent: 0 }; } },
     "@/lib/vip/request-completion-notifications": { async deliverVipRequestCompletionNotifications() { return {}; } },
     "@/lib/vip/request-completions": completions,
+    "@/lib/telegram/server": { async telegram(method, body) { calls.telegram = [...(calls.telegram || []), { method, body }]; return {}; } },
+    "@/lib/vip/admin-request-alert": {
+      async notifyAdminNewVipRequest(row) { calls.alerts = [...(calls.alerts || []), { kind: "new", row }]; },
+      async notifyAdminExistingMemberApproved(row) { calls.alerts = [...(calls.alerts || []), { kind: "approved", row }]; },
+    },
     "@/lib/admin/permissions": { async authenticateAdmin(_request, permission) {
       calls.permissions.push(permission);
       return adminAuthorized ? { user: { id: adminId }, admin: db } : { error: "Accès refusé", status: 403 };

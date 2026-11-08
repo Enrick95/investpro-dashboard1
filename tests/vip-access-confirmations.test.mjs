@@ -473,6 +473,8 @@ function approvalRouteFixture(file, options = {}) {
     "@/lib/admin/permissions": { authenticateAdmin: authenticate },
     "@/lib/vip/access-requests": accessRequests,
     "@/lib/vip/request-completions": completions,
+    "@/lib/telegram/server": { async telegram() { return {}; } },
+    "@/lib/vip/admin-request-alert": { async notifyAdminNewVipRequest() {}, async notifyAdminExistingMemberApproved() {} },
     "@/lib/vip/request-completion-notifications": { async deliverVipRequestCompletionNotifications() { return {}; } },
     "@/lib/vip/identity": identity,
     "@/lib/vip/membership": membership,

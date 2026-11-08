@@ -96,7 +96,7 @@ function RequestReview({ request, onRefresh }: { request: VipAccessRequest; onRe
     <header className={r.sheetHead}>
       <span className={r.bigAvatar} data-kind={kindOf(request)} aria-hidden="true">{initials(request)}</span>
       <div className={r.sheetWho}><h3>{request.first_name} {request.last_name}</h3><p>{text("Demande envoyée ", "Sent ")}{vipDate(request.created_at, locale)} · {request.member_intake ? text("nouveau membre (affiliation)", "new member (referral)") : isNew ? text("nouvelle adhésion", "new application") : text("déjà membre Telegram", "existing Telegram member")}</p></div>
-      <span className={r.typePill} data-kind={kindOf(request)}>{request.type === "abonnement" ? text("Abonnement 80 €/mois", "Subscription €80/month") : (tr("Affiliation · ") + (vipAffiliationBrokerLabel(request.affiliation_broker) || tr("Broker à confirmer")))}</span>
+      <span className={r.typePill} data-kind={kindOf(request)}>{request.type === "abonnement" ? text("Abonnement 80 €/mois", "Subscription €80/month") : request.request_kind !== "new" && !request.affiliation_broker ? text("Déjà membre · origine à confirmer", "Existing member · origin to confirm") : (tr("Affiliation · ") + (vipAffiliationBrokerLabel(request.affiliation_broker) || tr("Broker à confirmer")))}</span>
     </header>
     <div className={r.contactRow}>
       {request.phone_whatsapp && <a className={r.btnWa} href={`https://wa.me/${request.phone_whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noreferrer">WhatsApp</a>}
