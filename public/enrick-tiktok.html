@@ -47,7 +47,7 @@ img{max-width:100%;display:block}
 .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;margin-top:22px}
 .stats div{display:flex;flex-direction:column;gap:2px}
 .stats div+div{border-left:1px solid var(--line)}
-.stats b{font-family:'Unbounded',sans-serif;font-size:20px}
+.stats b{font-family:'Unbounded',sans-serif;font-size:20px;font-variant-numeric:tabular-nums;white-space:nowrap}
 .stats span{font-size:12px;color:var(--mute)}
 .hook{margin:26px 0 0;font-weight:600;font-size:21px;line-height:1.3;text-wrap:balance}
 .sub{margin:12px 0 0;max-width:330px;font-size:15px;line-height:1.55;color:var(--mute)}
@@ -179,9 +179,9 @@ footer nav{display:flex;justify-content:center;gap:18px;font-size:13px;color:var
     <h1 class="name display">Enrick</h1>
     <span class="handle">@enrick95__</span>
     <div class="stats">
-      <div><b>40 k</b><span>abonnés TikTok</span></div>
-      <div><b>3 990</b><span>sur Telegram</span></div>
-      <div><b>7 ans</b><span>de trading</span></div>
+      <div><b data-to="40000">40 000</b><span>abonnés TikTok</span></div>
+      <div><b data-to="3990">3 990</b><span>sur Telegram</span></div>
+      <div><b data-to="7" data-suffix=" ans">7 ans</b><span>de trading</span></div>
     </div>
     <p class="hook display">Ce que je ne montre pas sur TikTok, je le partage sur Telegram.</p>
     <p class="sub">Mes analyses en H4, l’annonce des lives et les trades du VIP. Le canal est gratuit.</p>
@@ -318,7 +318,7 @@ footer nav{display:flex;justify-content:center;gap:18px;font-size:13px;color:var
   <section class="end" id="fin">
     <h2 style="font-size: 26px;">La suite se passe sur Telegram.</h2>
     <a class="btn gold" href="https://t.me/+mAcBYu895IxiMTdk" data-tg>Rejoindre mon Telegram</a>
-    <span style="font-size: 14px; color: var(--mute);">3 990 personnes l’ont déjà rejoint</span>
+    <span style="font-size: 14px; color: var(--mute);"><span data-to="3990" style="font-variant-numeric: tabular-nums;">3 990</span> personnes l’ont déjà rejoint</span>
   </section>
 
   <footer>
@@ -389,6 +389,33 @@ footer nav{display:flex;justify-content:center;gap:18px;font-size:13px;color:var
   }
   updateOffer();
   setInterval(updateOffer, 60000);
+
+  // The figures at the top count up from 0 as they come into view, as on /enrick.
+  var reduceMotion = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function figure(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " "); }
+  function countUp(el) {
+    var to = +el.dataset.to, suffix = el.dataset.suffix || "", start = null;
+    function step(time) {
+      if (start === null) start = time;
+      var progress = Math.min(1, (time - start) / 1600), eased = 1 - Math.pow(1 - progress, 3);
+      el.textContent = figure(Math.round(to * eased)) + suffix;
+      if (progress < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+  if (!reduceMotion && "IntersectionObserver" in window) {
+    var counting = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        counting.unobserve(entry.target);
+        countUp(entry.target);
+      });
+    });
+    document.querySelectorAll("[data-to]").forEach(function (el) {
+      el.textContent = "0" + (el.dataset.suffix || "");
+      counting.observe(el);
+    });
+  }
 
   // The gallery moves on its own; it can be paused.
   var gallery = document.getElementById("gallery"), pause = document.getElementById("pause");
