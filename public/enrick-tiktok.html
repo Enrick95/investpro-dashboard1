@@ -105,8 +105,20 @@ h2{margin:0;font-family:'Unbounded',sans-serif;font-weight:800;font-size:22px;li
 .quotes blockquote{margin:0;font-size:15px;line-height:1.5}
 .quotes figcaption{margin-top:8px;font-size:13px;font-weight:700;color:var(--teal)}
 
-/* Results */
-.results{margin:48px 16px 0;padding:22px 20px;border-radius:22px;background:var(--card);border:1px solid var(--line)}
+/* VIP results: the real tracking page, live, inside a phone */
+.phone-wrap{position:relative;width:300px;max-width:100%;margin:40px auto 0;isolation:isolate}
+.phone-wrap::before{content:"";position:absolute;inset:16% 0 24%;z-index:-1;border-radius:50%;background:rgba(240,197,117,.08);filter:blur(32px)}
+.live{position:absolute;top:-17px;left:50%;z-index:2;transform:translateX(-50%);display:inline-flex;align-items:center;gap:8px;white-space:nowrap;padding:7px 14px;border-radius:999px;background:var(--card);border:1px solid var(--line2);font-size:12px;font-weight:700;color:var(--soft)}
+.live .dot{width:7px;height:7px;border-radius:50%;background:var(--teal);animation:blink 1.6s ease-in-out infinite}
+@keyframes blink{50%{opacity:.25}}
+.phone{padding:10px;border-radius:46px;background:#050707;border:2px solid var(--line2);box-shadow:0 40px 80px rgba(0,0,0,.55)}
+.screen{display:flex;flex-direction:column;height:600px;overflow:hidden;border-radius:37px;background:#0b0f0e}
+.view{position:relative;flex:1 1 auto;min-height:0;overflow:hidden}
+.view iframe{display:block;width:390px;height:760px;border:0;transform:scale(.708);transform-origin:0 0}
+.tabbar{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:10px 12px 14px;background:var(--ink);border-top:1px solid #1f2724}
+.tab{display:flex;flex-direction:column;align-items:center;gap:2px;padding:0 6px;font-size:10px;font-weight:800;color:var(--gold)}
+.tabbar a{flex:1 1 auto;display:flex;align-items:center;justify-content:center;min-height:44px;border-radius:12px;background:var(--gold);color:var(--dark);font-size:14px;font-weight:800}
+.full{display:flex;justify-content:center;margin-top:18px;font-size:15px;font-weight:700;color:var(--gold)}
 .btn{display:flex;align-items:center;justify-content:center;gap:10px;min-height:54px;border-radius:15px;font-weight:800;font-size:16px}
 .btn.gold{background:var(--gold);color:var(--dark)}
 .btn.line{border:1px solid var(--line2);font-weight:700;font-size:15px}
@@ -186,10 +198,10 @@ footer nav{display:flex;justify-content:center;gap:18px;font-size:13px;color:var
       <span class="tx"><b>Tester le VIP sans dépôt</b><span>Compte démo, jusqu’au 30 novembre</span></span>
       <span class="chip offer-left">30 nov.</span>
     </a>
-    <a class="lk" href="https://investprotrading.fr/dashboard/performances-vip">
+    <a class="lk" href="#resultats">
       <span class="ic" style="background: rgba(145,214,208,.12);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#91D6D0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg></span>
-      <span class="tx"><b>Les résultats du VIP</b><span>Chaque trade, gagnant ou perdant</span></span>
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8f9d93" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M9 7h8v8"/></svg>
+      <span class="tx"><b>Les résultats du VIP</b><span>Chaque trade, en direct</span></span>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8f9d93" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
     </a>
     <a class="lk" href="#histoire">
       <span class="ic" style="background: rgba(246,242,232,.08);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f6f2e8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span>
@@ -269,14 +281,24 @@ footer nav{display:flex;justify-content:center;gap:18px;font-size:13px;color:var
     </div>
   </section>
 
-  <div class="results">
-    <h2>Les résultats du VIP, sans filtre</h2>
-    <p class="lead">Chaque trade clôturé du VIP, gagnant ou perdant, avec son résultat, mis à jour en direct.</p>
-    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 16px;">
-      <a class="btn line" href="https://investprotrading.fr/dashboard/performances-vip">Voir le suivi complet ↗</a>
+  <section id="resultats" aria-labelledby="t-resultats">
+    <h2 id="t-resultats">Les résultats du VIP, sans filtre</h2>
+    <p class="lead">Ce téléphone affiche ma vraie page de suivi InvestPro : chaque trade clôturé du VIP, gagnant ou perdant. Fais défiler, change de période : tout est en direct.</p>
+    <div class="phone-wrap">
+      <span class="live"><span class="dot" aria-hidden="true"></span>L’app InvestPro, en direct</span>
+      <div class="phone">
+        <div class="screen">
+          <div class="view"><iframe id="perfFrame" src="/dashboard/performances-vip" title="Performances du VIP, en direct" loading="lazy"></iframe></div>
+          <div class="tabbar">
+            <span class="tab" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>Performance</span>
+            <a href="https://investprotrading.fr/vip">Rejoindre le VIP ↗</a>
+          </div>
+        </div>
+      </div>
+      <a class="full" href="https://investprotrading.fr/dashboard/performances-vip">Ouvrir en plein écran ↗</a>
     </div>
     <p class="small">Performances passées : elles ne garantissent pas les résultats futurs. Le trading comporte un risque de perte en capital.</p>
-  </div>
+  </section>
 
   <section id="histoire" aria-labelledby="t-histoire">
     <h2 id="t-histoire">Mon parcours en trois moments</h2>
@@ -377,6 +399,50 @@ footer nav{display:flex;justify-content:center;gap:18px;font-size:13px;color:var
     var paused = gallery.classList.toggle("paused");
     pause.setAttribute("aria-pressed", String(paused));
     pause.textContent = paused ? "Reprendre" : "Mettre en pause";
+  });
+
+  // The VIP results phone shows the real tracking page, scaled to fit its screen.
+  var frame = document.getElementById("perfFrame"), view = frame.parentNode;
+  function fit() {
+    var scale = view.clientWidth / 390;
+    if (!scale) return;
+    frame.style.transform = "scale(" + scale + ")";
+    frame.style.height = Math.ceil(view.clientHeight / scale) + "px";
+  }
+  fit();
+  if ("ResizeObserver" in window) new ResizeObserver(fit).observe(view);
+  else window.addEventListener("resize", fit);
+
+  frame.addEventListener("load", function () {
+    var doc;
+    try { doc = frame.contentDocument; } catch (error) { return; }
+    if (!doc || !doc.body) return;
+    // Only the page itself: no menus, support button or install banner.
+    var style = doc.createElement("style");
+    style.textContent = ".aura-topbar,.aura-sidebar,.ip-mobile-global-nav,.ip-support-floating{display:none!important}body{padding-bottom:0!important}";
+    doc.head.appendChild(style);
+    function hideBanners() {
+      doc.querySelectorAll('[class*="fixed"]').forEach(function (el) { if (/Ajoute l.app/.test(el.textContent)) el.style.display = "none"; });
+    }
+    hideBanners();
+    try { new MutationObserver(hideBanners).observe(doc.body, { childList: true, subtree: true }); } catch (error) {}
+
+    // Open on the last three months, so there is a real history to scroll through.
+    function range() { var found = doc.body.innerText.match(/\d{2} \S+ \d{4} → \d{2} \S+ \d{4}/); return found ? found[0] : ""; }
+    var first = null, tries = 0, timer = setInterval(function () {
+      tries++;
+      var button = [].slice.call(doc.querySelectorAll("button")).find(function (b) { return /^(3 mois|3 months)$/.test(b.textContent.trim()); });
+      var current = range();
+      if (first === null && current) first = current;
+      if (tries > 25 || (button && button.getAttribute("aria-pressed") === "true") || (first !== null && current && current !== first)) { clearInterval(timer); return; }
+      if (button && current) button.click();
+    }, 800);
+
+    // A tap on a link inside the phone opens the VIP page in the whole window.
+    doc.addEventListener("click", function (event) {
+      var link = event.target.closest && event.target.closest("a");
+      if (link) { event.preventDefault(); event.stopPropagation(); window.location.href = "/vip"; }
+    }, true);
   });
 
   // The bottom bar appears once the first buttons are out of view, and leaves at the last call to join.
