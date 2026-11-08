@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { Bell, Bookmark, RefreshCw } from "lucide-react";
+import { ArrowUpRight, Bell, BellRing, Bookmark, CalendarDays, ChevronLeft, Copy, MessageSquare, TrendingUp, UserRound } from "lucide-react";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { vipRequest } from "@/lib/vip/client";
 import { buildVipPerformanceReport, type ReportRow, type ReportTrade } from "@/lib/vip/performance-report";
@@ -10,12 +10,16 @@ import { signalFreeText, signalTakeProfit3, vipSignalOrder } from "@/lib/vip/pub
 import { riskSignalHref } from "@/lib/vip/signal-risk-preset";
 import type { VipMembership, VipPost, VipPostCategory, VipPostReactions, VipReaction } from "@/lib/vip/types";
 import type { PublicVipPerformanceTrade } from "@/lib/vip/public-performance";
+import VipJournal from "./VipJournal";
+import VipCompte from "./VipCompte";
+import { sizeSignal, useVipMember, type SignalSize, type VipMember } from "./vipMember";
+import { espaceFont } from "./espaceFont";
 import s from "./VipEspace.module.css";
 
 /** Every place a member can open in the space. `all` is the default feed. */
 export type VipChannel = "all" | "signal" | "analysis" | "followup" | "performance" | "partnership" | "telegram" | "chat" | "favorites" | "risk" | "training";
-type EspaceTab = "fil" | "salle" | "telephone";
-type SalleFilter = "all" | "followup" | "analysis" | "performance";
+/** The four sections of the VIP application, in the order of the bottom bar. */
+export type EspaceSection = "signaux" | "canal" | "journal" | "compte";
 type Lang = "fr" | "en";
 type Translate = (message: string) => string;
 type Perf = { status: "loading" | "ready" | "error"; trades: PublicVipPerformanceTrade[] };
@@ -39,76 +43,48 @@ export type VipEspaceProps = {
   onRefresh: () => void;
   /** Keeps the portal's own copy of the posts in step when a favourite changes. */
   onFavoriteChange?: (postId: string, favorite: boolean) => void;
-  /** Account tools, shown at the foot of the presentation that is open. */
+  /** Installation help and support, shown in the Compte section. */
   accountTools?: ReactNode;
   /** Chat, favourites and Telegram, rendered by the portal under its own access rules. */
   channelContent: ReactNode;
-  /** The language switch of the portal, kept in the top bar of the space. */
+  /** The language switch of the portal, shown in the Compte section. */
   languageControl?: ReactNode;
-  /** The tab the space opens on; La salle des signaux by default. */
-  initialTab?: EspaceTab;
+  /** The section the application opens on; Signaux, or Canal when a channel is already open. */
+  initialSection?: EspaceSection;
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const RENEWAL_NOTICE_MS = 30 * DAY_MS;
 /** A signal stays open for two weeks unless a trade of the same instrument and side closes it in the public figures. */
 const OPEN_WINDOW_MS = 14 * DAY_MS;
-/** Team posts are signed as in the maquettes. */
-const TEAM_AUTHOR = "Enrick";
+/** The only page outside the application: the full lot calculator. */
+const CALCULATOR_HREF = "/dashboard/simulateur";
+/** An update that asks to move the stop to the entry. */
+const BREAKEVEN = /\bBE\b|break[\s-]?even|point d[’']entr[ée]e/i;
 /** Channels whose publications the space draws itself; the portal only supplies the other channels. */
 export const feedChannels: VipChannel[] = ["all", "signal", "analysis", "followup", "performance", "partnership"];
-/** The rail of the maquette: the channels of the feed, then the member’s own links. */
-const railChannels: { channel: VipChannel; label: string }[] = [
-  { channel: "all", label: "Tout le canal" },
-  { channel: "signal", label: "Signaux" },
-  { channel: "analysis", label: "Analyses" },
-  { channel: "followup", label: "Suivi des trades" },
-  { channel: "performance", label: "Bilans" },
-  { channel: "chat", label: "Discussion" },
+
+const sections: { key: EspaceSection; label: string }[] = [
+  { key: "signaux", label: "Signaux" },
+  { key: "canal", label: "Canal" },
+  { key: "journal", label: "Journal" },
+  { key: "compte", label: "Compte" },
 ];
-const tabs: { key: EspaceTab; label: string }[] = [
-  { key: "salle", label: "La salle des signaux" },
-  { key: "fil", label: "Le fil" },
-  { key: "telephone", label: "Le téléphone" },
-];
-const salleFilters: { key: SalleFilter; label: string }[] = [
-  { key: "all", label: "Tout" },
-  { key: "followup", label: "Suivi" },
-  { key: "analysis", label: "Analyse" },
-  { key: "performance", label: "Bilan" },
-];
-const channelTitles: Record<VipChannel, string> = {
-  all: "Tout le canal", signal: "Signaux", analysis: "Analyses", followup: "Suivi des trades", performance: "Bilans",
-  partnership: "Partenariats", telegram: "Telegram", chat: "Discussion", favorites: "Mes favoris", risk: "Calculer mon lot", training: "Formation & coaching",
-};
-const channelIntros: Record<VipChannel, string> = {
-  all: "Seule l’équipe publie. Les membres peuvent réagir.",
-  signal: "Les idées structurées de l’équipe.",
-  analysis: "Le contexte, les zones et les graphiques.",
-  followup: "Les mises à jour des idées partagées.",
-  performance: "Le récapitulatif partagé avec le groupe.",
-  partnership: "Les présentations et avantages des partenaires.",
-  telegram: "Le lien avec ton canal privé.",
-  chat: "Les échanges entre membres du VIP.",
-  favorites: "Vos analyses, signaux et publications enregistrés.",
-  risk: "Préparer son lot avant la prise de position.",
-  training: "Les prochaines expériences du cercle.",
-};
+const sectionIcons: Record<EspaceSection, typeof TrendingUp> = { signaux: TrendingUp, canal: MessageSquare, journal: CalendarDays, compte: UserRound };
 const emptyTitles: Partial<Record<VipChannel, string>> = {
-  all: "Les premières publications apparaîtront ici.",
-  analysis: "Vos prochaines analyses apparaîtront ici.",
-  signal: "Vos prochains signaux apparaîtront ici.",
-  performance: "Vos prochains bilans apparaîtront ici.",
+  all: "Les publications de l’équipe apparaîtront ici.",
+  analysis: "Les prochaines analyses apparaîtront ici.",
+  signal: "Les prochains signaux apparaîtront ici.",
+  performance: "Les prochains bilans apparaîtront ici.",
   followup: "Les prochaines mises à jour apparaîtront ici.",
   partnership: "Les prochains partenariats apparaîtront ici.",
 };
 const categoryNames: Record<VipPostCategory, string> = { signal: "Signal", analysis: "Analyse", performance: "Bilan", followup: "Suivi", partnership: "Partenariat" };
-const categoryTone: Record<VipPostCategory, string> = { signal: "tagSignal", analysis: "tagAnalysis", performance: "tagPerformance", followup: "tagFollowup", partnership: "tagPartnership" };
+const categoryTone: Record<VipPostCategory, string> = { signal: "kSignal", analysis: "kAnalysis", performance: "kPerformance", followup: "kFollowup", partnership: "kPartnership" };
 const reactionLabels: Record<VipReaction, string> = { like: "J’aime", fire: "Flamme", heart: "Cœur" };
 const reactionEmoji: Record<VipReaction, string> = { like: "👍", fire: "🔥", heart: "❤️" };
 const noReactions: VipPostReactions = { counts: { like: 0, fire: 0, heart: 0 }, mine: null };
-const statusClass: Record<Tone, string> = { open: "statusOpen", win: "statusWin", loss: "statusLoss", be: "statusBe" };
-const textClass: Record<Tone, string> = { open: "blue", win: "win", loss: "loss", be: "be" };
+const toneClass: Record<Tone, string> = { open: "gold", win: "gain", loss: "loss", be: "muted" };
 
 /** Within the span before now. A post or a signal dated in the future counts as just published. */
 function isWithin(post: VipPost, now: number, span: number): boolean {
@@ -231,8 +207,12 @@ function levelPairs(post: VipPost): [string, number][] {
   return pairs.filter((pair): pair is [string, number] => typeof pair[1] === "number" && Number.isFinite(pair[1]));
 }
 
+function levelOf(post: VipPost, label: string): number | undefined {
+  return levelPairs(post).find(([name]) => name === label)?.[1];
+}
+
 function outcomeLabel(row: ReportRow, t: Translate): string {
-  if (row.outcome.startsWith("TP")) return `${row.outcome} ✓`;
+  if (row.outcome.startsWith("TP")) return row.outcome;
   if (row.outcome === "WIN") return t("Gain");
   if (row.outcome === "LOSS") return t("Stop");
   return "BE";
@@ -243,37 +223,10 @@ function outcomeTone(row: ReportRow): Tone {
   return row.outcome === "LOSS" ? "loss" : "be";
 }
 
-/** A signal shows its closing outcome when the public figures have one, and is open for two weeks otherwise. */
+/** A signal shows its closing outcome when the public figures have one, and is in progress for two weeks otherwise. */
 function signalState(post: VipPost, closure: ReportRow | undefined, now: number, t: Translate): { label: string; tone: Tone } | null {
   if (closure) return { label: outcomeLabel(closure, t), tone: outcomeTone(closure) };
   return isWithin(post, now, OPEN_WINDOW_MS) ? { label: t("En cours"), tone: "open" } : null;
-}
-
-/** Target reached by a closed trade: TP2 means TP1 and TP2 were hit. */
-function targetsHit(closure: ReportRow | undefined): number {
-  return closure && closure.outcome.startsWith("TP") ? Number(closure.outcome.slice(2)) : 0;
-}
-
-/** Rank of a target label (TP1 to TP3); 0 for any other level. */
-function targetRank(label: string): number {
-  return /^TP[1-3]$/.test(label) ? Number(label.slice(2)) : 0;
-}
-
-/** A target the trade has reached: its rank is within the number of targets hit. */
-function reached(label: string, hit: number): boolean {
-  const rank = targetRank(label);
-  return rank > 0 && rank <= hit;
-}
-
-/** Tile class of a price level: the stop in red, a reached target in green. */
-function levelClass(label: string, hit: number): string | undefined {
-  if (label === "Stop") return s.levelStop;
-  return reached(label, hit) ? s.levelHit : undefined;
-}
-
-/** A signal with a closing result in the public figures: only such a signal takes the gold frame. */
-function hasResult(post: VipPost, closed: ReportRow[]): boolean {
-  return closureOf(post, closed) !== undefined;
 }
 
 function safeImage(value?: string | null): string | null {
@@ -288,37 +241,140 @@ function safeImage(value?: string | null): string | null {
 function formatters(lang: Lang) {
   const tag = lang === "en" ? "en-US" : "fr-FR";
   const ratio = new Intl.NumberFormat(tag, { minimumFractionDigits: 1, maximumFractionDigits: 2 });
-  // Prices keep the dot of the maquettes whatever the interface language; whole prices have no decimals.
+  // Prices keep the dot of the signals whatever the interface language; whole prices have no decimals.
   const decimals = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 5 });
   const whole = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
   const clock = new Intl.DateTimeFormat(tag, { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "Europe/Paris" });
   const weekday = new Intl.DateTimeFormat(tag, { weekday: "short", timeZone: "Europe/Paris" });
+  const today = new Intl.DateTimeFormat(tag, { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Paris" });
   const long = new Intl.DateTimeFormat(tag, { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Paris" });
   const valid = (value: string) => Number.isFinite(Date.parse(value));
   return {
+    tag,
     clock: (value: string) => valid(value) ? clock.format(new Date(value)) : "—",
-    day: (value: string) => valid(value) ? weekday.format(new Date(value)) : "—",
     dateTime: (value: string) => valid(value) ? `${weekday.format(new Date(value))} ${clock.format(new Date(value))}` : "—",
+    today: (value: number) => { const text = today.format(new Date(value)); return text.charAt(0).toUpperCase() + text.slice(1); },
     long: (value: number) => long.format(new Date(value)),
     price: (value: number) => (Number.isInteger(value) ? whole.format(value) : decimals.format(value)).replace(/,/g, " "),
-    r: (value: number | null) => value === null ? "—" : `${value > 0 ? "+" : ""}${ratio.format(value)} R`,
+    r: (value: number | null) => value === null ? "—" : `${value > 0 ? "+" : value < 0 ? "−" : ""}${ratio.format(Math.abs(value))} R`,
     pct: (value: number | null) => value === null ? "—" : `${Math.round(value)}${lang === "en" ? "%" : " %"}`,
+    money: (value: number, currency: string) => {
+      try { return new Intl.NumberFormat(tag, { style: "currency", currency, maximumFractionDigits: 0 }).format(value); }
+      catch { return `${Math.round(value)} ${currency}`; }
+    },
   };
 }
 type Formatters = ReturnType<typeof formatters>;
-
-/** A list row: today’s publications show their time, older ones their day. */
-function stamp(post: VipPost, now: number, fmt: Formatters): string {
-  return isRecent(post, now) ? fmt.clock(post.created_at) : fmt.day(post.created_at);
-}
 
 /** A card: today’s publications show their time, older ones their day and time. */
 function when(post: VipPost, now: number, fmt: Formatters): string {
   return isRecent(post, now) ? fmt.clock(post.created_at) : fmt.dateTime(post.created_at);
 }
 
-function pillTone(side: Side): string {
-  return side === "sell" ? "sell" : side === "buy" ? "buy" : "neutral";
+/** How long ago a signal was published, for the head of a trade. */
+function since(post: VipPost, now: number, fmt: Formatters, t: Translate): string {
+  const created = Date.parse(post.created_at);
+  const minutes = Math.max(0, Math.round((now - created) / 60000));
+  if (!Number.isFinite(minutes)) return "";
+  if (minutes < 1) return t("publié à l’instant");
+  if (minutes < 60) return `${t("publié il y a")} ${minutes} min`;
+  if (minutes < 24 * 60) return `${t("publié il y a")} ${Math.floor(minutes / 60)} h`;
+  return `${t("publié")} ${fmt.dateTime(post.created_at)}`;
+}
+
+function sideLabel(side: Side, t: Translate): string {
+  return side === "sell" ? t("Vente") : side === "buy" ? t("Achat") : "";
+}
+
+/** The levels of a signal in the order MetaTrader asks for them, ready to paste. */
+function levelsText(post: VipPost): string {
+  const order = vipSignalOrder(post);
+  const parts = [post.symbol || post.title || "", order?.side === "sell" ? "SELL" : order?.side === "buy" ? "BUY" : ""];
+  for (const [label, value] of levelPairs(post)) parts.push(label === "Entrée" ? String(value) : `${label === "Stop" ? "SL" : label} ${value}`);
+  return parts.filter(Boolean).join(" ");
+}
+
+/** Where the London and New York sessions stand, in Paris time. */
+function zoned(now: number, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone, weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(now));
+  const get = (type: string) => parts.find(part => part.type === type)?.value ?? "";
+  return { day: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(get("weekday")), minutes: Number(get("hour")) * 60 + Number(get("minute")) };
+}
+
+function marketLine(now: number, t: Translate) {
+  const paris = zoned(now, "Europe/Paris");
+  const read = (zone: string, open: number, close: number) => {
+    const local = zoned(now, zone);
+    // How far Paris is ahead of this exchange, between −12 h and +12 h.
+    const shift = ((paris.minutes - local.minutes) % 1440 + 1440 + 720) % 1440 - 720;
+    const weekday = local.day >= 1 && local.day <= 5;
+    return { weekday, open: weekday && local.minutes >= open && local.minutes < close, before: weekday && local.minutes < open, from: open + shift, to: close + shift };
+  };
+  const london = read("Europe/London", 8 * 60, 16 * 60 + 30);
+  const newYork = read("America/New_York", 9 * 60 + 30, 16 * 60);
+  const clock = (minutes: number) => `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, "0")}`;
+  let text: string;
+  if (!london.weekday && !newYork.weekday) text = t("Week-end · marchés fermés");
+  else if (london.open && newYork.open) text = t("Londres et New York ouvertes");
+  else if (newYork.open) text = t("New York ouverte");
+  else if (london.open) text = `${t("Londres ouverte")} · ${t("New York à")} ${clock(newYork.from)}`;
+  else if (london.before) text = `${t("Londres ouvre à")} ${clock(london.from)}`;
+  else text = t("Séances de Londres et New York terminées");
+  return { text, london: [london.from, london.to], newYork: [newYork.from, newYork.to], now: paris.minutes };
+}
+
+type Rung = { label: string; price: number; r: number | null; kind: "target" | "entry" | "stop"; y: number };
+
+/** The levels of a trade placed at their real price, highest at the top, with what each is worth in R. */
+function ladder(post: VipPost, area: number, top: number): { rungs: Rung[]; height: number; profit?: [number, number]; risk?: [number, number] } | null {
+  const levels = levelPairs(post);
+  const entry = levelOf(post, "Entrée");
+  const stop = levelOf(post, "Stop");
+  if (entry === undefined || levels.length < 2) return null;
+  const side = vipSignalOrder(post)?.side;
+  const risk = stop === undefined ? 0 : Math.abs(entry - stop);
+  const direction = side === "sell" ? -1 : 1;
+  const prices = levels.map(([, price]) => price);
+  const highest = Math.max(...prices), lowest = Math.min(...prices);
+  const span = highest - lowest || 1;
+  const placed = levels.map(([label, price]): Rung => ({
+    label, price,
+    r: label === "Entrée" || !risk ? null : ((price - entry) / risk) * direction,
+    kind: label === "Entrée" ? "entry" : label === "Stop" ? "stop" : "target",
+    y: top + ((highest - price) / span) * area,
+  })).sort((a, b) => a.y - b.y);
+  // Two levels close in price still get their own line and their own price tag.
+  for (let index = 1; index < placed.length; index += 1) placed[index].y = Math.max(placed[index].y, placed[index - 1].y + 28);
+  const yOf = (kind: Rung["kind"]) => placed.filter(rung => rung.kind === kind).map(rung => rung.y);
+  const entryY = yOf("entry")[0];
+  const targets = yOf("target");
+  const stops = yOf("stop");
+  const farTarget = targets.length ? (side === "sell" ? Math.max(...targets) : Math.min(...targets)) : undefined;
+  return {
+    rungs: placed,
+    height: placed[placed.length - 1].y + 16,
+    profit: farTarget === undefined ? undefined : [Math.min(entryY, farTarget), Math.max(entryY, farTarget)],
+    risk: stops.length ? [Math.min(entryY, stops[0]), Math.max(entryY, stops[0])] : undefined,
+  };
+}
+
+/** Updates of a signal: the team’s note in the signal itself, then the follow-ups about the same instrument. */
+function threadUpdates(post: VipPost, posts: VipPost[]): { id: string; at: number; title: string; text: string }[] {
+  const symbol = (post.symbol || "").trim().toUpperCase();
+  const created = Date.parse(post.created_at);
+  const items: { id: string; at: number; title: string; text: string }[] = [];
+  const note = signalFreeText(post.body || "");
+  if (note) items.push({ id: `${post.id}:note`, at: created, title: "Note de l’équipe", text: note });
+  if (symbol && Number.isFinite(created)) {
+    for (const other of posts) {
+      if (other.category !== "followup") continue;
+      const at = Date.parse(other.created_at);
+      if (!Number.isFinite(at) || at < created || at - created > OPEN_WINDOW_MS) continue;
+      const about = (other.symbol || "").trim().toUpperCase() === symbol || `${other.title} ${other.body}`.toUpperCase().includes(symbol);
+      if (about) items.push({ id: other.id, at, title: other.title || "Mise à jour", text: other.body });
+    }
+  }
+  return items.sort((a, b) => a.at - b.at);
 }
 
 type Actions = {
@@ -335,33 +391,40 @@ type Ctx = {
   now: number;
   view: VipChannel;
   onSelect: (channel: VipChannel) => void;
-  onTab: (tab: EspaceTab) => void;
+  go: (section: EspaceSection, channel?: VipChannel, postId?: string) => void;
+  openThread: (postId: string | null) => void;
+  copyLevels: (post: VipPost) => void;
   posts: VipPost[];
   stats: Stats;
   perf: Perf;
+  member: VipMember;
   note: ReturnType<typeof membershipNote>;
-  firstName: string;
   busy: boolean;
   onRenew: () => void;
   alertsOn: boolean;
   alertsAvailable: boolean;
   onEnableAlerts: () => void;
   channelContent: ReactNode;
-  accountTools: ReactNode;
+  banner: ReactNode;
   actions: Actions;
 };
 
-/** Three presentations of one space, drawn from the validated maquettes. Only the portal decides what each channel may show. */
+/** The VIP application: Signaux, Canal, Journal and Compte, everything inside the space. Only the full lot calculator opens elsewhere. */
 export default function VipEspace(props: VipEspaceProps) {
-  const { view, onSelect, posts, membership, alertsOn, alertsAvailable, onEnableAlerts, busy, onRenew, refreshKey, loading, onRefresh, onFavoriteChange, accountTools, channelContent, languageControl, initialTab = "salle" } = props;
+  const { view, onSelect, posts, membership, alertsOn, alertsAvailable, onEnableAlerts, busy, onRenew, refreshKey, onFavoriteChange, accountTools, channelContent, languageControl, initialSection } = props;
   const { t, locale } = useLocale();
   const lang: Lang = locale === "en" ? "en" : "fr";
-  const [tab, setTab] = useState<EspaceTab>(initialTab);
+  const member = useVipMember();
+  // A member who was in a channel (the chat, say) when the space reloads finds Canal again; everyone else starts on Signaux.
+  const [section, setSection] = useState<EspaceSection>(initialSection ?? (view === "all" ? "signaux" : "canal"));
+  const [thread, setThread] = useState<string | null>(null);
+  const [focusPost, setFocusPost] = useState<string | null>(null);
   const [perf, setPerf] = useState<Perf>({ status: "loading", trades: [] });
   const [reactionOverrides, setReactionOverrides] = useState<Record<string, { source: VipPostReactions | undefined; value: VipPostReactions }>>({});
   const [favoriteOverrides, setFavoriteOverrides] = useState<Record<string, { source: VipPost; value: boolean }>>({});
   const [pending, setPending] = useState<Record<string, boolean>>({});
   const [notice, setNotice] = useState("");
+  const [flash, setFlash] = useState("");
   const panel = useRef<HTMLDivElement>(null);
 
   // Public figures only: no member token is sent, and nothing private is read here.
@@ -381,7 +444,43 @@ export default function VipEspace(props: VipEspaceProps) {
     return () => controller.abort();
   }, [refreshKey]);
 
-  useEffect(() => { panel.current?.scrollTo({ top: 0 }); }, [view, tab]);
+  // A new section, channel or trade starts at the top, unless a publication was asked for.
+  useEffect(() => {
+    if (focusPost && typeof document !== "undefined") {
+      document.getElementById?.(`publication-${focusPost}`)?.scrollIntoView({ block: "start" });
+      return;
+    }
+    panel.current?.scrollTo?.({ top: 0 });
+  }, [view, section, thread, focusPost]);
+
+  // A confirmation fades after a few seconds.
+  useEffect(() => {
+    if (!flash || typeof setTimeout !== "function") return;
+    const timer = setTimeout(() => setFlash(""), 4000);
+    return () => clearTimeout(timer);
+  }, [flash]);
+
+  function go(next: EspaceSection, channel?: VipChannel, postId?: string) {
+    setSection(next);
+    setThread(null);
+    setFocusPost(postId ?? null);
+    if (channel) onSelect(channel);
+  }
+  function openThread(postId: string | null) {
+    setSection("signaux");
+    setFocusPost(null);
+    setThread(postId);
+  }
+  async function copyLevels(post: VipPost) {
+    const text = levelsText(post);
+    try {
+      if (typeof navigator === "undefined" || !navigator.clipboard) throw Error("Clipboard unavailable");
+      await navigator.clipboard.writeText(text);
+      setFlash(`${t("Niveaux copiés")} · ${text}`);
+    } catch {
+      setFlash(`${t("Copie ces niveaux :")} ${text}`);
+    }
+  }
 
   // A reaction or favourite the member just saved stays visible until the portal reloads the posts.
   function reactionsOf(post: VipPost): VipPostReactions {
@@ -430,151 +529,121 @@ export default function VipEspace(props: VipEspaceProps) {
   }
 
   const now = Date.now();
+  const fmt = formatters(lang);
+  const stats = computeStats(posts, perf.trades, now);
+  const openCount = stats.openSignals.length;
+  const banner = openCount > 0 ? <LiveBanner t={t} count={openCount} post={stats.openSignals[0]} onOpen={() => go("signaux")} /> : null;
   const actions: Actions = {
     reactions: reactionsOf, favorite: favoriteOf, pending: post => Boolean(pending[post.id]), react, toggleFavorite,
   };
   const ctx: Ctx = {
-    t, fmt: formatters(lang), now, view, onSelect, onTab: setTab, posts,
-    stats: computeStats(posts, perf.trades, now), perf, note: membershipNote(membership, now),
-    firstName: membership?.first_name?.trim() ?? "", busy, onRenew, alertsOn, alertsAvailable, onEnableAlerts,
-    channelContent, accountTools, actions,
+    t, fmt, now, view, onSelect, go, openThread, copyLevels: post => void copyLevels(post), posts, stats, perf, member,
+    note: membershipNote(membership, now), busy, onRenew, alertsOn, alertsAvailable, onEnableAlerts, channelContent, banner, actions,
   };
+  const threadPost = thread ? posts.find(post => post.id === thread && post.category === "signal") : undefined;
 
-  return <div className={s.espace}>
-    <div className={s.topbar}>
-      <div className={s.tabs} role="group" aria-label={t("Présentation de l’espace VIP")}>
-        {tabs.map(item => <button key={item.key} type="button" aria-pressed={tab === item.key} onClick={() => setTab(item.key)}>{t(item.label)}</button>)}
+  return <div className={`${s.espace} ${espaceFont}`}>
+    <div className={s.column}>
+      <div className={s.panel} ref={panel}>
+        {section === "signaux" ? (threadPost ? <Thread ctx={ctx} post={threadPost} /> : <Signaux ctx={ctx} />)
+          : section === "canal" ? <Canal ctx={ctx} />
+            : section === "journal" ? <VipJournal banner={banner} posts={posts} signalsMonthR={perf.status === "ready" && stats.monthClosed > 0 ? stats.monthTotalR : null} onOpenCompte={() => go("compte")} />
+              : <VipCompte banner={banner} membership={membership} member={member} alertsOn={alertsOn} alertsAvailable={alertsAvailable} onEnableAlerts={onEnableAlerts} busy={busy} onRenew={onRenew} languageControl={languageControl} accountTools={accountTools} onTelegram={() => go("canal", "telegram")} />}
       </div>
-      <div className={s.topActions}>
-        {languageControl}
-        <button type="button" className={s.refresh} onClick={onRefresh} disabled={loading} aria-label={t("Actualiser mon accès et les publications")} title={t("Actualiser")}><RefreshCw size={17} aria-hidden="true" /></button>
-      </div>
+      {notice ? <div className={s.toast} role="alert"><span>{t(notice)}</span><button type="button" onClick={() => setNotice("")}>{t("Fermer")}</button></div>
+        : flash ? <div className={s.toast} role="status"><span>{flash}</span><button type="button" onClick={() => setFlash("")}>{t("Fermer")}</button></div> : null}
+      <nav className={s.nav} aria-label={t("Navigation de l’espace VIP")}>
+        {sections.map(item => {
+          const Icon = sectionIcons[item.key];
+          return <button key={item.key} type="button" className={section === item.key ? s.navOn : undefined} aria-current={section === item.key ? "page" : undefined} onClick={() => go(item.key, item.key === "canal" && !feedChannels.includes(view) && view !== "chat" ? "all" : undefined)}>
+            <span className={s.navIcon}><Icon size={22} aria-hidden="true" />{item.key === "signaux" && openCount > 0 ? <span className={s.navBadge} aria-label={`${openCount} ${t(openCount > 1 ? "trades en cours" : "trade en cours")}`}>{openCount}</span> : null}</span>
+            {t(item.label)}
+          </button>;
+        })}
+      </nav>
     </div>
-    <div className={s.panel} ref={panel}>
-      {tab === "fil" ? <Fil ctx={ctx} /> : tab === "salle" ? <Salle ctx={ctx} /> : <Telephone ctx={ctx} />}
-    </div>
-    {notice ? <div className={s.toast} role="alert"><span>{t(notice)}</span><button type="button" onClick={() => setNotice("")}>{t("Fermer")}</button></div> : null}
-    {tab === "telephone" ? null : <PersonalNav ctx={ctx} className={s.mobileNav} />}
   </div>;
 }
 
-/* A · Le fil: the channel rail, the feed of the chosen channel, and the open trades and the month on the right. */
-function Fil({ ctx }: { ctx: Ctx }) {
-  const { t, view, posts, now, channelContent, alertsOn, alertsAvailable, onEnableAlerts, accountTools } = ctx;
-  const recentFor = (channel: VipChannel) => posts.filter(post => isRecent(post, now) && (channel === "all" || post.category === channel)).length;
-  const feedOpen = feedChannels.includes(view);
-  const fresh = feedOpen ? recentFor(view) : 0;
-  return <div className={s.fil}>
-    <nav className={s.rail} aria-label={t("Salons VIP")}>
-      <div className={s.brand}>
-        <span className={s.mark} aria-hidden="true">IP</span>
-        <div><b>VIP InvestPro</b><small><span aria-hidden="true">● </span>{t("Canal privé")}</small></div>
-      </div>
-      <div className={s.channels}>
-        {railChannels.map(item => <ChannelRow key={item.channel} ctx={ctx} channel={item.channel} label={item.label} marker="#" count={item.channel === "chat" ? 0 : recentFor(item.channel)} />)}
-      </div>
-      <div className={s.spacer} aria-hidden="true" />
-      <div className={s.tools}>
-        <ChannelRow ctx={ctx} channel="favorites" label="Mes favoris" marker="★" />
-        <ChannelRow ctx={ctx} channel="telegram" label="Telegram" />
-        <Link className={s.toolLink} href="/dashboard/simulateur">{t("Calculer mon lot")}</Link>
-        {alertsOn ? <p className={s.alertsOn}>{t("Alertes activées sur ce téléphone")} <span className={s.green}>✓</span></p>
-          : alertsAvailable ? <button type="button" className={s.alertsButton} onClick={onEnableAlerts}><Bell size={15} aria-hidden="true" />{t("Activer les alertes")}</button> : null}
-      </div>
-      <RailLinks ctx={ctx} />
-    </nav>
-    <main className={s.feed} aria-labelledby="vip-espace-channel">
-      <header className={s.feedHead}>
-        <h1 id="vip-espace-channel"><span aria-hidden="true">#</span> {t(channelTitles[view])}</h1>
-        <p>{t(feedOpen ? "Seule l’équipe publie · réagis avec 👍 🔥" : channelIntros[view])}</p>
-      </header>
-      <div className={s.feedBody}>
-        {fresh > 0 ? <p className={s.banner}>{`${fresh} ${t(fresh > 1 ? "nouvelles publications" : "nouvelle publication")}`}</p> : null}
-        {feedOpen ? <FeedStream ctx={ctx} /> : channelContent ?? <p className={s.empty}>{t("Cette rubrique n’est pas disponible.")}</p>}
-        <AccountSlot tools={accountTools} />
-      </div>
-    </main>
-    <aside className={s.side} aria-label={t("Repères")}>
-      <OpenTrades ctx={ctx} />
-      <SideMonth ctx={ctx} />
-      <div className={s.spacer} aria-hidden="true" />
-      <SideRenewal ctx={ctx} />
-    </aside>
-  </div>;
+/** Shown on every section but Signaux while a trade is in progress, so nobody misses it. */
+function LiveBanner({ t, count, post, onOpen }: { t: Translate; count: number; post?: VipPost; onOpen: () => void }) {
+  const order = post ? vipSignalOrder(post) : null;
+  const detail = count === 1 && post ? [post.symbol, sideLabel(order?.side, t)].filter(Boolean).join(" · ") : "";
+  return <button type="button" className={s.live} onClick={onOpen}>
+    <span className={s.dot} aria-hidden="true" />
+    <b>{count === 1 ? t("1 trade en cours") : `${count} ${t("trades en cours")}`}</b>
+    {detail ? <span className={s.liveDetail}>{detail}</span> : null}
+    <span className={s.liveGo} aria-hidden="true">›</span>
+  </button>;
 }
 
-function ChannelRow({ ctx, channel, label, marker, count = 0 }: { ctx: Ctx; channel: VipChannel; label: string; marker?: string; count?: number }) {
-  const on = ctx.view === channel;
-  return <div className={on ? `${s.channelRow} ${s.channelOn}` : s.channelRow}>
-    <button type="button" className={s.channelButton} aria-pressed={on} onClick={() => ctx.onSelect(channel)}>
-      {marker ? <span className={s.marker} aria-hidden="true">{marker} </span> : null}{ctx.t(label)}
-    </button>
-    {count > 0 ? <span className={channel === "followup" ? `${s.badge} ${s.badgeDark}` : s.badge}>{count}</span> : null}
-  </div>;
+function PageHead({ title, children }: { title: string; children?: ReactNode }) {
+  return <header className={s.head}><h1 className={s.pageTitle}>{title}</h1>{children}</header>;
 }
 
-function RailLinks({ ctx }: { ctx: Ctx }) {
-  const { t } = ctx;
-  return <div className={s.railLinks} role="group" aria-label={t("Mes outils InvestPro")}>
-    <Link href="/dashboard">{t("Tableau de bord")}</Link>
-    <Link href="/dashboard/journal">{t("Journal")}</Link>
-    <Link href="/dashboard/comptes">{t("Comptes")}</Link>
-    <Link href="/dashboard/profil">{t("Profil")}</Link>
-  </div>;
+function Sessions({ ctx }: { ctx: Ctx }) {
+  const market = marketLine(ctx.now, ctx.t);
+  const at = (minutes: number) => `${Math.min(100, Math.max(0, (minutes / 1440) * 100))}%`;
+  const width = ([from, to]: number[]) => `${Math.max(0, ((to - from) / 1440) * 100)}%`;
+  return <span className={s.session}>
+    <span className={s.sesBar} aria-hidden="true">
+      <i className={s.sesLondon} style={{ left: at(market.london[0]), width: width(market.london) }} />
+      <i className={s.sesNewYork} style={{ left: at(market.newYork[0]), width: width(market.newYork) }} />
+      <b style={{ left: at(market.now) }} />
+    </span>
+    {market.text}
+  </span>;
 }
 
-/** The signals still open: published within two weeks and not yet closed in the public figures. */
-function OpenTrades({ ctx }: { ctx: Ctx }) {
-  const { t, stats } = ctx;
-  // The four latest open trades, oldest first, as the maquette lists them.
-  const open = stats.openSignals.slice(0, 4).reverse();
-  return <section className={s.sideBlock} aria-labelledby="vip-espace-open">
-    <h2 id="vip-espace-open" className={s.sideTitle}>{t("Trades en cours")}</h2>
-    {open.length ? open.map(post => <OpenCard key={post.id} ctx={ctx} post={post} />)
-      : <p className={s.muted}>{t("Aucun trade en cours pour l’instant.")}</p>}
-  </section>;
-}
-
-function OpenCard({ ctx, post }: { ctx: Ctx; post: VipPost }) {
-  const { t, fmt } = ctx;
-  const order = vipSignalOrder(post);
-  const levels = levelPairs(post);
-  const entry = levels.find(([label]) => label === "Entrée");
-  const stop = levels.find(([label]) => label === "Stop");
-  const details = [
-    entry ? `${t("Entrée")} ${fmt.price(entry[1])}` : "",
-    stop ? `${t("SL")} ${fmt.price(stop[1])}` : "",
-    `${t("ouvert")} ${fmt.clock(post.created_at)}`,
-  ].filter(Boolean).join(" · ");
-  return <article className={s.sideCard}>
-    <div className={s.sideCardHead}>
-      <b>{post.symbol || t("Signal")}{order?.label ? ` · ${order.label}` : ""}</b>
-      <span className={`${s.status} ${s.statusOpen}`}>{t("En cours")}</span>
-    </div>
-    <span className={s.sideSub}>{details}</span>
-  </article>;
-}
-
-function SideMonth({ ctx }: { ctx: Ctx }) {
-  const { t, stats, perf } = ctx;
+/* Signaux: the trade first. Drawn like on the chart, the member’s lot ready, the levels to copy. */
+function Signaux({ ctx }: { ctx: Ctx }) {
+  const { t, fmt, stats, perf, alertsOn, alertsAvailable, onEnableAlerts, go, posts } = ctx;
+  const open = stats.openSignals.slice(0, 4);
+  const count = stats.openSignals.length;
   const unavailable = perf.status === "error" && perf.trades.length === 0;
-  return <section className={s.sideBlock} aria-labelledby="vip-espace-month">
-    <h2 id="vip-espace-month" className={s.sideTitle}>{t("Ce mois-ci")}</h2>
-    {unavailable ? <p className={s.muted}>{t("Performances indisponibles pour le moment.")}</p> : <>
-      <div className={s.tiles}>
-        <div className={s.tile}><span>{t("Résultat")}</span><b className={monthTone(ctx)}>{monthFigure(ctx, (figures, fmt) => fmt.r(figures.monthTotalR))}</b></div>
-        <div className={s.tile}><span>{t("Réussite")}</span><b className={s.gold}>{monthFigure(ctx, (figures, fmt) => fmt.pct(figures.monthWinrate))}</b></div>
-      </div>
-      {perf.status === "ready" && stats.monthClosed === 0 ? <p className={s.muted}>{t("Aucun trade clôturé ce mois-ci.")}</p> : null}
-    </>}
-    <Link className={s.sideLink} href="/dashboard/performances-vip">{t("Voir toutes les performances")} →</Link>
-  </section>;
+  const status = count === 0 ? t("Aucun trade en cours") : count === 1 ? t("Trade en cours") : `${count} ${t("trades en cours")}`;
+  const latestAnalysis = newestFirst(posts).find(post => post.category === "analysis");
+  return <div className={s.page}>
+    <div className={s.topline}>
+      <Sessions ctx={ctx} />
+      {alertsOn ? <span className={s.iconButton} title={t("Alertes activées sur ce téléphone")} aria-label={t("Alertes activées sur ce téléphone")}><BellRing size={19} aria-hidden="true" /></span>
+        : alertsAvailable ? <button type="button" className={s.iconButton} onClick={onEnableAlerts} aria-label={t("Activer les alertes")} title={t("Activer les alertes")}><Bell size={19} aria-hidden="true" /></button> : null}
+    </div>
+    <h1 className={s.bigTitle}>{status}</h1>
+    {open.length ? open.map(post => <TradeBlock key={post.id} ctx={ctx} post={post} />)
+      : <article className={s.waiting}>
+        <p className={s.waitingText}>{t("Tu seras prévenu dès que l’équipe publie un signal.")}</p>
+        {alertsOn ? <p className={s.small}>{t("Alertes activées sur ce téléphone.")}</p>
+          : alertsAvailable ? <button type="button" className={s.textButton} onClick={onEnableAlerts}>{t("Activer les alertes sur ce téléphone")}</button> : null}
+        <div className={s.buttons}>
+          <Link className={s.primary} href={CALCULATOR_HREF}>{t("Calculer mon lot")} <ArrowUpRight size={15} aria-hidden="true" /></Link>
+          {latestAnalysis ? <button type="button" className={s.secondary} onClick={() => go("canal", "analysis", latestAnalysis.id)}>{t("Dernière analyse")}</button> : null}
+        </div>
+      </article>}
+    <div className={s.mini}>
+      <span className={s.stat}>{t("Ce mois")}<b className={monthTone(ctx)}>{monthFigure(ctx, (figures, format) => format.r(figures.monthTotalR))}</b></span>
+      <span className={s.stat}>{t("Réussite")}<b className={s.gold}>{monthFigure(ctx, (figures, format) => format.pct(figures.monthWinrate))}</b></span>
+      <span className={s.stat}>{t("Signaux")}<b>{stats.signalsThisMonth}</b></span>
+    </div>
+    <Renewal ctx={ctx} />
+    <section className={s.section} aria-labelledby="vip-closed">
+      <h2 id="vip-closed" className={s.sectionTitle}>{t("Derniers clôturés")}</h2>
+      {unavailable ? <p className={s.small}>{t("Performances indisponibles pour le moment.")}</p>
+        : stats.closed.length ? <ul className={s.rows}>
+          {stats.closed.slice(0, 4).map(row => <li key={row.id} className={s.row}>
+            <span><b>{row.symbol}</b> <span className={s.muted}>{sideLabel(row.direction, t)} · {outcomeLabel(row, t)}</span></span>
+            <b className={`${s.num} ${s[toneClass[outcomeTone(row)]]}`}>{row.resultR === null ? outcomeLabel(row, t) : fmt.r(row.resultR)}</b>
+          </li>)}
+        </ul> : <p className={s.small}>{t("Les trades clôturés apparaîtront ici.")}</p>}
+    </section>
+  </div>;
 }
 
 /** The month’s result takes the loss colour when it is negative, and no colour while there is no figure. */
 function monthTone(ctx: Ctx): string | undefined {
-  if (ctx.perf.status === "loading" || ctx.stats.monthClosed === 0) return undefined;
-  return ctx.stats.monthTotalR < 0 ? s.red : s.green;
+  const total = ctx.stats.monthTotalR;
+  if (ctx.perf.status === "loading" || ctx.stats.monthClosed === 0 || total === null) return undefined;
+  return total < 0 ? s.loss : s.gain;
 }
 
 /** The month’s figures appear once the public figures are read and a trade has closed this month; a dash otherwise. */
@@ -583,98 +652,197 @@ function monthFigure(ctx: Ctx, read: (stats: Stats, fmt: Formatters) => string):
   return ctx.stats.monthClosed === 0 ? "—" : read(ctx.stats, ctx.fmt);
 }
 
-function SideRenewal({ ctx }: { ctx: Ctx }) {
+function Renewal({ ctx }: { ctx: Ctx }) {
   const { t, fmt, note, busy, onRenew } = ctx;
   if (!note) return null;
   return <section className={s.renewal} aria-label={t("Renouvellement")}>
-    <p>
-      {t(note.subscription ? "Ton abonnement se termine le" : "Ton accès se termine le")} <b>{fmt.long(note.expires)}</b>.
-      {note.canRequest ? <> <button type="button" className={s.renewButton} onClick={onRenew} disabled={busy}>{t("Renouveler")}</button></> : null}
-    </p>
-    {note.requested ? <p className={s.renewalNote}>{t("Renouvellement demandé · en attente de vérification par l’équipe.")}</p> : null}
+    <p>{t(note.subscription ? "Ton abonnement se termine le" : "Ton accès se termine le")} <b>{fmt.long(note.expires)}</b>.</p>
+    {note.canRequest ? <button type="button" className={s.primary} onClick={onRenew} disabled={busy}>{t("Renouveler")}</button> : null}
+    {note.requested ? <p className={s.small}>{t("Renouvellement demandé · en attente de vérification par l’équipe.")}</p> : null}
   </section>;
+}
+
+/** The levels drawn across the screen like lines on a chart: R on the left, the price tag on the right. */
+function Chart({ ctx, post, area, top, labels }: { ctx: Ctx; post: VipPost; area: number; top: number; labels?: Partial<Record<string, string>> }) {
+  const { t, fmt } = ctx;
+  const drawn = ladder(post, area, top);
+  if (!drawn) return <p className={s.small}>{levelPairs(post).map(([label, value]) => `${t(label)} ${fmt.price(value)}`).join(" · ")}</p>;
+  return <div className={s.chart} style={{ height: drawn.height }} role="img" aria-label={drawn.rungs.map(rung => `${t(rung.label)} ${fmt.price(rung.price)}`).join(", ")}>
+    {drawn.profit ? <span className={s.zoneProfit} style={{ top: drawn.profit[0], height: drawn.profit[1] - drawn.profit[0] }} /> : null}
+    {drawn.risk ? <span className={s.zoneRisk} style={{ top: drawn.risk[0], height: drawn.risk[1] - drawn.risk[0] }} /> : null}
+    {drawn.rungs.map(rung => <div key={rung.label} className={`${s.level} ${s[`level_${rung.kind}`]}`} style={{ top: rung.y }}>
+      <span className={s.levelName}>{labels?.[rung.label] ?? t(rung.label)}{rung.r === null ? null : <b> {fmt.r(Math.round(rung.r * 10) / 10)}</b>}</span>
+      <span className={s.levelTag}>{fmt.price(rung.price)}</span>
+    </div>)}
+  </div>;
+}
+
+function volumeText(size: Extract<SignalSize, { ok: true }>, fmt: Formatters): string {
+  const digits = size.step >= 0.01 ? 2 : 8;
+  const volume = new Intl.NumberFormat(fmt.tag, { minimumFractionDigits: size.step >= 0.01 ? 2 : 0, maximumFractionDigits: digits }).format(size.volume);
+  if (size.kind === "standard_lot") return `${volume} ${size.volume >= 2 ? "lots" : "lot"}`;
+  return `${volume} ${size.unit}`;
+}
+
+const sizeProblems: Record<Exclude<SignalSize, { ok: true }>["reason"], string> = {
+  loading: "Calcul de ton lot…",
+  account: "Ajoute ton compte de trading pour voir ton lot sur chaque signal.",
+  balance: "Le solde de ton compte n’est pas encore connu.",
+  levels: "Il manque l’entrée ou le stop pour calculer le lot.",
+  instrument: "Le lot de cet actif se calcule dans le calculateur complet.",
+  rate: "Taux de change indisponible pour le moment.",
+  budget: "Ton risque est trop faible pour le lot minimum.",
+};
+
+function TradeBlock({ ctx, post }: { ctx: Ctx; post: VipPost }) {
+  const { t, fmt, now, member, go, openThread, copyLevels } = ctx;
+  const order = vipSignalOrder(post);
+  const size = sizeSignal(member, post.symbol || "", levelOf(post, "Entrée"), levelOf(post, "Stop"));
+  return <article className={s.trade}>
+    <div className={s.tradeHead}>
+      <p className={s.sub}><b className={s.gold}>{[post.symbol || post.title || t("Signal"), sideLabel(order?.side, t)].filter(Boolean).join(" · ")}</b> · {since(post, now, fmt, t)}</p>
+      <span className={s.pill}><span className={s.dot} aria-hidden="true" />{t("En cours")}</span>
+    </div>
+    <Chart ctx={ctx} post={post} area={170} top={24} />
+    <div className={s.lot}>
+      {size.ok ? <>
+        <div className={s.lotRow}>
+          <div><span className={s.small}>{t(size.kind === "point_value" ? "Ton volume" : "Ton lot")}</span><b className={s.lotBig}>{volumeText(size, fmt)}</b></div>
+          <div className={s.lotMeta}><b>≈ {fmt.money(size.risk, size.currency)} {t("de risque")}</b><span>{`${new Intl.NumberFormat(fmt.tag).format(member.risk)} % · ${size.account.name}`}</span></div>
+        </div>
+        <ol className={s.steps}>
+          <li><b>1</b>{t("Copie les niveaux")}</li>
+          <li><b>2</b>{t("Ouvre MetaTrader")}</li>
+          <li><b>3</b>{`${t("Place l’ordre à")} ${volumeText(size, fmt)}`}</li>
+        </ol>
+      </> : <div className={s.lotProblem}>
+        <p className={s.small}>{t(sizeProblems[size.reason])}</p>
+        {size.reason === "account" || size.reason === "balance" ? <button type="button" className={s.textButton} onClick={() => go("compte")}>{t(size.reason === "account" ? "Ajouter mon compte" : "Voir mes comptes")}</button>
+          : size.reason !== "loading" ? <Link className={s.textButton} href={riskSignalHref(post.id)}>{t("Ouvrir le calculateur")} <ArrowUpRight size={14} aria-hidden="true" /></Link> : null}
+      </div>}
+      <div className={s.buttons}>
+        <button type="button" className={s.primary} onClick={() => copyLevels(post)}><Copy size={16} aria-hidden="true" />{t("Copier les niveaux")}</button>
+        <button type="button" className={s.secondary} onClick={() => openThread(post.id)}>{t("Le fil du trade")}</button>
+      </div>
+    </div>
+  </article>;
+}
+
+/* Le fil du trade: the signal, the team’s updates, the member’s position on MetaTrader, and what to do next. */
+function Thread({ ctx, post }: { ctx: Ctx; post: VipPost }) {
+  const { t, fmt, now, stats, member, go, openThread, copyLevels, posts } = ctx;
+  const order = vipSignalOrder(post);
+  const side = order?.side;
+  const symbol = (post.symbol || "").trim().toUpperCase();
+  const closure = closureOf(post, stats.closed);
+  const state = signalState(post, closure, now, t);
+  const updates = threadUpdates(post, posts);
+  const created = Date.parse(post.created_at);
+  const position = member.openTrades.find(trade => trade.symbol === symbol && trade.direction === side
+    && Math.abs(dayNumber(trade.date.slice(0, 10)) - dayNumber(parisDay(created))) <= 1);
+  const accountName = position ? member.accounts.find(account => account.id === position.accountId)?.name : undefined;
+  // The team moved the stop to the entry, but the member’s stop is still on the risk side of the entry.
+  const stopBehind = Boolean(position && position.entry !== null && position.stop !== null && !closure
+    && updates.some(update => BREAKEVEN.test(`${update.title} ${update.text}`))
+    && (side === "sell" ? position.stop > position.entry : position.stop < position.entry));
+  const targets = levelPairs(post).filter(([label]) => label.startsWith("TP"));
+  return <div className={s.page}>
+    <div className={s.topline}>
+      <button type="button" className={s.back} onClick={() => openThread(null)}><ChevronLeft size={18} aria-hidden="true" />{t("Signaux")}</button>
+      {state ? <span className={s.pill}>{state.tone === "open" ? <span className={s.dot} aria-hidden="true" /> : null}{state.label}</span> : null}
+    </div>
+    <h1 className={s.pageTitle}>{[post.symbol || post.title || t("Signal"), sideLabel(side, t)].filter(Boolean).join(" · ")}</h1>
+    <Chart ctx={ctx} post={post} area={110} top={22} />
+    {position ? <div className={s.position}>
+      <div><span className={s.small}>{t("Ta position · détectée sur MetaTrader")}</span><b>{position.entry !== null ? <><span className={s.nowrap}>{`${t("entrée")} ${fmt.price(position.entry)}`}</span> · </> : null}<span className={s.nowrap}>{position.stop !== null ? `${t("stop")} ${fmt.price(position.stop)}` : t("sans stop")}</span></b></div>
+      {accountName ? <span className={s.tag}>{accountName}</span> : null}
+    </div> : member.status === "ready" && member.accounts.length ? <p className={s.small}>{t("Aucune position ouverte sur ce trade dans tes comptes connectés.")}</p> : null}
+    <ol className={s.timeline}>
+      <li><time>{fmt.clock(post.created_at)}</time><span className={`${s.node} ${s.nodeGold}`} /><div><b>{t("Signal publié")}</b><span>{levelPairs(post).map(([label, value]) => `${t(label)} ${fmt.price(value)}`).join(" · ")}</span></div></li>
+      {position ? <li><time>{t("toi")}</time><span className={s.node} /><div><b>{t("Tu es en position")}</b><span>{position.entry !== null ? `${t("Entrée à")} ${fmt.price(position.entry)}` : t("Position ouverte sur ton compte")}</span></div></li> : null}
+      {updates.map(update => <li key={update.id}><time>{update.id.endsWith(":note") ? "" : fmt.clock(new Date(update.at).toISOString())}</time><span className={`${s.node} ${s.nodeGain}`} /><div><b>{t(update.title)}</b>{update.text ? <span>{update.text}</span> : null}</div></li>)}
+      {stopBehind && position ? <li className={s.warn}><time>{t("à faire")}</time><span className={`${s.node} ${s.nodeLoss}`} /><div><b>{`${t("Ton stop est encore à")} ${fmt.price(position.stop ?? 0)}`}</b><span>{`${t("Remonte-le à ton point d’entrée")} (${fmt.price(position.entry ?? 0)}) ${t("pour être sans risque.")}`}</span></div></li> : null}
+      {closure ? <li><time>{t("fin")}</time><span className={`${s.node} ${closure.outcome === "LOSS" ? s.nodeLoss : s.nodeGain}`} /><div><b>{`${t("Clôturé")} · ${outcomeLabel(closure, t)}`}</b>{closure.resultR !== null ? <span>{fmt.r(closure.resultR)}</span> : null}</div></li>
+        : targets.length ? <li className={s.next}><time /><span className={`${s.node} ${s.nodeOpen}`} /><div><b>{t("Objectifs en attente")}</b><span>{targets.map(([label, value]) => `${label} ${fmt.price(value)}`).join(" · ")}</span></div></li> : null}
+    </ol>
+    <div className={s.buttons}>
+      <button type="button" className={s.primary} onClick={() => copyLevels(post)}><Copy size={16} aria-hidden="true" />{t("Copier les niveaux")}</button>
+      <button type="button" className={s.secondary} onClick={() => go("canal", "chat")}>{t("Discuter de ce trade")}</button>
+    </div>
+  </div>;
+}
+
+/* Canal: Le fil and Le téléphone in one feed, filtered by chips. */
+function Canal({ ctx }: { ctx: Ctx }) {
+  const { t, view, onSelect, stats, channelContent, banner } = ctx;
+  const recent = stats.recentSignals.length;
+  const chips: { channel: VipChannel; label: string }[] = [
+    { channel: "all", label: t("Tout") },
+    { channel: "signal", label: recent ? `${t("Signaux")} · ${recent}` : t("Signaux") },
+    { channel: "analysis", label: t("Analyses") },
+    { channel: "chat", label: t("Discussion") },
+  ];
+  const feedOpen = feedChannels.includes(view);
+  return <div className={s.page}>
+    <PageHead title={view === "favorites" ? t("Mes favoris") : view === "telegram" ? "Telegram" : t("Canal")}>
+      <button type="button" className={s.iconButton} aria-pressed={view === "favorites"} aria-label={t("Mes favoris")} title={t("Mes favoris")} onClick={() => onSelect(view === "favorites" ? "all" : "favorites")}>
+        <Bookmark size={19} fill={view === "favorites" ? "currentColor" : "none"} aria-hidden="true" />
+      </button>
+    </PageHead>
+    {banner}
+    <div className={s.chips} role="group" aria-label={t("Rubriques du canal")}>
+      {chips.map(item => <button key={item.channel} type="button" className={view === item.channel ? s.chipOn : s.chip} aria-pressed={view === item.channel} onClick={() => onSelect(item.channel)}>{item.label}</button>)}
+    </div>
+    <div className={s.stack}>
+      {feedOpen ? <FeedStream ctx={ctx} /> : channelContent ?? <p className={s.small}>{t("Cette rubrique n’est pas disponible.")}</p>}
+    </div>
+  </div>;
 }
 
 function FeedStream({ ctx }: { ctx: Ctx }) {
   const { t, view, posts } = ctx;
   const visible = feedPosts(view, posts);
-  if (!visible.length) return <p className={s.empty}>{t(emptyTitles[view] ?? "Les publications de l’équipe apparaîtront ici.")}</p>;
-  return <>{visible.map(post => <FeedCard key={post.id} ctx={ctx} post={post} />)}</>;
+  if (!visible.length) return <p className={s.emptyCard}>{t(emptyTitles[view] ?? "Les publications de l’équipe apparaîtront ici.")}</p>;
+  return <>{visible.map(post => <PostCard key={post.id} ctx={ctx} post={post} />)}</>;
 }
 
-function FeedCard({ ctx, post }: { ctx: Ctx; post: VipPost }) {
-  if (post.category === "signal") return <SignalArticle ctx={ctx} post={post} />;
-  if (post.category === "followup") return <FollowupArticle ctx={ctx} post={post} />;
-  return <ArticleCard ctx={ctx} post={post} />;
-}
-
-/** The signature line of the team’s posts. */
-function Byline({ children }: { children: ReactNode }) {
-  return <div className={s.byline}>
-    <span className={s.avatar} aria-hidden="true">{TEAM_AUTHOR.charAt(0)}</span>
-    <b>{TEAM_AUTHOR}</b>
-    {children}
-  </div>;
-}
-
-function SignalArticle({ ctx, post }: { ctx: Ctx; post: VipPost }) {
-  const { t, fmt, now, stats } = ctx;
-  const order = vipSignalOrder(post);
-  const levels = levelPairs(post);
-  const note = signalFreeText(post.body || "");
-  const closure = closureOf(post, stats.closed);
-  const state = signalState(post, closure, now, t);
-  const hit = targetsHit(closure);
-  // Only a signal with a closing result takes the gold frame; the team’s note is shown without it.
-  return <article className={hasResult(post, stats.closed) ? `${s.signal} ${s.signalNews}` : s.signal} id={`publication-${post.id}`}>
-    <Byline>
-      <small>· {t("Signal")} · {when(post, now, fmt)}</small>
-      {state ? <span className={`${s.status} ${s[statusClass[state.tone]]}`}>{state.label}</span> : null}
-    </Byline>
-    <div className={s.orderRow}>
-      <b className={s.symbol}>{post.symbol || post.title || t("Signal")}</b>
-      {order ? <span className={`${s.pill} ${s[pillTone(order.side)]}`}>{order.label}</span> : null}
+function PostCard({ ctx, post }: { ctx: Ctx; post: VipPost }) {
+  const { t, fmt, now, stats, openThread } = ctx;
+  const image = safeImage(post.image_url);
+  const signal = post.category === "signal";
+  const order = signal ? vipSignalOrder(post) : null;
+  const levels = signal ? levelPairs(post) : [];
+  const entry = levels.find(([label]) => label === "Entrée");
+  const others = levels.filter(([label]) => label !== "Entrée");
+  const state = signal ? signalState(post, closureOf(post, stats.closed), now, t) : null;
+  const note = signal ? signalFreeText(post.body || "") : "";
+  const heading = signal
+    ? [post.symbol || post.title || t("Signal"), order?.side ? `${sideLabel(order.side, t)}${entry ? ` ${t("à")} ${fmt.price(entry[1])}` : ""}` : ""].filter(Boolean).join(" · ")
+    : post.title;
+  return <article className={s.card} id={`publication-${post.id}`}>
+    <div className={s.kicker}>
+      <span className={s[categoryTone[post.category]]}>{t(categoryNames[post.category])}</span>
+      {state ? <span className={`${s.state} ${s[toneClass[state.tone]]}`}>{state.tone === "open" ? <span className={s.dot} aria-hidden="true" /> : null}{state.label}</span> : null}
+      <time className={s.time}>{when(post, now, fmt)}</time>
     </div>
-    {levels.length ? <dl className={s.levels} style={{ gridTemplateColumns: `repeat(${levels.length}, minmax(0, 1fr))` }}>
-      {levels.map(([label, value]) => <div key={label} className={levelClass(label, hit)}><dt>{t(label)}{reached(label, hit) ? " ✓" : ""}</dt><dd>{fmt.price(value)}</dd></div>)}
-    </dl> : null}
-    {note ? <p className={s.update}>{note}</p> : null}
-    <div className={s.actions}>
+    <h2 className={s.cardTitle}>{heading}</h2>
+    {others.length ? <p className={`${s.levelsLine} ${s.num}`}>{others.map(([label, value]) => `${t(label)} ${fmt.price(value)}`).join(" · ")}</p> : null}
+    {image ? <a className={s.chartImage} href={image} target="_blank" rel="noopener noreferrer" aria-label={t("Ouvrir le graphique en grand")}><img src={image} alt={post.title} loading="lazy" referrerPolicy="no-referrer" /></a> : null}
+    {signal ? (note ? <p className={s.body}>{note}</p> : null) : post.body ? <p className={s.body}>{post.body}</p> : null}
+    <div className={s.cardActions}>
       <Reactions ctx={ctx} post={post} />
       <Favorite ctx={ctx} post={post} />
-      <Link className={s.calc} href={riskSignalHref(post.id)}>{t("Calculer mon lot")} →</Link>
+      {signal && state?.tone === "open" ? <button type="button" className={s.cardLink} onClick={() => openThread(post.id)}>{t("Le fil du trade")} ›</button> : null}
     </div>
   </article>;
 }
 
-function ArticleCard({ ctx, post }: { ctx: Ctx; post: VipPost }) {
-  const { t, fmt, now } = ctx;
-  const image = safeImage(post.image_url);
-  return <article className={s.article} id={`publication-${post.id}`}>
-    <Byline><small>· {t(categoryNames[post.category])} · {when(post, now, fmt)}</small></Byline>
-    <h2 className={s.articleTitle}>{post.title}</h2>
-    {image ? <a className={s.chart} href={image} target="_blank" rel="noopener noreferrer" aria-label={t("Ouvrir le graphique dans un nouvel onglet")}><img src={image} alt={post.title} loading="lazy" referrerPolicy="no-referrer" /></a> : null}
-    {post.body ? <p className={s.body}>{post.body}</p> : null}
-    <div className={s.actions}><Reactions ctx={ctx} post={post} /><Favorite ctx={ctx} post={post} /></div>
-  </article>;
-}
-
-function FollowupArticle({ ctx, post }: { ctx: Ctx; post: VipPost }) {
-  const { fmt, now } = ctx;
-  return <article className={s.followCard} id={`publication-${post.id}`}>
-    <div className={s.followHead}><h2 className={s.articleTitle}>{post.title}</h2><small>{when(post, now, fmt)}</small></div>
-    {post.body ? <div className={s.timeline}><span>{fmt.clock(post.created_at)}</span><span>{post.body}</span></div> : null}
-    <div className={s.actions}><Reactions ctx={ctx} post={post} /><Favorite ctx={ctx} post={post} /></div>
-  </article>;
-}
-
-function Reactions({ ctx, post, joined = false }: { ctx: Ctx; post: VipPost; joined?: boolean }) {
+function Reactions({ ctx, post }: { ctx: Ctx; post: VipPost }) {
   const { t, actions } = ctx;
   const state = actions.reactions(post);
   const busyNow = actions.pending(post);
   const keys: VipReaction[] = state.counts.heart > 0 || state.mine === "heart" ? ["like", "fire", "heart"] : ["like", "fire"];
-  // On the phone the reactions read as one control, as in the maquette: 👍 48 · 🔥 31.
-  return <div className={joined ? `${s.reactions} ${s.reactionsJoined}` : s.reactions} role="group" aria-label={t("Réagir à la publication")}>
+  return <div className={s.reactions} role="group" aria-label={t("Réagir à la publication")}>
     {keys.map(key => <button key={key} type="button" className={s.reaction} aria-pressed={state.mine === key} aria-label={`${t(reactionLabels[key])} · ${state.counts[key]}`} disabled={busyNow} onClick={() => void actions.react(post, key)}>
       <span aria-hidden="true">{reactionEmoji[key]}</span> {state.counts[key]}
     </button>)}
@@ -688,230 +856,4 @@ function Favorite({ ctx, post }: { ctx: Ctx; post: VipPost }) {
   return <button type="button" className={s.bookmark} aria-pressed={saved} aria-label={label} title={label} disabled={actions.pending(post)} onClick={() => void actions.toggleFavorite(post)}>
     <Bookmark size={17} fill={saved ? "currentColor" : "none"} aria-hidden="true" />
   </button>;
-}
-
-/* B · La salle des signaux: greeting and open trades, four figures, the two latest signals, the recent publications and the closed trades. */
-function Salle({ ctx }: { ctx: Ctx }) {
-  const { t, fmt, now, posts, stats, perf, firstName, onSelect, onTab, accountTools } = ctx;
-  const [filter, setFilter] = useState<SalleFilter>("all");
-  const [open, setOpen] = useState<Record<string, boolean>>({});
-  // The cards are the four latest trades still open, oldest first as in the maquette; closed signals are in the list of closed trades.
-  const openSignals = stats.openSignals.slice(0, 4).reverse();
-  const rows = newestFirst(posts).filter(post => post.category !== "signal" && (filter === "all" || post.category === filter)).slice(0, 5);
-  const closed = stats.closed.slice(0, 5);
-  const openCount = stats.openSignals.length;
-  const unavailable = perf.status === "error" && perf.trades.length === 0;
-  const greeting = firstName ? `${t("Bonjour")} ${firstName}` : t("Bonjour");
-  const status = openCount === 0 ? t("aucun trade n’est ouvert") : openCount === 1 ? t("1 trade est ouvert") : `${openCount} ${t("trades sont ouverts")}`;
-  return <div className={s.salle}>
-    <header className={s.salleHead}>
-      <div>
-        <span className={s.eyebrow}>{t("Salle des signaux · VIP")}</span>
-        <h1>{`${greeting}, ${status}`}</h1>
-      </div>
-      <div className={s.headActions}>
-        <button type="button" className={s.secondary} onClick={() => { onTab("fil"); onSelect("chat"); }}>{t("Discussion")}</button>
-        <Link className={s.primary} href="/dashboard/simulateur">{t("Calculer mon lot")}</Link>
-      </div>
-    </header>
-    <div className={s.kpis}>
-      <Kpi label={t("Trades ouverts")} value={String(openCount)} tone={s.blue} />
-      <Kpi label={t("Résultat du mois")} value={monthFigure(ctx, (figures, format) => format.r(figures.monthTotalR))} tone={monthTone(ctx)} />
-      <Kpi label={t("Taux de réussite")} value={monthFigure(ctx, (figures, format) => format.pct(figures.monthWinrate))} tone={s.gold} />
-      <Kpi label={t("Signaux ce mois")} value={String(stats.signalsThisMonth)} />
-    </div>
-    {openSignals.length ? <div className={s.signals}>
-      {openSignals.map(post => <SalleSignal key={post.id} ctx={ctx} post={post} expanded={Boolean(open[post.id])} onToggle={() => setOpen(current => ({ ...current, [post.id]: !current[post.id] }))} />)}
-    </div> : <p className={s.empty}>{t("Aucun trade en cours pour l’instant.")}</p>}
-    <div className={s.bottom}>
-      <section className={s.box} aria-labelledby="vip-espace-latest">
-        <div className={s.boxHead}>
-          <h2 id="vip-espace-latest">{t("Dernières publications")}</h2>
-          <div className={s.filters} role="group" aria-label={t("Filtrer les publications")}>
-            {salleFilters.map(item => <button key={item.key} type="button" aria-pressed={filter === item.key} onClick={() => setFilter(item.key)}>{t(item.label)}</button>)}
-          </div>
-        </div>
-        {rows.length ? <ul className={s.rows}>
-          {rows.map(post => <li key={post.id} className={s.row}>
-            <span className={`${s.tag} ${s[categoryTone[post.category]]}`}>{t(categoryNames[post.category])}</span>
-            <span className={s.rowText}>{post.title || post.body.slice(0, 90)}</span>
-            <time className={s.rowTime}>{stamp(post, now, fmt)}</time>
-          </li>)}
-        </ul> : <p className={s.muted}>{t("Les publications de l’équipe apparaîtront ici.")}</p>}
-      </section>
-      <section className={s.box} aria-labelledby="vip-espace-closed">
-        <h2 id="vip-espace-closed">{t("Trades clôturés")}</h2>
-        {unavailable ? <p className={s.muted}>{t("Performances indisponibles pour le moment.")}</p>
-          : closed.length ? <ul className={s.list}>
-            {closed.map(row => <li key={row.id} className={s.closed}>
-              <span>{row.symbol} · {row.direction === "buy" ? "BUY" : "SELL"}</span>
-              <b className={s[textClass[outcomeTone(row)]]}>{outcomeLabel(row, t)}</b>
-            </li>)}
-          </ul> : <p className={s.muted}>{t("Les trades clôturés apparaîtront ici.")}</p>}
-      </section>
-    </div>
-    <AccountSlot tools={accountTools} />
-  </div>;
-}
-
-function SalleSignal({ ctx, post, expanded, onToggle }: { ctx: Ctx; post: VipPost; expanded: boolean; onToggle: () => void }) {
-  const { t, fmt, now, stats } = ctx;
-  const order = vipSignalOrder(post);
-  const side = order?.side;
-  const closure = closureOf(post, stats.closed);
-  const hit = targetsHit(closure);
-  const breakeven = closure?.outcome === "BE";
-  const levels = levelPairs(post);
-  const entry = levels.find(([label]) => label === "Entrée");
-  const stop = levels.find(([label]) => label === "Stop");
-  const targets = levels.filter(([label]) => label.startsWith("TP"));
-  const note = signalFreeText(post.body || "");
-  const card = side === "sell" ? s.sigCardSell : side === "buy" ? s.sigCardBuy : "";
-  const toggle = side === "sell" ? s.toggleSell : s.toggleBuy;
-  return <article className={`${s.sigCard} ${card}`}>
-    <div className={s.sigHead}>
-      <div className={s.sigTitle}>
-        <b className={s.sigSymbol}>{post.symbol || t("Signal")}</b>
-        {order ? <span className={`${s.pill} ${s[pillTone(side)]}`}>{order.label}</span> : null}
-      </div>
-      <time className={s.sigTime}>{isRecent(post, now) ? `${t("publié à")} ${fmt.clock(post.created_at)}` : `${t("publié")} ${fmt.dateTime(post.created_at)}`}</time>
-    </div>
-    <div className={s.bars} aria-hidden="true">
-      {[1, 2, 3].map(rank => <span key={rank} className={rank <= hit ? `${s.bar} ${s.barOn}` : s.bar} />)}
-    </div>
-    {targets.length ? <div className={s.targets}>
-      {[1, 2, 3].map(rank => {
-        // Each target keeps its column, so TP1, TP2 and TP3 line up under the three bars.
-        const target = targets.find(([label]) => label === `TP${rank}`);
-        if (!target) return <span key={rank} />;
-        const done = reached(target[0], hit);
-        return <span key={rank} className={done ? s.reached : undefined}>{`TP${rank} ${fmt.price(target[1])}${done ? " ✓" : ""}`}</span>;
-      })}
-    </div> : null}
-    {entry || stop ? <div className={s.sigLevels}>
-      {entry ? <span>{t("Entrée")} <b>{fmt.price(entry[1])}</b></span> : null}
-      {stop ? <span>{t("Stop")} <b className={breakeven ? s.gold : s.red}>{breakeven ? "BE" : fmt.price(stop[1])}</b></span> : null}
-    </div> : null}
-    {expanded ? <div className={s.sigDetail}>
-      {note ? <p className={s.update}>{note}</p> : null}
-      <Link className={s.calc} href={riskSignalHref(post.id)}>{t("Calculer mon lot")} →</Link>
-    </div> : null}
-    <div>
-      <button type="button" className={`${s.sigToggle} ${toggle}`} aria-expanded={expanded} onClick={onToggle}>{expanded ? t("Masquer le détail") : t("Voir le détail")}</button>
-    </div>
-  </article>;
-}
-
-function Kpi({ label, value, tone }: { label: string; value: string; tone?: string }) {
-  return <div className={s.kpi}><span>{label}</span><b className={tone}>{value}</b></div>;
-}
-
-/* C · Le téléphone: one column of the same publications, the channel chips, and the personal navigation below. */
-function Telephone({ ctx }: { ctx: Ctx }) {
-  const { t, view, posts, now, onSelect, stats, alertsOn, alertsAvailable, onEnableAlerts, channelContent, accountTools } = ctx;
-  const count = stats.recentSignals.length;
-  const openCount = stats.openSignals.length;
-  const chips: { channel: VipChannel; label: string }[] = [
-    { channel: "all", label: t("Tout") },
-    { channel: "signal", label: count ? `${t("Signaux")} · ${count}` : t("Signaux") },
-    { channel: "analysis", label: t("Analyses") },
-    { channel: "performance", label: t("Bilans") },
-    { channel: "followup", label: t("Suivi des trades") },
-    { channel: "partnership", label: t("Partenariats") },
-    { channel: "chat", label: t("Discussion") },
-    { channel: "favorites", label: t("Mes favoris") },
-    { channel: "telegram", label: t("Telegram") },
-  ];
-  const feedOpen = feedChannels.includes(view);
-  const visible = feedPosts(view, posts);
-  // The signal drawn in full is the latest one with a closing result, as the maquette shows a signal with news.
-  const highlighted = newestFirst(posts).find(post => post.category === "signal" && hasResult(post, stats.closed))?.id;
-  const openLabel = openCount === 0 ? t("Aucun trade ouvert") : openCount === 1 ? t("1 trade ouvert") : `${openCount} ${t("trades ouverts")}`;
-  return <div className={s.phone}>
-    <header className={s.phoneHead}>
-      <span className={s.mark} aria-hidden="true">IP</span>
-      <div className={s.phoneTitle}>
-        <h1>{t("Canal VIP")}</h1>
-        <small><span aria-hidden="true">● </span>{openLabel}</small>
-      </div>
-      {alertsAvailable && !alertsOn ? <button type="button" className={s.bell} onClick={onEnableAlerts} aria-label={t("Activer les alertes")} title={t("Activer les alertes")}><Bell size={18} aria-hidden="true" /></button> : null}
-    </header>
-    <div className={s.phoneChips} role="group" aria-label={t("Rubriques")}>
-      {chips.map(item => <button key={item.channel} type="button" aria-pressed={view === item.channel} onClick={() => onSelect(item.channel)}>{item.label}</button>)}
-    </div>
-    <div className={s.phoneBody}>
-      {feedOpen ? (visible.length
-        ? <div className={s.phoneStack}>{visible.map(post => <PhoneCard key={post.id} ctx={ctx} post={post} highlighted={post.id === highlighted} />)}</div>
-        : <p className={s.empty}>{t(emptyTitles[view] ?? "Les publications de l’équipe apparaîtront ici.")}</p>) : channelContent ?? <p className={s.empty}>{t("Cette rubrique n’est pas disponible.")}</p>}
-      <AccountSlot tools={accountTools} />
-    </div>
-    <PersonalNav ctx={ctx} className={s.phoneNav} />
-  </div>;
-}
-
-function PhoneCard({ ctx, post, highlighted }: { ctx: Ctx; post: VipPost; highlighted: boolean }) {
-  const { t, fmt, now, stats } = ctx;
-  if (post.category !== "signal") {
-    return <article className={s.phoneCard} id={`publication-${post.id}`}>
-      <div className={`${s.kicker} ${s[categoryTone[post.category]]}`}>{t(categoryNames[post.category])} · {stamp(post, now, fmt)}</div>
-      <h2 className={s.phoneHeading}>{post.title}</h2>
-      {post.body ? <p className={s.phoneBodyText}>{post.body}</p> : null}
-      <div className={s.phoneActions}><Reactions ctx={ctx} post={post} joined /><Favorite ctx={ctx} post={post} /></div>
-    </article>;
-  }
-  const order = vipSignalOrder(post);
-  const closure = closureOf(post, stats.closed);
-  const hit = targetsHit(closure);
-  const state = signalState(post, closure, now, t);
-  const levels = levelPairs(post);
-  const note = signalFreeText(post.body || "");
-  if (!highlighted) {
-    // The short card gives the entry, the stop and the first target on one line.
-    const line = levels.filter(([label]) => label === "Entrée" || label === "Stop" || label === "TP1")
-      .map(([label, value]) => `${label === "Entrée" ? t("Entrée") : label === "Stop" ? "SL" : label} ${fmt.price(value)}`).join(" · ");
-    return <article className={s.phoneCard} id={`publication-${post.id}`}>
-      <div className={s.phoneRow}>
-        <b className={s.phoneSymbolSmall}>{post.symbol || t("Signal")}</b>
-        {order ? <span className={`${s.pill} ${s[pillTone(order.side)]}`}>{order.label}</span> : null}
-        {state ? <span className={`${s.status} ${s[statusClass[state.tone]]}`}>{state.label}</span> : null}
-      </div>
-      {line ? <p className={s.phoneLine}>{line}</p> : null}
-      <div className={s.phoneActions}><Reactions ctx={ctx} post={post} joined /><Favorite ctx={ctx} post={post} /></div>
-    </article>;
-  }
-  // The highlighted card, as in the maquette: entry, stop and first target, then the update and the actions.
-  const cells = levels.filter(([label]) => label === "Entrée" || label === "Stop" || label === "TP1");
-  return <article className={`${s.phoneCard} ${s.phoneCardHi}`} id={`publication-${post.id}`}>
-    <div className={s.phoneRow}>
-      <b className={s.phoneSymbol}>{post.symbol || t("Signal")}</b>
-      {order ? <span className={`${s.pill} ${s[pillTone(order.side)]}`}>{order.label}</span> : null}
-      {closure && state ? <span className={`${s.status} ${s[statusClass[state.tone]]}`}>{state.label}</span> : null}
-      <time className={s.phoneTime}>{when(post, now, fmt)}</time>
-    </div>
-    {cells.length ? <dl className={s.cells} style={{ gridTemplateColumns: `repeat(${cells.length}, minmax(0, 1fr))` }}>
-      {cells.map(([label, value]) => <div key={label} className={levelClass(label, hit)}><dt>{t(label)}{reached(label, hit) ? " ✓" : ""}</dt><dd>{fmt.price(value)}</dd></div>)}
-    </dl> : null}
-    {note ? <p className={s.phoneNote}>{note}</p> : null}
-    <div className={s.phoneActions}>
-      <Reactions ctx={ctx} post={post} joined />
-      <Favorite ctx={ctx} post={post} />
-      <Link className={s.phoneCalc} href={riskSignalHref(post.id)}>{t("Calculer mon lot")}</Link>
-    </div>
-  </article>;
-}
-
-/** The personal navigation of the maquettes: the space itself, then the member’s own pages. */
-function PersonalNav({ ctx, className }: { ctx: Ctx; className: string }) {
-  const { t, onSelect } = ctx;
-  return <nav className={className} aria-label={t("Navigation")}>
-    <button type="button" aria-current="page" onClick={() => onSelect("all")}>{t("Canal VIP")}</button>
-    <Link href="/dashboard/journal">{t("Journal")}</Link>
-    <Link href="/dashboard/comptes">{t("Comptes")}</Link>
-    <Link href="/dashboard/profil">{t("Profil")}</Link>
-  </nav>;
-}
-
-/** Account tools sit at the foot of the presentation that is open, in one block. */
-function AccountSlot({ tools }: { tools: ReactNode }) {
-  return tools ? <div className={s.account}>{tools}</div> : null;
 }

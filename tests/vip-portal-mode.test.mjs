@@ -122,6 +122,12 @@ function button(host, label) {
   const result = nodes(host.tree, node => node.type === "button" && buttonText(node) === label);
   assert.equal(result.length, 1, "Expected one button: " + label); return result[0];
 }
+/** Active members reach the channels from the Canal section of the space. */
+async function openCanal(state) { button(state.host, "Canal").props.onClick(); await state.host.settle(); }
+function favoritesButton(host) {
+  const result = nodes(host.tree, node => node.type === "button" && node.props["aria-label"] === "Mes favoris");
+  assert.equal(result.length, 1, "Expected the favourites button of Canal"); return result[0];
+}
 function access(admin = false, active = true) {
   return { admin, active, telegramUrl: null, user: { id: "offline-user", email: "member@example.invalid" }, membership: active ? { type: "affiliation", email: "member@example.invalid", started_at: "2026-10-01T10:00:00Z", expires_at: null, renewal_requested_at: null, status: "active" } : null };
 }
@@ -174,6 +180,11 @@ function fixture(initialAdminMode = false) {
     "@/lib/vip/performance-report": compile("lib/vip/performance-report.ts", {}),
     "@/lib/vip/publication-notice": compile("lib/vip/publication-notice.ts", {}),
     "@/lib/vip/signal-risk-preset": { riskSignalHref: postId => "/dashboard/simulateur?signal=" + encodeURIComponent(postId) },
+    // Journal and Compte read the member’s own data; navigation tests only need their entry points.
+    "./VipJournal": function VipJournal() { return element("section", { "data-journal": true }); },
+    "./VipCompte": function VipCompte(props) { return element("section", { children: element("button", { type: "button", onClick: props.onTelegram, children: "Canal Telegram" }) }); },
+    "./espaceFont": { espaceFont: "vipFont" },
+    "./vipMember": { useVipMember: () => ({ status: "ready", accounts: [], account: null, risk: 1, rates: null, openTrades: [], setRisk() {}, setAccount() {}, reload() {} }), sizeSignal: () => ({ ok: false, reason: "account" }), RISK_CHOICES: [0.5, 1, 2] },
   }, browser);
   const Portal = compile("components/vip/VipPortal.tsx", {
     ...common, "@/components/i18n/LanguageSwitcher": () => element("select", { "aria-label": "Language" }),
@@ -311,7 +322,8 @@ test("Favorites follows Chat and only mounts for a verified active member", asyn
 
 test("Favorites unmounts on effective admin mode, a different view, or logout", async () => {
   const state = fixture(); state.resolve(access(true, true)); await state.host.settle();
-  button(state.host, "Mes favoris").props.onClick(); await state.host.settle();
+  await openCanal(state);
+  favoritesButton(state.host).props.onClick(); await state.host.settle();
   assert.ok(state.host.instance("VipFavorites"));
   button(state.host, "Administrateur").props.onClick(); await state.host.settle();
   assert.equal(state.host.instance("VipFavorites"), undefined);
@@ -319,7 +331,7 @@ test("Favorites unmounts on effective admin mode, a different view, or logout", 
   assert.ok(state.host.instance("VipFavorites"));
   button(state.host, "Analyses").props.onClick(); await state.host.settle();
   assert.equal(state.host.instance("VipFavorites"), undefined);
-  button(state.host, "Mes favoris").props.onClick(); await state.host.settle();
+  favoritesButton(state.host).props.onClick(); await state.host.settle();
   state.auth("SIGNED_OUT", null); await state.host.settle();
   assert.equal(state.host.instance("VipFavorites"), undefined);
   assert.equal(nodes(state.host.tree, node => node.props["data-favorites-user"]).length, 0);
@@ -327,6 +339,7 @@ test("Favorites unmounts on effective admin mode, a different view, or logout", 
 
 test("mode=admin query cannot hide Chat from an ordinary verified member", async () => {
   const state = fixture(true); state.resolve(access(false, true)); await state.host.settle();
+  await openCanal(state);
   button(state.host, "Discussion").props.onClick(); await state.host.settle();
   assert.ok(state.host.instance("VipChat"));
   assert.equal(nodes(state.host.tree, node => node.props.className === "workspace")[0].props.hidden, false);
@@ -335,9 +348,11 @@ test("mode=admin query cannot hide Chat from an ordinary verified member", async
 
 test("Chat unmounts when leaving its view or entering effective admin mode", async () => {
   const state = fixture(); state.resolve(access(true, true)); await state.host.settle();
+  await openCanal(state);
   button(state.host, "Discussion").props.onClick(); await state.host.settle();
   assert.ok(state.host.instance("VipChat"));
-  button(state.host, "Telegram").props.onClick(); await state.host.settle();
+  button(state.host, "Compte").props.onClick(); await state.host.settle();
+  button(state.host, "Canal Telegram").props.onClick(); await state.host.settle();
   assert.equal(state.host.instance("VipChat"), undefined);
   button(state.host, "Discussion").props.onClick(); await state.host.settle();
   assert.ok(state.host.instance("VipChat"));
@@ -349,6 +364,7 @@ test("Chat unmounts when leaving its view or entering effective admin mode", asy
 
 test("logout clears Chat immediately without waiting for another access request", async () => {
   const state = fixture(); state.resolve(access(false, true)); await state.host.settle();
+  await openCanal(state);
   button(state.host, "Discussion").props.onClick(); await state.host.settle();
   assert.ok(state.host.instance("VipChat"));
   const reads = state.calls.length;
@@ -360,6 +376,7 @@ test("logout clears Chat immediately without waiting for another access request"
 
 test("switching accounts invalidates an old pending access response before Chat can reopen", async () => {
   const state = fixture(); state.resolve(access(false, true)); await state.host.settle();
+  await openCanal(state);
   button(state.host, "Discussion").props.onClick(); await state.host.settle();
   const stale = state.deferNextAccess(); state.focus(); await state.host.settle();
   const next = state.deferNextAccess();

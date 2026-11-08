@@ -145,6 +145,7 @@ const analysis = post("plan", "analysis", { title: "Plan de la semaine", created
 const win = { id: 1, source: "telegram", trade_date: `${month}-${tradeDay}`, symbol: "XAUUSD", direction: "buy", status: "win", result_r: 2, pips: 0, target: 2 };
 const loss = { id: 2, source: "telegram", trade_date: `${month}-${tradeDay}`, symbol: "EURUSD", direction: "sell", status: "loss", result_r: -1, pips: 0, target: null };
 
+
 function props(overrides = {}) {
   return {
     view: "all", onSelect: () => {}, posts: [], membership: member, alertsOn: false, alertsAvailable: false,
@@ -154,15 +155,32 @@ function props(overrides = {}) {
   };
 }
 
-function render(overrides = {}, { trades = [], failPerformance = false } = {}) {
+/** Renders the space as the portal does: the portal keeps the channel and passes it back when the space asks for one. */
+/** The member as the space reads it: no account unless a test gives one. */
+function memberFixture(overrides = {}) {
+  return { status: "ready", accounts: [], account: null, risk: 1, rates: null, openTrades: [], setRisk() {}, setAccount() {}, reload() {}, ...overrides };
+}
+const riskSimulator = compile("lib/risk-simulator.ts", {});
+const sizing = compile("components/vip/vipMember.ts", {
+  react: { useState: () => [], useEffect() {}, useCallback: callback => callback },
+  "@/lib/supabase/client": { createClient() { throw Error("The member is a fixture in these tests"); } },
+  "@/lib/risk-simulator": riskSimulator,
+  "@/lib/risk-simulator-conventions": compile("lib/risk-simulator-conventions.ts", { "./risk-simulator": riskSimulator }),
+  "@/lib/vip/signal-risk-preset": compile("lib/vip/signal-risk-preset.ts", { "../risk-simulator": riskSimulator }),
+});
+
+function render(overrides = {}, { trades = [], failPerformance = false, member = {} } = {}) {
   const host = hookHost();
-  const requests = [];
+  const requests = [], selected = [];
+  const seen = { journal: null, compte: null };
   const fetch = async url => {
     requests.push(url);
     if (url !== "/api/vip/performance") throw Error("Unexpected request " + url);
     if (failPerformance) throw Error("Performance offline");
     return { ok: true, json: async () => ({ trades }) };
   };
+  function VipJournal(journal) { seen.journal = journal; return element("section", { "data-probe": "journal", children: journal.banner }); }
+  function VipCompte(compte) { seen.compte = compte; return element("section", { "data-probe": "compte", children: compte.banner }); }
   const Espace = compile("components/vip/VipEspace.tsx", {
     react: host.hooks, "react/jsx-runtime": { jsx: element, jsxs: element, Fragment: fragment },
     "next/link": link => element("a", link),
@@ -172,111 +190,205 @@ function render(overrides = {}, { trades = [], failPerformance = false } = {}) {
     "@/lib/vip/performance-report": compile("lib/vip/performance-report.ts", {}),
     "@/lib/vip/publication-notice": compile("lib/vip/publication-notice.ts", {}),
     "@/lib/vip/signal-risk-preset": { riskSignalHref: postId => "/dashboard/simulateur?signal=" + encodeURIComponent(postId) },
+    "./VipJournal": VipJournal,
+    "./VipCompte": VipCompte,
+    "./vipMember": { ...sizing, useVipMember: () => memberFixture(member) },
+    "./espaceFont": { espaceFont: "vipFont" },
     "./VipEspace.module.css": css,
   }, { fetch }).default;
-  host.start(Espace, props({ initialTab: "fil", ...overrides }));
-  return { host, requests };
+  let current;
+  const onSelect = channel => { selected.push(channel); current = { ...current, view: channel }; host.start(Espace, current); };
+  current = props({ ...overrides, onSelect });
+  host.start(Espace, current);
+  return { host, requests, selected, seen };
 }
 
-/** The section of the trades still open, as the side of Le fil shows them. */
-const openTrades = host => text(nodes(host.tree, node => node.props["aria-labelledby"] === "vip-espace-open")[0]);
+/** A section of the bottom bar; the Signaux button also carries the number of trades in progress. */
+function navButton(host, label) {
+  const [bar] = nodes(host.tree, node => node.type === "nav" && node.props["aria-label"] === "Navigation de l’espace VIP");
+  assert.ok(bar, "The bottom bar is rendered");
+  const result = nodes(bar, node => node.type === "button" && text(node).endsWith(label));
+  assert.equal(result.length, 1, "Expected one section: " + label); return result[0];
+}
+function labelled(host, label) {
+  const result = nodes(host.tree, node => node.props["aria-label"] === label);
+  assert.equal(result.length, 1, "Expected one element labelled " + label); return result[0];
+}
+const tradeCards = host => nodes(host.tree, node => node.type === "article" && node.props.className === "trade");
+const banners = host => nodes(host.tree, node => node.type === "button" && node.props.className === "live");
 
-test("a new account opens on La salle des signaux with honest empty states and no placeholder figures", async () => {
-  const { host, requests } = render({ initialTab: undefined, membership: { ...member, first_name: null } });
+test("the space opens on Signaux with honest empty states, and nothing but the lot calculator leaves the space", async () => {
+  const { host, requests } = render({ membership: { ...member, first_name: null } });
   await host.settle();
   assert.deepEqual(requests, ["/api/vip/performance"], "The space reads only public performance figures");
-  assert.equal(button(host, "La salle des signaux").props["aria-pressed"], true);
-  assert.equal(button(host, "Le fil").props["aria-pressed"], false);
+  assert.equal(navButton(host, "Signaux").props["aria-current"], "page");
+  for (const label of ["Canal", "Journal", "Compte"]) assert.equal(navButton(host, label).props["aria-current"], undefined);
   const copy = text(host.tree);
-  assert.match(copy, /Les publications de l’équipe apparaîtront ici\./);
-  assert.match(copy, /Aucun trade en cours pour l’instant\./);
+  assert.match(copy, /Aucun trade en cours/);
+  assert.match(copy, /Tu seras prévenu dès que l’équipe publie un signal\./);
   assert.match(copy, /Les trades clôturés apparaîtront ici\./);
-  assert.match(copy, /Résultat du mois/);
-  for (const placeholder of ["[+X R]", "[X %]", "[N]", "214 membres", "Julien", "2 trades ouverts", "Enrick"]) {
+  assert.equal(banners(host).length, 0, "No trade in progress, no banner");
+  assert.equal(nodes(host.tree, node => node.props.className === "navBadge").length, 0);
+  for (const placeholder of ["[+X R]", "[X %]", "[N]", "214 membres", "Julien", "Enrick", "10 470"]) {
     assert.equal(copy.includes(placeholder), false, placeholder);
   }
+  const hrefs = nodes(host.tree, node => typeof node.props.href === "string").map(node => node.props.href);
+  assert.deepEqual(hrefs, ["/dashboard/simulateur"], "The lot calculator is the only page outside the space");
 });
 
-test("Le fil shows the trades still open, oldest first, the monthly figures from the Bilan logic, and the feed once", async () => {
-  const { host } = render({ posts: [xau, nas, analysis] }, { trades: [win, loss] });
+test("a trade in progress leads Signaux with its levels at their price and their value in R, and is flagged on every other section", async () => {
+  const { host } = render({ posts: [xau] });
   await host.settle();
-  const copy = text(host.tree);
-  assert.match(copy, /Trades en cours/);
-  assert.match(copy, /XAUUSD · BUY/);
-  assert.match(copy, /NAS100 · SELL/);
-  const side = openTrades(host);
-  assert.ok(side.indexOf("XAUUSD") < side.indexOf("NAS100"), "The open trades are listed oldest first");
-  assert.match(copy, /Ce mois-ci/);
-  assert.match(copy, /3 nouvelles publications/);
-  assert.match(copy, /\+1,0 R/);
-  assert.match(copy, /50 %/);
-  assert.equal(nodes(host.tree, node => node.type === "main").length, 1, "The feed is rendered once");
+  assert.equal(text(nodes(host.tree, node => node.type === "h1")[0]), "Trade en cours");
+  const [card] = tradeCards(host);
+  assert.ok(card, "The trade has its card");
+  assert.match(text(card), /XAUUSD · Achat · publié il y a 2 h/);
+  assert.match(text(card), /En cours/);
+  const [ladder] = nodes(card, node => node.props.role === "img");
+  assert.equal(ladder.props["aria-label"], "TP2 2 336, TP1 2 327, Entrée 2 318.50, Stop 2 310", "The highest price is at the top");
+  const rungs = text(ladder);
+  assert.match(rungs, /\+2,1 R/);
+  assert.match(rungs, /\+1,0 R/);
+  assert.match(rungs, /−1,0 R/);
+  assert.match(text(card), /Ajoute ton compte de trading pour voir ton lot sur chaque signal\./, "Without an account, the lot asks for one");
+  assert.equal(labelled(host, "1 trade en cours").props.className, "navBadge", "The bottom bar counts the trade");
+  for (const label of ["Canal", "Journal", "Compte"]) {
+    navButton(host, label).props.onClick(); await host.settle();
+    assert.equal(banners(host).length, 1, label + " shows the trade in progress");
+    assert.match(text(banners(host)[0]), /1 trade en cours/);
+    assert.match(text(banners(host)[0]), /XAUUSD · Achat/);
+  }
+  banners(host)[0].props.onClick(); await host.settle();
+  assert.equal(navButton(host, "Signaux").props["aria-current"], "page", "The banner leads back to the trade");
+  assert.equal(banners(host).length, 0, "Signaux itself needs no banner");
 });
 
-test("channel buttons select a channel and carry the posts of the last 24 hours", async () => {
-  const selected = [];
-  const { host } = render({ posts: [xau, nas, analysis], onSelect: channel => selected.push(channel) });
+test("a sell trade reads from the highest price down and counts its R on the sell side", async () => {
+  const { host } = render({ posts: [nas] });
   await host.settle();
-  assert.deepEqual(nodes(host.tree, node => node.props.className === "badge").map(text), ["3", "2", "1"]);
-  button(host, "Signaux").props.onClick();
-  button(host, "Analyses").props.onClick();
-  assert.deepEqual(selected, ["signal", "analysis"]);
+  const [card] = tradeCards(host);
+  const [ladder] = nodes(card, node => node.props.role === "img");
+  assert.equal(ladder.props["aria-label"], "Stop 18 510, Entrée 18 420, TP1 18 330");
+  assert.match(text(ladder), /\+1,0 R/);
+  assert.match(text(ladder), /−1,0 R/);
+  assert.match(text(card), /Vente/);
 });
 
-test("La salle des signaux greets the member, shows the four figures and the trades still open", async () => {
-  const { host } = render({ posts: [xau, nas, analysis] }, { trades: [win, loss] });
+test("Canal brings the feed and its chips together; chat, favourites and Telegram come from the portal", async () => {
+  const { host, selected } = render({ posts: [xau, nas, analysis] });
   await host.settle();
-  button(host, "La salle des signaux").props.onClick(); await host.settle();
-  const copy = text(host.tree);
-  assert.match(copy, /Bonjour Camille, 2 trades sont ouverts/);
-  assert.match(copy, /Trades ouverts2/);
-  assert.match(copy, /Résultat du mois\+1,0 R/);
-  assert.match(copy, /Taux de réussite50 %/);
-  assert.match(copy, /Signaux ce mois2/);
-  for (const label of ["Dernières publications", "Trades clôturés"]) assert.match(copy, new RegExp(label));
-  assert.equal(copy.includes("Signaux (24 h)"), false);
-  assert.equal(copy.includes("Derniers signaux"), false);
-  const cards = nodes(host.tree, node => node.type === "article" && String(node.props.className).startsWith("sigCard "));
-  assert.equal(cards.length, 2);
-  assert.match(text(cards[0]), /^XAUUSD/, "The older trade comes first, as in the maquette");
-  assert.match(text(cards[1]), /^NAS100/);
-  assert.match(copy, /TP1 2 327/);
-  assert.match(copy, /TP2 2 336/);
-  assert.match(copy, /TP1 18 330/);
-  assert.match(copy, /XAUUSD · BUY/);
-  assert.match(copy, /EURUSD · SELLStop/);
-  // Les signaux ont leurs cartes ; la liste des publications ne reprend que le reste.
-  assert.equal(nodes(host.tree, node => node.props.className === "row").length, 1);
-});
-
-test("Discussion from La salle des signaux opens the feed on the chat, once", async () => {
-  const selected = [];
-  const { host } = render({ onSelect: channel => selected.push(channel) });
-  await host.settle();
-  button(host, "La salle des signaux").props.onClick(); await host.settle();
+  navButton(host, "Canal").props.onClick(); await host.settle();
+  const [chips] = nodes(host.tree, node => node.props.role === "group" && node.props["aria-label"] === "Rubriques du canal");
+  assert.equal(chips.props.children.map(text).join(" | "), "Tout | Signaux · 2 | Analyses | Discussion");
+  const publications = () => nodes(host.tree, node => typeof node.props.id === "string" && node.props.id.startsWith("publication-")).map(node => node.props.id);
+  assert.deepEqual(publications(), ["publication-nas", "publication-xau", "publication-plan"], "Newest first");
+  assert.match(text(nodes(host.tree, node => node.props.id === "publication-xau")[0]), /XAUUSD · Achat à 2 318\.50/);
+  button(host, "Signaux · 2").props.onClick(); await host.settle();
+  assert.deepEqual(publications(), ["publication-nas", "publication-xau"], "Signaux shows only the signals");
   button(host, "Discussion").props.onClick(); await host.settle();
-  assert.deepEqual(selected, ["chat"]);
-  assert.equal(button(host, "Le fil").props["aria-pressed"], true);
+  assert.equal(nodes(host.tree, node => node.props["data-probe"] === "channel").length, 1, "The portal draws the chat");
+  assert.deepEqual(publications(), []);
+  labelled(host, "Mes favoris").props.onClick(); await host.settle();
+  assert.deepEqual(selected, ["signal", "chat", "favorites"]);
 });
 
-test("Le téléphone is one column with channel chips, the portal content, and alerts only when available", async () => {
-  const alerts = [];
-  const { host } = render({ view: "chat", alertsAvailable: true, onEnableAlerts: () => alerts.push("on") });
+test("a signal of the feed opens the thread of its trade on Signaux", async () => {
+  const { host } = render({ posts: [xau] });
   await host.settle();
-  button(host, "Le téléphone").props.onClick(); await host.settle();
-  assert.equal(button(host, "Discussion").props["aria-pressed"], true);
+  navButton(host, "Canal").props.onClick(); await host.settle();
+  button(host, "Le fil du trade ›").props.onClick(); await host.settle();
+  assert.equal(navButton(host, "Signaux").props["aria-current"], "page");
+  assert.match(text(host.tree), /Signal publié/);
+});
+
+test("the lot is calculated in the space from the member’s account and risk, with the simulator’s rules", async () => {
+  const account = { id: 1, name: "Compte principal", platform: "MT5", broker: null, currency: "EUR", current_balance: 10470, connection_type: "automatic" };
+  const { host } = render({ posts: [xau] }, { member: { accounts: [account], account, rates: { EUR: 1, USD: 1.08 }, risk: 1 } });
+  await host.settle();
+  const card = text(tradeCards(host)[0]);
+  assert.match(card, /Ton lot0,13 lot/, "1 % of 10 470 € with a stop 8.5 dollars away is 0.13 lot");
+  assert.match(card, /≈ 102\s€ de risque/);
+  assert.match(card, /1 % · Compte principal/);
+  assert.match(card, /Place l’ordre à 0,13 lot/);
+  const index = render({ posts: [nas] }, { member: { accounts: [account], account, rates: { EUR: 1, USD: 1.08 }, risk: 0.5 } });
+  await index.host.settle();
+  assert.match(text(tradeCards(index.host)[0]), /Ton volume0,62 USD\/point/, "0.5 % of 10 470 € over a 90-point stop: 0.62 dollar per point, never broker lots");
+});
+
+test("Copier les niveaux gives the levels in the order MetaTrader asks for them", async () => {
+  const { host } = render({ posts: [xau] });
+  await host.settle();
+  button(host, "Copier les niveaux").props.onClick(); await host.settle();
+  const [toast] = nodes(host.tree, node => node.props.role === "status" && node.props.className === "toast");
+  assert.match(text(toast), /XAUUSD BUY 2318\.5 SL 2310 TP1 2327 TP2 2336/);
+});
+
+test("Le fil du trade gathers the signal, the team’s updates and the member’s position, and asks to move a stop left behind", async () => {
+  const update = post("fu", "followup", { symbol: "XAUUSD", title: "XAUUSD · TP1 touché", body: "Stop déplacé au point d’entrée (BE).", created_at: ago(3600000) });
+  const account = { id: 1, name: "Compte principal", platform: "MT5", broker: null, currency: "EUR", current_balance: 10470, connection_type: "automatic" };
+  const position = { id: "p1", symbol: "XAUUSD", direction: "buy", date: parisDate(Date.parse(xau.created_at)), entry: 2318.7, stop: 2310, accountId: 1 };
+  const { host, selected } = render({ posts: [xau, update] }, { member: { accounts: [account], account, openTrades: [position] } });
+  await host.settle();
+  button(host, "Le fil du trade").props.onClick(); await host.settle();
+  const copy = text(host.tree);
+  assert.match(copy, /Ta position · détectée sur MetaTraderentrée 2 318\.70 · stop 2 310/);
+  assert.match(copy, /Compte principal/);
+  assert.match(copy, /Signal publié/);
+  assert.match(copy, /Tu es en position/);
+  assert.match(copy, /XAUUSD · TP1 touché/);
+  assert.match(copy, /Ton stop est encore à 2 310/);
+  assert.match(copy, /Remonte-le à ton point d’entrée \(2 318\.70\) pour être sans risque\./);
+  assert.match(copy, /Objectifs en attente/);
+  button(host, "Discuter de ce trade").props.onClick(); await host.settle();
+  assert.deepEqual(selected, ["chat"]);
+  assert.equal(navButton(host, "Canal").props["aria-current"], "page");
+
+  const moved = render({ posts: [xau, update] }, { member: { accounts: [account], account, openTrades: [{ ...position, stop: 2318.7 }] } });
+  await moved.host.settle();
+  button(moved.host, "Le fil du trade").props.onClick(); await moved.host.settle();
+  assert.equal(text(moved.host.tree).includes("Ton stop est encore"), false, "A stop already at the entry needs no reminder");
+});
+
+test("a member who was in a channel when the space reloads finds Canal again", async () => {
+  const { host } = render({ view: "chat" });
+  await host.settle();
+  assert.equal(navButton(host, "Canal").props["aria-current"], "page");
   assert.equal(nodes(host.tree, node => node.props["data-probe"] === "channel").length, 1);
-  nodes(host.tree, node => node.type === "button" && node.props["aria-label"] === "Activer les alertes")[0].props.onClick();
-  assert.deepEqual(alerts, ["on"]);
+});
 
-  const feed = render({ view: "signal" });
-  button(feed.host, "Le téléphone").props.onClick(); await feed.host.settle();
-  assert.equal(button(feed.host, "Signaux").props["aria-pressed"], true);
-  assert.equal(nodes(feed.host.tree, node => node.props["data-probe"] === "channel").length, 0);
+test("the month comes from the public figures of the Bilan logic, in the loss colour when it is negative", async () => {
+  const stats = host => nodes(host.tree, node => node.props.className === "stat");
+  const positive = render({}, { trades: [win, loss] });
+  await positive.host.settle();
+  assert.deepEqual(stats(positive.host).map(text), ["Ce mois+1,0 R", "Réussite50 %", "Signaux0"]);
+  const negative = render({}, { trades: [loss] });
+  await negative.host.settle();
+  const [figure] = stats(negative.host);
+  assert.match(text(figure), /−1,0 R/);
+  assert.equal(nodes(figure, node => node.type === "b")[0].props.className, "loss");
+});
 
-  const quiet = render({ alertsAvailable: false });
-  button(quiet.host, "Le téléphone").props.onClick(); await quiet.host.settle();
-  assert.equal(nodes(quiet.host.tree, node => node.props["aria-label"] === "Activer les alertes").length, 0);
+test("when public performance cannot load, the figures say so instead of showing zeros", async () => {
+  const { host } = render({ posts: [xau] }, { failPerformance: true });
+  await host.settle();
+  const copy = text(host.tree);
+  assert.equal(copy.split("Performances indisponibles pour le moment.").length - 1, 1);
+  assert.equal(copy.includes("+0,0 R"), false);
+});
+
+test("alerts are offered from Signaux only when the phone can receive them", async () => {
+  const calls = [];
+  const available = render({ alertsAvailable: true, onEnableAlerts: () => calls.push("alerts") });
+  await available.host.settle();
+  labelled(available.host, "Activer les alertes").props.onClick();
+  assert.deepEqual(calls, ["alerts"]);
+  const on = render({ alertsOn: true, alertsAvailable: true });
+  await on.host.settle();
+  assert.match(text(on.host.tree), /Alertes activées sur ce téléphone\./);
+  assert.equal(nodes(on.host.tree, node => node.props["aria-label"] === "Activer les alertes").length, 0);
+  const none = render();
+  await none.host.settle();
+  assert.equal(nodes(none.host.tree, node => node.props["aria-label"] === "Activer les alertes").length, 0);
 });
 
 test("renewal is offered only close to the end of an abonnement, and a request is shown as pending", async () => {
@@ -302,23 +414,25 @@ test("renewal is offered only close to the end of an abonnement, and a request i
   assert.equal(nodes(pending.host.tree, node => node.type === "button" && text(node) === "Renouveler").length, 0);
 });
 
-test("when public performance cannot load, the figures say so instead of showing zeros", async () => {
-  const { host } = render({ posts: [xau] }, { failPerformance: true });
+test("Journal and Compte live inside the space and get what they need from it", async () => {
+  const tools = element("details", { "data-probe": "account", children: "Application et aide" });
+  const language = element("select", { "aria-label": "Langue" });
+  const { host, seen, selected } = render({ posts: [xau], accountTools: tools, languageControl: language }, { trades: [win, loss] });
   await host.settle();
-  const unavailable = "Performances indisponibles pour le moment.";
-  assert.equal(text(host.tree).split(unavailable).length - 1, 1);
-  assert.equal(text(host.tree).includes("+0,00 R"), false);
-  button(host, "La salle des signaux").props.onClick(); await host.settle();
-  assert.equal(text(host.tree).split(unavailable).length - 1, 1);
-});
-
-test("the account tools sit inside the space, above the channel panel", async () => {
-  const tools = element("details", { "data-probe": "account", children: "Mon accès" });
-  const { host } = render({ accountTools: tools });
-  await host.settle();
-  const [account] = nodes(host.tree, node => node.props.className === "account");
-  assert.ok(account, "The account strip is rendered");
-  assert.equal(nodes(account, node => node.props["data-probe"] === "account").length, 1);
+  navButton(host, "Journal").props.onClick(); await host.settle();
+  assert.equal(nodes(host.tree, node => node.props["data-probe"] === "journal").length, 1);
+  assert.deepEqual(seen.journal.posts.map(item => item.id), ["xau"]);
+  assert.equal(seen.journal.signalsMonthR, 1, "The journal compares with the month of the signals");
+  seen.journal.onOpenCompte(); await host.settle();
+  assert.equal(navButton(host, "Compte").props["aria-current"], "page");
+  assert.equal(seen.compte.membership, member);
+  assert.equal(seen.compte.member.risk, 1, "Compte sets the risk the lot is calculated with");
+  assert.equal(seen.compte.accountTools, tools);
+  assert.equal(seen.compte.languageControl, language);
+  seen.compte.onTelegram(); await host.settle();
+  assert.deepEqual(selected, ["telegram"]);
+  assert.equal(navButton(host, "Canal").props["aria-current"], "page");
+  assert.equal(nodes(host.tree, node => node.props["data-probe"] === "channel").length, 1, "The portal draws Telegram");
 });
 
 test("a signal stays open for two weeks unless a trade of its instrument and side closes it", async () => {
@@ -328,11 +442,12 @@ test("a signal stays open for two weeks unless a trade of its instrument and sid
   const stale = post("stale", "signal", { symbol: "NAS100", direction: "sell", body: "Signal ancien", levels: {}, created_at: ago(15 * DAY) });
   const { host } = render({ posts: [xau, closedSignal, stale] }, { trades: [closure] });
   await host.settle();
-  assert.match(openTrades(host), /XAUUSD · BUY/);
-  assert.equal(openTrades(host).includes("GBPJPY"), false, "A signal closed by a trade is not open");
-  assert.equal(openTrades(host).includes("NAS100"), false, "A signal older than two weeks is not open");
-  button(host, "La salle des signaux").props.onClick(); await host.settle();
-  assert.match(text(host.tree), /GBPJPY · BUY/, "The closed trade is in the closed list");
+  const open = tradeCards(host).map(text).join(" | ");
+  assert.match(open, /XAUUSD/);
+  assert.equal(open.includes("GBPJPY"), false, "A signal closed by a trade is not in progress");
+  assert.equal(open.includes("NAS100"), false, "A signal older than two weeks is not in progress");
+  assert.equal(text(nodes(host.tree, node => node.type === "h1")[0]), "Trade en cours");
+  assert.match(text(nodes(host.tree, node => node.props["aria-labelledby"] === "vip-closed")[0]), /GBPJPY/, "The closed trade is in the closed list");
 });
 
 test("a trade closes a signal only with the same instrument and side, on the same day or the day after", async () => {
@@ -342,11 +457,11 @@ test("a trade closes a signal only with the same instrument and side, on the sam
   const threeDaysBefore = { ...win, id: 11, symbol: "NAS100", direction: "sell", trade_date: parisDate(Date.parse(signalAt) - 3 * DAY), status: "loss", result_r: -1, target: null };
   const stillOpen = render({ posts: [sell] }, { trades: [otherSide, threeDaysBefore] });
   await stillOpen.host.settle();
-  assert.match(openTrades(stillOpen.host), /NAS100 · SELL/, "A trade of the other side, or three days away, does not close it");
+  assert.match(tradeCards(stillOpen.host).map(text).join(" "), /NAS100/, "A trade of the other side, or three days away, does not close it");
   const dayAfter = { ...win, id: 12, symbol: "NAS100", direction: "sell", trade_date: parisDate(Date.parse(signalAt) + DAY), status: "win", result_r: 1, target: 1 };
   const closed = render({ posts: [sell] }, { trades: [dayAfter] });
   await closed.host.settle();
-  assert.equal(openTrades(closed.host).includes("NAS100"), false, "A trade of the same side the day after closes it");
+  assert.equal(tradeCards(closed.host).length, 0, "A trade of the same side the day after closes it");
 });
 
 test("the TP3 and the team’s note come from the signal text, without its template lines", async () => {
@@ -355,13 +470,13 @@ test("the TP3 and the team’s note come from the signal text, without its templ
   const template = post("template", "signal", { symbol: "NAS100", direction: "sell", body: "TP3 : 18 120", levels: { entry: 18420, stopLoss: 18510, takeProfit: 18330 }, created_at: ago(1800000) });
   const { host } = render({ posts: [update, template] }, { trades: [closure] });
   await host.settle();
+  navButton(host, "Canal").props.onClick(); await host.settle();
   const copy = text(host.tree);
   assert.match(copy, /Mise à jour 11:05 · TP1 touché, stop déplacé au point d’entrée \(BE\)\./);
   assert.equal(copy.includes("Entrée : 2 318"), false, "A template line is not repeated as a note");
   assert.equal(copy.includes("TP3 : 18 120"), false, "A template line is not repeated as a note");
-  assert.match(copy, /TP1 ✓2 327/, "A reached target is ticked");
-  const card = nodes(host.tree, node => node.props.id === "publication-update")[0];
-  assert.match(card.props.className, /signalNews/, "A signal with a closing result takes the gold frame");
-  button(host, "La salle des signaux").props.onClick(); await host.settle();
-  assert.match(text(host.tree), /TP3 18 120/, "La salle des signaux shows the third target under its bar");
+  assert.match(copy, /TP3 18 120/, "The third target is one of the levels");
+  const card = text(nodes(host.tree, node => node.props.id === "publication-update")[0]);
+  assert.match(card, /TP1/, "A closed signal shows its outcome");
+  assert.equal(card.includes("En cours"), false);
 });

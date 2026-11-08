@@ -157,11 +157,10 @@ export default function VipPortal({ initialAdminMode = false }: { initialAdminMo
     </div>
     {membership.type === "abonnement" && <button type="button" className={s.secondary} onClick={renewal} disabled={busy || Boolean(membership.renewal_requested_at)}>{membership.renewal_requested_at ? t("Demande transmise") : t("Demander mon renouvellement")}</button>}
   </div>;
-  // Account tools live inside the space for active members, and keep their existing controls.
+  // Installation help and support, in the Compte section of the space; the access itself is shown there already.
   const accountTools = <div className={`${s.portal} ${s.inline}`}><details className={s.accountTools}>
-    <summary><ShieldCheck size={15} aria-hidden="true" /><span>{t("Mon accès & application")}</span><ChevronDown size={15} aria-hidden="true" /></summary>
+    <summary><ShieldCheck size={15} aria-hidden="true" /><span>{t("Application et aide")}</span><ChevronDown size={15} aria-hidden="true" /></summary>
     <div className={s.accountPanel}>
-      {membershipCard}
       <section className={s.mobileStart}>
         <div><Smartphone size={21} aria-hidden="true" /><div><b>{t("Votre VIP, aussi sur téléphone.")}</b><p>{t("iPhone, Android et Samsung : votre espace vous accompagne.")}</p></div></div>
         <button className={s.secondary} type="button" onClick={enableAlerts} disabled={busy || alertsOn || !publicKey}>{alertsOn ? <ShieldCheck size={16} /> : <Bell size={16} />}{alertsOn ? t("Alertes activées") : t("Activer les alertes")}</button>
