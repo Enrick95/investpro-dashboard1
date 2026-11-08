@@ -296,6 +296,42 @@ def clear_mt4_start(folder):
   file.unlink(missing_ok=True)
 
 
+def mt4_request_all_history(folder):
+ """MT4 gives its experts only the trades of the period shown in its Account History tab, and a new
+ terminal shows a short period: a member's older trades never reach the journal. Ask this instance's
+ terminal, and only it, for All History, as a right-click in that tab would (menu command 33058).
+ Read-only account and no order involved; returns False when no window of this terminal answers."""
+ if os.name!='nt':return False
+ try:
+  import ctypes,psutil
+  from ctypes import wintypes
+  root=folder.resolve();pids=set()
+  for p in psutil.process_iter(['pid','exe']):
+   try:
+    exe=p.info['exe']
+    if exe and Path(exe).resolve().is_relative_to(root):pids.add(p.info['pid'])
+   except (psutil.NoSuchProcess,psutil.AccessDenied):pass
+  if not pids:return False
+  WM_COMMAND=0x0111;ALL_HISTORY=33058;GW_OWNER=4
+  user32=ctypes.WinDLL('user32',use_last_error=True)
+  EnumProc=ctypes.WINFUNCTYPE(wintypes.BOOL,wintypes.HWND,wintypes.LPARAM)
+  user32.EnumWindows.argtypes=[EnumProc,wintypes.LPARAM];user32.EnumWindows.restype=wintypes.BOOL
+  user32.GetWindowThreadProcessId.argtypes=[wintypes.HWND,ctypes.POINTER(wintypes.DWORD)];user32.GetWindowThreadProcessId.restype=wintypes.DWORD
+  user32.IsWindowVisible.argtypes=[wintypes.HWND];user32.IsWindowVisible.restype=wintypes.BOOL
+  user32.GetWindow.argtypes=[wintypes.HWND,wintypes.UINT];user32.GetWindow.restype=wintypes.HWND
+  user32.PostMessageW.argtypes=[wintypes.HWND,wintypes.UINT,wintypes.WPARAM,wintypes.LPARAM];user32.PostMessageW.restype=wintypes.BOOL
+  windows=[]
+  def collect(hwnd,_):
+   pid=wintypes.DWORD();user32.GetWindowThreadProcessId(hwnd,ctypes.byref(pid))
+   # The terminal's main window: visible, not owned by another window.
+   if pid.value in pids and user32.IsWindowVisible(hwnd) and not user32.GetWindow(hwnd,GW_OWNER):windows.append(hwnd)
+   return True
+  user32.EnumWindows(EnumProc(collect),0)
+  return sum(1 for hwnd in windows if user32.PostMessageW(hwnd,WM_COMMAND,ALL_HISTORY,0))>0
+ except Exception:
+  return False
+
+
 def prepare_mt4(job,template,folder):
  a=job['investpro_mt_connections']
  required=(folder/'terminal.exe',folder/'MQL4'/'Experts'/'InvestProHostedMT4.ex4')
@@ -349,6 +385,8 @@ def child():
     diagnostic('MT5 PREUVE SL INDISPONIBLE : synchronisation habituelle conservee ; aucun BE suppose')
    import MetaTrader5 as mt5
   last=0;started=time.monotonic();last_stamp=None;failures=0;mt4_update_restarted=False;retry_at=None;recoveries=0
+  # MT4 only: All History is asked once, after the first export; the outcome is logged once.
+  history_asked_at=None;history_base=0;history_logged=False
   while fresh_lease():
    if failures>=3:
     if retry_at is None or time.monotonic()<retry_at:
@@ -401,6 +439,18 @@ def child():
      report('syncing',dict(snapshot,trades=batch))
     diagnostic('ENVOI ACCEPTE '+a['platform']+' compte ...'+str(a['login'])[-4:]+': '+str(len(trades))+' trades ; reception '+snapshot['observed_at'])
     last_stamp=snapshot['observed_at'];failures=0
+    if a['platform']=='MT4':
+     # The site keeps every trade it received: one export of the whole history is enough.
+     if history_asked_at is None:
+      history_asked_at=time.monotonic();history_base=len(trades)
+      asked=mt4_request_all_history(folder)
+      diagnostic('MT4 HISTORIQUE compte ...'+str(a['login'])[-4:]+' : '+('demande Tout l historique envoyee au terminal' if asked else 'fenetre du terminal introuvable ; historique limite a la periode affichee'))
+     elif not history_logged and len(trades)>history_base:
+      history_logged=True
+      diagnostic('MT4 HISTORIQUE COMPLET compte ...'+str(a['login'])[-4:]+' : '+str(len(trades))+' trades envoyes (avant : '+str(history_base)+')')
+     elif not history_logged and time.monotonic()-history_asked_at>300:
+      history_logged=True
+      diagnostic('MT4 HISTORIQUE compte ...'+str(a['login'])[-4:]+' : aucun trade plus ancien en 5 minutes ; si le compte en a, choisir Tout l historique dans le terminal')
    except urllib.error.HTTPError as e:
     diagnostic('ENVOI REFUSE '+a['platform']+' compte ...'+str(a['login'])[-4:]+': '+safe_error(e))
     if e.code in (401,409):return

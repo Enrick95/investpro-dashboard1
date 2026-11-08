@@ -1,0 +1,135 @@
+/* The InvestPro Trading member card: black, gold and silver like the logo. Same design as public/vip-carte.css on the joining pages. */
+.card {
+  --card-name-font: var(--card-display), "Unbounded", system-ui, sans-serif;
+  --card-small-font: var(--card-text), "Manrope", system-ui, sans-serif;
+  position: relative;
+  width: 100%;
+  max-width: 360px;
+  margin: 0 auto;
+  container-type: inline-size;
+  perspective: 1100px;
+}
+.face {
+  position: relative;
+  aspect-ratio: 1.586;
+  max-width: 100%;
+  border-radius: clamp(14px, 5.6cqw, 21px);
+  overflow: hidden;
+  isolation: isolate;
+  color: #f3efe6;
+  text-align: left;
+  background:
+    radial-gradient(75% 95% at 0% 0%, rgba(240, 197, 117, 0.22), transparent 62%),
+    radial-gradient(60% 75% at 100% 100%, rgba(240, 197, 117, 0.17), transparent 62%),
+    linear-gradient(135deg, #1b170e 0%, #0e0e0c 44%, #080808 100%);
+  border: 1px solid rgba(240, 197, 117, 0.42);
+  box-shadow: 0 28px 60px rgba(0, 0, 0, 0.62), 0 0 46px rgba(240, 197, 117, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transform-style: preserve-3d;
+  animation: tilt 9s ease-in-out infinite;
+}
+/* Diagonal gold light strokes, as on the banner */
+.face::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(135deg, transparent 0 9.6%, rgba(255, 221, 152, 0.62) 10%, transparent 10.9%, transparent 14.4%, rgba(240, 197, 117, 0.24) 14.7%, transparent 15.4%, transparent 93.4%, rgba(240, 197, 117, 0.3) 93.7%, transparent 94.4%, transparent 96.6%, rgba(255, 221, 152, 0.7) 97%, transparent 97.8%);
+}
+.face::after {
+  content: "";
+  position: absolute;
+  top: -25%;
+  bottom: -25%;
+  left: -60%;
+  width: 36%;
+  z-index: 4;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(100deg, transparent, rgba(255, 243, 210, 0.34), transparent);
+  transform: skewX(-18deg);
+}
+.chart { position: absolute; right: 5%; top: 24%; width: 47%; height: auto; z-index: 0; opacity: 0.15; pointer-events: none; }
+.top { position: absolute; left: 6.4cqw; right: 5.6cqw; top: 5.8cqw; z-index: 2; display: flex; align-items: center; gap: 2.2cqw; }
+.mark { width: 12.6cqw; height: auto; flex-shrink: 0; filter: drop-shadow(0 0 7px rgba(240, 197, 117, 0.35)); }
+.word { width: 33cqw; height: auto; flex-shrink: 0; }
+.status {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 1.5cqw;
+  padding: 1.5cqw 2.7cqw;
+  border-radius: 999px;
+  white-space: nowrap;
+  font: 800 clamp(9.5px, 3.1cqw, 11.5px) / 1 var(--card-small-font);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #f6d48c;
+  background: rgba(8, 8, 8, 0.78);
+  border: 1px solid rgba(240, 197, 117, 0.5);
+}
+.status svg { width: clamp(11px, 3.4cqw, 13px); height: auto; flex-shrink: 0; }
+.chip {
+  position: absolute;
+  left: 6.4cqw;
+  top: 35.5%;
+  z-index: 2;
+  width: 12.4cqw;
+  aspect-ratio: 1.3;
+  border-radius: 1.9cqw;
+  background: linear-gradient(135deg, #ffe9b4 0%, #d8a752 42%, #f6d58e 62%, #b78431 100%);
+  box-shadow: inset 0 0 0 1px rgba(80, 55, 15, 0.5), 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+.chip::before { content: ""; position: absolute; inset: 24% 30%; border: 1px solid rgba(80, 55, 15, 0.5); border-radius: 1cqw; }
+.chip::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: rgba(80, 55, 15, 0.45); }
+.mid { position: absolute; left: 6.4cqw; right: 6.4cqw; bottom: 20.5%; z-index: 2; display: grid; gap: 1.3cqw; }
+.label { font: 800 clamp(9px, 2.9cqw, 11px) / 1 var(--card-small-font); letter-spacing: 0.22em; text-transform: uppercase; color: #ebc57d; }
+.name {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  padding-top: 0.14em;
+  margin-top: -0.14em;
+  font: 600 7cqw / 1.2 var(--card-name-font);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #f1f2f4;
+  background: linear-gradient(180deg, #ffffff 0%, #edeff2 46%, #b4b9bf 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.7));
+}
+/* A long name goes on two lines, always whole */
+.two { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.2; text-wrap: balance; overflow-wrap: anywhere; }
+.bot {
+  position: absolute;
+  left: 6.4cqw;
+  right: 6.4cqw;
+  bottom: 4.6cqw;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 3cqw;
+  font: 700 clamp(9px, 2.9cqw, 11px) / 1.6 var(--card-small-font);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #cdd1d6;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+}
+.bot span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bot .no { flex-shrink: 0; color: #f0c575; font-family: var(--card-name-font); font-weight: 600; letter-spacing: 0.06em; }
+
+/* Active: the status in the brand's teal, a brighter edge and a light sweep now and then */
+.card[data-state="active"] .status { color: #0b0d0b; background: #91d6d0; border-color: #91d6d0; }
+.card[data-state="active"] .face { box-shadow: 0 28px 60px rgba(0, 0, 0, 0.62), 0 0 60px rgba(240, 197, 117, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.14); border-color: rgba(246, 212, 140, 0.7); }
+.card[data-state="active"] .face::after { opacity: 1; animation: sweep 5.8s ease-in-out 1s infinite; }
+/* Suspended: everything stays readable, only the chip is dimmed */
+.card[data-state="locked"] .chip { filter: saturate(0.35) brightness(0.72); }
+
+@keyframes tilt { 0%, 100% { transform: rotateX(4deg) rotateY(-7deg); } 50% { transform: rotateX(-2deg) rotateY(7deg); } }
+@keyframes sweep { 0%, 52% { left: -60%; } 100% { left: 130%; } }
+@media (prefers-reduced-motion: reduce) {
+  .face, .face::after, .card[data-state="active"] .face::after { animation: none !important; }
+}

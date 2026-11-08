@@ -1,0 +1,51 @@
+MISE A JOUR DU CONNECTEUR INVESTPRO - HISTORIQUE COMPLET DES COMPTES MT4
+
+Probleme corrige : MetaTrader 4 ne donne au connecteur que les trades de la
+periode affichee dans son onglet "Historique du compte". Un terminal neuf
+affiche une periode courte : les trades plus anciens d'un compte MT4
+n'arrivaient jamais dans le journal. Les comptes MT5 ne sont pas concernes.
+
+Ce que fait la mise a jour : apres le premier envoi d'un compte MT4, le
+connecteur demande "Tout l'historique" au terminal de ce compte, comme un
+clic droit dans l'onglet. Le site garde tous les trades recus : un seul
+envoi de l'historique complet suffit, meme apres un redemarrage.
+
+Fichier a remplacer dans votre dossier WINDOWS :
+  host.py
+
+Gardez tous les autres fichiers. Ne relancez ni la configuration, ni la
+generation des secrets, ni l'enregistrement des brokers.
+
+Installation, sur l'ordinateur qui heberge les connexions :
+1. Arretez l'hebergeur avec Ctrl+C dans sa fenetre habituelle, puis
+   attendez son arret.
+2. Gardez une copie de votre host.py actuel pour pouvoir revenir en arriere.
+3. Copiez le nouveau host.py au meme endroit.
+4. Relancez votre 4-DEMARRER.cmd habituel.
+
+A verifier dans la fenetre de l'hebergeur, pour chaque compte MT4 :
+  MT4 HISTORIQUE compte ...2159 : demande Tout l historique envoyee au terminal
+puis, si le compte a des trades plus anciens :
+  MT4 HISTORIQUE COMPLET compte ...2159 : N trades envoyes (avant : M)
+
+Si la ligne dit "aucun trade plus ancien en 5 minutes" alors que le compte
+en a (la commande peut changer selon la version de MetaTrader 4), faites-le
+a la main une fois, pendant que l'hebergeur tourne :
+  1. Ouvrez la fenetre MetaTrader 4 du compte (son numero est dans le titre).
+  2. Ctrl+T pour afficher le Terminal, puis l'onglet "Historique du compte"
+     ("Account History" en anglais).
+  3. Clic droit dans la liste, puis "Tout l'historique" ("All History").
+  En moins d'une minute, les anciens trades partent vers le site et y restent.
+Ce geste manuel marche aussi sans la mise a jour.
+
+Securite : la commande vise seulement la fenetre du terminal du compte
+concerne. Aucun ordre n'est passe, l'acces reste en lecture seule et les DLL
+restent desactivees dans MetaTrader.
+
+Retour arriere : arretez l'hebergeur, remettez votre ancien host.py, puis
+relancez 4-DEMARRER.cmd.
+
+Verification effectuee : compilation Python, tests hors ligne existants et
+simulation Windows (seule la fenetre principale du terminal du compte recoit
+la commande). Aucun terminal MT4 reel n'a ete lance pendant ces tests : le
+premier essai se fait sur votre serveur.

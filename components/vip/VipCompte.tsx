@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import HostedSyncPanel from "@/components/metasync/HostedSyncPanel";
 import type { VipMembership } from "@/lib/vip/types";
 import { RISK_CHOICES, type MemberAccount, type VipMember } from "./vipMember";
+import VipMemberCard from "./VipMemberCard";
 import s from "./VipEspace.module.css";
 
 type Props = {
@@ -48,14 +49,19 @@ export default function VipCompte({ banner, membership, member, alertsOn, alerts
   };
 
   return <div className={s.page}>
-    <header className={s.profile}>
+    {membership ? <header className={s.memberHead}>
+      <VipMemberCard firstName={membership.first_name} lastName={membership.last_name} number={membership.member_number} since={membership.started_at} active={membership.status !== "suspended"} />
+      <div className={s.memberStatus}>
+        <span className={s.small}>{membership.status === "suspended" ? t("VIP suspendu") : `${t("VIP actif")} · ${expires ? `${t("jusqu’au")} ${expires}` : t("sans échéance")}`}</span>
+        {membership.type === "abonnement" ? <button type="button" className={s.primary} onClick={onRenew} disabled={busy || requested}>{requested ? t("Demande transmise") : t("Renouveler")}</button> : null}
+      </div>
+    </header> : <header className={s.profile}>
       <span className={s.avatar} aria-hidden="true">{initial}</span>
       <div className={s.profileText}>
         <b>{name || t("Membre VIP")}</b>
-        <span className={s.small}>{membership?.status === "suspended" ? t("VIP suspendu") : `${t("VIP actif")} · ${expires ? `${t("jusqu’au")} ${expires}` : t("sans échéance")}`}</span>
+        <span className={s.small}>{t("Aperçu de l’équipe")}</span>
       </div>
-      {membership?.type === "abonnement" ? <button type="button" className={s.primary} onClick={onRenew} disabled={busy || requested}>{requested ? t("Demande transmise") : t("Renouveler")}</button> : null}
-    </header>
+    </header>}
     {requested ? <p className={s.small}>{t("Renouvellement demandé · en attente de vérification par l’équipe.")}</p> : null}
     {banner}
 

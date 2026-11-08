@@ -156,4 +156,16 @@ export const vipEspaceMessages: Record<string, string> = {
   "Aucun trade dans ton journal ce mois-ci.": "No trade in your journal this month.",
   "Connecter un compte MetaTrader pour le remplir automatiquement": "Connect a MetaTrader account to fill it automatically",
   "trade clôturé": "closed trade",
+  // The member card in Compte
+  "Membre VIP": "VIP member",
+  "Membre depuis": "Member since",
+  "Carte membre InvestPro Trading": "InvestPro Trading member card",
+  "active": "active",
+  "suspendue": "suspended",
+  "Suspendue": "Suspended",
+  "Accès suspendu": "Access suspended",
+  "VIP suspendu": "VIP suspended",
+  "sans échéance": "no end date",
+  "jusqu’au": "until",
+  "Aperçu de l’équipe": "Team preview",
 };

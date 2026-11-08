@@ -52,6 +52,8 @@ export type VipMembership = {
   renewal_requested_at: string | null;
   created_at: string;
   updated_at: string;
+  /** The number on the member card (N° 0010), given when the membership is created. */
+  member_number?: number | null;
 };
 
 export type VipInvitation = {
