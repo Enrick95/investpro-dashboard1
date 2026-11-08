@@ -615,6 +615,41 @@ test("renewal is offered only close to the end of an abonnement, and a request i
   assert.equal(nodes(pending.host.tree, node => node.type === "button" && text(node) === "Renouveler").length, 0);
 });
 
+test("the Journal switches between the member’s trades and the VIP’s trades, each with its own figures", async () => {
+  const host = hookHost();
+  const today = parisDate(Date.now());
+  const yesterday = parisDate(Date.now() - 86400000);
+  const day = today.slice(0, 7) === yesterday.slice(0, 7) ? yesterday : today;
+  const rows = [{ id: 1, trade_date: day, symbol: "XAUUSD.r", direction: "buy", status: "win", result_r: 1.2 }];
+  const channelRows = [
+    { id: "v1", date: day, symbol: "GOLD", direction: "buy", status: "win", resultR: 2, target: 2, outcome: "TP2", closed: true, rBasis: "recorded", source: "telegram" },
+    { id: "v2", date: day, symbol: "EURUSD", direction: "sell", status: "loss", resultR: -1, target: null, outcome: "LOSS", closed: true, rBasis: "recorded", source: "telegram" },
+  ];
+  const Journal = compile("components/vip/VipJournal.tsx", {
+    react: host.hooks, "react/jsx-runtime": { jsx: element, jsxs: element, Fragment: fragment },
+    "lucide-react": new Proxy({}, { get: () => icon }),
+    "@/components/i18n/LocaleProvider": { useLocale: () => ({ t: identity, locale: "fr" }) },
+    "@/lib/supabase/client": { createClient: () => ({ auth: { getUser: async () => ({ data: { user: { id: "u1" } } }) } }) },
+    "@/lib/metasync/loadJournal": { loadJournal: async () => ({ data: rows, error: null }) },
+    "@/lib/vip/publication-notice": publicationNotice,
+    "@/lib/vip/signal-risk-preset": riskPreset,
+    "./VipEspace.module.css": css,
+  }).default;
+  host.start(Journal, { banner: null, posts: [], signalsMonthR: 1, channelRows, onOpenCompte() {} });
+  await host.settle();
+  const chip = label => nodes(host.tree, node => node.type === "button" && text(node) === label)[0];
+  assert.equal(chip("Mes trades").props["aria-pressed"], true, "The journal opens on the member’s own trades");
+  assert.ok(nodes(host.tree, node => node.type === "li" && node.props.className === "row").map(text).some(row => /^XAUUSD\.R Achat/.test(row)));
+  chip("Trades du VIP").props.onClick(); await host.settle();
+  assert.equal(chip("Trades du VIP").props["aria-pressed"], true);
+  const trades = nodes(host.tree, node => node.type === "li" && node.props.className === "row").map(text);
+  assert.ok(trades.some(row => /^GOLD Achat · TP2 · suivi/.test(row)), trades.join(" | "));
+  assert.ok(trades.some(row => /^EURUSD Vente · SL · pas suivi/.test(row)), trades.join(" | "));
+  const stats = nodes(host.tree, node => node.props.className === "stat").map(text);
+  assert.ok(stats.includes("Résultat du VIP+1,0 R"), stats.join(" | "));
+  assert.ok(stats.includes("Réussite50 %"), stats.join(" | "));
+  assert.ok(stats.includes("Tu as suivi1 / 2"), stats.join(" | "));
+});
 test("Journal and Compte live inside the space and get what they need from it", async () => {
   const tools = element("details", { "data-probe": "account", children: "Application et aide" });
   const language = element("select", { "aria-label": "Langue" });

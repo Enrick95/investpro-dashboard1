@@ -638,7 +638,7 @@ export default function VipEspace(props: VipEspaceProps) {
       <div className={s.panel} ref={panel}>
         {section === "signaux" ? (threadPost ? <Thread ctx={ctx} post={threadPost} /> : history ? <History ctx={ctx} /> : <Signaux ctx={ctx} />)
           : section === "canal" ? <Canal ctx={ctx} />
-            : section === "journal" ? <VipJournal banner={banner} posts={posts} signalsMonthR={perf.status === "ready" && stats.monthClosed > 0 ? stats.monthTotalR : null} onOpenCompte={() => go("compte")} />
+            : section === "journal" ? <VipJournal banner={banner} posts={posts} signalsMonthR={perf.status === "ready" && stats.monthClosed > 0 ? stats.monthTotalR : null} channelRows={perf.status === "ready" ? stats.closed : null} onOpenCompte={() => go("compte")} />
               : <VipCompte banner={banner} membership={membership} member={member} alertsOn={alertsOn} alertsAvailable={alertsAvailable} onEnableAlerts={onEnableAlerts} busy={busy} onRenew={onRenew} languageControl={languageControl} accountTools={accountTools} onTelegram={() => go("canal", "telegram")} />}
       </div>
       {notice ? <div className={s.toast} role="alert"><span>{t(notice)}</span><button type="button" onClick={() => setNotice("")}>{t("Fermer")}</button></div>

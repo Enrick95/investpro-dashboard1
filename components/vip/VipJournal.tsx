@@ -8,6 +8,7 @@ import { loadJournal } from "@/lib/metasync/loadJournal";
 import { vipSignalOrder } from "@/lib/vip/publication-notice";
 import { sameInstrument } from "@/lib/vip/signal-risk-preset";
 import type { VipPost } from "@/lib/vip/types";
+import type { ReportRow } from "@/lib/vip/performance-report";
 import s from "./VipEspace.module.css";
 
 type Row = { id: string; date: string; symbol: string; direction: "buy" | "sell"; resultR: number | null; status: string };
@@ -60,20 +61,35 @@ function followed(row: Row, signals: VipPost[]): VipPost | undefined {
   });
 }
 
+/** The member took this VIP trade: a trade of theirs on the same instrument and side, the same day or the day before or after. */
+function taken(trade: ReportRow, rows: Row[]): boolean {
+  return rows.some(row => row.direction === trade.direction && sameInstrument(trade.symbol, row.symbol)
+    && Math.abs(dayNumber(trade.date) - dayNumber(row.date)) <= 1);
+}
+
+/** How a VIP trade ended, as the channel names it. */
+function outcomeLabel(trade: ReportRow): string {
+  if (/^TP\d+$/.test(trade.outcome)) return trade.outcome;
+  return trade.outcome === "LOSS" ? "SL" : trade.outcome === "BE" ? "BE" : trade.outcome === "WIN" ? "Gain" : trade.outcome;
+}
+
 type Props = {
   banner: ReactNode;
   posts: VipPost[];
   /** The month’s result of the team’s signals, once the public figures have one. */
   signalsMonthR: number | null;
+  /** The VIP’s closed trades from the public figures, every month; null while they load or when they are unavailable. */
+  channelRows?: ReportRow[] | null;
   onOpenCompte: () => void;
 };
 
 /** The member’s own journal inside the VIP: the month, a calendar coloured by day, and the trades set against the team’s signals. */
-export default function VipJournal({ banner, posts, signalsMonthR, onOpenCompte }: Props) {
+export default function VipJournal({ banner, posts, signalsMonthR, channelRows = null, onOpenCompte }: Props) {
   const { t, locale } = useLocale();
   const tag = locale === "en" ? "en-US" : "fr-FR";
   const [load, setLoad] = useState<Load>({ status: "loading", rows: [] });
   const [month, setMonth] = useState(() => parisDay(Date.now()).slice(0, 7));
+  const [view, setView] = useState<"mine" | "vip">("mine");
 
   useEffect(() => {
     let live = true;
@@ -105,13 +121,20 @@ export default function VipJournal({ banner, posts, signalsMonthR, onOpenCompte 
   const wins = closed.filter(row => row.status === "win").length;
   const monthSignals = signals.filter(post => parisDay(Date.parse(post.created_at)).startsWith(month));
   const takenSignals = monthSignals.filter(post => monthRows.some(row => followed(row, [post]))).length;
+  // The VIP side: the trades the channel closed this month, and which of them the member took.
+  const vipRows = (channelRows ?? []).filter(trade => trade.date.startsWith(month)).sort((a, b) => b.date.localeCompare(a.date));
+  const vipKnown = vipRows.filter(trade => trade.resultR !== null);
+  const vipTotal = vipRows.length && vipKnown.length === vipRows.length ? vipKnown.reduce((sum, trade) => sum + (trade.resultR ?? 0), 0) : null;
+  const vipWins = vipRows.filter(trade => trade.status === "win").length;
+  const vipTaken = vipRows.filter(trade => taken(trade, load.rows)).length;
 
   // Monday-first calendar of the month, with each week’s total.
   const [year, index] = month.split("-").map(Number);
   const days = new Date(Date.UTC(year, index, 0)).getUTCDate();
   const lead = (new Date(Date.UTC(year, index - 1, 1)).getUTCDay() + 6) % 7;
   const byDay = new Map<string, number>();
-  for (const row of closed) byDay.set(row.date, (byDay.get(row.date) ?? 0) + (row.resultR ?? 0));
+  if (view === "vip") { for (const trade of vipKnown) byDay.set(trade.date, (byDay.get(trade.date) ?? 0) + (trade.resultR ?? 0)); }
+  else for (const row of closed) byDay.set(row.date, (byDay.get(row.date) ?? 0) + (row.resultR ?? 0));
   const cells: (string | null)[] = [...Array(lead).fill(null), ...Array.from({ length: days }, (_, day) => `${month}-${String(day + 1).padStart(2, "0")}`)];
   while (cells.length % 7) cells.push(null);
   const weeks: (string | null)[][] = [];
@@ -128,11 +151,23 @@ export default function VipJournal({ banner, posts, signalsMonthR, onOpenCompte 
       </div>
     </header>
     {banner}
+    <div className={s.chips} role="group" aria-label={t("Afficher")}>
+      <button type="button" className={view === "mine" ? s.chipOn : s.chip} aria-pressed={view === "mine"} onClick={() => setView("mine")}>{t("Mes trades")}</button>
+      <button type="button" className={view === "vip" ? s.chipOn : s.chip} aria-pressed={view === "vip"} onClick={() => setView("vip")}>{t("Trades du VIP")}</button>
+    </div>
     {load.status === "loading" ? <p className={s.emptyCard} role="status">{t("Chargement de ton journal…")}</p>
       : load.status === "signedOut" ? <p className={s.emptyCard}>{t("Connecte-toi pour retrouver ton journal.")}</p>
         : load.status === "error" ? <p className={s.emptyCard} role="alert">{t("Ton journal est indisponible pour le moment. Réessaie dans un instant.")}</p>
           : <>
-            <article className={s.compare}>
+            {view === "vip" ? <article className={s.compare}>
+              <h2 className={s.compareTitle}>{t("Le VIP ce mois-ci")}</h2>
+              <div className={s.stats}>
+                <div className={s.stat}><span>{t("Résultat du VIP")}</span><b className={vipTotal === null ? undefined : vipTotal < 0 ? s.loss : s.gold}>{vipTotal === null ? "—" : r(vipTotal)}</b></div>
+                <div className={s.stat}><span>{t("Réussite")}</span><b>{vipRows.length ? `${Math.round((vipWins / vipRows.length) * 100)} %` : "—"}</b></div>
+                <div className={s.stat}><span>{t("Tu as suivi")}</span><b>{vipRows.length ? `${vipTaken} / ${vipRows.length}` : "—"}</b></div>
+              </div>
+              <p className={s.small}>{channelRows === null ? t("Les trades du VIP sont indisponibles pour le moment.") : vipRows.length ? `${vipRows.length} ${t(vipRows.length > 1 ? "trades clôturés" : "trade clôturé")} ${t("dans le canal")}` : t("Aucun trade du VIP clôturé ce mois-ci.")}</p>
+            </article> : <article className={s.compare}>
               <h2 className={s.compareTitle}>{t("Toi face aux signaux")}</h2>
               <div className={s.stats}>
                 <div className={s.stat}><span>{t("Ton résultat")}</span><b className={closed.length ? (total < 0 ? s.loss : s.gain) : undefined}>{closed.length ? r(total) : "—"}</b></div>
@@ -143,7 +178,7 @@ export default function VipJournal({ banner, posts, signalsMonthR, onOpenCompte 
                 {closed.length ? `${closed.length} ${t(closed.length > 1 ? "trades clôturés" : "trade clôturé")} · ${t("réussite")} ${Math.round((wins / closed.length) * 100)} %` : t("Aucun trade clôturé ce mois-ci.")}
                 {closed.length && signalsMonthR !== null ? ` · ${t("écart")} ${r(total - signalsMonthR)}` : ""}
               </p>
-            </article>
+            </article>}
             <div className={s.calendar} role="table" aria-label={t("Calendrier du mois")}>
               <div className={s.calHead} role="row">{weekdays.map((day, position) => <span key={position} role="columnheader">{day}</span>)}<span role="columnheader">{t("Sem.")}</span></div>
               {weeks.map((week, row) => {
@@ -162,7 +197,15 @@ export default function VipJournal({ banner, posts, signalsMonthR, onOpenCompte 
                 </div>;
               })}
             </div>
-            <section className={s.section} aria-labelledby="vip-journal-trades">
+            {view === "vip" ? <section className={s.section} aria-labelledby="vip-journal-channel">
+              <h2 id="vip-journal-channel" className={s.sectionTitle}>{t("Trades du VIP ce mois-ci")}</h2>
+              {vipRows.length ? <ul className={s.rows}>
+                {vipRows.slice(0, 20).map(trade => <li key={trade.id} className={s.row}>
+                  <span><b>{trade.symbol}</b> <span className={s.muted}>{t(trade.direction === "sell" ? "Vente" : "Achat")} · {t(outcomeLabel(trade))} · {t(taken(trade, load.rows) ? "suivi" : "pas suivi")}</span></span>
+                  <b className={`${s.num} ${trade.resultR === null ? s.gold : trade.resultR < 0 ? s.loss : s.gain}`}>{trade.resultR === null ? "—" : r(trade.resultR)}</b>
+                </li>)}
+              </ul> : <p className={s.emptyCard}>{channelRows === null ? t("Les trades du VIP sont indisponibles pour le moment.") : t("Aucun trade du VIP clôturé ce mois-ci.")}</p>}
+            </section> : <section className={s.section} aria-labelledby="vip-journal-trades">
               <h2 id="vip-journal-trades" className={s.sectionTitle}>{t("Trades du mois")}</h2>
               {monthRows.length ? <ul className={s.rows}>
                 {monthRows.slice(0, 12).map(row => <li key={row.id} className={s.row}>
@@ -173,7 +216,7 @@ export default function VipJournal({ banner, posts, signalsMonthR, onOpenCompte 
                 <p>{t("Aucun trade dans ton journal ce mois-ci.")}</p>
                 <button type="button" className={s.textButton} onClick={onOpenCompte}>{t("Connecter un compte MetaTrader pour le remplir automatiquement")}</button>
               </div>}
-            </section>
+            </section>}
           </>}
   </div>;
 }
