@@ -177,6 +177,8 @@
 .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .stat span { display: block; color: var(--mute); font-size: 12px; }
 .stat b { display: block; margin-top: 5px; font-size: 27px; font-weight: 800; font-stretch: 72%; line-height: 1; font-variant-numeric: tabular-nums; }
+/* A result in money (« −1 583 $ ») is longer than one in R: smaller, and it may wrap inside its column */
+.stat b.statMoney { font-size: 21px; overflow-wrap: anywhere; }
 
 /* Lists */
 .rows { margin: 4px 0 0; padding: 0; list-style: none; }

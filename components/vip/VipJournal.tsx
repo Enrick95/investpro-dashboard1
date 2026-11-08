@@ -11,11 +11,26 @@ import type { VipPost } from "@/lib/vip/types";
 import type { ReportRow } from "@/lib/vip/performance-report";
 import s from "./VipEspace.module.css";
 
-type Row = { id: string; date: string; symbol: string; direction: "buy" | "sell"; resultR: number | null; status: string };
+/**
+ * A trade of the member’s journal. A trade synced from MetaTrader has its result in money but often no initial stop,
+ * so no R: it is still a closed trade, counted and shown with its amount.
+ */
+type Row = { id: string; date: string; symbol: string; direction: "buy" | "sell"; status: string; closed: boolean; resultR: number | null; amount: number | null; accountId: number | null };
 type Load = { status: "loading" | "ready" | "error" | "signedOut"; rows: Row[] };
+/** The member’s trading accounts, for the currency of each trade’s amount. */
+type AccountCurrency = { id: number; currency: string | null };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const CLOSED = new Set(["win", "loss", "breakeven"]);
+/** Trades listed before « Voir les autres trades ». */
+const LIST_LIMIT = 12;
+
+/** A number from the database; a missing value stays missing (Number(null) would read 0). */
+function finite(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
 
 function parisDay(value: number): string {
   return new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: "Europe/Paris" }).format(new Date(value));
@@ -37,14 +52,17 @@ function readRow(value: Record<string, unknown>): Row | null {
   const direction = value.direction === "sell" ? "sell" : value.direction === "buy" ? "buy" : null;
   const status = typeof value.status === "string" ? value.status : "";
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !direction || status === "cancelled") return null;
-  const r = Number(value.result_r);
+  const closed = CLOSED.has(status);
   return {
     id: String(value.id ?? `${date}-${value.symbol}`),
     date,
     symbol: String(value.symbol ?? "").trim().toUpperCase(),
     direction,
-    resultR: CLOSED.has(status) && Number.isFinite(r) ? r : null,
     status,
+    closed,
+    resultR: closed ? finite(value.result_r) : null,
+    amount: closed ? finite(value.result_amount) : null,
+    accountId: finite(value.account_id),
   };
 }
 
@@ -80,16 +98,22 @@ type Props = {
   signalsMonthR: number | null;
   /** The VIP’s closed trades from the public figures, every month; null while they load or when they are unavailable. */
   channelRows?: ReportRow[] | null;
+  /** The member’s accounts, for the currency of each amount, and the reference rates to add up several currencies. */
+  accounts?: AccountCurrency[];
+  rates?: Record<string, number> | null;
   onOpenCompte: () => void;
 };
 
 /** The member’s own journal inside the VIP: the month, a calendar coloured by day, and the trades set against the team’s signals. */
-export default function VipJournal({ banner, posts, signalsMonthR, channelRows = null, onOpenCompte }: Props) {
+export default function VipJournal({ banner, posts, signalsMonthR, channelRows = null, accounts = [], rates = null, onOpenCompte }: Props) {
   const { t, locale } = useLocale();
-  const tag = locale === "en" ? "en-US" : "fr-FR";
+  const en = locale === "en";
+  const tag = en ? "en-US" : "fr-FR";
   const [load, setLoad] = useState<Load>({ status: "loading", rows: [] });
   const [month, setMonth] = useState(() => parisDay(Date.now()).slice(0, 7));
   const [view, setView] = useState<"mine" | "vip">("mine");
+  /** The month whose whole list of trades is open. */
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -116,9 +140,51 @@ export default function VipJournal({ banner, posts, signalsMonthR, channelRows =
   const today = parisDay(Date.now());
   const signals = posts.filter(post => post.category === "signal");
   const monthRows = load.rows.filter(row => row.date.startsWith(month)).sort((a, b) => b.date.localeCompare(a.date));
-  const closed = monthRows.filter(row => row.resultR !== null);
-  const total = closed.reduce((sum, row) => sum + (row.resultR ?? 0), 0);
+  const closed = monthRows.filter(row => row.closed);
   const wins = closed.filter(row => row.status === "win").length;
+  // In R when every closed trade of the month has one; otherwise in money, as MetaTrader gives it.
+  const inR = closed.length > 0 && closed.every(row => row.resultR !== null);
+  const currencyOf = new Map(accounts.map(account => [account.id, (account.currency || "").toUpperCase()]));
+  const currency = (row: Row) => (row.accountId !== null ? currencyOf.get(row.accountId) : undefined) || null;
+  // The month is added up in the currency most of its trades are in; another currency is converted with the reference rates.
+  const tally = new Map<string, number>();
+  for (const row of closed) { const code = currency(row); if (code && row.amount !== null) tally.set(code, (tally.get(code) ?? 0) + 1); }
+  const monthCurrency = [...tally.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+  const inMonthCurrency = (row: Row): number | null => {
+    const code = currency(row);
+    if (row.amount === null || !code || !monthCurrency) return null;
+    if (code === monthCurrency) return row.amount;
+    const from = rates?.[code], to = rates?.[monthCurrency];
+    return from && to && from > 0 && to > 0 ? row.amount * to / from : null;
+  };
+  const measure = (row: Row) => inR ? row.resultR : inMonthCurrency(row);
+  const counted = closed.filter(row => measure(row) !== null);
+  const total = counted.reduce((sum, row) => sum + (measure(row) ?? 0), 0);
+  const money = (amount: number, code: string, digits = Math.abs(amount) < 10 ? 2 : 0) => {
+    try {
+      return new Intl.NumberFormat(tag, { style: "currency", currency: code, currencyDisplay: "narrowSymbol", signDisplay: "exceptZero", minimumFractionDigits: digits, maximumFractionDigits: digits })
+        .format(amount).replace("-", "−");
+    } catch { return `${amount > 0 ? "+" : amount < 0 ? "−" : ""}${Math.abs(amount).toFixed(digits)} ${code}`; }
+  };
+  // A day of the calendar is narrow: 412, 1,2k.
+  const compactMoney = (amount: number) => {
+    const size = Math.abs(amount);
+    const body = size >= 1000 ? `${new Intl.NumberFormat(tag, { maximumFractionDigits: 1 }).format(size / 1000)}k` : String(Math.round(size));
+    return `${amount > 0 ? "+" : amount < 0 ? "−" : ""}${body}`;
+  };
+  const listed = expanded === month ? monthRows : monthRows.slice(0, LIST_LIMIT);
+  const rowResult = (row: Row): string => {
+    if (!row.closed) return t("En cours");
+    if (row.resultR !== null) return r(row.resultR);
+    const code = currency(row);
+    // With its cents, like MetaTrader’s profit column.
+    if (row.amount !== null && code) return money(row.amount, code, 2);
+    return t(row.status === "win" ? "Gain" : row.status === "loss" ? "Perte" : "BE");
+  };
+  const rowTone = (row: Row) => {
+    const value = row.resultR ?? row.amount;
+    return !row.closed ? s.gold : value === null ? (row.status === "loss" ? s.loss : row.status === "win" ? s.gain : undefined) : value < 0 ? s.loss : value > 0 ? s.gain : undefined;
+  };
   const monthSignals = signals.filter(post => parisDay(Date.parse(post.created_at)).startsWith(month));
   const takenSignals = monthSignals.filter(post => monthRows.some(row => followed(row, [post]))).length;
   // The VIP side: the trades the channel closed this month, and which of them the member took.
@@ -134,7 +200,10 @@ export default function VipJournal({ banner, posts, signalsMonthR, channelRows =
   const lead = (new Date(Date.UTC(year, index - 1, 1)).getUTCDay() + 6) % 7;
   const byDay = new Map<string, number>();
   if (view === "vip") { for (const trade of vipKnown) byDay.set(trade.date, (byDay.get(trade.date) ?? 0) + (trade.resultR ?? 0)); }
-  else for (const row of closed) byDay.set(row.date, (byDay.get(row.date) ?? 0) + (row.resultR ?? 0));
+  else for (const row of counted) byDay.set(row.date, (byDay.get(row.date) ?? 0) + (measure(row) ?? 0));
+  // The calendar counts in R, or in money when the member’s trades have no R; a « strong » day is over 1 R.
+  const calendarInR = view === "vip" || inR;
+  const dayText = (value: number) => calendarInR ? short(value) : compactMoney(value);
   const cells: (string | null)[] = [...Array(lead).fill(null), ...Array.from({ length: days }, (_, day) => `${month}-${String(day + 1).padStart(2, "0")}`)];
   while (cells.length % 7) cells.push(null);
   const weeks: (string | null)[][] = [];
@@ -170,14 +239,15 @@ export default function VipJournal({ banner, posts, signalsMonthR, channelRows =
             </article> : <article className={s.compare}>
               <h2 className={s.compareTitle}>{t("Toi face aux signaux")}</h2>
               <div className={s.stats}>
-                <div className={s.stat}><span>{t("Ton résultat")}</span><b className={closed.length ? (total < 0 ? s.loss : s.gain) : undefined}>{closed.length ? r(total) : "—"}</b></div>
+                <div className={s.stat}><span>{t("Ton résultat")}</span><b className={`${counted.length ? (total < 0 ? s.loss : s.gain) : ""} ${counted.length && !inR ? s.statMoney : ""}`}>{!counted.length ? "—" : inR ? r(total) : monthCurrency ? money(total, monthCurrency, 0) : "—"}</b></div>
                 <div className={s.stat}><span>{t("Les signaux")}</span><b className={s.gold}>{signalsMonthR === null ? "—" : r(signalsMonthR)}</b></div>
                 <div className={s.stat}><span>{t("Suivis")}</span><b>{monthSignals.length ? `${takenSignals} / ${monthSignals.length}` : "—"}</b></div>
               </div>
               <p className={s.small}>
-                {closed.length ? `${closed.length} ${t(closed.length > 1 ? "trades clôturés" : "trade clôturé")} · ${t("réussite")} ${Math.round((wins / closed.length) * 100)} %` : t("Aucun trade clôturé ce mois-ci.")}
-                {closed.length && signalsMonthR !== null ? ` · ${t("écart")} ${r(total - signalsMonthR)}` : ""}
+                {closed.length ? `${closed.length} ${t(closed.length > 1 ? "trades clôturés" : "trade clôturé")} · ${t("réussite")} ${Math.round((wins / closed.length) * 100)}${en ? "%" : " %"}` : t("Aucun trade clôturé ce mois-ci.")}
+                {inR && signalsMonthR !== null ? ` · ${t("écart")} ${r(total - signalsMonthR)}` : ""}
               </p>
+              {closed.length && !inR ? <p className={s.small}>{t("Sans stop de départ dans MetaTrader, tes trades sont comptés en argent, pas en R.")}</p> : null}
             </article>}
             <div className={s.calendar} role="table" aria-label={t("Calendrier du mois")}>
               <div className={s.calHead} role="row">{weekdays.map((day, position) => <span key={position} role="columnheader">{day}</span>)}<span role="columnheader">{t("Sem.")}</span></div>
@@ -188,12 +258,12 @@ export default function VipJournal({ banner, posts, signalsMonthR, channelRows =
                   {week.map((date, position) => {
                     if (!date) return <span key={position} className={s.dayEmpty} role="cell" />;
                     const value = byDay.get(date);
-                    const tone = value === undefined ? "" : value > 1 ? s.dayStrong : value > 0 ? s.dayGain : value < 0 ? s.dayLoss : s.dayFlat;
+                    const tone = value === undefined ? "" : calendarInR && value > 1 ? s.dayStrong : value > 0 ? s.dayGain : value < 0 ? s.dayLoss : s.dayFlat;
                     return <span key={position} role="cell" className={`${s.day} ${tone} ${date === today ? s.dayToday : ""}`}>
-                      {Number(date.slice(8))}{value !== undefined ? <b>{short(value)}</b> : null}
+                      {Number(date.slice(8))}{value !== undefined ? <b>{dayText(value)}</b> : null}
                     </span>;
                   })}
-                  <span role="cell" className={`${s.week} ${traded ? (sum < 0 ? s.loss : s.gain) : ""}`}>{traded ? short(sum) : "—"}</span>
+                  <span role="cell" className={`${s.week} ${traded ? (sum < 0 ? s.loss : s.gain) : ""}`}>{traded ? dayText(sum) : "—"}</span>
                 </div>;
               })}
             </div>
@@ -206,13 +276,18 @@ export default function VipJournal({ banner, posts, signalsMonthR, channelRows =
                 </li>)}
               </ul> : <p className={s.emptyCard}>{channelRows === null ? t("Les trades du VIP sont indisponibles pour le moment.") : t("Aucun trade du VIP clôturé ce mois-ci.")}</p>}
             </section> : <section className={s.section} aria-labelledby="vip-journal-trades">
-              <h2 id="vip-journal-trades" className={s.sectionTitle}>{t("Trades du mois")}</h2>
-              {monthRows.length ? <ul className={s.rows}>
-                {monthRows.slice(0, 12).map(row => <li key={row.id} className={s.row}>
-                  <span><b>{row.symbol}</b> <span className={s.muted}>{t(row.direction === "sell" ? "Vente" : "Achat")} · {t(followed(row, signals) ? "signal suivi" : "perso")}</span></span>
-                  <b className={`${s.num} ${row.resultR === null ? s.gold : row.resultR < 0 ? s.loss : s.gain}`}>{row.resultR === null ? t("En cours") : r(row.resultR)}</b>
-                </li>)}
-              </ul> : <div className={s.emptyCard}>
+              <h2 id="vip-journal-trades" className={s.sectionTitle}>{t("Trades du mois")}{monthRows.length ? ` · ${monthRows.length}` : ""}</h2>
+              {monthRows.length ? <>
+                <ul className={s.rows}>
+                  {listed.map(row => <li key={row.id} className={s.row}>
+                    <span><b>{row.symbol}</b> <span className={s.muted}>{t(row.direction === "sell" ? "Vente" : "Achat")} · {t(followed(row, signals) ? "signal suivi" : "perso")}</span><span className={s.rowSub}>{new Intl.DateTimeFormat(tag, { day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(`${row.date}T12:00:00Z`))}</span></span>
+                    <b className={`${s.num} ${rowTone(row) ?? ""}`}>{rowResult(row)}</b>
+                  </li>)}
+                </ul>
+                {listed.length < monthRows.length ? <button type="button" className={s.textButton} onClick={() => setExpanded(month)}>
+                  {en ? `See the ${monthRows.length - listed.length} other trades` : `Voir les ${monthRows.length - listed.length} autres trades`}
+                </button> : null}
+              </> : <div className={s.emptyCard}>
                 <p>{t("Aucun trade dans ton journal ce mois-ci.")}</p>
                 <button type="button" className={s.textButton} onClick={onOpenCompte}>{t("Connecter un compte MetaTrader pour le remplir automatiquement")}</button>
               </div>}

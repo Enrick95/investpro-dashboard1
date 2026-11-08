@@ -670,6 +670,46 @@ test("the Journal switches between the member’s trades and the VIP’s trades,
   assert.ok(stats.includes("Réussite50 %"), stats.join(" | "));
   assert.ok(stats.includes("Tu as suivi1 / 2"), stats.join(" | "));
 });
+test("the Journal shows MetaTrader trades without a stop as closed trades, in money, and lists every trade of the month", async () => {
+  const host = hookHost();
+  const today = parisDate(Date.now());
+  const yesterday = parisDate(Date.now() - 86400000);
+  const day = today.slice(0, 7) === yesterday.slice(0, 7) ? yesterday : today;
+  // Synced from MetaTrader: a result in money, no initial stop, so no R.
+  const amounts = [18.6, -178.8, 56.1, -11.8, 20.1, 12.6, -219, 399.07, 5.4, -6.9, 24.2, 3.8, 15.7, 20];
+  const rows = amounts.map((amount, index) => ({ id: index + 1, trade_date: day, symbol: "XAUUSD", direction: index % 2 ? "sell" : "buy", status: amount > 0 ? "win" : "loss", result_r: null, result_amount: amount, account_id: 97 }));
+  const Journal = compile("components/vip/VipJournal.tsx", {
+    react: host.hooks, "react/jsx-runtime": { jsx: element, jsxs: element, Fragment: fragment },
+    "lucide-react": new Proxy({}, { get: () => icon }),
+    "@/components/i18n/LocaleProvider": { useLocale: () => ({ t: identity, locale: "fr" }) },
+    "@/lib/supabase/client": { createClient: () => ({ auth: { getUser: async () => ({ data: { user: { id: "u1" } } }) } }) },
+    "@/lib/metasync/loadJournal": { loadJournal: async () => ({ data: rows, error: null }) },
+    "@/lib/vip/publication-notice": publicationNotice,
+    "@/lib/vip/signal-risk-preset": riskPreset,
+    "./VipEspace.module.css": css,
+  }).default;
+  host.start(Journal, { banner: null, posts: [], signalsMonthR: null, accounts: [{ id: 97, currency: "USD" }], rates: null, onOpenCompte() {} });
+  await host.settle();
+  const copy = text(host.tree);
+  const total = amounts.reduce((sum, amount) => sum + amount, 0);
+  assert.equal(Math.round(total), 159);
+  const stats = nodes(host.tree, node => node.props.className === "stat").map(text);
+  assert.ok(stats.some(stat => /^Ton résultat\+159\s\$$/.test(stat)), stats.join(" | "));
+  assert.match(copy, /14 trades clôturés · réussite 71\s%/, "Ten wins out of fourteen closed trades");
+  assert.match(copy, /Sans stop de départ dans MetaTrader, tes trades sont comptés en argent, pas en R\./);
+  assert.equal(copy.includes("0,0 R"), false, "A trade without R is never shown as 0 R");
+  const listedRows = () => nodes(host.tree, node => node.type === "li" && node.props.className === "row").map(text);
+  assert.equal(listedRows().length, 12);
+  assert.ok(listedRows().some(row => /XAUUSD.*\+18,60\s\$$/.test(row)), listedRows().join(" | "));
+  assert.ok(listedRows().some(row => /−178,80\s\$$/.test(row)), listedRows().join(" | "));
+  assert.match(copy, /Trades du mois · 14/);
+  const cell = nodes(host.tree, node => node.props.role === "cell" && typeof node.props.className === "string" && node.props.className.includes("dayGain"))[0];
+  assert.ok(cell, "The day is coloured as a winning day");
+  assert.match(text(cell), /\+159$/);
+  button(host, "Voir les 2 autres trades").props.onClick(); await host.settle();
+  assert.equal(listedRows().length, 14, "Every trade of the month can be listed");
+});
+
 test("Journal and Compte live inside the space and get what they need from it", async () => {
   const tools = element("details", { "data-probe": "account", children: "Application et aide" });
   const language = element("select", { "aria-label": "Langue" });
