@@ -10,6 +10,7 @@ import VipPublicationsEditor from "./VipPublicationsEditor";
 import VipChat from "./VipChat";
 import VipFavorites from "./VipFavorites";
 import VipEspace, { feedChannels, type VipChannel } from "./VipEspace";
+import { espaceFont } from "./espaceFont";
 import { createClient } from "@/lib/supabase/client";
 import "./VipPortalShell.css";
 import { Activity, ArrowRight, ArrowUpRight, Bell, Bookmark, BookOpen, Calculator, ChartColumn, ChartNoAxesCombined, ChevronDown, Crown, GitBranch, GraduationCap, Handshake, LockKeyhole, MessageCircle, PenLine, Radio, RefreshCw, Send, Settings, ShieldCheck, Smartphone, UserRound } from "lucide-react";
@@ -172,6 +173,12 @@ export default function VipPortal({ initialAdminMode = false }: { initialAdminMo
   // Chat and favourites mount only for a verified active member outside administrator mode.
   // The space draws its own feed channels. The portal supplies only the other channels, inside the scoped portal styles.
   const channelContent = access?.active && !feedChannels.includes(view) ? <div className={`${s.portal} ${s.inline}`}>{view === "chat" ? !effectiveAdminMode && <VipChat key={access.user.id} userId={access.user.id} admin={access.admin} locale={locale === "en" ? "en" : "fr"} /> : view === "favorites" ? !effectiveAdminMode && <VipFavorites key={access.user.id} userId={access.user.id} refreshKey={favoriteRefreshKey} onFavoriteChange={favoriteChanged} /> : <VipViewContent view={view} posts={posts} telegramUrl={telegramUrl} userId={access.user.id} onFavoriteChange={favoriteChanged} />}</div> : null;
+
+  // Until the server has answered, nothing says whether this visitor is a member: a quiet screen in the space's own
+  // warm black and gold, never the old portal that a member would glimpse for a second before their space.
+  if (loading && !access) return <div className={s.portalSpace} data-investpro-vip-portal="true" data-vip-space="true">
+    <div className={`${s.booting} ${espaceFont}`} role="status"><span className={s.bootRing} aria-hidden="true" />{t("Ouverture de ton espace VIP…")}</div>
+  </div>;
 
   return <VipPortalFrame view={view} onSelect={setView} admin={access?.admin === true} adminMode={effectiveAdminMode} onModeChange={setAdminMode} onRefresh={() => { setFavoriteRefreshKey(key => key + 1); void refresh(); }} loading={loading} espace={access?.active === true} editor={access?.admin === true ? <VipPublicationsEditor active={adminMode} embedded onPublished={() => void refresh()} /> : undefined}>
         {loading ? <div className={s.empty} role="status">{t("Chargement de votre espace privé…")}</div> : <>

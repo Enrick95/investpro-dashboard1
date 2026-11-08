@@ -168,4 +168,5 @@ export const vipEspaceMessages: Record<string, string> = {
   "sans échéance": "no end date",
   "jusqu’au": "until",
   "Aperçu de l’équipe": "Team preview",
+  "Ouverture de ton espace VIP…": "Opening your VIP space…",
 };

@@ -188,7 +188,7 @@ function fixture(initialAdminMode = false) {
   }, browser);
   const Portal = compile("components/vip/VipPortal.tsx", {
     ...common, "@/components/i18n/LanguageSwitcher": () => element("select", { "aria-label": "Language" }),
-    "./VipPublicationsEditor": Editor, "./VipEspace": EspaceModule, "./VipPortal.module.css": css, "./VipPortalShell.css": {},
+    "./VipPublicationsEditor": Editor, "./VipEspace": EspaceModule, "./VipPortal.module.css": css, "./VipPortalShell.css": {}, "./espaceFont": { espaceFont: "vipFont" },
     "./VipChat": function VipChat(props) { return element("section", { "data-chat-user": props.userId, "data-chat-admin": props.admin, children: "Private chat fixture" }); },
     "./VipFavorites": function VipFavorites(props) { return element("section", { "data-favorites-user": props.userId, children: "Private saved posts fixture" }); },
     "@/lib/supabase/client": { createClient: () => ({ auth: { onAuthStateChange(callback) { authCallback = callback; callback("INITIAL_SESSION", { user: { id: "offline-user" } }); return { data: { subscription: { unsubscribe() { authCallback = undefined; } } } }; } } }) },
@@ -233,6 +233,17 @@ test("mode=admin never mounts/fetches the editor while verified access is pendin
   assert.equal(host.instance("VipPublicationsEditor"), undefined);
   assert.equal(nodes(host.tree, node => node.type === "nav" && node.props["aria-label"] === "Vue de l’espace VIP").length, 0);
   assert.deepEqual(calls.map(call => call.url), ["/api/vip/access"]);
+});
+
+test("while access is pending, the page shows the space's loading screen, never the old portal and its rail", async () => {
+  const state = fixture(); await state.host.settle();
+  const loader = () => nodes(state.host.tree, node => node.props.role === "status" && text(node).includes("Ouverture de ton espace VIP…"));
+  assert.equal(loader().length, 1);
+  assert.equal(nodes(state.host.tree, node => node.props["data-vip-space"] === "true").length, 1, "The full-width space shell is used from the start");
+  assert.equal(nodes(state.host.tree, node => node.type === "nav" && node.props["aria-label"] === "Rubriques de l’espace VIP").length, 0, "No old channel rail while loading");
+  assert.equal(text(state.host.tree).includes("Le cercle privé"), false, "No old portal header while loading");
+  state.resolve(access(false, true)); await state.host.settle();
+  assert.equal(loader().length, 0, "The member's space replaces the loading screen");
 });
 
 test("anonymous and non-admin affiliated accounts cannot activate the editor through mode=admin", async () => {
@@ -284,38 +295,47 @@ test("full-height workspace visibility does not rely on browser hidden defaults 
   assert.match(cssText, /\.editorWorkspace\s*\{[^}]*flex:\s*1;[^}]*min-height:\s*0;/);
 });
 
-test("Chat follows Telegram in the rail and only mounts after verified active access", async () => {
-  const state = fixture();
-  const rail = nodes(state.host.tree, node => node.type === "nav" && node.props["aria-label"] === "Rubriques de l’espace VIP")[0];
-  const labels = nodes(rail, node => node.type === "button").map(text);
-  assert.equal(labels[labels.indexOf("Telegram") + 1], "Chat");
-  button(state.host, "Chat").props.onClick(); await state.host.settle();
+const railLabels = host => {
+  const rail = nodes(host.tree, node => node.type === "nav" && node.props["aria-label"] === "Rubriques de l’espace VIP")[0];
+  return rail ? nodes(rail, node => node.type === "button").map(text) : [];
+};
+
+test("Chat follows Telegram in the locked rail and only mounts after verified active access", async () => {
+  const state = fixture(); await state.host.settle();
+  assert.deepEqual(railLabels(state.host), [], "While access is pending there is no rail, so no way to open the chat");
   assert.equal(state.host.instance("VipChat"), undefined, "Pending access never mounts private chat");
   state.resolve(access(false, true)); await state.host.settle();
+  await openCanal(state);
+  button(state.host, "Discussion").props.onClick(); await state.host.settle();
   assert.ok(state.host.instance("VipChat"));
   assert.equal(nodes(state.host.tree, node => node.props["data-chat-user"] === "offline-user").length, 1);
   for (const anonymous of [false, true]) {
-    const locked = fixture(); button(locked.host, "Chat").props.onClick();
+    const locked = fixture();
     if (anonymous) locked.anonymous(); else locked.resolve(access(false, false));
     await locked.host.settle();
+    const labels = railLabels(locked.host);
+    assert.equal(labels[labels.indexOf("Telegram") + 1], "Chat");
+    button(locked.host, "Chat").props.onClick(); await locked.host.settle();
     assert.equal(locked.host.instance("VipChat"), undefined);
   }
 });
 
 test("Favorites follows Chat and only mounts for a verified active member", async () => {
-  const state = fixture();
-  const rail = nodes(state.host.tree, node => node.type === "nav" && node.props["aria-label"] === "Rubriques de l’espace VIP")[0];
-  const labels = nodes(rail, node => node.type === "button").map(text);
-  assert.equal(labels[labels.indexOf("Chat") + 1], "Favoris");
-  button(state.host, "Favoris").props.onClick(); await state.host.settle();
+  const state = fixture(); await state.host.settle();
+  assert.deepEqual(railLabels(state.host), []);
   assert.equal(state.host.instance("VipFavorites"), undefined);
   state.resolve(access(false, true)); await state.host.settle();
+  await openCanal(state);
+  favoritesButton(state.host).props.onClick(); await state.host.settle();
   assert.ok(state.host.instance("VipFavorites"));
   assert.equal(nodes(state.host.tree, node => node.props["data-favorites-user"] === "offline-user").length, 1);
   for (const anonymous of [false, true]) {
-    const locked = fixture(); button(locked.host, "Favoris").props.onClick();
+    const locked = fixture();
     if (anonymous) locked.anonymous(); else locked.resolve(access(false, false));
     await locked.host.settle();
+    const labels = railLabels(locked.host);
+    assert.equal(labels[labels.indexOf("Chat") + 1], "Favoris");
+    button(locked.host, "Favoris").props.onClick(); await locked.host.settle();
     assert.equal(locked.host.instance("VipFavorites"), undefined);
   }
 });
