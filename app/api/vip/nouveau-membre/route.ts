@@ -32,7 +32,7 @@ export async function GET(request: Request) {
     if (result.error) throw result.error;
     const item = result.data;
     const requestData = item ? {
-      id: item.id, status: item.status, created_at: item.created_at,
+      id: item.id, status: item.status, created_at: item.created_at, type: item.type,
       first_name: item.first_name, last_name: item.last_name,
       channel_invite_url: item.status === "approved" ? item.channel_invite_url : null,
       member_number: item.status === "approved" ? item.member_number : null,
