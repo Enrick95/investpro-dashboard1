@@ -174,24 +174,24 @@ function render(overrides = {}, { trades = [], failPerformance = false } = {}) {
     "@/lib/vip/signal-risk-preset": { riskSignalHref: postId => "/dashboard/simulateur?signal=" + encodeURIComponent(postId) },
     "./VipEspace.module.css": css,
   }, { fetch }).default;
-  host.start(Espace, props(overrides));
+  host.start(Espace, props({ initialTab: "fil", ...overrides }));
   return { host, requests };
 }
 
 /** The section of the trades still open, as the side of Le fil shows them. */
 const openTrades = host => text(nodes(host.tree, node => node.props["aria-labelledby"] === "vip-espace-open")[0]);
 
-test("a new account opens on Le fil with honest empty states and no placeholder figures", async () => {
-  const { host, requests } = render({ membership: { ...member, first_name: null } });
+test("a new account opens on La salle des signaux with honest empty states and no placeholder figures", async () => {
+  const { host, requests } = render({ initialTab: undefined, membership: { ...member, first_name: null } });
   await host.settle();
   assert.deepEqual(requests, ["/api/vip/performance"], "The space reads only public performance figures");
-  assert.equal(button(host, "Le fil").props["aria-pressed"], true);
-  assert.equal(button(host, "La salle des signaux").props["aria-pressed"], false);
+  assert.equal(button(host, "La salle des signaux").props["aria-pressed"], true);
+  assert.equal(button(host, "Le fil").props["aria-pressed"], false);
   const copy = text(host.tree);
-  assert.match(copy, /Les premières publications apparaîtront ici\./);
+  assert.match(copy, /Les publications de l’équipe apparaîtront ici\./);
   assert.match(copy, /Aucun trade en cours pour l’instant\./);
-  assert.match(copy, /Aucun trade clôturé ce mois-ci\./);
-  assert.match(copy, /Résultat—Réussite—/);
+  assert.match(copy, /Les trades clôturés apparaîtront ici\./);
+  assert.match(copy, /Résultat du mois/);
   for (const placeholder of ["[+X R]", "[X %]", "[N]", "214 membres", "Julien", "2 trades ouverts", "Enrick"]) {
     assert.equal(copy.includes(placeholder), false, placeholder);
   }

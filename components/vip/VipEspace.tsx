@@ -45,6 +45,8 @@ export type VipEspaceProps = {
   channelContent: ReactNode;
   /** The language switch of the portal, kept in the top bar of the space. */
   languageControl?: ReactNode;
+  /** The tab the space opens on; La salle des signaux by default. */
+  initialTab?: EspaceTab;
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -65,8 +67,8 @@ const railChannels: { channel: VipChannel; label: string }[] = [
   { channel: "chat", label: "Discussion" },
 ];
 const tabs: { key: EspaceTab; label: string }[] = [
-  { key: "fil", label: "Le fil" },
   { key: "salle", label: "La salle des signaux" },
+  { key: "fil", label: "Le fil" },
   { key: "telephone", label: "Le téléphone" },
 ];
 const salleFilters: { key: SalleFilter; label: string }[] = [
@@ -351,10 +353,10 @@ type Ctx = {
 
 /** Three presentations of one space, drawn from the validated maquettes. Only the portal decides what each channel may show. */
 export default function VipEspace(props: VipEspaceProps) {
-  const { view, onSelect, posts, membership, alertsOn, alertsAvailable, onEnableAlerts, busy, onRenew, refreshKey, loading, onRefresh, onFavoriteChange, accountTools, channelContent, languageControl } = props;
+  const { view, onSelect, posts, membership, alertsOn, alertsAvailable, onEnableAlerts, busy, onRenew, refreshKey, loading, onRefresh, onFavoriteChange, accountTools, channelContent, languageControl, initialTab = "salle" } = props;
   const { t, locale } = useLocale();
   const lang: Lang = locale === "en" ? "en" : "fr";
-  const [tab, setTab] = useState<EspaceTab>("fil");
+  const [tab, setTab] = useState<EspaceTab>(initialTab);
   const [perf, setPerf] = useState<Perf>({ status: "loading", trades: [] });
   const [reactionOverrides, setReactionOverrides] = useState<Record<string, { source: VipPostReactions | undefined; value: VipPostReactions }>>({});
   const [favoriteOverrides, setFavoriteOverrides] = useState<Record<string, { source: VipPost; value: boolean }>>({});
@@ -560,13 +562,19 @@ function SideMonth({ ctx }: { ctx: Ctx }) {
     <h2 id="vip-espace-month" className={s.sideTitle}>{t("Ce mois-ci")}</h2>
     {unavailable ? <p className={s.muted}>{t("Performances indisponibles pour le moment.")}</p> : <>
       <div className={s.tiles}>
-        <div className={s.tile}><span>{t("Résultat")}</span><b className={s.green}>{monthFigure(ctx, (figures, fmt) => fmt.r(figures.monthTotalR))}</b></div>
+        <div className={s.tile}><span>{t("Résultat")}</span><b className={monthTone(ctx)}>{monthFigure(ctx, (figures, fmt) => fmt.r(figures.monthTotalR))}</b></div>
         <div className={s.tile}><span>{t("Réussite")}</span><b className={s.gold}>{monthFigure(ctx, (figures, fmt) => fmt.pct(figures.monthWinrate))}</b></div>
       </div>
       {perf.status === "ready" && stats.monthClosed === 0 ? <p className={s.muted}>{t("Aucun trade clôturé ce mois-ci.")}</p> : null}
     </>}
     <Link className={s.sideLink} href="/dashboard/performances-vip">{t("Voir toutes les performances")} →</Link>
   </section>;
+}
+
+/** The month’s result takes the loss colour when it is negative, and no colour while there is no figure. */
+function monthTone(ctx: Ctx): string | undefined {
+  if (ctx.perf.status === "loading" || ctx.stats.monthClosed === 0) return undefined;
+  return ctx.stats.monthTotalR < 0 ? s.red : s.green;
 }
 
 /** The month’s figures appear once the public figures are read and a trade has closed this month; a dash otherwise. */
@@ -708,7 +716,7 @@ function Salle({ ctx }: { ctx: Ctx }) {
     </header>
     <div className={s.kpis}>
       <Kpi label={t("Trades ouverts")} value={String(openCount)} tone={s.blue} />
-      <Kpi label={t("Résultat du mois")} value={monthFigure(ctx, (figures, format) => format.r(figures.monthTotalR))} tone={s.green} />
+      <Kpi label={t("Résultat du mois")} value={monthFigure(ctx, (figures, format) => format.r(figures.monthTotalR))} tone={monthTone(ctx)} />
       <Kpi label={t("Taux de réussite")} value={monthFigure(ctx, (figures, format) => format.pct(figures.monthWinrate))} tone={s.gold} />
       <Kpi label={t("Signaux ce mois")} value={String(stats.signalsThisMonth)} />
     </div>
