@@ -335,7 +335,9 @@ test("Le fil du trade gathers the signal, the team’s updates and the member’
   assert.match(copy, /Compte principal/);
   assert.match(copy, /Signal publié/);
   assert.match(copy, /Tu es en position/);
-  assert.match(copy, /XAUUSD · TP1 touché/);
+  // Inside the thread the instrument is the heading already: the update reads « TP1 touché ».
+  assert.match(copy, /TP1 touchéStop déplacé au point d’entrée \(BE\)\./);
+  assert.equal(copy.includes("XAUUSD · TP1 touché"), false);
   assert.match(copy, /Ton stop est encore à 2 310/);
   assert.match(copy, /Remonte-le à ton point d’entrée \(2 318\.70\) pour être sans risque\./);
   assert.match(copy, /Objectifs en attente/);
@@ -347,6 +349,108 @@ test("Le fil du trade gathers the signal, the team’s updates and the member’
   await moved.host.settle();
   button(moved.host, "Le fil du trade").props.onClick(); await moved.host.settle();
   assert.equal(text(moved.host.tree).includes("Ton stop est encore"), false, "A stop already at the entry needs no reminder");
+});
+
+/** The card of a publication in Canal, and its « Le fil du trade › » link when it has one. */
+function card(host, postId) {
+  const [found] = nodes(host.tree, node => node.props.id === `publication-${postId}`);
+  assert.ok(found, "Expected the card of " + postId); return found;
+}
+const threadLink = (host, postId) => nodes(card(host, postId), node => node.type === "button" && text(node) === "Le fil du trade ›")[0];
+
+test("a reply posted on Telegram stays in the thread of its own signal, even beside another trade of the same instrument", async () => {
+  const older = post("xau-old", "signal", { ...xau, id: "xau-old", body: "Signal XAUUSD du matin", created_at: ago(5 * 3600000) });
+  const reply = post("tp", "followup", { symbol: "XAUUSD", direction: "buy", title: "XAUUSD · TP1 touché", body: "TP1 TOUCHER ✅", thread_post_id: "xau-old", created_at: ago(3600000) });
+  const { host } = render({ posts: [xau, older, reply] });
+  await host.settle();
+  assert.equal(text(nodes(host.tree, node => node.props.className === "bigTitle")[0]), "2 trades en cours");
+  navButton(host, "Canal").props.onClick(); await host.settle();
+  threadLink(host, "tp").props.onClick(); await host.settle();
+  let copy = text(host.tree);
+  assert.match(copy, /Signal XAUUSD du matin/);
+  assert.match(copy, /TP1 touchéTP1 TOUCHER ✅/);
+  // The newer XAUUSD trade, opened after it, does not borrow the update of the morning trade.
+  navButton(host, "Canal").props.onClick(); await host.settle();
+  threadLink(host, "xau").props.onClick(); await host.settle();
+  copy = text(host.tree);
+  assert.match(copy, /Signal XAUUSD/);
+  assert.equal(copy.includes("TP1 TOUCHER"), false);
+});
+
+test("an order cancelled on Telegram is no longer a trade in progress, and its thread says so", async () => {
+  const cancel = post("cancel", "followup", { symbol: "NAS100", direction: "sell", title: "NAS100 · Ordre annulé", body: "Ordre annulé", thread_post_id: "nas", created_at: ago(600000) });
+  const { host } = render({ posts: [nas, cancel] });
+  await host.settle();
+  assert.equal(text(nodes(host.tree, node => node.props.className === "bigTitle")[0]), "Aucun trade en cours");
+  assert.equal(nodes(host.tree, node => node.props.className === "navBadge").length, 0);
+  navButton(host, "Canal").props.onClick(); await host.settle();
+  assert.match(text(card(host, "nas")), /Annulé/);
+  assert.equal(threadLink(host, "nas"), undefined, "Only a trade in progress offers its thread from the signal card");
+  threadLink(host, "cancel").props.onClick(); await host.settle();
+  const copy = text(host.tree);
+  assert.match(copy, /^SignauxAnnulé/);
+  assert.match(copy, /Ordre annuléOrdre annulé/);
+  assert.equal(copy.includes("Objectifs en attente"), false);
+});
+
+/** "2026-10" moved by a number of months. */
+function shiftMonth(key, offset) {
+  const [year, monthNumber] = key.split("-").map(Number);
+  const date = new Date(Date.UTC(year, monthNumber - 1 + offset, 15));
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+const longMonth = key => new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${key}-15T12:00:00Z`));
+const capitalized = value => value.charAt(0).toUpperCase() + value.slice(1);
+
+test("Historique mois par mois shows every month since the first trade with the Bilan figures, and lets the member go back", async () => {
+  const before = shiftMonth(month, -2), last = shiftMonth(month, -1);
+  const trades = [
+    { id: 11, source: "telegram", trade_date: `${before}-10`, symbol: "XAUUSD", direction: "buy", status: "win", result_r: 1.5, pips: 0, target: 1 },
+    { id: 12, source: "telegram", trade_date: `${last}-03`, symbol: "NAS100", direction: "sell", status: "loss", result_r: -1, pips: 0, target: null },
+    { id: 13, source: "telegram", trade_date: `${last}-20`, symbol: "XAUUSD", direction: "buy", status: "win", result_r: 2.4, pips: 0, target: 2 },
+    { id: 14, source: "telegram", trade_date: `${last}-21`, symbol: "EURUSD", direction: "buy", status: "breakeven", result_r: 0, pips: 0, target: null },
+  ];
+  const { host } = render({}, { trades });
+  await host.settle();
+  button(host, "Historique mois par mois ›").props.onClick(); await host.settle();
+  const stats = () => nodes(host.tree, node => node.props.className === "stat").map(text);
+  const bars = () => nodes(host.tree, node => node.type === "button" && (node.props.className === "month" || node.props.className === "monthOn"));
+  const title = () => text(nodes(host.tree, node => node.props.className === "monthTitle")[0]);
+  const rows = () => nodes(host.tree, node => node.type === "li" && node.props.className === "row").map(row => text(row));
+
+  assert.match(text(host.tree), new RegExp(`Performances.*Depuis ${longMonth(before)} · \\+2,9 R · 4 trades clôturés`));
+  // Every month from the first trade to this one; the latest month with a closed trade opens first.
+  assert.deepEqual(bars().map(bar => bar.props["aria-pressed"]).join(), "false,true,false");
+  assert.equal(bars()[1].props["aria-label"], `${capitalized(longMonth(last))} · +1,4 R`);
+  assert.equal(title(), capitalized(longMonth(last)));
+  assert.equal(stats().join(" | "), "Résultat+1,4 R | Réussite50 % | Trades3");
+  assert.match(text(host.tree), /1 gagnant · 1 stop · 1 BE/);
+  assert.deepEqual(rows().map(row => row.split(" ")[0]).join(), "EURUSD,XAUUSD,NAS100");
+  assert.match(rows()[1], /XAUUSD Achat · TP2.*\+2,4 R$/);
+  assert.match(rows()[2], /NAS100 Vente · Stop.*−1,0 R$/);
+
+  labelled(host, "Mois précédent").props.onClick(); await host.settle();
+  assert.equal(title(), capitalized(longMonth(before)));
+  assert.equal(stats().join(" | "), "Résultat+1,5 R | Réussite100 % | Trades1");
+  assert.equal(labelled(host, "Mois précédent").props.disabled, true, "Nothing before the first month");
+
+  bars()[2].props.onClick(); await host.settle();
+  assert.equal(title(), capitalized(longMonth(month)));
+  assert.equal(stats().join(" | "), "Résultat— | Réussite— | Trades0");
+  assert.match(text(host.tree), /Aucun trade clôturé ce mois-ci\./);
+  assert.equal(labelled(host, "Mois suivant").props.disabled, true, "Nothing after the current month");
+
+  // The back button, not the bottom bar, returns to Signaux.
+  nodes(host.tree, node => node.type === "button" && node.props.className === "back")[0].props.onClick(); await host.settle();
+  assert.equal(text(nodes(host.tree, node => node.props.className === "bigTitle")[0]), "Aucun trade en cours");
+});
+
+test("the history says when the figures are loading or unavailable instead of showing empty months", async () => {
+  const offline = render({}, { failPerformance: true });
+  await offline.host.settle();
+  button(offline.host, "Historique mois par mois ›").props.onClick(); await offline.host.settle();
+  assert.match(text(offline.host.tree), /Performances indisponibles pour le moment\./);
+  assert.equal(nodes(offline.host.tree, node => node.props.className === "monthTitle").length, 0);
 });
 
 test("a member who was in a channel when the space reloads finds Canal again", async () => {

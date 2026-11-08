@@ -1,10 +1,13 @@
 import {timingSafeEqual} from 'node:crypto';
 import {recordStripeChannelJoin} from '@/lib/stripe/vip-payments';
 import {database,channel} from '@/lib/telegram/server';
-import {parseMessage} from '@/lib/telegram/engine';
+import {parseMessage,type Parsed} from '@/lib/telegram/engine';
 import {vipDatabase} from '@/lib/vip/membership-server';
 import {telegram} from '@/lib/telegram/server';
 import {relaunchMember} from '@/lib/telegram/vip-daily';
+import {after} from 'next/server';
+import {mirrorTelegramPost,type TelegramChannelPost} from '@/lib/vip/telegram-import';
+import {deliverVipNotifications} from '@/lib/vip/notifications';
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
 export async function POST(req:Request){
@@ -24,12 +27,23 @@ export async function POST(req:Request){
   if(!Number.isSafeInteger(u.update_id)||!Number.isSafeInteger(m.message_id)||!Number.isSafeInteger(m.date)||m.date<=0)return new Response(null,{status:400});
   // Channel-origin posts only; forwarded signals are held for manual review.
   const text=typeof m.text==='string'?m.text:typeof m.caption==='string'?m.caption:'';
-  const parsed=m.forward_origin?{kind:'review',reason:'Message transféré : vérification manuelle requise.'}:parseMessage(text);
+  const parsed:Parsed=m.forward_origin?{kind:'review',reason:'Message transféré : vérification manuelle requise.'}:parseMessage(text);
   const reply=m.reply_to_message?.chat?.id===m.chat.id&&Number.isSafeInteger(m.reply_to_message?.message_id)?m.reply_to_message.message_id:null;
   const {error}=await database().rpc('investpro_receive_telegram',{p_chat:channel(),p_message:m.message_id,p_revision:m.edit_date??m.date,p_update:u.update_id,p_date:m.date,p_reply:reply,p_parsed:parsed});
   if(error)return Response.json({error:'Sauvegarde indisponible'},{status:503});
+  // The team posts only here: signals and the replies that follow them also reach the VIP space, with a phone alert.
+  if(!m.forward_origin)after(()=>mirrorToVip({chatId:channel(),messageId:m.message_id,revision:m.edit_date??m.date,date:m.date,replyTo:reply,text,parsed,edited:!u.channel_post}));
   return Response.json({ok:true});
  }catch{return Response.json({error:'Service indisponible'},{status:503});}
+}
+
+/** Runs once Telegram has its answer, so a slow import or alert never delays or repeats the delivery. */
+async function mirrorToVip(post:TelegramChannelPost){
+ try{
+  const db=database();
+  // Only a new publication alerts the members; a correction or a repeated delivery stays silent.
+  if(await mirrorTelegramPost(db,post)==='created')await deliverVipNotifications(db).catch(()=>console.error('VIP_TELEGRAM_ALERT_FAILED'));
+ }catch{console.error('VIP_TELEGRAM_IMPORT_FAILED');}
 }
 
 async function handleVipChannelJoin(update:any) {

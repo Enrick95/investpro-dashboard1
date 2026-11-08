@@ -5,8 +5,8 @@ import { isSameVipOrigin } from "./membership";
 import { VipRequestError, vipJson } from "./membership-server";
 import { emptyVipReactions, isVipImagePath, isVipReaction, validateVipMedia, VIP_MEDIA_BUCKET, VIP_MEDIA_MAX_BYTES, VIP_MEDIA_MULTIPART_MAX_BYTES, VIP_MEDIA_TTL_SECONDS, VipPostInputError, type VipPostFields } from "./post-validation";
 
-export const VIP_POST_COLUMNS = "id,category,title,body,symbol,direction,levels,image_url,image_path,created_at,updated_at,published";
-export type VipStoredPost = VipPostFields & { id: string; created_at: string; updated_at: string; published: boolean };
+export const VIP_POST_COLUMNS = "id,category,title,body,symbol,direction,levels,image_url,image_path,created_at,updated_at,published,thread_post_id";
+export type VipStoredPost = VipPostFields & { id: string; created_at: string; updated_at: string; published: boolean; thread_post_id?: string | null };
 
 export function assertVipMutationEnvironment() {
   if (process.env.VERCEL_ENV === "preview") throw new VipRequestError("Les modifications du VIP sont désactivées sur les aperçus. Utilisez le site principal.", 403);
@@ -54,6 +54,7 @@ export async function hydrateVipPosts(db: SupabaseClient, posts: VipStoredPost[]
       image_url: post.image_path ? images.get(post.image_path) || null : post.image_url,
       ...(options.admin ? { image_path: post.image_path } : {}),
       created_at: post.created_at, updated_at: post.updated_at,
+      ...(post.thread_post_id ? { thread_post_id: post.thread_post_id } : {}),
       reactions: summary || emptyVipReactions(),
     };
   });

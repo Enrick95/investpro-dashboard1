@@ -401,3 +401,34 @@
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
 }
 .toast button { border: 0; background: transparent; color: var(--gold) !important; font-weight: 600; }
+
+/* Performances: one bar per month around the zero line, the month being read in gold. */
+.months { display: flex; align-items: stretch; gap: 4px; }
+.month, .monthOn {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 8px 2px;
+  border: 0 !important;
+  border-radius: 10px;
+  background: transparent !important;
+  color: var(--mute) !important;
+}
+.monthOn { background: rgba(227, 176, 75, 0.1) !important; color: var(--gold) !important; }
+.monthPlot { position: relative; display: block; width: 100%; }
+.monthZero { position: absolute; left: 0; right: 0; height: 1px; background: var(--line); }
+.monthBar, .monthBarLoss { position: absolute; left: 50%; width: min(28px, 60%); border-radius: 4px; transform: translateX(-50%); }
+.monthBar { background: var(--soft); opacity: 0.45; }
+.monthBarLoss { background: var(--loss); opacity: 0.55; }
+.monthOn .monthBar { background: var(--gold); opacity: 1; }
+.monthOn .monthBarLoss { opacity: 1; }
+.monthName { overflow: hidden; font-size: 12px; font-weight: 600; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+.monthValue { font-size: 12px; text-align: center; }
+.monthSwitch { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 8px; }
+.monthTitle { margin: 0; font-size: 22px; font-weight: 800; font-stretch: 72%; text-align: center; }
+@media (prefers-reduced-motion: no-preference) {
+  .monthBar, .monthBarLoss { transition: opacity 120ms ease; }
+}

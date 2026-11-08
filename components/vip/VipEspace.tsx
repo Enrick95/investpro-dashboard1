@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Bell, BellRing, Bookmark, CalendarDays, ChevronLeft, Copy, MessageSquare, TrendingUp, UserRound } from "lucide-react";
+import { ArrowUpRight, Bell, BellRing, Bookmark, CalendarDays, ChevronLeft, ChevronRight, Copy, MessageSquare, TrendingUp, UserRound } from "lucide-react";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { vipRequest } from "@/lib/vip/client";
-import { buildVipPerformanceReport, type ReportRow, type ReportTrade } from "@/lib/vip/performance-report";
+import { buildVipPerformanceReport, type ReportRow, type ReportTrade, type VipPerformanceReport } from "@/lib/vip/performance-report";
 import { signalFreeText, signalTakeProfit3, vipSignalOrder } from "@/lib/vip/publication-notice";
 import { riskSignalHref } from "@/lib/vip/signal-risk-preset";
 import type { VipMembership, VipPost, VipPostCategory, VipPostReactions, VipReaction } from "@/lib/vip/types";
@@ -61,6 +61,8 @@ const OPEN_WINDOW_MS = 14 * DAY_MS;
 const CALCULATOR_HREF = "/dashboard/simulateur";
 /** An update that asks to move the stop to the entry. */
 const BREAKEVEN = /\bBE\b|break[\s-]?even|point d[’']entr[ée]e/i;
+/** The update that cancels a signal’s order, as the Telegram import titles it in the signal’s own thread. */
+const CANCELLATION = /·\s*Ordre annulé$/;
 /** Channels whose publications the space draws itself; the portal only supplies the other channels. */
 export const feedChannels: VipChannel[] = ["all", "signal", "analysis", "followup", "performance", "partnership"];
 
@@ -159,11 +161,14 @@ function closureOf(post: VipPost, closed: ReportRow[]): ReportRow | undefined {
   return match;
 }
 
-/** Same figures as the Bilan page: the report helper decides what counts as a win, a loss and a known R. */
-function computeStats(posts: VipPost[], trades: PublicVipPerformanceTrade[], now: number) {
-  const month = parisMonth(now);
-  const signals = newestFirst(posts).filter(post => post.category === "signal");
-  const reportTrades: ReportTrade[] = trades.map(trade => ({
+/** The team cancelled the signal’s order: a reply on Telegram, linked to this very signal. */
+function isCancelled(post: VipPost, posts: VipPost[]): boolean {
+  return posts.some(other => other.category === "followup" && other.thread_post_id === post.id && CANCELLATION.test(other.title));
+}
+
+/** A public trade in the shape of the report helper, as the Bilan page reads it. */
+function toReportTrade(trade: PublicVipPerformanceTrade): ReportTrade {
+  return {
     id: `${trade.source}:${trade.id}`,
     date: trade.trade_date,
     symbol: trade.symbol,
@@ -172,13 +177,47 @@ function computeStats(posts: VipPost[], trades: PublicVipPerformanceTrade[], now
     resultR: trade.result_r,
     target: trade.target,
     source: trade.source,
-  }));
+  };
+}
+
+const MONTH_KEY = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+/** Every month from the first closed trade to the current one, each with the Bilan page’s own figures. */
+function monthlyHistory(trades: PublicVipPerformanceTrade[], now: number): { months: { key: string; report: VipPerformanceReport }[]; all: VipPerformanceReport } {
+  const reportTrades = trades.map(toReportTrade);
+  const current = parisMonth(now);
+  let first = current;
+  for (const trade of reportTrades) {
+    const key = trade.date.slice(0, 7);
+    if (MONTH_KEY.test(key) && key < first) first = key;
+  }
+  const keys: string[] = [];
+  let [year, month] = first.split("-").map(Number);
+  // Ten years at most: a malformed date can never make the list endless.
+  while (keys.length < 120) {
+    const key = `${year}-${String(month).padStart(2, "0")}`;
+    keys.push(key);
+    if (key >= current) break;
+    month += 1;
+    if (month > 12) { month = 1; year += 1; }
+  }
+  return {
+    months: keys.map(key => ({ key, report: buildVipPerformanceReport(reportTrades.filter(trade => trade.date.startsWith(`${key}-`))) })),
+    all: buildVipPerformanceReport(reportTrades),
+  };
+}
+
+/** Same figures as the Bilan page: the report helper decides what counts as a win, a loss and a known R. */
+function computeStats(posts: VipPost[], trades: PublicVipPerformanceTrade[], now: number) {
+  const month = parisMonth(now);
+  const signals = newestFirst(posts).filter(post => post.category === "signal");
+  const reportTrades: ReportTrade[] = trades.map(toReportTrade);
   const all = buildVipPerformanceReport(reportTrades);
   const current = buildVipPerformanceReport(reportTrades.filter(trade => trade.date.startsWith(month)));
   const closed = [...all.closedRows].sort((a, b) => b.date.localeCompare(a.date));
   return {
     recentSignals: signals.filter(post => isRecent(post, now)),
-    openSignals: signals.filter(post => isWithin(post, now, OPEN_WINDOW_MS) && !closureOf(post, closed)),
+    openSignals: signals.filter(post => isWithin(post, now, OPEN_WINDOW_MS) && !closureOf(post, closed) && !isCancelled(post, posts)),
     signalsThisMonth: signals.filter(post => parisMonth(Date.parse(post.created_at)) === month).length,
     monthTotalR: current.totalR,
     monthWinrate: current.winrate,
@@ -224,8 +263,9 @@ function outcomeTone(row: ReportRow): Tone {
 }
 
 /** A signal shows its closing outcome when the public figures have one, and is in progress for two weeks otherwise. */
-function signalState(post: VipPost, closure: ReportRow | undefined, now: number, t: Translate): { label: string; tone: Tone } | null {
+function signalState(post: VipPost, closure: ReportRow | undefined, now: number, t: Translate, cancelled = false): { label: string; tone: Tone } | null {
   if (closure) return { label: outcomeLabel(closure, t), tone: outcomeTone(closure) };
+  if (cancelled) return { label: t("Annulé"), tone: "be" };
   return isWithin(post, now, OPEN_WINDOW_MS) ? { label: t("En cours"), tone: "open" } : null;
 }
 
@@ -249,6 +289,16 @@ function formatters(lang: Lang) {
   const today = new Intl.DateTimeFormat(tag, { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Paris" });
   const long = new Intl.DateTimeFormat(tag, { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Paris" });
   const valid = (value: string) => Number.isFinite(Date.parse(value));
+  const monthLong = new Intl.DateTimeFormat(tag, { month: "long", year: "numeric", timeZone: "UTC" });
+  const monthShort = new Intl.DateTimeFormat(tag, { month: "short", timeZone: "UTC" });
+  const dayMonth = new Intl.DateTimeFormat(tag, { day: "numeric", month: "short", timeZone: "UTC" });
+  const compact = new Intl.NumberFormat(tag, { maximumFractionDigits: 1 });
+  // "2026-10" or "2026-10-31", read at noon UTC so that no time zone moves the day.
+  const fromKey = (key: string) => {
+    const [year, month, day] = key.split("-").map(Number);
+    const date = new Date(Date.UTC(year, (month || 1) - 1, day || 15, 12));
+    return Number.isFinite(date.getTime()) ? date : null;
+  };
   return {
     tag,
     clock: (value: string) => valid(value) ? clock.format(new Date(value)) : "—",
@@ -258,6 +308,15 @@ function formatters(lang: Lang) {
     price: (value: number) => (Number.isInteger(value) ? whole.format(value) : decimals.format(value)).replace(/,/g, " "),
     r: (value: number | null) => value === null ? "—" : `${value > 0 ? "+" : value < 0 ? "−" : ""}${ratio.format(Math.abs(value))} R`,
     pct: (value: number | null) => value === null ? "—" : `${Math.round(value)}${lang === "en" ? "%" : " %"}`,
+    rShort: (value: number) => `${value > 0 ? "+" : value < 0 ? "−" : ""}${compact.format(Math.abs(value))}`,
+    /** « Octobre 2026 » as a title; inside a sentence the language’s own case (« depuis août 2026 »). */
+    month: (key: string, inline = false) => {
+      const date = fromKey(key);
+      const text = date ? monthLong.format(date) : key;
+      return inline ? text : text.charAt(0).toUpperCase() + text.slice(1);
+    },
+    monthShort: (key: string) => { const date = fromKey(key); return date ? monthShort.format(date).replace(/\.$/, "") : key; },
+    day: (value: string) => { const date = fromKey(value); return date ? dayMonth.format(date) : value; },
     money: (value: number, currency: string) => {
       try { return new Intl.NumberFormat(tag, { style: "currency", currency, maximumFractionDigits: 0 }).format(value); }
       catch { return `${Math.round(value)} ${currency}`; }
@@ -358,21 +417,32 @@ function ladder(post: VipPost, area: number, top: number): { rungs: Rung[]; heig
   };
 }
 
-/** Updates of a signal: the team’s note in the signal itself, then the follow-ups about the same instrument. */
+/**
+ * Updates of a signal: the team’s note in the signal itself, then its follow-ups. A reply posted on Telegram belongs to its own
+ * signal only; other follow-ups are matched by instrument over the two weeks after the signal.
+ */
 function threadUpdates(post: VipPost, posts: VipPost[]): { id: string; at: number; title: string; text: string }[] {
   const symbol = (post.symbol || "").trim().toUpperCase();
   const created = Date.parse(post.created_at);
   const items: { id: string; at: number; title: string; text: string }[] = [];
   const note = signalFreeText(post.body || "");
   if (note) items.push({ id: `${post.id}:note`, at: created, title: "Note de l’équipe", text: note });
-  if (symbol && Number.isFinite(created)) {
-    for (const other of posts) {
-      if (other.category !== "followup") continue;
-      const at = Date.parse(other.created_at);
-      if (!Number.isFinite(at) || at < created || at - created > OPEN_WINDOW_MS) continue;
-      const about = (other.symbol || "").trim().toUpperCase() === symbol || `${other.title} ${other.body}`.toUpperCase().includes(symbol);
-      if (about) items.push({ id: other.id, at, title: other.title || "Mise à jour", text: other.body });
+  // Inside the thread the instrument is already the heading: « XAUUSD · TP1 touché » reads « TP1 touché ».
+  const prefix = symbol ? `${symbol} · ` : "";
+  const add = (other: VipPost, at: number) => {
+    const title = prefix && other.title.toUpperCase().startsWith(prefix) ? other.title.slice(prefix.length) : other.title;
+    items.push({ id: other.id, at, title: title || "Mise à jour", text: other.body });
+  };
+  for (const other of posts) {
+    if (other.category !== "followup") continue;
+    const at = Date.parse(other.created_at);
+    if (!Number.isFinite(at)) continue;
+    if (other.thread_post_id) {
+      if (other.thread_post_id === post.id) add(other, at);
+      continue;
     }
+    if (!symbol || !Number.isFinite(created) || at < created || at - created > OPEN_WINDOW_MS) continue;
+    if ((other.symbol || "").trim().toUpperCase() === symbol || `${other.title} ${other.body}`.toUpperCase().includes(symbol)) add(other, at);
   }
   return items.sort((a, b) => a.at - b.at);
 }
@@ -393,6 +463,7 @@ type Ctx = {
   onSelect: (channel: VipChannel) => void;
   go: (section: EspaceSection, channel?: VipChannel, postId?: string) => void;
   openThread: (postId: string | null) => void;
+  openHistory: (open: boolean) => void;
   copyLevels: (post: VipPost) => void;
   posts: VipPost[];
   stats: Stats;
@@ -418,6 +489,7 @@ export default function VipEspace(props: VipEspaceProps) {
   // A member who was in a channel (the chat, say) when the space reloads finds Canal again; everyone else starts on Signaux.
   const [section, setSection] = useState<EspaceSection>(initialSection ?? (view === "all" ? "signaux" : "canal"));
   const [thread, setThread] = useState<string | null>(null);
+  const [history, setHistory] = useState(false);
   const [focusPost, setFocusPost] = useState<string | null>(null);
   const [perf, setPerf] = useState<Perf>({ status: "loading", trades: [] });
   const [reactionOverrides, setReactionOverrides] = useState<Record<string, { source: VipPostReactions | undefined; value: VipPostReactions }>>({});
@@ -451,7 +523,7 @@ export default function VipEspace(props: VipEspaceProps) {
       return;
     }
     panel.current?.scrollTo?.({ top: 0 });
-  }, [view, section, thread, focusPost]);
+  }, [view, section, thread, history, focusPost]);
 
   // A confirmation fades after a few seconds.
   useEffect(() => {
@@ -463,13 +535,21 @@ export default function VipEspace(props: VipEspaceProps) {
   function go(next: EspaceSection, channel?: VipChannel, postId?: string) {
     setSection(next);
     setThread(null);
+    setHistory(false);
     setFocusPost(postId ?? null);
     if (channel) onSelect(channel);
   }
   function openThread(postId: string | null) {
     setSection("signaux");
     setFocusPost(null);
+    setHistory(false);
     setThread(postId);
+  }
+  function openHistory(open: boolean) {
+    setSection("signaux");
+    setFocusPost(null);
+    setThread(null);
+    setHistory(open);
   }
   async function copyLevels(post: VipPost) {
     const text = levelsText(post);
@@ -537,7 +617,7 @@ export default function VipEspace(props: VipEspaceProps) {
     reactions: reactionsOf, favorite: favoriteOf, pending: post => Boolean(pending[post.id]), react, toggleFavorite,
   };
   const ctx: Ctx = {
-    t, fmt, now, view, onSelect, go, openThread, copyLevels: post => void copyLevels(post), posts, stats, perf, member,
+    t, fmt, now, view, onSelect, go, openThread, openHistory, copyLevels: post => void copyLevels(post), posts, stats, perf, member,
     note: membershipNote(membership, now), busy, onRenew, alertsOn, alertsAvailable, onEnableAlerts, channelContent, banner, actions,
   };
   const threadPost = thread ? posts.find(post => post.id === thread && post.category === "signal") : undefined;
@@ -545,7 +625,7 @@ export default function VipEspace(props: VipEspaceProps) {
   return <div className={`${s.espace} ${espaceFont}`}>
     <div className={s.column}>
       <div className={s.panel} ref={panel}>
-        {section === "signaux" ? (threadPost ? <Thread ctx={ctx} post={threadPost} /> : <Signaux ctx={ctx} />)
+        {section === "signaux" ? (threadPost ? <Thread ctx={ctx} post={threadPost} /> : history ? <History ctx={ctx} /> : <Signaux ctx={ctx} />)
           : section === "canal" ? <Canal ctx={ctx} />
             : section === "journal" ? <VipJournal banner={banner} posts={posts} signalsMonthR={perf.status === "ready" && stats.monthClosed > 0 ? stats.monthTotalR : null} onOpenCompte={() => go("compte")} />
               : <VipCompte banner={banner} membership={membership} member={member} alertsOn={alertsOn} alertsAvailable={alertsAvailable} onEnableAlerts={onEnableAlerts} busy={busy} onRenew={onRenew} languageControl={languageControl} accountTools={accountTools} onTelegram={() => go("canal", "telegram")} />}
@@ -597,7 +677,7 @@ function Sessions({ ctx }: { ctx: Ctx }) {
 
 /* Signaux: the trade first. Drawn like on the chart, the member’s lot ready, the levels to copy. */
 function Signaux({ ctx }: { ctx: Ctx }) {
-  const { t, fmt, stats, perf, alertsOn, alertsAvailable, onEnableAlerts, go, posts } = ctx;
+  const { t, fmt, stats, perf, alertsOn, alertsAvailable, onEnableAlerts, go, posts, openHistory } = ctx;
   const open = stats.openSignals.slice(0, 4);
   const count = stats.openSignals.length;
   const unavailable = perf.status === "error" && perf.trades.length === 0;
@@ -625,6 +705,7 @@ function Signaux({ ctx }: { ctx: Ctx }) {
       <span className={s.stat}>{t("Réussite")}<b className={s.gold}>{monthFigure(ctx, (figures, format) => format.pct(figures.monthWinrate))}</b></span>
       <span className={s.stat}>{t("Signaux")}<b>{stats.signalsThisMonth}</b></span>
     </div>
+    <button type="button" className={s.textButton} onClick={() => openHistory(true)}>{t("Historique mois par mois")} ›</button>
     <Renewal ctx={ctx} />
     <section className={s.section} aria-labelledby="vip-closed">
       <h2 id="vip-closed" className={s.sectionTitle}>{t("Derniers clôturés")}</h2>
@@ -660,6 +741,84 @@ function Renewal({ ctx }: { ctx: Ctx }) {
     {note.canRequest ? <button type="button" className={s.primary} onClick={onRenew} disabled={busy}>{t("Renouveler")}</button> : null}
     {note.requested ? <p className={s.small}>{t("Renouvellement demandé · en attente de vérification par l’équipe.")}</p> : null}
   </section>;
+}
+
+/** Height of the bars’ area, in pixels. */
+const HISTORY_PLOT = 112;
+
+/* Performances: every month since the first signal, so a member who just joined sees what happened before. */
+function History({ ctx }: { ctx: Ctx }) {
+  const { t, fmt, now, perf, openHistory } = ctx;
+  const [picked, setPicked] = useState<string | null>(null);
+  const { months, all } = monthlyHistory(perf.trades, now);
+  // Until the member picks a month, the latest month with a closed trade is shown.
+  const latest = [...months].reverse().find(month => month.report.counts.closed > 0) ?? months[months.length - 1];
+  const index = Math.max(0, months.findIndex(month => month.key === (picked ?? latest.key)));
+  const selected = months[index];
+  const report = selected.report;
+  const end = months.length <= 12 ? months.length - 1 : Math.min(months.length - 1, Math.max(index + 3, 11));
+  const shown = months.slice(Math.max(0, end - 11), end + 1);
+  const value = (month: (typeof months)[number]) => month.report.counts.closed ? month.report.totalR ?? month.report.knownRSubtotal ?? 0 : 0;
+  const top = Math.max(0, ...shown.map(value));
+  const bottom = Math.max(0, ...shown.map(month => -value(month)));
+  const span = top + bottom || 1;
+  const zero = top + bottom === 0 ? HISTORY_PLOT : (top / span) * HISTORY_PLOT;
+  const firstTraded = months.find(month => month.report.counts.closed > 0);
+  const rows = [...report.closedRows].sort((a, b) => b.date.localeCompare(a.date));
+  const waiting = perf.status === "loading" && perf.trades.length === 0;
+  const unavailable = perf.status === "error" && perf.trades.length === 0;
+  const resultTone = report.counts.closed && report.totalR !== null ? (report.totalR < 0 ? s.loss : s.gain) : undefined;
+  return <div className={s.page}>
+    <div className={s.topline}>
+      <button type="button" className={s.back} onClick={() => openHistory(false)}><ChevronLeft size={18} aria-hidden="true" />{t("Signaux")}</button>
+    </div>
+    <div className={s.section}>
+      <h1 className={s.pageTitle}>{t("Performances")}</h1>
+      {firstTraded ? <p className={s.small}>{`${t("Depuis")} ${fmt.month(firstTraded.key, true)} · ${all.totalR === null ? "" : `${fmt.r(all.totalR)} · `}${all.counts.closed} ${t(all.counts.closed > 1 ? "trades clôturés" : "trade clôturé")}`}</p> : null}
+    </div>
+    {waiting ? <p className={s.small} role="status">{t("Chargement des performances…")}</p>
+      : unavailable ? <p className={s.small} role="alert">{t("Performances indisponibles pour le moment.")}</p>
+        : <>
+          <div className={s.months} role="group" aria-label={t("Résultat par mois")}>
+            {shown.map(month => {
+              const on = month.key === selected.key;
+              const closed = month.report.counts.closed;
+              const result = value(month);
+              const height = closed ? Math.max(3, (Math.abs(result) / span) * HISTORY_PLOT) : 0;
+              const figure = closed ? (month.report.totalR === null ? `${closed} trades` : fmt.r(month.report.totalR)) : t("aucun trade clôturé");
+              return <button key={month.key} type="button" className={on ? s.monthOn : s.month} aria-pressed={on} aria-label={`${fmt.month(month.key)} · ${figure}`} onClick={() => setPicked(month.key)}>
+                <span className={s.monthPlot} style={{ height: HISTORY_PLOT }} aria-hidden="true">
+                  <i className={s.monthZero} style={{ top: zero }} />
+                  {height ? <i className={result < 0 ? s.monthBarLoss : s.monthBar} style={{ top: result < 0 ? zero : zero - height, height }} /> : null}
+                </span>
+                <span className={s.monthName} aria-hidden="true">{fmt.monthShort(month.key)}</span>
+                {shown.length <= 6 ? <span className={`${s.monthValue} ${s.num}`} aria-hidden="true">{closed && month.report.totalR !== null ? fmt.rShort(month.report.totalR) : "—"}</span> : null}
+              </button>;
+            })}
+          </div>
+          <div className={s.monthSwitch}>
+            <button type="button" className={s.iconButton} onClick={() => setPicked(months[index - 1].key)} disabled={index === 0} aria-label={t("Mois précédent")}><ChevronLeft size={18} aria-hidden="true" /></button>
+            <h2 className={s.monthTitle} aria-live="polite">{fmt.month(selected.key)}</h2>
+            <button type="button" className={s.iconButton} onClick={() => setPicked(months[index + 1].key)} disabled={index === months.length - 1} aria-label={t("Mois suivant")}><ChevronRight size={18} aria-hidden="true" /></button>
+          </div>
+          <div className={s.stats}>
+            <div className={s.stat}><span>{t("Résultat")}</span><b className={resultTone}>{report.counts.closed ? fmt.r(report.totalR) : "—"}</b></div>
+            <div className={s.stat}><span>{t("Réussite")}</span><b className={report.winrate === null ? undefined : s.gold}>{fmt.pct(report.winrate)}</b></div>
+            <div className={s.stat}><span>{t("Trades")}</span><b>{report.counts.closed}</b></div>
+          </div>
+          {report.counts.closed ? <p className={s.small}>{`${report.counts.wins} ${t(report.counts.wins > 1 ? "gagnants" : "gagnant")} · ${report.counts.losses} ${t(report.counts.losses > 1 ? "stops" : "stop")} · ${report.counts.breakevens} BE`}</p> : null}
+          <section className={s.section} aria-labelledby="vip-month-trades">
+            <h2 id="vip-month-trades" className={s.sectionTitle}>{t("Trades clôturés")}</h2>
+            {rows.length ? <ul className={s.rows}>
+              {rows.map(row => <li key={row.id} className={s.row}>
+                <span><b>{row.symbol}</b> <span className={s.muted}>{sideLabel(row.direction, t)} · {outcomeLabel(row, t)}</span><span className={s.rowSub}>{fmt.day(row.date)}</span></span>
+                <b className={`${s.num} ${s[toneClass[outcomeTone(row)]]}`}>{row.resultR === null ? outcomeLabel(row, t) : fmt.r(row.resultR)}</b>
+              </li>)}
+            </ul> : <p className={s.small}>{t("Aucun trade clôturé ce mois-ci.")}</p>}
+          </section>
+          <p className={s.small}>{t("Le résultat en R suit le meilleur TP annoncé. Les BE sont exclus de la réussite. Ces chiffres ne représentent pas le P&L réel des membres.")}</p>
+        </>}
+  </div>;
 }
 
 /** The levels drawn across the screen like lines on a chart: R on the left, the price tag on the right. */
@@ -735,14 +894,15 @@ function Thread({ ctx, post }: { ctx: Ctx; post: VipPost }) {
   const side = order?.side;
   const symbol = (post.symbol || "").trim().toUpperCase();
   const closure = closureOf(post, stats.closed);
-  const state = signalState(post, closure, now, t);
+  const cancelled = !closure && isCancelled(post, posts);
+  const state = signalState(post, closure, now, t, cancelled);
   const updates = threadUpdates(post, posts);
   const created = Date.parse(post.created_at);
   const position = member.openTrades.find(trade => trade.symbol === symbol && trade.direction === side
     && Math.abs(dayNumber(trade.date.slice(0, 10)) - dayNumber(parisDay(created))) <= 1);
   const accountName = position ? member.accounts.find(account => account.id === position.accountId)?.name : undefined;
   // The team moved the stop to the entry, but the member’s stop is still on the risk side of the entry.
-  const stopBehind = Boolean(position && position.entry !== null && position.stop !== null && !closure
+  const stopBehind = Boolean(position && position.entry !== null && position.stop !== null && !closure && !cancelled
     && updates.some(update => BREAKEVEN.test(`${update.title} ${update.text}`))
     && (side === "sell" ? position.stop > position.entry : position.stop < position.entry));
   const targets = levelPairs(post).filter(([label]) => label.startsWith("TP"));
@@ -763,7 +923,7 @@ function Thread({ ctx, post }: { ctx: Ctx; post: VipPost }) {
       {updates.map(update => <li key={update.id}><time>{update.id.endsWith(":note") ? "" : fmt.clock(new Date(update.at).toISOString())}</time><span className={`${s.node} ${s.nodeGain}`} /><div><b>{t(update.title)}</b>{update.text ? <span>{update.text}</span> : null}</div></li>)}
       {stopBehind && position ? <li className={s.warn}><time>{t("à faire")}</time><span className={`${s.node} ${s.nodeLoss}`} /><div><b>{`${t("Ton stop est encore à")} ${fmt.price(position.stop ?? 0)}`}</b><span>{`${t("Remonte-le à ton point d’entrée")} (${fmt.price(position.entry ?? 0)}) ${t("pour être sans risque.")}`}</span></div></li> : null}
       {closure ? <li><time>{t("fin")}</time><span className={`${s.node} ${closure.outcome === "LOSS" ? s.nodeLoss : s.nodeGain}`} /><div><b>{`${t("Clôturé")} · ${outcomeLabel(closure, t)}`}</b>{closure.resultR !== null ? <span>{fmt.r(closure.resultR)}</span> : null}</div></li>
-        : targets.length ? <li className={s.next}><time /><span className={`${s.node} ${s.nodeOpen}`} /><div><b>{t("Objectifs en attente")}</b><span>{targets.map(([label, value]) => `${label} ${fmt.price(value)}`).join(" · ")}</span></div></li> : null}
+        : !cancelled && targets.length ? <li className={s.next}><time /><span className={`${s.node} ${s.nodeOpen}`} /><div><b>{t("Objectifs en attente")}</b><span>{targets.map(([label, value]) => `${label} ${fmt.price(value)}`).join(" · ")}</span></div></li> : null}
     </ol>
     <div className={s.buttons}>
       <button type="button" className={s.primary} onClick={() => copyLevels(post)}><Copy size={16} aria-hidden="true" />{t("Copier les niveaux")}</button>
@@ -807,14 +967,16 @@ function FeedStream({ ctx }: { ctx: Ctx }) {
 }
 
 function PostCard({ ctx, post }: { ctx: Ctx; post: VipPost }) {
-  const { t, fmt, now, stats, openThread } = ctx;
+  const { t, fmt, now, stats, openThread, posts } = ctx;
   const image = safeImage(post.image_url);
   const signal = post.category === "signal";
+  // An update posted as a reply on Telegram leads to its trade.
+  const threadSignal = post.category === "followup" && post.thread_post_id ? posts.find(other => other.id === post.thread_post_id && other.category === "signal") : undefined;
   const order = signal ? vipSignalOrder(post) : null;
   const levels = signal ? levelPairs(post) : [];
   const entry = levels.find(([label]) => label === "Entrée");
   const others = levels.filter(([label]) => label !== "Entrée");
-  const state = signal ? signalState(post, closureOf(post, stats.closed), now, t) : null;
+  const state = signal ? signalState(post, closureOf(post, stats.closed), now, t, isCancelled(post, posts)) : null;
   const note = signal ? signalFreeText(post.body || "") : "";
   const heading = signal
     ? [post.symbol || post.title || t("Signal"), order?.side ? `${sideLabel(order.side, t)}${entry ? ` ${t("à")} ${fmt.price(entry[1])}` : ""}` : ""].filter(Boolean).join(" · ")
@@ -832,7 +994,8 @@ function PostCard({ ctx, post }: { ctx: Ctx; post: VipPost }) {
     <div className={s.cardActions}>
       <Reactions ctx={ctx} post={post} />
       <Favorite ctx={ctx} post={post} />
-      {signal && state?.tone === "open" ? <button type="button" className={s.cardLink} onClick={() => openThread(post.id)}>{t("Le fil du trade")} ›</button> : null}
+      {signal && state?.tone === "open" ? <button type="button" className={s.cardLink} onClick={() => openThread(post.id)}>{t("Le fil du trade")} ›</button>
+        : threadSignal ? <button type="button" className={s.cardLink} onClick={() => openThread(threadSignal.id)}>{t("Le fil du trade")} ›</button> : null}
     </div>
   </article>;
 }

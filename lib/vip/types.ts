@@ -20,6 +20,8 @@ export type VipPost = {
   image_path?: string | null;
   created_at: string;
   updated_at?: string;
+  /** For an update posted as a reply on Telegram: the signal whose thread it belongs to. */
+  thread_post_id?: string | null;
   reactions?: VipPostReactions;
   /** Saved by the currently authenticated VIP member only. */
   favorite?: boolean;
