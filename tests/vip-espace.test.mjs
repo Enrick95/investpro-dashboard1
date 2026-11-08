@@ -161,12 +161,14 @@ function memberFixture(overrides = {}) {
   return { status: "ready", accounts: [], account: null, risk: 1, rates: null, openTrades: [], setRisk() {}, setAccount() {}, reload() {}, ...overrides };
 }
 const riskSimulator = compile("lib/risk-simulator.ts", {});
+const riskPreset = compile("lib/vip/signal-risk-preset.ts", { "../risk-simulator": riskSimulator });
+const publicationNotice = compile("lib/vip/publication-notice.ts", {});
 const sizing = compile("components/vip/vipMember.ts", {
   react: { useState: () => [], useEffect() {}, useCallback: callback => callback },
   "@/lib/supabase/client": { createClient() { throw Error("The member is a fixture in these tests"); } },
   "@/lib/risk-simulator": riskSimulator,
   "@/lib/risk-simulator-conventions": compile("lib/risk-simulator-conventions.ts", { "./risk-simulator": riskSimulator }),
-  "@/lib/vip/signal-risk-preset": compile("lib/vip/signal-risk-preset.ts", { "../risk-simulator": riskSimulator }),
+  "@/lib/vip/signal-risk-preset": riskPreset,
 });
 
 function render(overrides = {}, { trades = [], failPerformance = false, member = {} } = {}) {
@@ -189,7 +191,7 @@ function render(overrides = {}, { trades = [], failPerformance = false, member =
     "@/lib/vip/client": { vipRequest: async () => { throw Error("Reactions are not part of these offline tests"); } },
     "@/lib/vip/performance-report": compile("lib/vip/performance-report.ts", {}),
     "@/lib/vip/publication-notice": compile("lib/vip/publication-notice.ts", {}),
-    "@/lib/vip/signal-risk-preset": { riskSignalHref: postId => "/dashboard/simulateur?signal=" + encodeURIComponent(postId) },
+    "@/lib/vip/signal-risk-preset": { ...riskPreset, riskSignalHref: postId => "/dashboard/simulateur?signal=" + encodeURIComponent(postId) },
     "./VipJournal": VipJournal,
     "./VipCompte": VipCompte,
     "./vipMember": { ...sizing, useVipMember: () => memberFixture(member) },
@@ -414,8 +416,8 @@ test("Historique mois par mois shows every month since the first trade with the 
   await host.settle();
   button(host, "Historique mois par mois ›").props.onClick(); await host.settle();
   const stats = () => nodes(host.tree, node => node.props.className === "stat").map(text);
-  const bars = () => nodes(host.tree, node => node.type === "button" && (node.props.className === "month" || node.props.className === "monthOn"));
-  const title = () => text(nodes(host.tree, node => node.props.className === "monthTitle")[0]);
+  const bars = () => nodes(host.tree, node => node.type === "button" && (node.props.className === "historyMonth" || node.props.className === "historyMonthOn"));
+  const title = () => text(nodes(host.tree, node => node.props.className === "historyTitle")[0]);
   const rows = () => nodes(host.tree, node => node.type === "li" && node.props.className === "row").map(row => text(row));
 
   assert.match(text(host.tree), new RegExp(`Performances.*Depuis ${longMonth(before)} · \\+2,9 R · 4 trades clôturés`));
@@ -450,7 +452,73 @@ test("the history says when the figures are loading or unavailable instead of sh
   await offline.host.settle();
   button(offline.host, "Historique mois par mois ›").props.onClick(); await offline.host.settle();
   assert.match(text(offline.host.tree), /Performances indisponibles pour le moment\./);
-  assert.equal(nodes(offline.host.tree, node => node.props.className === "monthTitle").length, 0);
+  assert.equal(nodes(offline.host.tree, node => node.props.className === "historyTitle").length, 0);
+});
+
+test("a GOLD signal finds the member’s XAUUSD.r position: the names of an instrument are recognised as one", async () => {
+  const gold = post("gold", "signal", { symbol: "GOLD", direction: "buy", body: "Direction : BUY", levels: { entry: 2318.5, stopLoss: 2310, takeProfit: 2327 }, created_at: ago(2 * 3600000) });
+  const account = { id: 1, name: "Compte principal", platform: "MT5", broker: null, currency: "EUR", current_balance: 10470, connection_type: "automatic" };
+  const position = { id: "p1", symbol: "XAUUSD.R", direction: "buy", date: parisDate(Date.parse(gold.created_at)), entry: 2318.7, stop: 2310, accountId: 1 };
+  const { host } = render({ posts: [gold] }, { member: { accounts: [account], account, openTrades: [position] } });
+  await host.settle();
+  button(host, "Le fil du trade").props.onClick(); await host.settle();
+  assert.match(text(host.tree), /Ta position · détectée sur MetaTraderentrée 2 318\.70 · stop 2 310/);
+  // A sell position on the same instrument, or a buy on silver, is not this trade.
+  for (const other of [{ ...position, direction: "sell" }, { ...position, symbol: "XAGUSD" }]) {
+    const view = render({ posts: [gold] }, { member: { accounts: [account], account, openTrades: [other] } });
+    await view.host.settle();
+    button(view.host, "Le fil du trade").props.onClick(); await view.host.settle();
+    assert.equal(text(view.host.tree).includes("Ta position"), false);
+  }
+});
+
+test("a limit or stop order is named with its side, so nobody enters at market by mistake", async () => {
+  const btc = post("btc", "signal", { symbol: "BTCUSD", direction: "buy", body: "🟡 Actif : BTCUSD\n📈 Direction : BUY LIMIT\n📍 Entrée : 75231 – 75056\n🛑 Stop Loss : 74760\n🎯 TP1 : 75744", levels: { entry: 75143.5, stopLoss: 74760, takeProfit: 75744 }, created_at: ago(3600000) });
+  const { host } = render({ posts: [btc] });
+  await host.settle();
+  assert.match(text(host.tree), /BTCUSD · Achat limite/);
+  button(host, "Le fil du trade").props.onClick(); await host.settle();
+  assert.equal(text(nodes(host.tree, node => node.props.className === "pageTitle")[0]), "BTCUSD · Achat limite");
+
+  // A quantity of crypto reads with four significant digits, rounded down.
+  const account = { id: 1, name: "Compte crypto", platform: "MT5", broker: null, currency: "USD", current_balance: 10000, connection_type: "automatic" };
+  const sized = render({ posts: [btc] }, { member: { accounts: [account], account } });
+  await sized.host.settle();
+  assert.match(text(sized.host.tree), /0,2607 BTC/);
+  assert.equal(text(sized.host.tree).includes("0,26075"), false);
+});
+
+test("the Journal counts a member’s XAUUSD trade as following the team’s GOLD signal", async () => {
+  const host = hookHost();
+  const gold = post("gold", "signal", { symbol: "GOLD", direction: "buy", body: "Direction : BUY", created_at: ago(2 * 3600000) });
+  const day = parisDate(Date.parse(gold.created_at));
+  const rows = [
+    { id: 1, trade_date: day, symbol: "XAUUSD", direction: "buy", status: "win", result_r: 1.5 },
+    { id: 2, trade_date: day, symbol: "EURUSD", direction: "sell", status: "loss", result_r: -1 },
+  ];
+  const Journal = compile("components/vip/VipJournal.tsx", {
+    react: host.hooks, "react/jsx-runtime": { jsx: element, jsxs: element, Fragment: fragment },
+    "lucide-react": new Proxy({}, { get: () => icon }),
+    "@/components/i18n/LocaleProvider": { useLocale: () => ({ t: identity, locale: "fr" }) },
+    "@/lib/supabase/client": { createClient: () => ({ auth: { getUser: async () => ({ data: { user: { id: "u1" } } }) } }) },
+    "@/lib/metasync/loadJournal": { loadJournal: async () => ({ data: rows, error: null }) },
+    "@/lib/vip/publication-notice": publicationNotice,
+    "@/lib/vip/signal-risk-preset": riskPreset,
+    "./VipEspace.module.css": css,
+  }).default;
+  host.start(Journal, { banner: null, posts: [gold], signalsMonthR: 2, onOpenCompte() {} });
+  await host.settle();
+  const trades = nodes(host.tree, node => node.type === "li" && node.props.className === "row").map(text);
+  assert.ok(trades.some(row => /^XAUUSD Achat · signal suivi/.test(row)), trades.join(" | "));
+  assert.ok(trades.some(row => /^EURUSD Vente · perso/.test(row)), trades.join(" | "));
+  assert.ok(nodes(host.tree, node => node.props.className === "stat").map(text).includes("Suivis1 / 1"));
+});
+
+test("each class of the space is styled in a single rule, so one view cannot restyle another by reusing a name", () => {
+  const styles = fs.readFileSync(path.join(root, "components/vip/VipEspace.module.css"), "utf8");
+  const names = [...styles.matchAll(/^\.([A-Za-z]+) \{/gm)].map(match => match[1]);
+  const repeated = names.filter((name, index) => names.indexOf(name) !== index);
+  assert.deepEqual(repeated, []);
 });
 
 test("a member who was in a channel when the space reloads finds Canal again", async () => {

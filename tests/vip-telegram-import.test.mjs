@@ -190,3 +190,15 @@ test("les niveaux restent écrits comme le trader les a tapés", () => {
   assert.equal(draft.levels.entry, 1.085);
   assert.equal("takeProfit2" in draft.levels, false);
 });
+
+test("un ordre limite reste un ordre limite, et un TP laissé ouvert reste écrit", () => {
+  const text = "🎯 #SIGNAL\n\n🟡 Actif :  BTCUSD\n📉 Direction : BUY LIMIT\n\n📍 Entrée : 75231 - 75056\n🛑 Stop Loss : 74760\n\n🎯 TP1 : 75744\n🎯 TP2 : 76144\n🎯 TP3 : 76900\n🎯 TP4 : OPEN\n\n⚠️ Respectez votre gestion du risque";
+  const parsed = engine.parseMessage(text);
+  assert.equal(parsed.kind, "signal");
+  const draft = signalDraft(parsed.signal, text);
+  assert.equal(draft.body, "🟡 Actif : BTCUSD\n📈 Direction : BUY LIMIT\n📍 Entrée : 75231 – 75056\n🛑 Stop Loss : 74760\n🎯 TP1 : 75744\n🎯 TP2 : 76144\n🎯 TP3 : 76900\n🎯 TP4 : OPEN\n\n⚠️ Respectez votre gestion du risque");
+  assert.deepEqual({ ...notice.vipSignalOrder(draft) }, { label: "BUY LIMIT", side: "buy" });
+  assert.equal(notice.formatVipPublicationNotice(draft).body, "🟢 BUY LIMIT · Entrée : 75231 – 75056 · SL : 74760 · TP1 : 75744 · TP2 : 76144 · TP3 : 76900");
+  const sellStop = "Actif : NAS100\nDirection : SELL STOP\nEntrée : 18400\nSL : 18480\nTP1 : 18300";
+  assert.match(signalDraft(engine.parseMessage(sellStop).signal, sellStop).body, /Direction : SELL STOP/);
+});

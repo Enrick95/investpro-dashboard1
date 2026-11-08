@@ -25,7 +25,8 @@ const catalog: Instrument[] = [
   ...["USOIL", "UKOIL", "NATGAS"].map(symbol => ({ symbol, label: symbol, market: "energy" as const, profitCurrency: "USD" })),
   ...["BTCUSD", "ETHUSD", "SOLUSD", "XRPUSD", "LTCUSD"].map(symbol => ({ symbol, label: symbol, market: "crypto" as const, profitCurrency: "USD" })),
 ];
-const aliases: Record<string, string> = { GOLD: "XAUUSD", SILVER: "XAGUSD", US100: "NAS100", USTEC: "NAS100", NASDAQ: "NAS100", NASDAQ100: "NAS100", DJ30: "US30", DOW30: "US30", US500: "SPX500", SP500: "SPX500", DE40: "GER40", DAX: "GER40", DAX40: "GER40", CAC40: "FRA40", FR40: "FRA40", FTSE100: "UK100", JPN225: "JP225", WTI: "USOIL", XTIUSD: "USOIL", BRENT: "UKOIL", XBRUSD: "UKOIL", XNGUSD: "NATGAS" };
+// Names used by traders and brokers for the same instrument. GER30 and DE30 are the DAX before it grew to 40 shares.
+const aliases: Record<string, string> = { GOLD: "XAUUSD", SILVER: "XAGUSD", US100: "NAS100", USTEC: "NAS100", USTECH: "NAS100", NDX: "NAS100", NASDAQ: "NAS100", NASDAQ100: "NAS100", DJ30: "US30", DOW30: "US30", DJI: "US30", US500: "SPX500", SP500: "SPX500", SPX: "SPX500", DE40: "GER40", DAX: "GER40", DAX40: "GER40", GER30: "GER40", DE30: "GER40", DAX30: "GER40", CAC40: "FRA40", FR40: "FRA40", FTSE100: "UK100", JPN225: "JP225", WTI: "USOIL", XTIUSD: "USOIL", OILWTI: "USOIL", BRENT: "UKOIL", XBRUSD: "UKOIL", OILBRENT: "UKOIL", XNGUSD: "NATGAS" };
 const currencies = new Set<string>(ACCOUNT_CURRENCIES);
 
 export function getInstrument(value: string, hint: AssetMarket = "custom"): Instrument {

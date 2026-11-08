@@ -50,11 +50,25 @@ function clip(value: string): string {
 /** The levels as the trader wrote them, so a zone or a trailing zero (1.0850) reads the same in the space. */
 function writtenLevels(text: string) {
   const s = norm(text);
+  // « BUY LIMIT » or « SELL STOP » tells the member which order to place, not only the side.
+  const order = s.match(/DIRECTION\s*:\s*((?:BUY|SELL)(?:\s+(?:LIMIT|STOP(?:\s+LIMIT)?))?)\b/);
   const zone = s.match(new RegExp(`ENTREE\\s*:\\s*${NUMBER}(?:\\s*[-–—]\\s*${NUMBER})?`));
   const stop = s.match(new RegExp(`(?:STOP\\s*LOSS|SL)\\s*:\\s*${NUMBER}`));
   const targets: string[] = [];
   for (const match of s.matchAll(new RegExp(`TP\\s*(\\d+)\\s*:\\s*${NUMBER}`, "g"))) targets[Number(match[1]) - 1] = match[2];
-  return { entry: zone ? (zone[2] ? `${zone[1]} – ${zone[2]}` : zone[1]) : null, stop: stop ? stop[1] : null, targets };
+  return { order: order ? order[1].replace(/\s+/g, " ") : null, entry: zone ? (zone[2] ? `${zone[1]} – ${zone[2]}` : zone[1]) : null, stop: stop ? stop[1] : null, targets };
+}
+
+/** Targets after the priced ones that the trader left open (« TP4 : OPEN »), kept as written. */
+function openTargets(text: string, priced: number): string[] {
+  const lines: string[] = [];
+  for (const line of text.split(/\r?\n/)) {
+    const match = line.trim().match(/^[^A-Za-z0-9]*TP\s*(\d+)\s*[:：]\s*(.+)$/i);
+    if (!match || Number(match[1]) <= priced) continue;
+    const value = match[2].trim();
+    if (value && !/^\d+(?:[.,]\d+)?$/.test(value)) lines.push(`🎯 TP${Number(match[1])} : ${value}`);
+  }
+  return lines;
 }
 
 /** The trader’s own words around the template: a comment, a risk warning. Kept as written. */
@@ -73,10 +87,11 @@ export function signalDraft(signal: Signal, text: string): Draft {
   const written = writtenLevels(text);
   const template = [
     `🟡 Actif : ${signal.asset}`,
-    `📈 Direction : ${signal.side}`,
+    `📈 Direction : ${written.order ?? signal.side}`,
     `📍 Entrée : ${written.entry ?? String(signal.entry)}`,
     `🛑 Stop Loss : ${written.stop ?? String(signal.sl)}`,
     ...signal.targets.map((target, index) => `🎯 TP${index + 1} : ${written.targets[index] ?? String(target)}`),
+    ...openTargets(text, signal.targets.length),
   ].join("\n");
   const levels: Record<string, number> = { entry: signal.entry, stopLoss: signal.sl };
   if (signal.targets[0] !== undefined) levels.takeProfit = signal.targets[0];

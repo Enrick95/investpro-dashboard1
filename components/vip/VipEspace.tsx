@@ -7,7 +7,7 @@ import { useLocale } from "@/components/i18n/LocaleProvider";
 import { vipRequest } from "@/lib/vip/client";
 import { buildVipPerformanceReport, type ReportRow, type ReportTrade, type VipPerformanceReport } from "@/lib/vip/performance-report";
 import { signalFreeText, signalTakeProfit3, vipSignalOrder } from "@/lib/vip/publication-notice";
-import { riskSignalHref } from "@/lib/vip/signal-risk-preset";
+import { riskSignalHref, sameInstrument } from "@/lib/vip/signal-risk-preset";
 import type { VipMembership, VipPost, VipPostCategory, VipPostReactions, VipReaction } from "@/lib/vip/types";
 import type { PublicVipPerformanceTrade } from "@/lib/vip/public-performance";
 import VipJournal from "./VipJournal";
@@ -154,7 +154,7 @@ function closureOf(post: VipPost, closed: ReportRow[]): ReportRow | undefined {
   let match: ReportRow | undefined;
   let gap = Number.POSITIVE_INFINITY;
   for (const row of closed) {
-    if (row.direction !== side || row.symbol.trim().toUpperCase() !== symbol) continue;
+    if (row.direction !== side || !sameInstrument(row.symbol, symbol)) continue;
     const distance = Math.abs(dayNumber(row.date) - day);
     if (distance <= 1 && distance < gap) { match = row; gap = distance; }
   }
@@ -345,6 +345,15 @@ function sideLabel(side: Side, t: Translate): string {
   return side === "sell" ? t("Vente") : side === "buy" ? t("Achat") : "";
 }
 
+/** The order the member places, as the signal says it: « Achat limite », « Vente stop », or just the side. */
+function orderLabel(post: VipPost, t: Translate): string {
+  const order = vipSignalOrder(post);
+  const side = sideLabel(order?.side, t);
+  if (!order || !side) return side;
+  const type = /STOP LIMIT$/.test(order.label) ? t("stop limite") : /LIMIT$/.test(order.label) ? t("limite") : /STOP$/.test(order.label) ? t("stop") : "";
+  return type ? `${side} ${type}` : side;
+}
+
 /** The levels of a signal in the order MetaTrader asks for them, ready to paste. */
 function levelsText(post: VipPost): string {
   const order = vipSignalOrder(post);
@@ -442,7 +451,7 @@ function threadUpdates(post: VipPost, posts: VipPost[]): { id: string; at: numbe
       continue;
     }
     if (!symbol || !Number.isFinite(created) || at < created || at - created > OPEN_WINDOW_MS) continue;
-    if ((other.symbol || "").trim().toUpperCase() === symbol || `${other.title} ${other.body}`.toUpperCase().includes(symbol)) add(other, at);
+    if (sameInstrument(other.symbol, symbol) || `${other.title} ${other.body}`.toUpperCase().includes(symbol)) add(other, at);
   }
   return items.sort((a, b) => a.at - b.at);
 }
@@ -647,8 +656,7 @@ export default function VipEspace(props: VipEspaceProps) {
 
 /** Shown on every section but Signaux while a trade is in progress, so nobody misses it. */
 function LiveBanner({ t, count, post, onOpen }: { t: Translate; count: number; post?: VipPost; onOpen: () => void }) {
-  const order = post ? vipSignalOrder(post) : null;
-  const detail = count === 1 && post ? [post.symbol, sideLabel(order?.side, t)].filter(Boolean).join(" · ") : "";
+  const detail = count === 1 && post ? [post.symbol, orderLabel(post, t)].filter(Boolean).join(" · ") : "";
   return <button type="button" className={s.live} onClick={onOpen}>
     <span className={s.dot} aria-hidden="true" />
     <b>{count === 1 ? t("1 trade en cours") : `${count} ${t("trades en cours")}`}</b>
@@ -779,26 +787,26 @@ function History({ ctx }: { ctx: Ctx }) {
     {waiting ? <p className={s.small} role="status">{t("Chargement des performances…")}</p>
       : unavailable ? <p className={s.small} role="alert">{t("Performances indisponibles pour le moment.")}</p>
         : <>
-          <div className={s.months} role="group" aria-label={t("Résultat par mois")}>
+          <div className={s.historyBars} role="group" aria-label={t("Résultat par mois")}>
             {shown.map(month => {
               const on = month.key === selected.key;
               const closed = month.report.counts.closed;
               const result = value(month);
               const height = closed ? Math.max(3, (Math.abs(result) / span) * HISTORY_PLOT) : 0;
               const figure = closed ? (month.report.totalR === null ? `${closed} trades` : fmt.r(month.report.totalR)) : t("aucun trade clôturé");
-              return <button key={month.key} type="button" className={on ? s.monthOn : s.month} aria-pressed={on} aria-label={`${fmt.month(month.key)} · ${figure}`} onClick={() => setPicked(month.key)}>
-                <span className={s.monthPlot} style={{ height: HISTORY_PLOT }} aria-hidden="true">
-                  <i className={s.monthZero} style={{ top: zero }} />
-                  {height ? <i className={result < 0 ? s.monthBarLoss : s.monthBar} style={{ top: result < 0 ? zero : zero - height, height }} /> : null}
+              return <button key={month.key} type="button" className={on ? s.historyMonthOn : s.historyMonth} aria-pressed={on} aria-label={`${fmt.month(month.key)} · ${figure}`} onClick={() => setPicked(month.key)}>
+                <span className={s.historyPlot} style={{ height: HISTORY_PLOT }} aria-hidden="true">
+                  <i className={s.historyZero} style={{ top: zero }} />
+                  {height ? <i className={result < 0 ? s.historyBarLoss : s.historyBar} style={{ top: result < 0 ? zero : zero - height, height }} /> : null}
                 </span>
-                <span className={s.monthName} aria-hidden="true">{fmt.monthShort(month.key)}</span>
-                {shown.length <= 6 ? <span className={`${s.monthValue} ${s.num}`} aria-hidden="true">{closed && month.report.totalR !== null ? fmt.rShort(month.report.totalR) : "—"}</span> : null}
+                <span className={s.historyLabel} aria-hidden="true">{fmt.monthShort(month.key)}</span>
+                {shown.length <= 6 ? <span className={`${s.historyValue} ${s.num}`} aria-hidden="true">{closed && month.report.totalR !== null ? fmt.rShort(month.report.totalR) : "—"}</span> : null}
               </button>;
             })}
           </div>
-          <div className={s.monthSwitch}>
+          <div className={s.historySwitch}>
             <button type="button" className={s.iconButton} onClick={() => setPicked(months[index - 1].key)} disabled={index === 0} aria-label={t("Mois précédent")}><ChevronLeft size={18} aria-hidden="true" /></button>
-            <h2 className={s.monthTitle} aria-live="polite">{fmt.month(selected.key)}</h2>
+            <h2 className={s.historyTitle} aria-live="polite">{fmt.month(selected.key)}</h2>
             <button type="button" className={s.iconButton} onClick={() => setPicked(months[index + 1].key)} disabled={index === months.length - 1} aria-label={t("Mois suivant")}><ChevronRight size={18} aria-hidden="true" /></button>
           </div>
           <div className={s.stats}>
@@ -836,9 +844,17 @@ function Chart({ ctx, post, area, top, labels }: { ctx: Ctx; post: VipPost; area
   </div>;
 }
 
+/** Rounded down to four significant digits: 0.29485267 BTC reads 0.2948, never more than the risk allows. */
+function readableUnits(value: number): number {
+  if (!(value > 0) || !Number.isFinite(value)) return value;
+  const power = 10 ** (4 - Math.ceil(Math.log10(value)));
+  return Math.floor(value * power + 1e-9) / power;
+}
+
 function volumeText(size: Extract<SignalSize, { ok: true }>, fmt: Formatters): string {
-  const digits = size.step >= 0.01 ? 2 : 8;
-  const volume = new Intl.NumberFormat(fmt.tag, { minimumFractionDigits: size.step >= 0.01 ? 2 : 0, maximumFractionDigits: digits }).format(size.volume);
+  // Lots and amounts per point keep their two decimals; a quantity of crypto shows four significant digits, not eight decimals.
+  const fine = size.step < 0.01;
+  const volume = new Intl.NumberFormat(fmt.tag, { minimumFractionDigits: fine ? 0 : 2, maximumFractionDigits: fine ? 8 : 2 }).format(fine ? readableUnits(size.volume) : size.volume);
   if (size.kind === "standard_lot") return `${volume} ${size.volume >= 2 ? "lots" : "lot"}`;
   return `${volume} ${size.unit}`;
 }
@@ -855,11 +871,10 @@ const sizeProblems: Record<Exclude<SignalSize, { ok: true }>["reason"], string> 
 
 function TradeBlock({ ctx, post }: { ctx: Ctx; post: VipPost }) {
   const { t, fmt, now, member, go, openThread, copyLevels } = ctx;
-  const order = vipSignalOrder(post);
   const size = sizeSignal(member, post.symbol || "", levelOf(post, "Entrée"), levelOf(post, "Stop"));
   return <article className={s.trade}>
     <div className={s.tradeHead}>
-      <p className={s.sub}><b className={s.gold}>{[post.symbol || post.title || t("Signal"), sideLabel(order?.side, t)].filter(Boolean).join(" · ")}</b> · {since(post, now, fmt, t)}</p>
+      <p className={s.sub}><b className={s.gold}>{[post.symbol || post.title || t("Signal"), orderLabel(post, t)].filter(Boolean).join(" · ")}</b> · {since(post, now, fmt, t)}</p>
       <span className={s.pill}><span className={s.dot} aria-hidden="true" />{t("En cours")}</span>
     </div>
     <Chart ctx={ctx} post={post} area={170} top={24} />
@@ -898,7 +913,8 @@ function Thread({ ctx, post }: { ctx: Ctx; post: VipPost }) {
   const state = signalState(post, closure, now, t, cancelled);
   const updates = threadUpdates(post, posts);
   const created = Date.parse(post.created_at);
-  const position = member.openTrades.find(trade => trade.symbol === symbol && trade.direction === side
+  // GOLD on Telegram is XAUUSD (or XAUUSD.r) on the member’s MetaTrader.
+  const position = member.openTrades.find(trade => sameInstrument(trade.symbol, symbol) && trade.direction === side
     && Math.abs(dayNumber(trade.date.slice(0, 10)) - dayNumber(parisDay(created))) <= 1);
   const accountName = position ? member.accounts.find(account => account.id === position.accountId)?.name : undefined;
   // The team moved the stop to the entry, but the member’s stop is still on the risk side of the entry.
@@ -911,7 +927,7 @@ function Thread({ ctx, post }: { ctx: Ctx; post: VipPost }) {
       <button type="button" className={s.back} onClick={() => openThread(null)}><ChevronLeft size={18} aria-hidden="true" />{t("Signaux")}</button>
       {state ? <span className={s.pill}>{state.tone === "open" ? <span className={s.dot} aria-hidden="true" /> : null}{state.label}</span> : null}
     </div>
-    <h1 className={s.pageTitle}>{[post.symbol || post.title || t("Signal"), sideLabel(side, t)].filter(Boolean).join(" · ")}</h1>
+    <h1 className={s.pageTitle}>{[post.symbol || post.title || t("Signal"), orderLabel(post, t)].filter(Boolean).join(" · ")}</h1>
     <Chart ctx={ctx} post={post} area={110} top={22} />
     {position ? <div className={s.position}>
       <div><span className={s.small}>{t("Ta position · détectée sur MetaTrader")}</span><b>{position.entry !== null ? <><span className={s.nowrap}>{`${t("entrée")} ${fmt.price(position.entry)}`}</span> · </> : null}<span className={s.nowrap}>{position.stop !== null ? `${t("stop")} ${fmt.price(position.stop)}` : t("sans stop")}</span></b></div>
@@ -979,7 +995,7 @@ function PostCard({ ctx, post }: { ctx: Ctx; post: VipPost }) {
   const state = signal ? signalState(post, closureOf(post, stats.closed), now, t, isCancelled(post, posts)) : null;
   const note = signal ? signalFreeText(post.body || "") : "";
   const heading = signal
-    ? [post.symbol || post.title || t("Signal"), order?.side ? `${sideLabel(order.side, t)}${entry ? ` ${t("à")} ${fmt.price(entry[1])}` : ""}` : ""].filter(Boolean).join(" · ")
+    ? [post.symbol || post.title || t("Signal"), order?.side ? `${orderLabel(post, t)}${entry ? ` ${t("à")} ${fmt.price(entry[1])}` : ""}` : ""].filter(Boolean).join(" · ")
     : post.title;
   return <article className={s.card} id={`publication-${post.id}`}>
     <div className={s.kicker}>

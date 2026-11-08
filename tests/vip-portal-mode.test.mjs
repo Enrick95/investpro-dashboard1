@@ -179,7 +179,7 @@ function fixture(initialAdminMode = false) {
     ...common, "./VipEspace.module.css": css,
     "@/lib/vip/performance-report": compile("lib/vip/performance-report.ts", {}),
     "@/lib/vip/publication-notice": compile("lib/vip/publication-notice.ts", {}),
-    "@/lib/vip/signal-risk-preset": { riskSignalHref: postId => "/dashboard/simulateur?signal=" + encodeURIComponent(postId) },
+    "@/lib/vip/signal-risk-preset": { riskSignalHref: postId => "/dashboard/simulateur?signal=" + encodeURIComponent(postId), sameInstrument: (a, b) => Boolean(a) && String(a).toUpperCase() === String(b ?? "").toUpperCase() },
     // Journal and Compte read the member’s own data; navigation tests only need their entry points.
     "./VipJournal": function VipJournal() { return element("section", { "data-journal": true }); },
     "./VipCompte": function VipCompte(props) { return element("section", { children: element("button", { type: "button", onClick: props.onTelegram, children: "Canal Telegram" }) }); },

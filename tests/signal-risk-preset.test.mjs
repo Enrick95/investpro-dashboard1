@@ -12,7 +12,7 @@ function compile(file, modules = {}) {
   return module.exports;
 }
 const instruments = compile("lib/risk-simulator.ts");
-const { resolveRiskAsset: asset, signalRiskPreset: preset, signalDirectionError: directionError, riskSignalHref: href } = compile("lib/vip/signal-risk-preset.ts", { "../risk-simulator": instruments });
+const { resolveRiskAsset: asset, signalRiskPreset: preset, signalDirectionError: directionError, riskSignalHref: href, sameInstrument: same, instrumentKey: key } = compile("lib/vip/signal-risk-preset.ts", { "../risk-simulator": instruments });
 const data = fields => ({ postId: "11111111-1111-4111-8111-111111111111", title: "Signal", symbol: null, direction: null, issues: [], ...fields });
 
 test("gold aliases and equivalent composite labels resolve to one canonical metal", () => {
@@ -65,4 +65,19 @@ test("private signal links accept only an actual UUID and never prefill a demo o
   const id = "11111111-1111-4111-8111-111111111111";
   assert.equal(href(id), `/dashboard/simulateur?signal=${id}`); assert.equal(href(id, true), "/dashboard/simulateur");
   for (const bad of ["demo-1", "", "11111111-1111-4111-8111-111111111111&balance=100000", "../../admin", "https://evil.test", " 11111111-1111-4111-8111-111111111111 "]) assert.equal(href(bad), "/dashboard/simulateur");
+});
+
+test("the names a trader and the brokers give one instrument are recognised as the same instrument", () => {
+  const groups = [
+    ["GOLD", "XAUUSD", "XAUUSD.r", "XAUUSDm", "GOLD#", "XAU/USD", "xauusd"],
+    ["GER30", "GER40", "DE40", "DE30", "DAX40", "GER40.cash"],
+    ["DJ30", "US30", "US30.cash", "DJI"],
+    ["SP500", "S&P500", "S&P 500", "US500", "SPX500"],
+    ["NAS100", "USTECH", "USTEC", "US100", "NASDAQ"],
+    ["CAC40", "FRA40"], ["BTCUSD", "BITCOIN"], ["OILWTI", "WTI", "USOIL"], ["EURUSD", "EURUSD.raw", "EURUSDm"],
+  ];
+  for (const names of groups) for (const name of names) assert.equal(same(names[0], name), true, `${names[0]} = ${name}`);
+  for (const [a, b] of [["GOLD", "XAGUSD"], ["EURUSD", "EURJPY"], ["NAS100", "US30"], ["GER30", "FRA40"], ["MYCOIN", "MYCOIN2"], ["", ""], [null, "XAUUSD"]]) assert.equal(same(a, b), false, `${a} ≠ ${b}`);
+  assert.equal(same("MYCOIN", "mycoin"), true, "an unknown name still matches itself");
+  assert.equal(key("GER30"), "GER40");
 });

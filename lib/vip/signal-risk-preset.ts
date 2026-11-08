@@ -41,6 +41,29 @@ export function resolveRiskAsset(label: string): string {
   return symbols.size === 1 ? [...symbols][0] : label;
 }
 
+const instrumentKeys = new Map<string, string>();
+
+/**
+ * One name per instrument, whatever the trader or the broker calls it: GOLD, XAUUSD.r and XAUUSDm are all XAUUSD,
+ * GER30 and DE40 are GER40, « S&P500 » is SPX500. A name the catalog does not know stays as written.
+ */
+export function instrumentKey(symbol: string | null | undefined): string {
+  const raw = String(symbol ?? "");
+  const known = instrumentKeys.get(raw);
+  if (known !== undefined) return known;
+  // « S&P500 » reads SP500; a broker mark at the end (GOLD#, XAUUSD+) is not part of the name.
+  const label = raw.trim().toUpperCase().replace(/&/g, "").replace(/[#+!.*]+$/, "");
+  const key = label ? resolveRiskAsset(label).toUpperCase().replace(/[\s/]+/g, "") : "";
+  if (instrumentKeys.size < 1000) instrumentKeys.set(raw, key);
+  return key;
+}
+
+/** Whether a signal and a trade (or two names) are about the same instrument. */
+export function sameInstrument(a: string | null | undefined, b: string | null | undefined): boolean {
+  const left = instrumentKey(a);
+  return left !== "" && left === instrumentKey(b);
+}
+
 export function signalDirectionError(direction: string | null | undefined, entry: number, stop: number): boolean {
   if (!positive(entry) || !positive(stop)) return false;
   return direction === "buy" ? stop >= entry : direction === "sell" ? stop <= entry : false;

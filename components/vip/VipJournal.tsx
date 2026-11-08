@@ -6,6 +6,7 @@ import { useLocale } from "@/components/i18n/LocaleProvider";
 import { createClient } from "@/lib/supabase/client";
 import { loadJournal } from "@/lib/metasync/loadJournal";
 import { vipSignalOrder } from "@/lib/vip/publication-notice";
+import { sameInstrument } from "@/lib/vip/signal-risk-preset";
 import type { VipPost } from "@/lib/vip/types";
 import s from "./VipEspace.module.css";
 
@@ -46,12 +47,15 @@ function readRow(value: Record<string, unknown>): Row | null {
   };
 }
 
-/** A member’s trade follows a team signal of the same instrument and side published the same day or the day before or after. */
+/**
+ * A member’s trade follows a team signal of the same instrument and side published the same day or the day before or after.
+ * The instrument is compared by its equivalents: GOLD in the signal is XAUUSD or XAUUSD.r on the member’s MetaTrader.
+ */
 function followed(row: Row, signals: VipPost[]): VipPost | undefined {
   return signals.find(post => {
     const side = vipSignalOrder(post)?.side;
     const created = Date.parse(post.created_at);
-    return side === row.direction && (post.symbol || "").trim().toUpperCase() === row.symbol
+    return side === row.direction && sameInstrument(post.symbol, row.symbol)
       && Number.isFinite(created) && Math.abs(dayNumber(parisDay(created)) - dayNumber(row.date)) <= 1;
   });
 }
