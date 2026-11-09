@@ -169,4 +169,6 @@ export const vipEspaceMessages: Record<string, string> = {
   "jusqu’au": "until",
   "Aperçu de l’équipe": "Team preview",
   "Ouverture de ton espace VIP…": "Opening your VIP space…",
+  "Publier dans le VIP": "Publish in the VIP",
+  "Retour à mon espace": "Back to my space",
 };

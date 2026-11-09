@@ -13,7 +13,7 @@ import VipEspace, { feedChannels, type VipChannel } from "./VipEspace";
 import { espaceFont } from "./espaceFont";
 import { createClient } from "@/lib/supabase/client";
 import "./VipPortalShell.css";
-import { Activity, ArrowRight, ArrowUpRight, Bell, Bookmark, BookOpen, Calculator, ChartColumn, ChartNoAxesCombined, ChevronDown, Crown, GitBranch, GraduationCap, Handshake, LockKeyhole, MessageCircle, PenLine, Radio, RefreshCw, Send, Settings, ShieldCheck, Smartphone, UserRound } from "lucide-react";
+import { Activity, ArrowRight, ArrowUpRight, Bell, Bookmark, BookOpen, Calculator, ChartColumn, ChartNoAxesCombined, ChevronDown, ChevronLeft, Crown, GitBranch, GraduationCap, Handshake, LockKeyhole, MessageCircle, PenLine, Radio, RefreshCw, Send, Settings, ShieldCheck, Smartphone, UserRound } from "lucide-react";
 import { safeHttps, VipApiError, vipDate, vipRequest, type VipAccess, type VipPost } from "@/lib/vip/client";
 import s from "./VipPortal.module.css";
 import { activateConfiguredPush } from "@/lib/push/activation-client";
@@ -204,6 +204,7 @@ export default function VipPortal({ initialAdminMode = false }: { initialAdminMo
             accountTools={accountTools}
             channelContent={channelContent}
             languageControl={<LanguageSwitcher />}
+            onPublish={access.admin === true ? () => setAdminMode(true) : undefined}
           />}
         </>}
   </VipPortalFrame>;
@@ -233,13 +234,13 @@ function VipPortalFrame({ view, onSelect, admin = false, adminMode = false, onMo
     content.current?.scrollTo({ top: 0 });
   }
   if (espace) {
-    // Verified members get the space itself: its own top bar, rail and links, without the portal header.
+    // Verified members get the space itself, with nothing above it: administrators open publishing from its
+    // « Publier » tab, and only the publishing view has a bar, to come back and to reach the member settings.
     return <div className={s.portalSpace} data-investpro-vip-portal="true" data-vip-space="true">
-      {admin && <div className={`${s.portal} ${s.inline}`}><nav className={s.modeSwitch} aria-label={t("Vue de l’espace VIP")}>
-        <button type="button" aria-pressed={!adminMode} onClick={() => onModeChange?.(false)}><UserRound size={16} aria-hidden="true" />{t("Membre")}</button>
-        <button type="button" aria-pressed={adminMode} onClick={() => onModeChange?.(true)}><PenLine size={16} aria-hidden="true" />{t("Administrateur")}</button>
-        <Link className={s.accessSettings} href="/dashboard/admin/vip" aria-label={t("Membres et réglages VIP")} title={t("Membres et réglages VIP")}><Settings size={18} aria-hidden="true" /></Link>
-      </nav></div>}
+      {admin && adminMode && <nav className={`${s.publishBar} ${espaceFont}`} aria-label={t("Vue de l’espace VIP")}>
+        <button type="button" className={s.publishBack} onClick={() => onModeChange?.(false)}><ChevronLeft size={18} aria-hidden="true" />{t("Retour à mon espace")}</button>
+        <Link className={s.publishSettings} href="/dashboard/admin/vip" aria-label={t("Membres et réglages VIP")} title={t("Membres et réglages VIP")}><Settings size={18} aria-hidden="true" /></Link>
+      </nav>}
       <div className={s.workspace} hidden={adminMode}><div className={s.espaceColumn}>{children}</div></div>
       {admin && <div className={s.editorWorkspace} hidden={!adminMode}><div className={`${s.portal} ${s.fill}`}>{editor}</div></div>}
     </div>;

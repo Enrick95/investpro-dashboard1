@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Bell, BellRing, Bookmark, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Copy, MessageSquare, TrendingUp, UserRound } from "lucide-react";
+import { ArrowUpRight, Bell, BellRing, Bookmark, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Copy, MessageSquare, PenLine, TrendingUp, UserRound } from "lucide-react";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { vipRequest } from "@/lib/vip/client";
 import { buildVipPerformanceReport, type ReportRow, type ReportTrade, type VipPerformanceReport } from "@/lib/vip/performance-report";
@@ -51,6 +51,8 @@ export type VipEspaceProps = {
   languageControl?: ReactNode;
   /** The section the application opens on; Signaux, or Canal when a channel is already open. */
   initialSection?: EspaceSection;
+  /** Opens the publishing space; given to administrators only, as a « Publier » tab. */
+  onPublish?: () => void;
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -494,7 +496,7 @@ type Ctx = {
 
 /** The VIP application: Signaux, Canal, Journal and Compte, everything inside the space. Only the full lot calculator opens elsewhere. */
 export default function VipEspace(props: VipEspaceProps) {
-  const { view, onSelect, posts, membership, alertsOn, alertsAvailable, onEnableAlerts, busy, onRenew, refreshKey, onFavoriteChange, accountTools, channelContent, languageControl, initialSection } = props;
+  const { view, onSelect, posts, membership, alertsOn, alertsAvailable, onEnableAlerts, busy, onRenew, refreshKey, onFavoriteChange, accountTools, channelContent, languageControl, initialSection, onPublish } = props;
   const { t, locale } = useLocale();
   const lang: Lang = locale === "en" ? "en" : "fr";
   const member = useVipMember();
@@ -652,6 +654,10 @@ export default function VipEspace(props: VipEspaceProps) {
             {t(item.label)}
           </button>;
         })}
+        {onPublish ? <button type="button" onClick={onPublish} aria-label={t("Publier dans le VIP")}>
+          <span className={s.navIcon}><PenLine size={22} aria-hidden="true" /></span>
+          {t("Publier")}
+        </button> : null}
       </nav>
     </div>
   </div>;

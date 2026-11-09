@@ -128,6 +128,11 @@ function favoritesButton(host) {
   const result = nodes(host.tree, node => node.type === "button" && node.props["aria-label"] === "Mes favoris");
   assert.equal(result.length, 1, "Expected the favourites button of Canal"); return result[0];
 }
+/** Administrators open publishing from the space's « Publier » tab; members never have it. */
+function publishTab(host) {
+  const result = nodes(host.tree, node => node.type === "button" && node.props["aria-label"] === "Publier dans le VIP");
+  assert.equal(result.length, 1, "Expected the Publier tab of the space"); return result[0];
+}
 function access(admin = false, active = true) {
   return { admin, active, telegramUrl: null, user: { id: "offline-user", email: "member@example.invalid" }, membership: active ? { type: "affiliation", email: "member@example.invalid", started_at: "2026-10-01T10:00:00Z", expires_at: null, renewal_requested_at: null, status: "active" } : null };
 }
@@ -261,23 +266,39 @@ test("verified admin affiliation enables inline editor only on activation and ke
   const state = fixture(false); state.resolve(access(true, true)); await state.host.settle();
   const instance = state.host.instance("VipPublicationsEditor"); assert.ok(instance);
   assert.equal(state.calls.some(call => call.url.startsWith("/api/admin/")), false);
-  button(state.host, "Administrateur").props.onClick(); await state.host.settle();
+  publishTab(state.host).props.onClick(); await state.host.settle();
   assert.equal(state.calls.filter(call => call.url === "/api/admin/vip/posts").length, 1);
   const category = nodes(state.host.tree, node => node.type === "select" && node.props.value === "analysis")[0];
   category.props.onChange({ target: { value: "signal" } }); await state.host.settle();
   let message = nodes(state.host.tree, node => node.type === "textarea")[0];
   assert.match(message.props.value, /Actif :[\s\S]*Direction :[\s\S]*Entrée :[\s\S]*Stop Loss :[\s\S]*TP1 :[\s\S]*TP2 :[\s\S]*TP3 :/);
   message.props.onChange({ target: { value: "Brouillon hors réseau — scénario personnel" } }); await state.host.settle();
-  button(state.host, "Membre").props.onClick(); await state.host.settle();
+  button(state.host, "Retour à mon espace").props.onClick(); await state.host.settle();
   assert.equal(state.host.instance("VipPublicationsEditor"), instance);
   assert.equal(nodes(state.host.tree, node => node.props.className === "editorWorkspace")[0].props.hidden, true);
-  button(state.host, "Administrateur").props.onClick(); await state.host.settle();
+  publishTab(state.host).props.onClick(); await state.host.settle();
   assert.equal(state.host.instance("VipPublicationsEditor"), instance);
   assert.equal(state.host.mounts.get("VipPublicationsEditor"), 1);
   message = nodes(state.host.tree, node => node.type === "textarea")[0];
   assert.equal(message.props.value, "Brouillon hors réseau — scénario personnel");
   assert.equal(nodes(state.host.tree, node => node.props.className === "workspace")[0].props.hidden, true);
   assert.equal(nodes(state.host.tree, node => node.props.className === "editorWorkspace")[0].props.hidden, false);
+});
+
+test("nothing sits above the space: the team publishes from a Publier tab, members never see it", async () => {
+  const viewBar = host => nodes(host.tree, node => node.type === "nav" && node.props["aria-label"] === "Vue de l’espace VIP");
+  const admin = fixture(); admin.resolve(access(true, true)); await admin.host.settle();
+  assert.equal(viewBar(admin.host).length, 0, "No Membre / Administrateur bar above an administrator's space");
+  assert.equal(nodes(admin.host.tree, node => node.type === "button" && ["Membre", "Administrateur"].includes(text(node))).length, 0);
+  publishTab(admin.host).props.onClick(); await admin.host.settle();
+  assert.equal(viewBar(admin.host).length, 1, "Publishing has its own bar, to come back");
+  assert.equal(nodes(admin.host.tree, node => node.type === "a" && node.props.href === "/dashboard/admin/vip").length, 1, "The member settings stay one tap away while publishing");
+  button(admin.host, "Retour à mon espace").props.onClick(); await admin.host.settle();
+  assert.equal(viewBar(admin.host).length, 0);
+  assert.equal(nodes(admin.host.tree, node => node.props.className === "workspace")[0].props.hidden, false);
+  const member = fixture(); member.resolve(access(false, true)); await member.host.settle();
+  assert.equal(nodes(member.host.tree, node => node.type === "button" && node.props["aria-label"] === "Publier dans le VIP").length, 0, "Members have no Publier tab");
+  assert.equal(viewBar(member.host).length, 0);
 });
 
 test("a later role revocation removes editor and switch even if mode state is still admin", async () => {
@@ -345,9 +366,9 @@ test("Favorites unmounts on effective admin mode, a different view, or logout", 
   await openCanal(state);
   favoritesButton(state.host).props.onClick(); await state.host.settle();
   assert.ok(state.host.instance("VipFavorites"));
-  button(state.host, "Administrateur").props.onClick(); await state.host.settle();
+  publishTab(state.host).props.onClick(); await state.host.settle();
   assert.equal(state.host.instance("VipFavorites"), undefined);
-  button(state.host, "Membre").props.onClick(); await state.host.settle();
+  button(state.host, "Retour à mon espace").props.onClick(); await state.host.settle();
   assert.ok(state.host.instance("VipFavorites"));
   button(state.host, "Analyses").props.onClick(); await state.host.settle();
   assert.equal(state.host.instance("VipFavorites"), undefined);
@@ -376,9 +397,9 @@ test("Chat unmounts when leaving its view or entering effective admin mode", asy
   assert.equal(state.host.instance("VipChat"), undefined);
   button(state.host, "Discussion").props.onClick(); await state.host.settle();
   assert.ok(state.host.instance("VipChat"));
-  button(state.host, "Administrateur").props.onClick(); await state.host.settle();
+  publishTab(state.host).props.onClick(); await state.host.settle();
   assert.equal(state.host.instance("VipChat"), undefined, "Hidden member workspace cannot leave Chat polling mounted");
-  button(state.host, "Membre").props.onClick(); await state.host.settle();
+  button(state.host, "Retour à mon espace").props.onClick(); await state.host.settle();
   assert.ok(state.host.instance("VipChat"));
 });
 
