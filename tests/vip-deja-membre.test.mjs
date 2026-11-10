@@ -137,8 +137,8 @@ test("WhatsApp and Telegram are optional but normalized when given", async () =>
   }
 });
 
-test("the broker the member picks goes on the request; « Abonnement ou autre broker » leaves the origin to confirm", async () => {
-  for (const [broker, saved] of [["vtmarkets", "vtmarkets"], ["raise_fx", "raise_fx"], ["puprime", "puprime"], ["axi", "axi"], ["abonnement", null]]) {
+test("the broker the member picks goes on the request; « Autre broker » leaves the origin to confirm", async () => {
+  for (const [broker, saved] of [["vtmarkets", "vtmarkets"], ["raise_fx", "raise_fx"], ["puprime", "puprime"], ["axi", "axi"], ["autre", null]]) {
     const api = fixture();
     const response = await api.post({ ...member, broker });
     assert.equal(response.status, 201, broker);
@@ -153,12 +153,38 @@ test("the broker the member picks goes on the request; « Abonnement ou autre br
   assert.equal(invalid.calls.created.length + invalid.calls.inserts.length + invalid.calls.limits, 0, "Nothing is created for an unknown broker");
 });
 
-test("the déjà-membre page asks for the broker among VT Markets, Raise FX, PU Prime, Axi or a subscription, before sending", () => {
+test("a subscriber gives the date of their last payment, and the request is a subscription to check in Stripe", async () => {
+  const api = fixture();
+  const response = await api.post({ ...member, broker: "abonnement", paidOn: "2026-10-28" });
+  assert.equal(response.status, 201);
+  const row = api.calls.inserts[0].value;
+  assert.equal(row.type, "abonnement");
+  assert.equal(row.paid_on, "2026-10-28");
+  assert.equal(row.affiliation_broker, null, "A subscription has no broker");
+  // A page opened before the date field existed sends no date: the origin stays to confirm.
+  const older = fixture();
+  await older.post({ ...member, broker: "abonnement" });
+  assert.equal(older.calls.inserts[0].value.type, "affiliation");
+  assert.equal(older.calls.inserts[0].value.paid_on, null);
+  const tomorrow = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
+  for (const paidOn of ["2026-02-30", "28/10/2026", tomorrow, "1999-12-31"]) {
+    const invalid = fixture();
+    const result = await invalid.post({ ...member, broker: "abonnement", paidOn });
+    assert.equal(result.status, 400, paidOn);
+    assert.equal(result.body.field, "paidOn", paidOn);
+    assert.equal(invalid.calls.created.length + invalid.calls.inserts.length + invalid.calls.limits, 0, paidOn);
+  }
+});
+
+test("the déjà-membre page asks for the broker, a subscription with its payment date, or another broker, before sending", () => {
   const page = fs.readFileSync(path.join(project, "public/vip-deja-membre-v2.html"), "utf8");
   const choices = [...page.matchAll(/class="bk" data-bk="([a-z_]+)"/g)].map(match => match[1]);
-  assert.deepEqual(choices, ["vtmarkets", "raise_fx", "puprime", "axi", "abonnement"]);
-  assert.match(page, /if\(!BK\)\{[^}]*return fail\('Choisis ton broker/, "The form stops until a broker is chosen");
-  assert.match(page, /broker:BK/, "The choice is sent with the request");
+  assert.deepEqual(choices, ["vtmarkets", "raise_fx", "puprime", "axi", "abonnement", "autre"]);
+  assert.match(page, /if\(!BK\)\{[^}]*return fail\('Choisis ton broker/, "The form stops until a choice is made");
+  assert.match(page, /<div id="paidBox" hidden>[\s\S]*?<input id="paid" type="date"/, "The payment date waits, hidden, under the choices");
+  assert.match(page, /\$\('paidBox'\)\.hidden=BK!=='abonnement'/, "It appears only for a subscription");
+  assert.match(page, /if\(BK==='abonnement'&&!paidOk\(\$\('paid'\)\.value\)\)return fail\('Indique la date de ton dernier paiement/, "A subscription cannot be sent without its date");
+  assert.match(page, /broker:BK,paidOn:BK==='abonnement'\?\$\('paid'\)\.value:''/, "The choice and the date are sent with the request");
 });
 
 test("names and e-mail are required before any account or request is created", async () => {

@@ -146,6 +146,9 @@ input[readonly]{color:var(--muted)}
 .bk[aria-pressed=true] span{background:var(--gold);color:#0b0d0b;animation:bkPop .35s ease}
 .bks[aria-invalid=true] .bk{border-color:var(--rose)}
 @keyframes bkPop{0%{transform:scale(.8)}60%{transform:scale(1.12)}100%{transform:scale(1)}}
+/* Date du dernier paiement : à gauche comme les autres champs, même sur iPhone */
+input[type=date]{display:block}
+input[type=date]::-webkit-date-and-time-value{text-align:left;margin:0}
 
 .codebox{margin-top:18px;border-radius:18px;background:#0c0f0b;border:1px solid #2a3026;overflow:hidden}
 .cb-row{padding:14px 16px;border-top:1px solid rgba(255,255,255,.06)}
@@ -265,9 +268,14 @@ input[readonly]{color:var(--muted)}
 <button type="button" class="bk" data-bk="raise_fx" aria-pressed="false"><span>R</span>Raise FX</button>
 <button type="button" class="bk" data-bk="puprime" aria-pressed="false"><span>PU</span>PU Prime</button>
 <button type="button" class="bk" data-bk="axi" aria-pressed="false"><span>A</span>Axi</button>
-<button type="button" class="bk" data-bk="abonnement" aria-pressed="false"><span>€</span>Abonnement ou autre broker</button>
+<button type="button" class="bk" data-bk="abonnement" aria-pressed="false"><span>€</span>Abonnement</button>
+<button type="button" class="bk" data-bk="autre" aria-pressed="false"><span>+</span>Autre broker</button>
 </div>
-<p class="help" id="bkHelp">Celui chez qui tu as ouvert ton compte pour entrer dans le VIP.</p>
+<p class="help" id="bkHelp">Celui chez qui tu as ouvert ton compte pour entrer dans le VIP, ou ton abonnement.</p>
+<div id="paidBox" hidden>
+<label for="paid">Date de ton dernier paiement</label><div class="field"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><input id="paid" type="date" min="2020-01-01" aria-describedby="paidHelp"></div>
+<p class="help" id="paidHelp">Le jour où tu as payé ton abonnement : l’équipe le vérifie avant de valider ton accès.</p>
+</div>
 <label for="tel">WhatsApp <span class="opt">Facultatif</span></label><div class="field"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#91D6D0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11.5a8.5 8.5 0 0 1-12.6 7.4L3 20l1.2-4.2A8.5 8.5 0 1 1 20 11.5z"/><path d="M9 8.5c0 3 2.5 6 6 6.5l1-1.5-2-1-1 .8a4 4 0 0 1-2.3-2.3l.8-1-1-2z"/></svg><input id="tel" type="tel" inputmode="tel" autocomplete="tel" maxlength="24" placeholder="+33 6 12 34 56 78" aria-describedby="telHelp"></div>
 <p class="help" id="telHelp">Avec l’indicatif du pays. L’équipe pourra aussi te prévenir sur WhatsApp.</p>
 <label for="tg">Telegram <span class="opt">Facultatif</span></label><div class="field"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#91D6D0" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M21 4L3 11l6 2 2 6 3-4 5 4z"/></svg><input id="tg" autocapitalize="off" spellcheck="false" maxlength="64" placeholder="@julienmartin" aria-describedby="tgHelp"></div>
@@ -405,13 +413,17 @@ $('switchAccount').onclick=async function(){try{await fetch(API,{method:'DELETE'
 function normPhone(v){v=(v||'').trim().replace(/[\s().-]/g,'');if(v.indexOf('00')===0)v='+'+v.slice(2);return v}
 function normTg(v){return (v||'').trim().replace(/^https?:\/\//i,'').replace(/^(www\.)?(t|telegram)\.me\//i,'').replace(/^@+/,'').replace(/\/+$/,'')}
 function fail(msg,id){var e=$('f1Err');e.textContent=msg;e.hidden=!msg;if(id){var i=$(id);i.setAttribute('aria-invalid','true');i.focus()}return false}
-var FIELD={firstName:'pre',lastName:'nom',email:'mail',phone:'tel',telegram:'tg',password:'pwd',broker:'bks'};
-$('f1').addEventListener('input',function(e){if(e.target.getAttribute('aria-invalid')==='true')e.target.removeAttribute('aria-invalid')});
+var FIELD={firstName:'pre',lastName:'nom',email:'mail',phone:'tel',telegram:'tg',password:'pwd',broker:'bks',paidOn:'paid'};
+function parisToday(){try{return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Paris',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}catch(e){return new Date().toISOString().slice(0,10)}}
+function paidOk(v){if(!/^\d{4}-\d{2}-\d{2}$/.test(v||''))return false;var d=new Date(v+'T00:00:00Z');return !isNaN(d)&&d.toISOString().slice(0,10)===v&&v>='2020-01-01'&&v<=parisToday()}
+$('f1').addEventListener('input',function(e){if(e.target.getAttribute('aria-invalid')==='true'){e.target.removeAttribute('aria-invalid');fail('')}});
 var BK=null;
 document.querySelectorAll('#bks .bk').forEach(function(b){b.onclick=function(){
   BK=b.dataset.bk;
   document.querySelectorAll('#bks .bk').forEach(function(x){x.setAttribute('aria-pressed',String(x===b))});
   if($('bks').getAttribute('aria-invalid')==='true'){$('bks').removeAttribute('aria-invalid');fail('')}
+  // Abonnement : la date du dernier paiement apparaît juste dessous.
+  $('paidBox').hidden=BK!=='abonnement';$('paid').max=parisToday();
 }});
 $('f1').onsubmit=async function(e){
   e.preventDefault();fail('');
@@ -419,10 +431,11 @@ $('f1').onsubmit=async function(e){
   if(!pre)return fail('Indique ton prénom.','pre');
   if(!nom)return fail('Indique ton nom.','nom');
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(mail))return fail('Vérifie ton adresse e-mail.','mail');
-  if(!BK){$('bks').setAttribute('aria-invalid','true');$('bks').querySelector('.bk').focus();return fail('Choisis ton broker, ou « Abonnement ou autre broker ».')}
+  if(!BK){$('bks').setAttribute('aria-invalid','true');$('bks').querySelector('.bk').focus();return fail('Choisis ton broker, ton abonnement ou « Autre broker ».')}
+  if(BK==='abonnement'&&!paidOk($('paid').value))return fail('Indique la date de ton dernier paiement, sans date future.','paid');
   if(tel&&!/^\+[1-9]\d{7,14}$/.test(tel))return fail('Numéro WhatsApp : ajoute l’indicatif du pays, par exemple +33 6 12 34 56 78. Tu peux aussi laisser ce champ vide.','tel');
   if(tg&&!/^[A-Za-z][A-Za-z0-9_]{4,31}$/.test(tg))return fail('Pseudo Telegram : 5 à 32 caractères, par exemple @monpseudo. Tu peux aussi laisser ce champ vide.','tg');
-  var body={firstName:pre,lastName:nom,email:mail,phone:tel,telegram:tg,broker:BK,website:$('website').value};
+  var body={firstName:pre,lastName:nom,email:mail,phone:tel,telegram:tg,broker:BK,paidOn:BK==='abonnement'?$('paid').value:'',website:$('website').value};
   if(S.loginMode){body.mode='login';body.password=$('pwd').value;if(!body.password)return fail('Entre le mot de passe de ton compte InvestPro.','pwd')}
   var btn=$('f1Btn'),label=$('f1BtnTxt').textContent;btn.disabled=true;$('f1BtnTxt').innerHTML='<span class="spin" aria-hidden="true"></span> Un instant…';
   var res,data={};

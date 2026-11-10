@@ -139,12 +139,12 @@ export async function POST(request: Request) {
   catch { return vipJson({ error: "Ta demande n’a pas pu être enregistrée. Réessaie dans un instant.", ...account }, 503); }
   if (state.state === "active" || state.state === "inactive" || state.state === "pending" || state.state === "completion") return vipJson({ ok: true, ...state, ...account });
 
-  // 3. La demande, visible dans « Demandes VIP », avec le broker que le membre a choisi. Sans broker (abonnement ou
-  // autre), l'équipe confirme l'origine à la validation.
+  // 3. La demande, visible dans « Demandes VIP » : le broker choisi, ou l'abonnement avec sa date de paiement à vérifier
+  // dans Stripe. « Autre broker » : l'équipe confirme l'origine à la validation.
   const { data, error } = await db.from("vip_access_requests").insert({
     user_id: user.id, email: account.email, first_name: input.firstName, last_name: input.lastName,
     telegram_username: input.telegram, phone_whatsapp: input.phone,
-    type: "affiliation", affiliation_broker: input.broker, paid_on: null, request_kind: "existing", status: "pending",
+    type: input.type, affiliation_broker: input.broker, paid_on: input.paidOn, request_kind: "existing", status: "pending",
   }).select(VIP_ACCESS_REQUEST_COLUMNS).single();
   if (error?.code === "23505") return vipJson({ ok: true, ...state, state: "pending", ...account });
   if (error || !data) return vipJson({ error: "Ta demande n’a pas pu être enregistrée. Réessaie dans un instant.", ...account }, 503);
