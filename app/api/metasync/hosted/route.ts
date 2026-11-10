@@ -1,4 +1,4 @@
-import { brokers } from '@/lib/metasync/hosted';
+import { brokers, brokersWithStatus } from '@/lib/metasync/hosted';
 import { randomBytes } from 'node:crypto';
 import { database, digest, sameOrigin } from '@/lib/metasync/server';
 import { awaitingInstall, body, hostedUser, seal } from '@/lib/metasync/hosted';
@@ -61,7 +61,7 @@ export async function GET(req?: Request) {
       .order('created_at');
 
     if (error) throw Error('hosted_read');
-    return reply({ enabled: true, brokers: brokers(), connections: data, requestToken: issueHostedRequestToken(user.id) });
+    return reply({ enabled: true, brokers: brokersWithStatus(), connections: data, requestToken: issueHostedRequestToken(user.id) });
   } catch {
     return reply(
       { error: 'Connexion hébergée indisponible. Réessaie dans quelques instants.' },

@@ -9,7 +9,7 @@ import ts from "typescript";
 // METASYNC_HOSTED_BROKERS with the IDs `host.py register` gives them (ex. « puprime-mt5-live6 »).
 const root = path.resolve(import.meta.dirname, "..");
 
-function brokers(env) {
+function load(env) {
   const cjsModule = { exports: {} };
   const modules = { "node:crypto": {}, "@/lib/supabase/server": { createClient() { throw new Error("NO_AUTH_IN_CATALOG_TEST"); } } };
   const source = fs.readFileSync(path.join(root, "lib/metasync/hosted.ts"), "utf8");
@@ -17,8 +17,9 @@ function brokers(env) {
     module: cjsModule, exports: cjsModule.exports, Buffer, process: { env },
     require: name => { assert(Object.hasOwn(modules, name), `Unexpected import ${name}`); return modules[name]; },
   });
-  return cjsModule.exports.brokers();
+  return cjsModule.exports;
 }
+const brokers = env => load(env).brokers();
 
 const installed = [
   { id: "puprime-mt5-live6", label: "PU Prime", platform: "MT5", server: "PUPrime-Live 6" },
@@ -57,6 +58,17 @@ test("a server the PC holds under two IDs is offered once, under its named templ
   ]) });
   assert.deepEqual(onPc(list).map(item => item.id), ["puprime-mt5-live6", "mt5-axi-us50-demo", "puprime-mt4-live6", bullwaves.id], "Same order, one per platform and server");
   assert.equal(Array.from(list).filter(item => item.platform === "MT5" && item.server.toLowerCase() === "puprime-live 6").length, 1, "No emergency twin either");
+});
+
+test("a server counts as installed once its ID is listed for the hosting PC, whatever the ID looks like", () => {
+  const env = { METASYNC_HOSTED_BROKERS: JSON.stringify([...installed, { id: "fallback-mt5-vt-markets-5", label: "VT Markets", platform: "MT5", server: "VTMarkets-Live 4" }]) };
+  const list = Array.from(load(env).brokersWithStatus());
+  const status = id => list.find(item => item.id === id)?.pending;
+  assert.equal(status("puprime-mt5-live6"), false);
+  assert.equal(status("fallback-mt5-vt-markets-5"), false, "Installed later under its emergency ID");
+  assert.equal(status(bullwaves.id), false);
+  assert.equal(status("fallback-mt5-vt-markets-4"), true, "VTMarkets-Live 3 is not installed");
+  assert.ok(list.filter(item => item.pending).length > 100);
 });
 
 test("only malformed entries are dropped; the emergency list is used only when nothing is valid", () => {

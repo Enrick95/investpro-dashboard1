@@ -578,7 +578,8 @@ function mtPrefetch(){
   return MT.loading;
 }
 function activeConnections(){return MT.connections.filter(function(c){return c.active})}
-function installing(c){return String(c.broker_id||'').indexOf('fallback-')===0}
+// Serveur pas encore installé sur le PC : le site le signale (« pending ») ; sans catalogue, l'ID de secours suffit.
+function installing(c){var e=MT.catalog.filter(function(b){return b.id===c.broker_id})[0];return e?e.pending===true:String(c.broker_id||'').indexOf('fallback-')===0}
 function mtStatus(c){
   var m=c.investpro_mt_connections,fresh=!!m.last_sync&&Date.now()-Date.parse(m.last_sync)<=180000;
   // Serveur pas encore installé sur le PC d'hébergement : l'équipe l'ajoute, la connexion démarre ensuite.

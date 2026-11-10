@@ -71,16 +71,16 @@ function fallbackBrokers(): Broker[] {
   ));
 }
 
-export function brokers(): Broker[] {
+/** The templates installed on the hosting PC, as listed in METASYNC_HOSTED_BROKERS (empty when it is unreadable). */
+function installedTemplates(): Broker[] {
   let rows: unknown;
   try {
     rows = JSON.parse(process.env.METASYNC_HOSTED_BROKERS ?? '[]');
   } catch {
-    return fallbackBrokers();
+    return [];
   }
-  if (!Array.isArray(rows)) return fallbackBrokers();
-
-  const configured = rows.filter((value: unknown): value is Broker => {
+  if (!Array.isArray(rows)) return [];
+  return rows.filter((value: unknown): value is Broker => {
     if (!value || typeof value !== 'object') return false;
     const b = value as Partial<Broker>;
     // Same rule as `host.py register` on the hosting PC (ex. « puprime-mt5-live6 »): letters a-z, digits, hyphens.
@@ -91,6 +91,10 @@ export function brokers(): Broker[] {
       b.server.length <= 120 &&
       !/[\r\n\0]/.test(b.server);
   });
+}
+
+export function brokers(): Broker[] {
+  const configured = installedTemplates();
   if (!configured.length) return fallbackBrokers();
   // The templates installed on the hosting PC come first, with their own IDs. Every other known server stays
   // offered (« fallback-… » ID) so members still find theirs: the connection is saved, the team is asked to install
@@ -100,9 +104,18 @@ export function brokers(): Broker[] {
   return includeBullwaves(uniqueServers([...installed, ...fallbackBrokers().filter(item => !onPc.has(serverKey(item)))]));
 }
 
-/** True when this catalog entry is not (yet) a template installed on the hosting PC. */
-export function awaitingInstall(broker: Broker): boolean {
-  return broker.id.startsWith('fallback-');
+/**
+ * True when this catalog entry is not (yet) a template installed on the hosting PC: its ID is not listed in
+ * METASYNC_HOSTED_BROKERS. A server installed later under its « fallback-… » ID and listed there counts as installed.
+ */
+export function awaitingInstall(broker: Broker, installed: Set<string> = new Set(installedTemplates().map(item => item.id))): boolean {
+  return broker.id !== BULLWAVES_MT5.id && !installed.has(broker.id);
+}
+
+/** The catalog for the connection forms, each server flagged `pending` while it is not installed on the PC. */
+export function brokersWithStatus(): (Broker & { pending: boolean })[] {
+  const installed = new Set(installedTemplates().map(item => item.id));
+  return brokers().map(item => ({ ...item, pending: awaitingInstall(item, installed) }));
 }
 
 // La connexion MetaTrader hébergée est disponible pour tout utilisateur authentifié.
