@@ -7,8 +7,10 @@ import styles from "../clip.module.css";
 import ClipLogin from "../ClipLogin";
 import { ClipApiError, clipApi, clipSignOut } from "@/lib/clip/client";
 import {
+  CLIP_DOMAIN,
   CLIP_PLATFORMS,
   CLIP_PUBLIC_URL,
+  clipBase,
   candidateWhatsAppText,
   ENRICK_WHATSAPP_LABEL,
   MIN_PAYOUT,
@@ -436,7 +438,9 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
   const now = useMemo(() => new Date(), [data]);
   const origin = typeof window === "undefined" ? "" : window.location.origin;
   const host = origin.replace(/^https?:\/\//, "");
-  const joinUrl = `${origin}/clip/rejoindre`;
+  const clipHome = clipBase(origin);
+  const clipHost = clipHome.replace(/^https?:\/\//, "");
+  const joinUrl = `${clipHome}/rejoindre`;
   const today = dayNumber(now.getTime());
   const todayIso = dayIso(today);
   const cycle = cycleFor(now);
@@ -521,16 +525,16 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
   const unverified = data.accounts.filter((account) => !account.verified);
 
   const msg = {
-    welcome: (first: string) => `Salut ${first} ! Bienvenue dans l'équipe InvestPro Clip.\nTon espace clippeur : ${origin}/clip\nConnecte-toi avec l'e-mail et le mot de passe choisis à l'inscription, ajoute tes comptes et lis la charte avant ton premier clip.`,
-    test: (first: string) => `Salut ${first} ! On démarre par une période de test : publie quelques clips sur la campagne en cours et je regarde ton montage.\nTon espace clippeur : ${origin}/clip (même e-mail et mot de passe qu'à l'inscription).`,
+    welcome: (first: string) => `Salut ${first} ! Bienvenue dans l'équipe InvestPro Clip.\nTon espace clippeur : ${clipHome}\nConnecte-toi avec l'e-mail et le mot de passe choisis à l'inscription, ajoute tes comptes et lis la charte avant ton premier clip.`,
+    test: (first: string) => `Salut ${first} ! On démarre par une période de test : publie quelques clips sur la campagne en cours et je regarde ton montage.\nTon espace clippeur : ${clipHome} (même e-mail et mot de passe qu'à l'inscription).`,
     refused: (first: string) => `Salut ${first}, merci pour ta candidature ! Je ne peux pas te prendre pour le moment, je te recontacte dès qu'une place se libère.`,
     example: (first: string) => `Salut ${first} ! Merci pour ta candidature. Tu peux m'envoyer un exemple de montage que tu as déjà fait ?`,
     link: (first: string) => `Salut ${first} ! Voici le lien pour t'inscrire comme clippeur : ${joinUrl}`,
     idle: (first: string, days: number) => `Salut ${first} ! Ça fait ${days} jours sans nouveau clip.${mainCampaign && campaignPhase(mainCampaign, todayIso) === "live" ? ` La campagne « ${mainCampaign.title} » est ouverte,` : ""} tu peux reprendre quand tu veux. Besoin d'un coup de main ?`,
     ok: (first: string, title: string, amount: string) => `Salut ${first} ! Ton clip « ${title} » est validé : +${amount} sur ton prochain versement (le ${dayMonth(cycle.payDate)}). Continue comme ça !`,
     ko: (first: string, title: string, reason: string) => `Salut ${first}, ton clip « ${title} » n'est pas validé : ${reason.toLowerCase()}. Tu peux en proposer un autre en suivant la charte.`,
-    password: (first: string, password: string) => `Salut ${first} ! Voici ton mot de passe provisoire pour l'espace clippeurs : ${password}\nConnecte-toi sur ${origin}/clip puis change-le dans ton profil.`,
-    method: (first: string, amount: string) => `Salut ${first} ! Tu as ${amount} acquis : ajoute ton moyen de paiement dans ton profil (${origin}/clip#profil) pour être payé le ${dayMonth(cycle.payDate)} !`,
+    password: (first: string, password: string) => `Salut ${first} ! Voici ton mot de passe provisoire pour l'espace clippeurs : ${password}\nConnecte-toi sur ${clipHome} puis change-le dans ton profil.`,
+    method: (first: string, amount: string) => `Salut ${first} ! Tu as ${amount} acquis : ajoute ton moyen de paiement dans ton profil (${clipHome}#profil) pour être payé le ${dayMonth(cycle.payDate)} !`,
   };
 
   function campaignCard(campaign: CampaignRow): CampaignCardData {
@@ -933,7 +937,7 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
       onSearch: setAccSearch,
       rows,
       emptyLabel: data.accounts.length ? (filter === "todo" ? "Tous les comptes sont vérifiés." : "Aucun compte ne correspond.") : "Les clippeurs ajoutent leurs comptes depuis leur profil : ils apparaîtront ici.",
-      linkExample: `${host}/clip/l/${sample}`,
+      linkExample: `${clipHost}/l/${sample}`,
       busy,
       verify: (id, verified) => {
         const account = data.accounts.find((item) => item.id === id);
@@ -1369,9 +1373,9 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
   function buildSettings(): SettingsVals {
     return {
       rows: [
-        { label: "Adresse de l'espace clippeurs", value: `${host}/clip`, note: "Bientôt sur ton propre domaine (investproclip)", soon: true },
+        { label: "Adresse de l'espace clippeurs", value: clipHost, note: clipHost.startsWith(CLIP_DOMAIN) ? "Ton domaine : à partager à ta communauté" : `Ton domaine : ${CLIP_DOMAIN}` },
         { label: "Lien d'inscription", value: joinUrl.replace(/^https?:\/\//, ""), note: "À partager : le clippeur crée son compte et postule au même endroit", copy: () => void copy(joinUrl, "join-settings"), copied: copied === "join-settings" },
-        { label: "Lien traqué des clippeurs", value: `${host}/clip/l/… → ${TRACKED_LINK_TARGET.replace(/^https?:\/\//, "")}`, note: "Chaque clic est compté pour le clippeur" },
+        { label: "Lien traqué des clippeurs", value: `${clipHost}/l/… → ${TRACKED_LINK_TARGET.replace(/^https?:\/\//, "")}`, note: "Chaque clic est compté pour le clippeur" },
         { label: "Cycles de paiement", value: "Du 1er au 15 (versé le 16) · du 16 à la fin du mois (versé le 1er)" },
         { label: "Paiement des clips", value: `Au clip validé · ${euroShort(defaultAmount)} proposé par défaut`, note: "Tu choisis le montant à chaque validation ; les clippeurs ne voient aucun tarif" },
         { label: "Parrainage", value: `${euroShort(REFERRAL_BONUS)} quand un filleul a ${REFERRAL_CLIPS} clips validés`, note: "Ajouté tout seul au versement suivant du parrain" },

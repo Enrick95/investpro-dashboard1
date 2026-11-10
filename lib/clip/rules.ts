@@ -43,19 +43,31 @@ export const ENRICK_TIKTOK_URL = "https://www.tiktok.com/@enrick95__";
 export const ENRICK_YOUTUBE_HANDLE = "@Enrick95";
 export const ENRICK_YOUTUBE_URL = "https://www.youtube.com/@Enrick95";
 
-/** Adresse publique de l'espace clippeurs, en attendant son propre nom de domaine. */
-export const CLIP_PUBLIC_URL = "https://investprotrading.fr/clip";
+/** Le domaine de l'espace clippeurs. */
+export const CLIP_DOMAIN = "investproclip.com";
+export const CLIP_PUBLIC_URL = `https://${CLIP_DOMAIN}`;
+
+/** Adresse de l'espace clippeurs depuis le site où l'on est : à la racine sur investproclip.com, sous /clip ailleurs. */
+export function clipBase(origin: string): string {
+  try {
+    const host = new URL(origin).hostname.replace(/^www\./, "");
+    if (host === CLIP_DOMAIN) return `https://${CLIP_DOMAIN}`;
+  } catch {
+    // origine vide (rendu serveur) : chemin relatif
+  }
+  return `${origin}/clip`;
+}
 
 /** Page vers laquelle renvoie le lien traqué de chaque clippeur (le lien en bio d'Enrick). */
 export const TRACKED_LINK_TARGET = "https://investprotrading.fr/enrick";
 
 export function trackedLink(origin: string, trackingCode: string): string {
-  return `${origin}/clip/l/${trackingCode}`;
+  return `${clipBase(origin)}/l/${trackingCode}`;
 }
 
 /** Lien de parrainage d'un clippeur : la page d'inscription avec son code. */
 export function referralLink(origin: string, trackingCode: string): string {
-  return `${origin}/clip/rejoindre?parrain=${trackingCode}`;
+  return `${clipBase(origin)}/rejoindre?parrain=${trackingCode}`;
 }
 const DAY = 86_400_000;
 

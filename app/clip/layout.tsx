@@ -9,10 +9,10 @@ export const metadata: Metadata = {
   description,
   applicationName: "InvestPro Clip",
   keywords: null,
-  alternates: { canonical: "/clip" },
+  alternates: { canonical: "https://investproclip.com" },
   manifest: null,
   appleWebApp: { capable: true, title: "InvestPro Clip", statusBarStyle: "black-translucent" },
-  openGraph: { title: "InvestPro Clip", description, siteName: "InvestPro Clip", locale: "fr_FR", type: "website", url: "/clip" },
+  openGraph: { title: "InvestPro Clip", description, siteName: "InvestPro Clip", locale: "fr_FR", type: "website", url: "https://investproclip.com" },
   twitter: { card: "summary", title: "InvestPro Clip", description },
   robots: { index: false, follow: false },
 };
