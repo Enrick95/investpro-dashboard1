@@ -1,6 +1,6 @@
 "use client";
 
-import type { FormEvent, ReactNode } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { Icon, Pills, S } from "./kit";
 import { CampaignCardView, type CampaignCardData } from "./Overview";
 
@@ -19,7 +19,7 @@ export type CampaignFormData = {
   brief: string;
   forbidden: string;
 };
-export type AdminCampaignCard = CampaignCardData & { rules: string; brief: string; rushes: string | null };
+export type AdminCampaignCard = CampaignCardData & { rules: string; brief: string; rushes: string | null; /** Clips déjà envoyés (refusés compris) : une campagne qui en a ne se supprime pas. */ clipCount: number };
 export type AdminCampaignsVals = {
   subline: string;
   filter: AdminCampaignFilter;
@@ -33,6 +33,7 @@ export type AdminCampaignsVals = {
   closeForm: () => void;
   setField: (key: keyof CampaignFormData, value: string) => void;
   save: () => void;
+  remove: (id: string) => void;
   busy: boolean;
 };
 
@@ -50,6 +51,7 @@ const area = { ...S.input, width: "100%", minHeight: "96px", padding: "10px 12px
 
 export function AdminCampaigns({ v }: { v: AdminCampaignsVals }) {
   const form = v.form;
+  const [confirmId, setConfirmId] = useState<string | null>(null);
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     v.save();
@@ -103,9 +105,19 @@ export function AdminCampaigns({ v }: { v: AdminCampaignsVals }) {
               {card.brief ? <span style={{ fontSize: "12.5px", color: "#A8ADA3", display: "-webkit-box", WebkitLineClamp: "2", WebkitBoxOrient: "vertical", overflow: "hidden" }}>{card.brief}</span> : null}
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-              <button type="button" onClick={() => v.edit(card.id)} style={S.ghost}>Modifier</button>
+              <button type="button" onClick={() => { setConfirmId(null); v.edit(card.id); }} style={S.ghost}>Modifier</button>
               {card.rushes ? <a href={card.rushes} target="_blank" rel="noopener noreferrer" style={S.ghost}>Rushs<Icon name="external" size={14} /></a> : null}
+              {confirmId === card.id && !card.clipCount ? (
+                <button type="button" disabled={v.busy} onClick={() => { setConfirmId(null); v.remove(card.id); }} style={S.danger}>Confirmer la suppression</button>
+              ) : (
+                <button type="button" aria-label={`Supprimer ${card.title}`} aria-expanded={card.clipCount ? confirmId === card.id : undefined} onClick={() => setConfirmId(confirmId === card.id ? null : card.id)} style={{ ...S.danger, gap: "6px" }}><Icon name="trash" size={15} stroke="1.9" />Supprimer</button>
+              )}
             </div>
+            {confirmId === card.id && card.clipCount ? (
+              <span role="note" style={{ fontSize: "12.5px", lineHeight: "1.5", color: "#F2B45A" }}>
+                Elle a déjà {card.clipCount} clip{card.clipCount > 1 ? "s" : ""} : on ne peut plus la supprimer sans perdre leur historique et leurs paiements. Pour l&apos;arrêter, fais Modifier puis Statut « Terminée ».
+              </span>
+            ) : null}
           </CampaignCardView>
         ))}
         {!v.cards.length ? <div style={{ ...S.card, flex: "1 1 280px", fontSize: "13px", color: "#A8ADA3" }}>{v.emptyLabel}</div> : null}

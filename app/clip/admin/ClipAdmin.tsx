@@ -1099,6 +1099,7 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
         rules: `${euroShort(campaignAmount(campaign))} par clip validé (proposé, modifiable à chaque fois) · objectif ${campaign.quota_per_clipper} clips / clippeur`,
         brief: campaign.brief.replace(/\s*\n\s*/g, " · ").trim(),
         rushes: campaign.rushes_url,
+        clipCount: data.clips.filter((clip) => clip.campaign_id === campaign.id).length,
       })),
       emptyLabel: data.campaigns.length ? "Aucune campagne dans ce filtre." : "Aucune campagne pour l'instant : crée la première pour que les clippeurs puissent soumettre.",
       form,
@@ -1131,6 +1132,11 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
             setForm(null);
             setCampFilter(status === "draft" ? "draft" : status === "ended" ? "ended" : form.starts_on > todayIso ? "soon" : "live");
           }
+        });
+      },
+      remove: (id) => {
+        void act({ action: "delete_campaign", id }, "Campagne supprimée.").then((ok) => {
+          if (ok) setForm((current) => (current?.id === id ? null : current));
         });
       },
       busy,
