@@ -529,7 +529,7 @@ export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; 
         }),
         pick: (id) => setSubmitCampaign(id),
         checks: CHECKS.map((label, index) => ({ label, on: checks[index], toggle: () => setChecks((current) => current.map((value, i) => (i === index ? !value : value))) })),
-        freezeNote: `Dès qu'Enrick le valide, il compte dans ton prochain versement (le ${dayMonth(cycleFor(now).payDate)}).`,
+        freezeNote: "Dès qu'Enrick le valide, il compte dans ton prochain versement.",
         canSend: !missing && !submitBusy,
         missing: missing || "Envoi…",
         busy: submitBusy,
