@@ -258,6 +258,15 @@ export async function freezeDueClips(db: SupabaseClient, clipperId?: string): Pr
   }
 }
 
+/** Nom montré aux autres clippeurs : prénom et initiale du nom (« Kevin Laurent » → « Kevin L. »). */
+function publicName(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "Clippeur";
+  const first = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+  const initial = ((parts[1] ?? "").match(/[A-Za-zÀ-ÖØ-öø-ÿ]/)?.[0] ?? "").toUpperCase();
+  return initial ? `${first} ${initial}.` : first;
+}
+
 /**
  * Tout ce qu'affiche l'espace d'un clippeur : ses comptes, les campagnes (sans montants), ses clips,
  * ses versements, son classement du mois, les clics sur son lien, les vidéos à clipper et ses filleuls.
@@ -267,28 +276,47 @@ export async function clipperSpacePayload(db: SupabaseClient, clipper: Record<st
   await freezeDueClips(db, clipper.id);
   const now = new Date();
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
-  const [accounts, campaigns, clips, payouts, monthClips, roster, clicks, videos, referees] = await Promise.all([
+  // Relevés de vues de ses clips sur ~2 mois : sa courbe des 30 derniers jours et la comparaison avec les 30 d'avant.
+  const snapshotsSince = new Date(now.getTime() - 70 * 86_400_000).toISOString();
+  const [accounts, campaigns, clips, payouts, monthClips, roster, clicks, videos, referees, snapshots] = await Promise.all([
     db.from("clip_accounts").select(ACCOUNT_COLUMNS).eq("clipper_id", clipper.id).order("created_at", { ascending: true }),
     db.from("clip_campaigns").select(CLIPPER_CAMPAIGN_COLUMNS).in("status", ["active", "ended"]).order("starts_on", { ascending: false }).limit(30),
     db.from("clip_clips").select(CLIP_COLUMNS).eq("clipper_id", clipper.id).order("created_at", { ascending: false }).limit(300),
     db.from("clip_payouts").select(PAYOUT_COLUMNS).eq("clipper_id", clipper.id).order("paid_at", { ascending: false }).limit(36),
     db.from("clip_clips").select("clipper_id,views,frozen_views").eq("status", "approved").gte("published_at", monthStart).limit(5000),
-    db.from("clip_clippers").select("id").neq("status", "paused").limit(1000),
+    db.from("clip_clippers").select("id,display_name").neq("status", "paused").limit(1000),
     db.from("clip_click_stats").select("total,last30").eq("clipper_id", clipper.id).maybeSingle(),
     db.from("clip_videos").select(VIDEO_COLUMNS).order("created_at", { ascending: false }).limit(60),
     db.from("clip_clippers").select("id,display_name,status,referral_payout_id,created_at").eq("referred_by", clipper.id).order("created_at", { ascending: false }).limit(100),
+    db.from("clip_view_snapshots").select("clip_id,views,recorded_at,clip_clips!inner(clipper_id)").eq("clip_clips.clipper_id", clipper.id).gte("recorded_at", snapshotsSince).order("recorded_at", { ascending: true }).limit(5000),
   ]);
   for (const result of [accounts, campaigns, clips, payouts, monthClips, roster, clicks, videos, referees]) if (result.error) throw result.error;
+  // La courbe est un bonus : si les relevés ne se lisent pas, l'espace s'ouvre quand même (courbe vide).
+  if (snapshots.error) console.error("Relevés de vues du clippeur illisibles :", snapshots.error.message);
 
   // Classement du mois : vues des clips validés publiés ce mois-ci, parmi les clippeurs non suspendus.
   const totals = new Map<string, number>();
-  for (const row of (roster.data ?? []) as unknown as { id: string }[]) totals.set(row.id, 0);
+  const monthCount = new Map<string, number>();
+  const rosterRows = (roster.data ?? []) as unknown as { id: string; display_name: string | null }[];
+  for (const row of rosterRows) totals.set(row.id, 0);
   for (const row of (monthClips.data ?? []) as unknown as { clipper_id: string; views: number | string; frozen_views: number | string | null }[]) {
     if (!totals.has(row.clipper_id)) continue;
     totals.set(row.clipper_id, (totals.get(row.clipper_id) ?? 0) + Number(row.frozen_views ?? row.views ?? 0));
+    monthCount.set(row.clipper_id, (monthCount.get(row.clipper_id) ?? 0) + 1);
   }
   const mine = totals.get(clipper.id) ?? 0;
   const rank = { position: [...totals.values()].filter((value) => value > mine).length + 1, total: totals.size, views: mine };
+  // Le top du mois que voient les clippeurs : prénom et initiale, vues et clips validés. Jamais de montant.
+  const board = rosterRows
+    .map((row) => ({ id: row.id, name: publicName(row.display_name ?? ""), views: totals.get(row.id) ?? 0, clips: monthCount.get(row.id) ?? 0 }))
+    .sort((a, b) => b.views - a.views || b.clips - a.clips || a.name.localeCompare(b.name, "fr"));
+  const placeOf = (views: number) => board.filter((entry) => entry.views > views).length + 1;
+  const ahead = board.filter((entry) => entry.views > mine).sort((a, b) => a.views - b.views)[0] ?? null;
+  const ranking = {
+    top: board.filter((entry) => entry.views > 0).slice(0, 10).map((entry) => ({ position: placeOf(entry.views), name: entry.name, views: entry.views, clips: entry.clips, me: entry.id === clipper.id })),
+    ahead: ahead ? { name: ahead.name, gap: ahead.views - mine + 1 } : null,
+    clips: monthCount.get(clipper.id) ?? 0,
+  };
   const clickRow = clicks.data as unknown as { total: number | string; last30: number | string } | null;
 
   // Filleuls : nombre de clips validés de chacun, pour la prime de parrainage.
@@ -312,6 +340,8 @@ export async function clipperSpacePayload(db: SupabaseClient, clipper: Record<st
     clips: clips.data ?? [],
     payouts: payouts.data ?? [],
     rank,
+    ranking,
+    viewSnapshots: ((snapshots.error ? [] : snapshots.data ?? []) as unknown as { clip_id: string; views: number | string; recorded_at: string }[]).map((row) => ({ clip_id: row.clip_id, views: row.views, recorded_at: row.recorded_at })),
     clicks: { total: Number(clickRow?.total ?? 0), last30: Number(clickRow?.last30 ?? 0) },
     videos: videos.data ?? [],
     referrals: refereeRows.map((row) => ({ name: row.display_name, approved: approvedBy.get(row.id) ?? 0, paid: Boolean(row.referral_payout_id), joined: row.created_at })),
