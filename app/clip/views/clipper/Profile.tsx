@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 import { isClipStandalone, openClipInstall } from "../InstallClip";
+import { useClipPath } from "../clipPath";
 import { go } from "./Shell";
 
 export type ProfileAccount = { id: string; short: string; handle: string; sub: string; verified: boolean };
@@ -57,6 +58,7 @@ export function ClipperProfile({ v }: { v: ProfileVals }) {
   const [next, setNext] = useState("");
   // Masqué quand l'espace tourne déjà comme une app installée.
   const [installable, setInstallable] = useState(false);
+  const to = useClipPath();
   useEffect(() => setInstallable(!isClipStandalone()), []);
 
   async function submitAccount(event: FormEvent<HTMLFormElement>) {
@@ -254,7 +256,7 @@ export function ClipperProfile({ v }: { v: ProfileVals }) {
         ) : null}
       </section>
 
-      {v.owner ? <Link href="/clip/admin" style={{ ...ghost, textDecoration: "none" }}>Ouvrir l&apos;espace admin</Link> : null}
+      {v.owner ? <Link href={to("/clip/admin")} style={{ ...ghost, textDecoration: "none" }}>Ouvrir l&apos;espace admin</Link> : null}
       <button type="button" onClick={v.signOut} style={{ alignSelf: "center", minHeight: "44px", border: "0", background: "transparent", color: "#F0C575", fontSize: "13px", fontWeight: "800" }}>Se déconnecter</button>
     </>
   );

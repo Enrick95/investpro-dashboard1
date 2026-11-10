@@ -5,9 +5,11 @@ import { useState, type FormEvent } from "react";
 import { Loader2 } from "lucide-react";
 import styles from "./clip.module.css";
 import { clipSignIn } from "@/lib/clip/client";
+import { useClipPath } from "./views/clipPath";
 
 /** Connexion directement dans l'espace clippeurs (aucune redirection vers une autre page du site). */
 export default function ClipLogin({ onDone, title = "Connexion", intro, joinLink = true, defaultEmail = "" }: { onDone: () => void; title?: string; intro?: string; joinLink?: boolean; defaultEmail?: string }) {
+  const to = useClipPath();
   const [email, setEmail] = useState(defaultEmail);
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -50,7 +52,7 @@ export default function ClipLogin({ onDone, title = "Connexion", intro, joinLink
       {forgot ? <p className={`${styles.small} ${styles.soft}`} style={{ margin: 0 }}>Écris-nous sur WhatsApp : on t&apos;envoie un mot de passe provisoire, que tu pourras changer dans ton profil.</p> : null}
       {joinLink ? (
         <p className={`${styles.small} ${styles.muted}`} style={{ margin: 0, textAlign: "center" }}>
-          Pas encore de compte ? <Link href="/clip/rejoindre" className={styles.gold} style={{ fontWeight: 700 }}>Devenir clippeur</Link>
+          Pas encore de compte ? <Link href={to("/clip")} className={styles.gold} style={{ fontWeight: 700 }}>Devenir clippeur</Link>
         </p>
       ) : null}
     </form>

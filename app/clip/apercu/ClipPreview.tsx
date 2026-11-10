@@ -7,11 +7,13 @@ import styles from "../clip.module.css";
 import ClipLogin from "../ClipLogin";
 import { ClipApiError, clipApi } from "@/lib/clip/client";
 import { ClipperSpace, type Me } from "../ClipApp";
+import { useClipPath } from "../views/clipPath";
 
 type State = { phase: "loading" } | { phase: "login" } | { phase: "error"; message: string } | { phase: "ready"; me: Me };
 
 /** Aperçu admin de l'espace d'un clippeur : mêmes écrans, aucune action envoyée. */
 export default function ClipPreview() {
+  const to = useClipPath();
   const [state, setState] = useState<State>({ phase: "loading" });
 
   const load = useCallback(async () => {
@@ -49,10 +51,10 @@ export default function ClipPreview() {
       <div className={styles.page}>
         <div className={styles.center}>
           <p className={styles.error}>{state.phase === "error" ? state.message : "Clippeur introuvable."}</p>
-          <Link href="/clip/admin#clippers" className={styles.btnGhost}>Retour à l&apos;admin</Link>
+          <Link href={to("/clip/admin#clippers")} className={styles.btnGhost}>Retour à l&apos;admin</Link>
         </div>
       </div>
     );
   }
-  return <ClipperSpace me={state.me} clipper={state.me.clipper} reload={load} preview={{ name: state.me.clipper.display_name, backHref: "/clip/admin#clippers" }} />;
+  return <ClipperSpace me={state.me} clipper={state.me.clipper} reload={load} preview={{ name: state.me.clipper.display_name, backHref: to("/clip/admin#clippers") }} />;
 }
