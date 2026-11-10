@@ -14,6 +14,12 @@ export const PAYOUT_HINT: Record<PayoutMethod, string> = { usdt_trc20: "Adresse 
 
 export const FREEZE_DAYS = 7;
 export const MIN_PAYOUT = 20;
+/** Page vers laquelle renvoie le lien traqué de chaque clippeur (le lien en bio d'Enrick). */
+export const TRACKED_LINK_TARGET = "https://investprotrading.fr/enrick";
+
+export function trackedLink(origin: string, trackingCode: string): string {
+  return `${origin}/clip/l/${trackingCode}`;
+}
 const DAY = 86_400_000;
 
 export type CampaignRow = {

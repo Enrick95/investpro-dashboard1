@@ -52,15 +52,18 @@ export async function GET(request: Request) {
     if ("error" in ctx) return clipJson({ error: ctx.error }, ctx.status);
     const { db } = ctx;
     await freezeDueClips(db);
-    const [campaigns, clippers, accounts, clips, candidates, payouts] = await Promise.all([
+    const since = new Date(Date.now() - 92 * 86_400_000).toISOString();
+    const [campaigns, clippers, accounts, clips, candidates, payouts, snapshots, clicks] = await Promise.all([
       db.from("clip_campaigns").select(CAMPAIGN_COLUMNS).order("starts_on", { ascending: false }).limit(100),
       db.from("clip_clippers").select(CLIPPER_COLUMNS).order("created_at", { ascending: true }).limit(500),
       db.from("clip_accounts").select(ACCOUNT_COLUMNS).order("created_at", { ascending: true }).limit(3000),
       db.from("clip_clips").select(CLIP_COLUMNS).order("created_at", { ascending: false }).limit(1500),
       db.from("clip_candidates").select(CANDIDATE_COLUMNS).order("created_at", { ascending: false }).limit(300),
       db.from("clip_payouts").select(PAYOUT_COLUMNS).order("paid_at", { ascending: false }).limit(300),
+      db.from("clip_view_snapshots").select("clip_id,views,recorded_at").gte("recorded_at", since).order("recorded_at", { ascending: true }).limit(20000),
+      db.from("clip_click_stats").select("clipper_id,total,last30").limit(1000),
     ]);
-    for (const result of [campaigns, clippers, accounts, clips, candidates, payouts]) if (result.error) throw result.error;
+    for (const result of [campaigns, clippers, accounts, clips, candidates, payouts, snapshots, clicks]) if (result.error) throw result.error;
     return clipJson({
       campaigns: campaigns.data ?? [],
       clippers: clippers.data ?? [],
@@ -68,6 +71,8 @@ export async function GET(request: Request) {
       clips: clips.data ?? [],
       candidates: candidates.data ?? [],
       payouts: payouts.data ?? [],
+      snapshots: snapshots.data ?? [],
+      clicks: clicks.data ?? [],
     });
   } catch (error) {
     return clipErrorResponse(error);
@@ -211,6 +216,8 @@ async function setViews(db: SupabaseClient, body: Body) {
   if (clip.frozen_views !== null && clip.frozen_views !== undefined) update.frozen_views = views;
   const { error: updateError } = await db.from("clip_clips").update(update).eq("id", id).is("payout_id", null);
   if (updateError) throw updateError;
+  const { error: snapshotError } = await db.from("clip_view_snapshots").insert({ clip_id: id, views });
+  if (snapshotError) throw snapshotError;
   return { ok: true };
 }
 
