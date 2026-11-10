@@ -538,10 +538,10 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
     example: (first: string) => `Salut ${first} ! Merci pour ta candidature. Tu peux m'envoyer un exemple de montage que tu as déjà fait ?`,
     link: (first: string) => `Salut ${first} ! Voici le lien pour t'inscrire comme clippeur : ${joinUrl}`,
     idle: (first: string, days: number) => `Salut ${first} ! Ça fait ${days} jours sans nouveau clip.${mainCampaign && campaignPhase(mainCampaign, todayIso) === "live" ? ` La campagne « ${mainCampaign.title} » est ouverte,` : ""} tu peux reprendre quand tu veux. Besoin d'un coup de main ?`,
-    ok: (first: string, title: string, amount: string) => `Salut ${first} ! Ton clip « ${title} » est validé : +${amount} sur ton prochain versement (le ${dayMonth(cycle.payDate)}). Continue comme ça !`,
+    ok: (first: string, title: string, amount: string) => `Salut ${first} ! Ton clip « ${title} » est validé : +${amount} sur ton prochain versement. Continue comme ça !`,
     ko: (first: string, title: string, reason: string) => `Salut ${first}, ton clip « ${title} » n'est pas validé : ${reason.toLowerCase()}. Tu peux en proposer un autre en suivant la charte.`,
     password: (first: string, password: string) => `Salut ${first} ! Voici ton mot de passe provisoire pour l'espace clippeurs : ${password}\nConnecte-toi sur ${spaceUrl} puis change-le dans ton profil.`,
-    method: (first: string, amount: string) => `Salut ${first} ! Tu as ${amount} acquis : ajoute ton moyen de paiement dans ton profil (${spaceUrl}#profil) pour être payé le ${dayMonth(cycle.payDate)} !`,
+    method: (first: string, amount: string) => `Salut ${first} ! Tu as ${amount} acquis : ajoute ton moyen de paiement dans ton profil (${spaceUrl}#profil) pour être payé au prochain versement !`,
   };
 
   function campaignCard(campaign: CampaignRow): CampaignCardData {
@@ -1012,7 +1012,7 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
         ],
         decision,
         reason: current.reject_reason,
-        okNote: `${first} le voit dans son espace avec ce qu'il rapporte. Il entre dans le prochain versement (le ${dayMonth(cycle.payDate)}).`,
+        okNote: `${first} le voit dans son espace avec ce qu'il rapporte. Il entre dans le prochain versement.`,
         waOk: clipper ? waLink(clipper.whatsapp, msg.ok(first, current.title, earned ?? euro(campaignAmount(campaign)))) : null,
         waKo: clipper ? waLink(clipper.whatsapp, msg.ko(first, current.title, current.reject_reason ?? "il ne respecte pas la charte")) : null,
         defaultAmount: campaignAmount(campaign),

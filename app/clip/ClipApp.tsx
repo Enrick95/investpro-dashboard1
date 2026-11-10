@@ -24,7 +24,6 @@ import {
   clipState,
   clipValue,
   clipViewsOf,
-  cycleFor,
   cycleProgress,
   daysUntil,
   candidateWhatsAppText,
