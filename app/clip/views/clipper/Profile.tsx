@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import { isClipStandalone, openClipInstall } from "../InstallClip";
 import { go } from "./Shell";
 
 export type ProfileAccount = { id: string; short: string; handle: string; sub: string; verified: boolean };
@@ -54,6 +55,9 @@ export function ClipperProfile({ v }: { v: ProfileVals }) {
   const [draft, setDraft] = useState("");
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
+  // Masqué quand l'espace tourne déjà comme une app installée.
+  const [installable, setInstallable] = useState(false);
+  useEffect(() => setInstallable(!isClipStandalone()), []);
 
   async function submitAccount(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -237,6 +241,17 @@ export function ClipperProfile({ v }: { v: ProfileVals }) {
             <path d="M18 14v4.5A1.5 1.5 0 0 1 16.5 20h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10" />
           </svg>
         </a>
+        {installable ? (
+          <button type="button" onClick={openClipInstall} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", width: "100%", minHeight: "56px", padding: "0", border: "0", borderTop: "1px solid rgba(255,255,255,0.06)", background: "transparent", color: "#F3EFE6", font: "inherit", textAlign: "left", cursor: "pointer" }}>
+            <span style={{ display: "flex", flexDirection: "column" }}>
+              <span style={{ fontWeight: "700" }}>Installer l&apos;app sur mon téléphone</span>
+              <span style={{ fontSize: "12px", color: "#A8ADA3" }}>InvestPro Clip sur ton écran d&apos;accueil</span>
+            </span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F0C575" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 4v11M7 10.5l5 5 5-5M5 20h14" />
+            </svg>
+          </button>
+        ) : null}
       </section>
 
       {v.owner ? <Link href="/clip/admin" style={{ ...ghost, textDecoration: "none" }}>Ouvrir l&apos;espace admin</Link> : null}

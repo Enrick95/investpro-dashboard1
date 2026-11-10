@@ -47,6 +47,9 @@ export const ENRICK_YOUTUBE_URL = "https://www.youtube.com/@Enrick95";
 export const CLIP_DOMAIN = "investproclip.com";
 export const CLIP_PUBLIC_URL = `https://${CLIP_DOMAIN}`;
 
+/** Image d'aperçu des liens partagés (WhatsApp, Telegram, Discord, iMessage…). */
+export const CLIP_OG_IMAGE = { url: `${CLIP_PUBLIC_URL}/clip-app/og.jpg`, width: 1200, height: 630, alt: "InvestPro Clip : clippe les vidéos d'Enrick95, fais des vues, sois payé" };
+
 /** Adresse de l'espace clippeurs depuis le site où l'on est : à la racine sur investproclip.com, sous /clip ailleurs. */
 export function clipBase(origin: string): string {
   try {

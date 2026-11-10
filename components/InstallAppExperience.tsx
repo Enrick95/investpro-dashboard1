@@ -65,7 +65,9 @@ export default function InstallAppExperience() {
   const dialogRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    if (pathname === "/vip/nouveau-membre" || pathname === "/clip" || pathname?.startsWith("/clip/")) {
+    // L'espace clippeurs (investproclip.com) a sa propre app et son propre bandeau d'installation.
+    const clipHost = /(^|\.)investproclip\.com$/i.test(window.location.hostname);
+    if (pathname === "/vip/nouveau-membre" || pathname === "/clip" || pathname?.startsWith("/clip/") || clipHost) {
       setBannerVisible(false);
       setGuideOpen(false);
       return;

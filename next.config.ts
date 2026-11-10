@@ -9,9 +9,13 @@ const securityHeaders=[
 // InvestPro Clip sur son propre domaine : investproclip.com sert l'espace /clip à la racine
 // (investproclip.com/rejoindre = /clip/rejoindre) ; les anciens chemins /clip/... y sont raccourcis.
 const CLIP_HOST=[{type:"host" as const,value:"investproclip.com"}];
+// L'ancienne adresse investprotrading.fr/clip renvoie vers investproclip.com (liens déjà partagés compris).
+const OLD_CLIP_HOST=[{type:"host" as const,value:"(?:www\\.)?investprotrading\\.fr"}];
 const CLIP_REDIRECTS=[
   {source:"/clip",has:CLIP_HOST,destination:"/",permanent:false},
   {source:"/clip/:path*",has:CLIP_HOST,destination:"/:path*",permanent:false},
+  {source:"/clip",has:OLD_CLIP_HOST,destination:"https://investproclip.com/",permanent:false},
+  {source:"/clip/:path*",has:OLD_CLIP_HOST,destination:"https://investproclip.com/:path*",permanent:false},
 ];
 const CLIP_REWRITES=[
   {source:"/",has:CLIP_HOST,destination:"/clip"},
