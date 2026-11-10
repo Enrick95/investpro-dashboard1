@@ -6,12 +6,15 @@ import { NextResponse } from "next/server";
 import { authenticateAdmin, permissionsFor } from "@/lib/admin/permissions";
 import { FREEZE_DAYS, freezeAt, normalizePhone, normalizeTelegram } from "@/lib/clip/rules";
 
-export const CLIPPER_COLUMNS = "id,user_id,ref,display_name,whatsapp,telegram,tracking_code,status,payout_method,payout_details,admin_note,created_at";
+export const CLIPPER_COLUMNS = "id,user_id,ref,display_name,whatsapp,telegram,tracking_code,status,payout_method,payout_details,admin_note,referred_by,referral_payout_id,created_at";
 export const ACCOUNT_COLUMNS = "id,clipper_id,platform,handle,followers,verified,created_at";
-export const CAMPAIGN_COLUMNS = "id,title,platforms,brief,forbidden,rushes_url,starts_on,ends_on,quota_per_clipper,rate_per_1000,min_views,max_per_clip,vip_bonus,status,created_at";
-export const CLIP_COLUMNS = "id,ref,clipper_id,campaign_id,platform,url,title,published_at,status,reject_reason,views,views_updated_at,frozen_views,frozen_at,payout_id,reviewed_at,created_at";
-export const PAYOUT_COLUMNS = "id,ref,clipper_id,cycle_start,cycle_end,clips_count,views_total,base_amount,bonus_amount,deduction_amount,total,method,proof,paid_at";
-export const CANDIDATE_COLUMNS = "id,user_id,email,display_name,whatsapp,telegram,accounts,availability,sample_url,message,source,status,reviewed_at,created_at";
+export const CAMPAIGN_COLUMNS = "id,title,platforms,brief,forbidden,rushes_url,starts_on,ends_on,quota_per_clipper,amount_per_clip,status,created_at";
+/** Campagnes vues par les clippeurs : sans aucun montant. */
+export const CLIPPER_CAMPAIGN_COLUMNS = "id,title,platforms,brief,forbidden,rushes_url,starts_on,ends_on,quota_per_clipper,status,created_at";
+export const CLIP_COLUMNS = "id,ref,clipper_id,campaign_id,platform,url,title,published_at,status,reject_reason,views,views_updated_at,frozen_views,frozen_at,payout_id,reviewed_at,amount,bonus,created_at";
+export const PAYOUT_COLUMNS = "id,ref,clipper_id,cycle_start,cycle_end,clips_count,views_total,base_amount,bonus_amount,deduction_amount,referral_amount,total,method,proof,paid_at";
+export const CANDIDATE_COLUMNS = "id,user_id,email,display_name,whatsapp,telegram,accounts,availability,sample_url,message,source,status,referred_by,reviewed_at,created_at";
+export const VIDEO_COLUMNS = "id,title,note,url,campaign_id,created_at";
 
 export class ClipError extends Error {
   constructor(message: string, public status = 400) {
@@ -129,6 +132,8 @@ export type CandidatureFields = {
   availability: string;
   sample_url: string | null;
   message: string | null;
+  /** Code de parrainage lu dans le lien d'inscription (?parrain=…), vérifié ensuite. */
+  referral_code: string | null;
 };
 
 /** Champs de la candidature, communs à l'inscription et au formulaire d'un compte déjà connecté. */
@@ -147,7 +152,19 @@ export function parseCandidature(body: Record<string, unknown>): CandidatureFiel
   const sampleRaw = text(body, "sample_url");
   const sampleUrl = sampleRaw ? httpsUrl(sampleRaw, "Exemple de montage") : null;
   const message = optionalText(body, "message", 600, "Message");
-  return { display_name: displayName, whatsapp, telegram, accounts, availability, sample_url: sampleUrl, message };
+  const referralRaw = text(body, "referral").toLowerCase();
+  const referralCode = /^[a-z0-9-]{3,40}$/.test(referralRaw) ? referralRaw : null;
+  return { display_name: displayName, whatsapp, telegram, accounts, availability, sample_url: sampleUrl, message, referral_code: referralCode };
+}
+
+/** Retrouve le parrain à partir de son code ; un code inconnu est simplement ignoré. */
+export async function referrerId(db: SupabaseClient, code: string | null, exceptUserId?: string): Promise<string | null> {
+  if (!code) return null;
+  const { data, error } = await db.from("clip_clippers").select("id,user_id,status").eq("tracking_code", code).maybeSingle();
+  if (error) throw error;
+  const row = data as unknown as { id: string; user_id: string; status: string } | null;
+  if (!row || row.status === "paused" || row.user_id === exceptUserId) return null;
+  return row.id;
 }
 
 export function parseEmail(raw: string): string {
@@ -242,23 +259,26 @@ export async function freezeDueClips(db: SupabaseClient, clipperId?: string): Pr
 }
 
 /**
- * Tout ce qu'affiche l'espace d'un clippeur : ses comptes, les campagnes, ses clips, ses versements,
- * son classement du mois et les clics sur son lien traqué. Sert à son espace et à l'aperçu admin.
+ * Tout ce qu'affiche l'espace d'un clippeur : ses comptes, les campagnes (sans montants), ses clips,
+ * ses versements, son classement du mois, les clics sur son lien, les vidéos à clipper et ses filleuls.
+ * Sert à son espace et à l'aperçu admin.
  */
 export async function clipperSpacePayload(db: SupabaseClient, clipper: Record<string, unknown> & { id: string }) {
   await freezeDueClips(db, clipper.id);
   const now = new Date();
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
-  const [accounts, campaigns, clips, payouts, monthClips, roster, clicks] = await Promise.all([
+  const [accounts, campaigns, clips, payouts, monthClips, roster, clicks, videos, referees] = await Promise.all([
     db.from("clip_accounts").select(ACCOUNT_COLUMNS).eq("clipper_id", clipper.id).order("created_at", { ascending: true }),
-    db.from("clip_campaigns").select(CAMPAIGN_COLUMNS).in("status", ["active", "ended"]).order("starts_on", { ascending: false }).limit(30),
+    db.from("clip_campaigns").select(CLIPPER_CAMPAIGN_COLUMNS).in("status", ["active", "ended"]).order("starts_on", { ascending: false }).limit(30),
     db.from("clip_clips").select(CLIP_COLUMNS).eq("clipper_id", clipper.id).order("created_at", { ascending: false }).limit(300),
     db.from("clip_payouts").select(PAYOUT_COLUMNS).eq("clipper_id", clipper.id).order("paid_at", { ascending: false }).limit(36),
     db.from("clip_clips").select("clipper_id,views,frozen_views").eq("status", "approved").gte("published_at", monthStart).limit(5000),
     db.from("clip_clippers").select("id").neq("status", "paused").limit(1000),
     db.from("clip_click_stats").select("total,last30").eq("clipper_id", clipper.id).maybeSingle(),
+    db.from("clip_videos").select(VIDEO_COLUMNS).order("created_at", { ascending: false }).limit(60),
+    db.from("clip_clippers").select("id,display_name,status,referral_payout_id,created_at").eq("referred_by", clipper.id).order("created_at", { ascending: false }).limit(100),
   ]);
-  for (const result of [accounts, campaigns, clips, payouts, monthClips, roster, clicks]) if (result.error) throw result.error;
+  for (const result of [accounts, campaigns, clips, payouts, monthClips, roster, clicks, videos, referees]) if (result.error) throw result.error;
 
   // Classement du mois : vues des clips validés publiés ce mois-ci, parmi les clippeurs non suspendus.
   const totals = new Map<string, number>();
@@ -271,9 +291,20 @@ export async function clipperSpacePayload(db: SupabaseClient, clipper: Record<st
   const rank = { position: [...totals.values()].filter((value) => value > mine).length + 1, total: totals.size, views: mine };
   const clickRow = clicks.data as unknown as { total: number | string; last30: number | string } | null;
 
-  const { admin_note: _note, user_id: _user, ...publicClipper } = clipper;
+  // Filleuls : nombre de clips validés de chacun, pour la prime de parrainage.
+  const refereeRows = (referees.data ?? []) as unknown as { id: string; display_name: string; status: string; referral_payout_id: string | null; created_at: string }[];
+  const approvedBy = new Map<string, number>();
+  if (refereeRows.length) {
+    const counts = await db.from("clip_clips").select("clipper_id").eq("status", "approved").in("clipper_id", refereeRows.map((row) => row.id)).limit(5000);
+    if (counts.error) throw counts.error;
+    for (const row of (counts.data ?? []) as unknown as { clipper_id: string }[]) approvedBy.set(row.clipper_id, (approvedBy.get(row.clipper_id) ?? 0) + 1);
+  }
+
+  const { admin_note: _note, user_id: _user, referral_payout_id: _payout, referred_by: _by, ...publicClipper } = clipper;
   void _note;
   void _user;
+  void _payout;
+  void _by;
   return {
     clipper: publicClipper,
     accounts: accounts.data ?? [],
@@ -282,5 +313,7 @@ export async function clipperSpacePayload(db: SupabaseClient, clipper: Record<st
     payouts: payouts.data ?? [],
     rank,
     clicks: { total: Number(clickRow?.total ?? 0), last30: Number(clickRow?.last30 ?? 0) },
+    videos: videos.data ?? [],
+    referrals: refereeRows.map((row) => ({ name: row.display_name, approved: approvedBy.get(row.id) ?? 0, paid: Boolean(row.referral_payout_id), joined: row.created_at })),
   };
 }

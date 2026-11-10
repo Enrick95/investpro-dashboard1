@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { Avatar, Chip, Icon, Pills, S, type Tone } from "./kit";
 
 export type ReviewTab = "queue" | "views";
+export type ViewsFilter = "unpaid" | "all";
 export type Decision = "ok" | "ko" | null;
 export type QueueItem = { id: string; ini: string; who: string; title: string; meta: string; age: string; flag: boolean; decision: Decision };
 export type ReviewCurrent = {
@@ -22,8 +23,11 @@ export type ReviewCurrent = {
   okNote: string;
   waOk: string | null;
   waKo: string | null;
+  /** Montant proposé pour ce clip (celui de la campagne). */
+  defaultAmount: number;
+  earned: string | null;
 };
-export type ViewRowData = { id: string; title: string; url: string; meta: string; clipper: string; published: string; state: { tone: Tone; label: string }; views: number; calc: (views: number) => { amount: string; note: string | null } };
+export type ViewRowData = { id: string; title: string; url: string; meta: string; clipper: string; published: string; state: { tone: Tone; label: string }; views: number; amount: string; bonus: number; paid: boolean };
 export type ReviewVals = {
   tab: ReviewTab;
   setTab: (tab: ReviewTab) => void;
@@ -35,24 +39,31 @@ export type ReviewVals = {
   cur: ReviewCurrent | null;
   reasons: string[];
   busy: boolean;
-  validate: (id: string) => void;
+  validate: (id: string, amount: number) => void;
   refuse: (id: string, reason: string) => void;
   next: () => void;
   hasNext: boolean;
   viewRows: ViewRowData[];
-  viewsFilter: "counting" | "all";
-  viewsFilters: { key: "counting" | "all"; label: string }[];
-  setViewsFilter: (key: "counting" | "all") => void;
+  viewsFilter: ViewsFilter;
+  viewsFilters: { key: ViewsFilter; label: string }[];
+  setViewsFilter: (key: ViewsFilter) => void;
   saveViews: (id: string, views: number) => Promise<boolean>;
+  saveBonus: (id: string, bonus: number) => Promise<boolean>;
+  euro: (value: number) => string;
 };
 
 const MANUAL: [string, string][] = [["a", "Aucune promesse de gains ni montant gagné"], ["b", "Sous-titres lisibles, bon montage"], ["c", "Respecte le brief de la campagne"]];
-const VIEW_GRID = "2.2fr 1.1fr 0.8fr 1fr 1.7fr 0.9fr";
+const VIEW_GRID = "2.1fr 1fr 0.7fr 0.8fr 1.3fr 0.8fr 1.3fr";
+
+function parseAmount(raw: string): number {
+  const value = Number(raw.replace(/\s/g, "").replace(",", "."));
+  return Number.isFinite(value) && value >= 0 ? Math.round(value * 100) / 100 : 0;
+}
 
 function Tabs({ v }: { v: ReviewVals }) {
   const tabs: { key: ReviewTab; label: string; count: number }[] = [
     { key: "queue", label: "À valider", count: v.pendingCount },
-    { key: "views", label: "Vues à saisir", count: v.viewsCount },
+    { key: "views", label: "Vues et bonus", count: v.viewsCount },
   ];
   return (
     <div role="tablist" aria-label="Clips" style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
@@ -75,19 +86,25 @@ function Tabs({ v }: { v: ReviewVals }) {
 
 function ViewRow({ row, v }: { row: ViewRowData; v: ReviewVals }) {
   const [value, setValue] = useState(String(row.views));
+  const [bonus, setBonus] = useState(row.bonus ? String(row.bonus).replace(".", ",") : "");
   const [saved, setSaved] = useState(false);
   const views = Number(value) || 0;
-  const calc = row.calc(views);
-  const changed = views !== row.views;
+  const bonusValue = parseAmount(bonus);
+  const changedViews = views !== row.views;
+  const changedBonus = !row.paid && bonusValue !== row.bonus;
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (await v.saveViews(row.id, views)) {
+    let ok = true;
+    if (changedViews) ok = (await v.saveViews(row.id, views)) && ok;
+    if (changedBonus) ok = (await v.saveBonus(row.id, bonusValue)) && ok;
+    if (ok) {
       setSaved(true);
       window.setTimeout(() => setSaved(false), 2500);
     }
   }
+  const dirty = changedViews || changedBonus;
   return (
-    <div role="row" style={{ display: "grid", gridTemplateColumns: VIEW_GRID, gap: "12px", alignItems: "center", minHeight: "66px", padding: "8px 8px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+    <form role="row" onSubmit={(event) => void submit(event)} style={{ display: "grid", gridTemplateColumns: VIEW_GRID, gap: "12px", alignItems: "center", minHeight: "66px", padding: "8px 8px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
       <span role="cell" style={{ display: "flex", flexDirection: "column", minWidth: "0" }}>
         <a href={row.url} target="_blank" rel="noopener noreferrer" style={{ fontWeight: "700", color: "#F3EFE6", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.title}</a>
         <span style={{ fontSize: "12px", color: "#A8ADA3", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.meta}</span>
@@ -96,27 +113,29 @@ function ViewRow({ row, v }: { row: ViewRowData; v: ReviewVals }) {
       <span role="cell" style={{ color: "#A8ADA3" }}>{row.published}</span>
       <span role="cell"><Chip tone={row.state.tone}>{row.state.label}</Chip></span>
       <span role="cell">
-        <form onSubmit={(event) => void submit(event)} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <label htmlFor={`views-${row.id}`} style={S.srOnly}>Vues de {row.title}</label>
-          <input id={`views-${row.id}`} inputMode="numeric" value={value} onChange={(event) => setValue(event.target.value.replace(/[^0-9]/g, "").slice(0, 11))} style={{ ...S.input, width: "120px" }} />
-          <button type="submit" disabled={v.busy || !changed} style={{ minHeight: "44px", padding: "0 14px", borderRadius: "12px", border: changed ? "0" : "1px solid rgba(255,255,255,0.14)", background: changed ? "#F0C575" : "transparent", color: changed ? "#0b0d0b" : "#A8ADA3", fontSize: "13px", fontWeight: "800" }}>{saved ? "Enregistré" : "OK"}</button>
-        </form>
+        <label htmlFor={`views-${row.id}`} style={S.srOnly}>Vues de {row.title}</label>
+        <input id={`views-${row.id}`} inputMode="numeric" value={value} onChange={(event) => setValue(event.target.value.replace(/[^0-9]/g, "").slice(0, 11))} style={{ ...S.input, width: "100%" }} />
       </span>
-      <span role="cell" style={{ display: "flex", flexDirection: "column" }}>
-        <span style={{ fontWeight: "800" }}>{calc.amount}</span>
-        {calc.note ? <span style={{ fontSize: "12px", color: "#F2B45A", fontWeight: "700" }}>{calc.note}</span> : null}
+      <span role="cell" style={{ fontWeight: "800" }}>{row.amount}</span>
+      <span role="cell" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <label htmlFor={`bonus-${row.id}`} style={S.srOnly}>Bonus pour {row.title}</label>
+        <input id={`bonus-${row.id}`} inputMode="decimal" placeholder="0" disabled={row.paid} value={bonus} onChange={(event) => setBonus(event.target.value.replace(/[^0-9.,]/g, "").slice(0, 8))} style={{ ...S.input, width: "72px", color: "#91D6D0" }} />
+        <button type="submit" disabled={v.busy || !dirty} style={{ minHeight: "44px", padding: "0 12px", borderRadius: "12px", border: dirty ? "0" : "1px solid rgba(255,255,255,0.14)", background: dirty ? "#F0C575" : "transparent", color: dirty ? "#0b0d0b" : "#A8ADA3", fontSize: "13px", fontWeight: "800" }}>{saved ? "OK ✓" : "OK"}</button>
       </span>
-    </div>
+    </form>
   );
 }
 
 export function AdminReview({ v }: { v: ReviewVals }) {
   const [manual, setManual] = useState<Record<string, Record<string, boolean>>>({});
   const [reasons, setReasons] = useState<Record<string, string>>({});
+  const [amounts, setAmounts] = useState<Record<string, string>>({});
   const cur = v.cur;
   const mine = cur ? manual[cur.id] ?? {} : {};
   const allManual = MANUAL.every(([key]) => mine[key]);
   const reason = cur ? reasons[cur.id] ?? v.reasons[0] : v.reasons[0];
+  const amountText = cur ? amounts[cur.id] ?? String(cur.defaultAmount).replace(".", ",") : "";
+  const amount = parseAmount(amountText);
   const toggle = (key: string) => {
     if (!cur) return;
     setManual((current) => ({ ...current, [cur.id]: { ...(current[cur.id] ?? {}), [key]: !(current[cur.id] ?? {})[key] } }));
@@ -129,7 +148,7 @@ export function AdminReview({ v }: { v: ReviewVals }) {
           <span style={S.eyebrow}>{v.subline}</span>
           <h1 style={S.h1}>Clips à valider</h1>
         </div>
-        <span style={{ maxWidth: "420px", fontSize: "13px", color: "#A8ADA3" }}>Un clip validé compte ses vues jusqu&apos;à J+7 puis entre dans le paiement. Un clip refusé ne rapporte rien, et le clippeur voit le motif.</span>
+        <span style={{ maxWidth: "420px", fontSize: "13px", color: "#A8ADA3" }}>Tu choisis ce que rapporte chaque clip en le validant : il entre dans le prochain versement. Un clip refusé ne rapporte rien, et le clippeur voit le motif.</span>
       </header>
       <Tabs v={v} />
       {v.tab === "queue" ? (
@@ -216,16 +235,22 @@ export function AdminReview({ v }: { v: ReviewVals }) {
               </div>
               {!cur.decision ? (
                 <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", justifyContent: "space-between", gap: "12px", paddingTop: "16px", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                    <label htmlFor="motif" style={S.label}>Motif si tu refuses</label>
-                    <select id="motif" value={reason} onChange={(event) => { const value = event.target.value; setReasons((current) => ({ ...current, [cur.id]: value })); }} style={{ ...S.input, minWidth: "220px", maxWidth: "100%" }}>
-                      {v.reasons.map((value) => <option key={value} value={value}>{value}</option>)}
-                    </select>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "12px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      <label htmlFor="montant" style={S.label}>Ce clip rapporte (€)</label>
+                      <input id="montant" inputMode="decimal" value={amountText} onChange={(event) => { const value = event.target.value.replace(/[^0-9.,]/g, "").slice(0, 8); setAmounts((current) => ({ ...current, [cur.id]: value })); }} style={{ ...S.input, width: "120px", color: "#F0C575", fontWeight: "800" }} />
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      <label htmlFor="motif" style={S.label}>Motif si tu refuses</label>
+                      <select id="motif" value={reason} onChange={(event) => { const value = event.target.value; setReasons((current) => ({ ...current, [cur.id]: value })); }} style={{ ...S.input, minWidth: "220px", maxWidth: "100%" }}>
+                        {v.reasons.map((value) => <option key={value} value={value}>{value}</option>)}
+                      </select>
+                    </div>
                   </div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
                     <button type="button" disabled={v.busy} onClick={() => v.refuse(cur.id, reason)} style={{ minHeight: "48px", padding: "0 18px", borderRadius: "12px", border: "1px solid rgba(255,111,145,0.4)", background: "transparent", color: "#FF6F91", fontSize: "14px", fontWeight: "800" }}>Refuser</button>
                     {allManual ? (
-                      <button type="button" disabled={v.busy} onClick={() => v.validate(cur.id)} style={{ display: "flex", alignItems: "center", gap: "8px", minHeight: "48px", padding: "0 20px", borderRadius: "12px", border: "0", background: "#F0C575", color: "#0b0d0b", fontSize: "14px", fontWeight: "800" }}><Icon name="check" size={17} stroke="2.6" />Valider le clip</button>
+                      <button type="button" disabled={v.busy} onClick={() => v.validate(cur.id, amount)} style={{ display: "flex", alignItems: "center", gap: "8px", minHeight: "48px", padding: "0 20px", borderRadius: "12px", border: "0", background: "#F0C575", color: "#0b0d0b", fontSize: "14px", fontWeight: "800" }}><Icon name="check" size={17} stroke="2.6" />Valider · {v.euro(amount)}</button>
                     ) : (
                       <button type="button" disabled style={{ minHeight: "48px", padding: "0 20px", borderRadius: "12px", border: "0", background: "rgba(255,255,255,0.08)", color: "#A8ADA3", fontSize: "14px", fontWeight: "700" }}>Coche les 3 points pour valider</button>
                     )}
@@ -236,7 +261,7 @@ export function AdminReview({ v }: { v: ReviewVals }) {
                   <span style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "13.5px", minWidth: "0", flex: "1 1 260px" }}>
                     <Icon name={cur.decision === "ok" ? "check" : "x"} size={18} stroke="2.6" color={cur.decision === "ok" ? "#91D6D0" : "#FF6F91"} style={{ flexShrink: "0" }} />
                     {cur.decision === "ok"
-                      ? <span><span style={{ fontWeight: "800", color: "#91D6D0" }}>Clip validé.</span> {cur.okNote}</span>
+                      ? <span><span style={{ fontWeight: "800", color: "#91D6D0" }}>Clip validé{cur.earned ? ` · ${cur.earned}` : ""}.</span> {cur.okNote}</span>
                       : <span><span style={{ fontWeight: "800", color: "#FF6F91" }}>Clip refusé.</span> {cur.firstName} voit le motif dans son espace{cur.reason ? ` : « ${cur.reason} »` : ""}.</span>}
                   </span>
                   <span style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
@@ -247,25 +272,25 @@ export function AdminReview({ v }: { v: ReviewVals }) {
               )}
             </section>
           ) : (
-            <section style={{ ...S.card, flex: "2.2 1 600px", minWidth: "0", fontSize: "13px", color: "#A8ADA3" }}>Rien à valider pour l&apos;instant. Pense à saisir les vues des clips validés dans l&apos;onglet « Vues à saisir ».</section>
+            <section style={{ ...S.card, flex: "2.2 1 600px", minWidth: "0", fontSize: "13px", color: "#A8ADA3" }}>Rien à valider pour l&apos;instant. Les vues et les bonus des clips validés sont dans l&apos;onglet « Vues et bonus ».</section>
           )}
         </div>
       ) : (
         <section aria-labelledby="t-vues-saisir" style={{ ...S.card, padding: "22px 22px 12px", gap: "14px" }}>
           <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: "4px", maxWidth: "640px" }}>
-              <h2 id="t-vues-saisir" style={S.h2}>Vues à saisir</h2>
-              <span style={S.sub}>Tant que TikTok, Instagram et YouTube ne sont pas reliés, relève les vues sur chaque clip et saisis-les ici. Elles sont figées automatiquement 7 jours après la publication, puis entrent dans le paiement.</span>
+              <h2 id="t-vues-saisir" style={S.h2}>Vues et bonus</h2>
+              <span style={S.sub}>Les vues servent à tes statistiques (courbe, classement) : relève-les quand tu veux. Pour un clip qui cartonne, ajoute un bonus : il s&apos;ajoute au prochain versement du clippeur.</span>
             </div>
             <Pills label="Filtrer" items={v.viewsFilters} value={v.viewsFilter} onPick={v.setViewsFilter} />
           </div>
           <div style={{ position: "relative", overflowX: "auto" }}>
-            <div role="table" aria-label="Vues des clips validés" style={{ minWidth: "900px", display: "flex", flexDirection: "column" }}>
+            <div role="table" aria-label="Vues et bonus des clips validés" style={{ minWidth: "980px", display: "flex", flexDirection: "column" }}>
               <div role="row" style={{ display: "grid", gridTemplateColumns: VIEW_GRID, gap: "12px", padding: "0 8px 10px", fontSize: "12px", fontWeight: "600", color: "#A8ADA3" }}>
-                {["Clip", "Clippeur", "Publié", "Vues figées", "Vues", "Montant"].map((title) => <span key={title} role="columnheader">{title}</span>)}
+                {["Clip", "Clippeur", "Publié", "État", "Vues", "Montant", "Bonus"].map((title) => <span key={title} role="columnheader">{title}</span>)}
               </div>
               {v.viewRows.map((row) => <ViewRow key={row.id} row={row} v={v} />)}
-              {!v.viewRows.length ? <div style={{ padding: "18px 8px", borderTop: "1px solid rgba(255,255,255,0.06)", fontSize: "13px", color: "#A8ADA3" }}>Aucun clip à mettre à jour.</div> : null}
+              {!v.viewRows.length ? <div style={{ padding: "18px 8px", borderTop: "1px solid rgba(255,255,255,0.06)", fontSize: "13px", color: "#A8ADA3" }}>Aucun clip validé pour l&apos;instant.</div> : null}
             </div>
           </div>
         </section>

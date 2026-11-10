@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 
-const description = "L'espace des clippeurs d'Enrick : campagnes, clips, vues et paiements.";
+const description = "L'espace des clippeurs d'Enrick : campagnes, vidéos à clipper, clips et paiements.";
 
 /** L'espace clippeurs a sa propre identité (InvestPro Clip), prête pour son futur nom de domaine. */
 export const metadata: Metadata = {

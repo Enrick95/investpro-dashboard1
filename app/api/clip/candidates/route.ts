@@ -1,4 +1,4 @@
-import { assertSameOrigin, authenticateClip, ClipError, clipErrorResponse, clipJson, parseCandidature, readJson } from "@/lib/clip/server";
+import { assertSameOrigin, authenticateClip, ClipError, clipErrorResponse, clipJson, parseCandidature, readJson, referrerId } from "@/lib/clip/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,8 +18,9 @@ export async function POST(request: Request) {
     if (open.error) throw open.error;
     if (open.data) throw new ClipError("Ta candidature est déjà en cours d'examen.", 409);
 
-    const fields = parseCandidature(await readJson(request));
-    const { error } = await db.from("clip_candidates").insert({ user_id: user.id, email: user.email ?? null, ...fields, source: "form" });
+    const { referral_code: referralCode, ...fields } = parseCandidature(await readJson(request));
+    const referredBy = await referrerId(db, referralCode, user.id).catch(() => null);
+    const { error } = await db.from("clip_candidates").insert({ user_id: user.id, email: user.email ?? null, ...fields, referred_by: referredBy, source: "form" });
     if (error) {
       if (error.code === "23505") throw new ClipError("Ta candidature est déjà en cours d'examen.", 409);
       throw error;

@@ -12,8 +12,12 @@ export type PayRowData = {
   ref: string;
   handle: string;
   clipsCount: number;
-  views: number;
-  viewsText: string;
+  /** Ce que rapportent ses clips validés pas encore payés (montants + bonus). */
+  clipsAmount: number;
+  /** Primes de parrainage dues. */
+  referral: number;
+  referralNote: string | null;
+  /** clipsAmount + referral : calculé automatiquement. */
   base: number;
   method: string;
   methodNote: string;
@@ -25,7 +29,7 @@ export type PaymentsVals = {
   paidLabel: string;
   paid: string;
   paidSub: string;
-  rules: { rate: string; rateSub: string; freeze: string; vip: string; min: string; minSub: string };
+  rules: { icon: string; title: string; sub: string }[];
   onRules: () => void;
   filter: PayFilter;
   setFilter: (key: PayFilter) => void;
@@ -44,7 +48,7 @@ export type PaymentsVals = {
   pay: (items: { id: string; bonus: number; deduction: number }[]) => Promise<boolean>;
 };
 
-const GRID = "44px 2fr 1fr 0.9fr 1fr 1.2fr 0.9fr 1.2fr 1.1fr";
+const GRID = "44px 2fr 1fr 1fr 1fr 1fr 0.9fr 1.2fr 1.1fr";
 
 function parseAmount(raw: string): number {
   const value = Number(raw.replace(/\s/g, "").replace(",", "."));
@@ -87,10 +91,10 @@ export function AdminPayments({ v }: { v: PaymentsVals }) {
   }
 
   function exportCsv() {
-    const header = ["Clippeur", "Réf.", "Moyen de paiement", "Coordonnées", "Clips", "Vues figées", "Base (€)", "Bonus (€)", "Retenue (€)", "Total (€)", "Statut"];
+    const header = ["Clippeur", "Réf.", "Moyen de paiement", "Coordonnées", "Clips validés", "Clips (€)", "Parrainage (€)", "Bonus (€)", "Retenue (€)", "Total (€)", "Statut"];
     const label: Record<PayStatus, string> = { ready: "Prêt", check: "À vérifier", later: "Reporté" };
     const money = (value: number) => value.toFixed(2).replace(".", ",");
-    const lines = all.map((row) => [row.name, row.ref, row.method, row.details, String(row.clipsCount), String(row.views), money(row.base), money(parseAmount(bonus[row.id] ?? "")), money(parseAmount(deduction[row.id] ?? "")), money(totalOf(row)), label[row.status]]);
+    const lines = all.map((row) => [row.name, row.ref, row.method, row.details, String(row.clipsCount), money(row.clipsAmount), money(row.referral), money(parseAmount(bonus[row.id] ?? "")), money(parseAmount(deduction[row.id] ?? "")), money(totalOf(row)), label[row.status]]);
     const text = [header, ...lines].map((line) => line.map(csvCell).join(";")).join("\n");
     const url = URL.createObjectURL(new Blob([`﻿${text}`], { type: "text/csv;charset=utf-8" }));
     const link = document.createElement("a");
@@ -108,12 +112,7 @@ export function AdminPayments({ v }: { v: PaymentsVals }) {
     { key: "check", label: `À vérifier · ${count("check")}` },
     { key: "later", label: `Reportés · ${count("later")}` },
   ];
-  const rules = [
-    { icon: "eye", title: v.rules.rate, sub: v.rules.rateSub },
-    { icon: "clock", title: v.rules.freeze, sub: "comptées 7 jours après la publication" },
-    { icon: "link", title: v.rules.vip, sub: "ramené via son lien traqué" },
-    { icon: "wallet", title: v.rules.min, sub: v.rules.minSub },
-  ];
+  const rules = v.rules;
   const smallInput = { ...S.input, width: "86px", padding: "0 10px" };
 
   return (
@@ -164,10 +163,10 @@ export function AdminPayments({ v }: { v: PaymentsVals }) {
       <section aria-labelledby="t-bareme" style={{ padding: "20px 22px", borderRadius: "20px", background: "#121511", border: "1px solid rgba(240,197,117,0.18)", display: "flex", flexDirection: "column", gap: "14px" }}>
         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
           <div style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: "10px" }}>
-            <h2 id="t-bareme" style={S.h2}>Ton barème</h2>
-            <span style={S.sub}>réglé par campagne · les clippeurs voient le même</span>
+            <h2 id="t-bareme" style={S.h2}>Comment tu paies</h2>
+            <span style={S.sub}>les clippeurs ne voient aucun tarif, seulement ce que chaque clip validé leur a rapporté</span>
           </div>
-          <button type="button" onClick={v.onRules} style={S.ghost}>Modifier le barème</button>
+          <button type="button" onClick={v.onRules} style={S.ghost}>Changer le montant d&apos;une campagne</button>
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "12px" }}>
           {rules.map((rule) => (
@@ -185,7 +184,7 @@ export function AdminPayments({ v }: { v: PaymentsVals }) {
         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
             <h2 id="t-detail" style={S.h2}>Détail du cycle</h2>
-            <span style={S.sub}>Calcul automatique à partir des vues figées (J+7). Ajoute un bonus VIP ou une retenue si besoin.</span>
+            <span style={S.sub}>Chaque clip validé compte avec le montant choisi à la validation (et son bonus), plus les primes de parrainage. Ajoute un bonus ou une retenue si besoin.</span>
           </div>
           <Pills label="Filtrer" items={filters} value={v.filter} onPick={v.setFilter} />
         </div>
@@ -193,7 +192,7 @@ export function AdminPayments({ v }: { v: PaymentsVals }) {
           <div role="table" aria-label="Détail des paiements du cycle" style={{ minWidth: "1060px", display: "flex", flexDirection: "column" }}>
             <div role="row" style={{ display: "grid", gridTemplateColumns: GRID, gap: "12px", padding: "0 8px 10px", fontSize: "12px", fontWeight: "600", color: "#A8ADA3" }}>
               <span role="columnheader"><span style={S.srOnly}>Sélection</span></span>
-              {["Clippeur", "Vues figées", "Base", "Bonus VIP", "Retenue", "Total", "Moyen de paiement", "Statut"].map((title) => <span key={title} role="columnheader">{title}</span>)}
+              {["Clippeur", "Clips validés", "Parrainage", "Bonus", "Retenue", "Total", "Moyen de paiement", "Statut"].map((title) => <span key={title} role="columnheader">{title}</span>)}
             </div>
             {visible.map((row) => {
               const on = isSelected(row);
@@ -211,10 +210,16 @@ export function AdminPayments({ v }: { v: PaymentsVals }) {
                       <span style={{ fontSize: "12px", color: "#A8ADA3", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.handle}</span>
                     </span>
                   </span>
-                  <span role="cell">{row.viewsText}</span>
-                  <span role="cell" style={{ color: "#C4C8BD" }}>{v.euro(row.base)}</span>
+                  <span role="cell" style={{ display: "flex", flexDirection: "column" }}>
+                    <span style={{ color: "#C4C8BD" }}>{v.euro(row.clipsAmount)}</span>
+                    <span style={{ fontSize: "12px", color: "#A8ADA3" }}>{row.clipsCount} clip{row.clipsCount > 1 ? "s" : ""}</span>
+                  </span>
+                  <span role="cell" style={{ display: "flex", flexDirection: "column" }}>
+                    <span style={{ color: row.referral ? "#91D6D0" : "#8E938A" }}>{row.referral ? v.euro(row.referral) : "—"}</span>
+                    {row.referralNote ? <span style={{ fontSize: "12px", color: "#A8ADA3" }}>{row.referralNote}</span> : null}
+                  </span>
                   <span role="cell">
-                    <label htmlFor={`bonus-${row.id}`} style={S.srOnly}>Bonus VIP pour {row.name}</label>
+                    <label htmlFor={`bonus-${row.id}`} style={S.srOnly}>Bonus pour {row.name}</label>
                     <input id={`bonus-${row.id}`} inputMode="decimal" placeholder="0" value={bonus[row.id] ?? ""} onChange={(event) => setBonus((current) => ({ ...current, [row.id]: event.target.value.replace(/[^0-9.,]/g, "").slice(0, 8) }))} style={{ ...smallInput, color: "#91D6D0" }} />
                   </span>
                   <span role="cell">

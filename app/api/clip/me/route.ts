@@ -37,7 +37,7 @@ export async function GET(request: Request) {
     if (clipperResult.error) throw clipperResult.error;
     const clipper = clipperResult.data as unknown as (Record<string, unknown> & { id: string }) | null;
     if (!clipper) {
-      const candidate = await db.from("clip_candidates").select("id,status,created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      const candidate = await db.from("clip_candidates").select("id,status,display_name,created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
       if (candidate.error) throw candidate.error;
       return clipJson({ email: user.email ?? null, owner: ctx.owner, clipper: null, candidate: candidate.data ?? null });
     }

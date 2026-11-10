@@ -1,6 +1,6 @@
 // Règles du programme clippeurs, partagées entre le navigateur et le serveur.
-// Barème par campagne : X € pour 1 000 vues, rien sous le minimum de vues,
-// plafond par clip, vues figées 7 jours après la publication.
+// Chaque clip validé rapporte le montant choisi par Enrick à la validation (plus un
+// bonus éventuel). Les clippeurs ne voient jamais de barème, seulement ce qu'ils ont gagné.
 
 export const CLIP_PLATFORMS = ["tiktok", "instagram", "youtube"] as const;
 export type ClipPlatform = (typeof CLIP_PLATFORMS)[number];
@@ -14,12 +14,28 @@ export const PAYOUT_HINT: Record<PayoutMethod, string> = { usdt_trc20: "Adresse 
 
 export const FREEZE_DAYS = 7;
 export const MIN_PAYOUT = 20;
+/** Montant proposé par défaut pour un clip validé (modifiable à chaque validation). */
+export const DEFAULT_CLIP_AMOUNT = 7;
+/** Parrainage : prime pour le parrain quand son filleul atteint ce nombre de clips validés. */
+export const REFERRAL_BONUS = 20;
+export const REFERRAL_CLIPS = 5;
 /** WhatsApp d'Enrick (Bali) : le canal de contact des clippeurs et des candidats. */
 export const ENRICK_WHATSAPP_LABEL = "+62 851 2811 5218";
 
 export function enrickWhatsApp(text?: string): string {
   return `https://wa.me/6285128115218${text ? `?text=${encodeURIComponent(text)}` : ""}`;
 }
+
+/** Message tout prêt qu'un candidat envoie à Enrick sur WhatsApp juste après avoir postulé sur le site. */
+export function candidateWhatsAppText(name?: string | null): string {
+  const clean = (name ?? "").trim().replace(/\.+$/, "");
+  const who = clean ? ` C'est ${clean}.` : "";
+  return `Salut Enrick !${who} Je viens d'envoyer ma candidature pour devenir clippeur InvestPro Clip sur le site. Tu peux la regarder quand tu as un moment ? Merci !`;
+}
+
+/** Le TikTok d'Enrick : les clippeurs peuvent déjà y prendre ses vidéos pour les couper et les republier. */
+export const ENRICK_TIKTOK_HANDLE = "@enrick95__";
+export const ENRICK_TIKTOK_URL = "https://www.tiktok.com/@enrick95__";
 
 /** Adresse publique de l'espace clippeurs, en attendant son propre nom de domaine. */
 export const CLIP_PUBLIC_URL = "https://investprotrading.fr/clip";
@@ -29,6 +45,11 @@ export const TRACKED_LINK_TARGET = "https://investprotrading.fr/enrick";
 
 export function trackedLink(origin: string, trackingCode: string): string {
   return `${origin}/clip/l/${trackingCode}`;
+}
+
+/** Lien de parrainage d'un clippeur : la page d'inscription avec son code. */
+export function referralLink(origin: string, trackingCode: string): string {
+  return `${origin}/clip/rejoindre?parrain=${trackingCode}`;
 }
 const DAY = 86_400_000;
 
@@ -42,10 +63,8 @@ export type CampaignRow = {
   starts_on: string;
   ends_on: string;
   quota_per_clipper: number;
-  rate_per_1000: number | string;
-  min_views: number;
-  max_per_clip: number | string;
-  vip_bonus: number | string;
+  /** Montant proposé par défaut à la validation : réservé à l'admin, jamais envoyé aux clippeurs. */
+  amount_per_clip?: number | string;
   status: "draft" | "active" | "ended";
   created_at: string;
 };
@@ -67,6 +86,10 @@ export type ClipRow = {
   frozen_at: string | null;
   payout_id: string | null;
   reviewed_at?: string | null;
+  /** Montant fixé par Enrick à la validation. */
+  amount?: number | string | null;
+  /** Bonus ajouté ensuite (clip qui cartonne). */
+  bonus?: number | string | null;
   created_at: string;
 };
 
@@ -81,13 +104,14 @@ export type PayoutRow = {
   base_amount: number | string;
   bonus_amount: number | string;
   deduction_amount: number | string;
+  referral_amount?: number | string;
   total: number | string;
   method: string | null;
   proof: string | null;
   paid_at: string;
 };
 
-export type ClipState = "review" | "rejected" | "paid" | "frozen" | "counting";
+export type ClipState = "review" | "rejected" | "paid" | "validated";
 
 export function num(value: unknown): number {
   const n = typeof value === "number" ? value : Number(value);
@@ -98,21 +122,21 @@ export function round2(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
-/** Montant d'un clip pour un nombre de vues donné, selon le barème de sa campagne. */
-export function clipAmount(views: number, campaign: Pick<CampaignRow, "rate_per_1000" | "min_views" | "max_per_clip">): number {
-  const rate = num(campaign.rate_per_1000);
-  const max = num(campaign.max_per_clip);
-  if (views < num(campaign.min_views)) return 0;
-  const raw = (views / 1000) * rate;
-  return round2(max > 0 ? Math.min(raw, max) : raw);
+/** Ce que rapporte un clip validé : le montant choisi à la validation, plus son bonus. */
+export function clipValue(clip: Pick<ClipRow, "amount" | "bonus">): number {
+  return round2(num(clip.amount) + num(clip.bonus));
 }
 
-export function clipState(clip: Pick<ClipRow, "status" | "payout_id" | "frozen_views">): ClipState {
+/** Vues connues d'un clip (figées à J+7 si c'est passé), pour les statistiques. */
+export function clipViewsOf(clip: Pick<ClipRow, "views" | "frozen_views">): number {
+  return clip.frozen_views !== null && clip.frozen_views !== undefined ? num(clip.frozen_views) : num(clip.views);
+}
+
+export function clipState(clip: Pick<ClipRow, "status" | "payout_id">): ClipState {
   if (clip.status === "review") return "review";
   if (clip.status === "rejected") return "rejected";
   if (clip.payout_id) return "paid";
-  if (clip.frozen_views !== null && clip.frozen_views !== undefined) return "frozen";
-  return "counting";
+  return "validated";
 }
 
 export function freezeAt(publishedAt: string): Date {
@@ -154,43 +178,28 @@ export type MoneySummary = {
   acquired: number;
   acquiredClips: number;
   acquiredViews: number;
-  pending: number;
-  pendingClips: number;
-  later: number;
-  laterClips: number;
   review: number;
 };
 
-/** Ce qui est acquis (vues figées non payées), en cours (figé avant la fin du cycle) et en revue. */
-export function summarize(clips: ClipRow[], campaigns: CampaignRow[], now: Date): MoneySummary {
-  const byId = new Map<string, CampaignRow>(campaigns.map((campaign): [string, CampaignRow] => [campaign.id, campaign]));
-  const cycle = cycleFor(now);
-  const summary: MoneySummary = { cycle, acquired: 0, acquiredClips: 0, acquiredViews: 0, pending: 0, pendingClips: 0, later: 0, laterClips: 0, review: 0 };
+/** Ce qui est acquis (clips validés pas encore payés) et ce qui attend la validation. */
+export function summarize(clips: ClipRow[], now: Date): MoneySummary {
+  const summary: MoneySummary = { cycle: cycleFor(now), acquired: 0, acquiredClips: 0, acquiredViews: 0, review: 0 };
   for (const clip of clips) {
     const state = clipState(clip);
-    if (state === "review") { summary.review += 1; continue; }
-    const campaign = byId.get(clip.campaign_id);
-    if (!campaign || state === "rejected" || state === "paid") continue;
-    if (state === "frozen") {
-      const views = num(clip.frozen_views);
-      summary.acquired += clipAmount(views, campaign);
-      summary.acquiredClips += 1;
-      summary.acquiredViews += views;
-      continue;
-    }
-    const estimate = clipAmount(num(clip.views), campaign);
-    if (freezeAt(clip.published_at).toISOString().slice(0, 10) <= cycle.end) {
-      summary.pending += estimate;
-      summary.pendingClips += 1;
-    } else {
-      summary.later += estimate;
-      summary.laterClips += 1;
-    }
+    if (state === "review") summary.review += 1;
+    if (state !== "validated") continue;
+    summary.acquired += clipValue(clip);
+    summary.acquiredClips += 1;
+    summary.acquiredViews += clipViewsOf(clip);
   }
   summary.acquired = round2(summary.acquired);
-  summary.pending = round2(summary.pending);
-  summary.later = round2(summary.later);
   return summary;
+}
+
+/** Primes de parrainage dues : un filleul qui a assez de clips validés et dont la prime n'est pas encore versée. */
+export function referralDue(referees: { approved: number; paid: boolean }[]): { count: number; amount: number } {
+  const count = referees.filter((referee) => !referee.paid && referee.approved >= REFERRAL_CLIPS).length;
+  return { count, amount: count * REFERRAL_BONUS };
 }
 
 export function platformFromUrl(raw: string): ClipPlatform | null {

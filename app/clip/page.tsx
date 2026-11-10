@@ -3,7 +3,7 @@ import ClipApp from "./ClipApp";
 
 export const metadata: Metadata = {
   title: "Espace clippeurs",
-  description: "Espace des clippeurs d'Enrick95 : campagnes, clips, vues et paiements.",
+  description: "Espace des clippeurs d'Enrick95 : campagnes, vidéos à clipper, clips et paiements.",
   robots: { index: false, follow: false },
 };
 

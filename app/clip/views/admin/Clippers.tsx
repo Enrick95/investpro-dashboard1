@@ -23,6 +23,8 @@ export type FicheData = {
   accounts: FicheAccount[];
   campaigns: { title: string; progress: string; pct: number }[];
   serious: { label: string; value: string; tone?: "ok" | "warn" }[];
+  /** Parrain et filleuls (vide : rien à afficher). */
+  referral: { label: string; value: string; tone?: "ok" | "warn" }[];
   note: string;
   payout: string;
 };
@@ -175,6 +177,17 @@ function Fiche({ f, v }: { f: FicheData; v: ClippersVals }) {
           </div>
         ))}
       </div>
+      {f.referral.length ? (
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          <h3 style={{ ...S.h3, margin: "0 0 6px" }}>Parrainage</h3>
+          {f.referral.map((line, index) => (
+            <div key={`${line.label}-${index}`} style={{ display: "flex", justifyContent: "space-between", gap: "10px", minHeight: "40px", alignItems: "center", borderTop: "1px solid rgba(255,255,255,0.06)", fontSize: "13px" }}>
+              <span style={{ color: "#C4C8BD", minWidth: "0", overflowWrap: "anywhere" }}>{line.label}</span>
+              <span style={{ fontWeight: "700", textAlign: "right", color: line.tone === "ok" ? "#91D6D0" : line.tone === "warn" ? "#F2B45A" : "#F3EFE6" }}>{line.value}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
       <div style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "14px", borderRadius: "14px", background: "#181c16" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
           <h3 style={{ margin: "0", fontSize: "13px", fontWeight: "800" }}>{editing ? <label htmlFor={`note-${f.id}`}>Note interne</label> : "Note interne"}</h3>

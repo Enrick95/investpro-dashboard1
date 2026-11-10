@@ -14,7 +14,7 @@ export type OverviewVals = {
   clipperView: string;
   period: 7 | 30 | 90;
   setPeriod: (period: 7 | 30 | 90) => void;
-  kpis: { views: string; viewsTrend: { text: string; up: boolean } | null; viewsSub: string; clips: string; clipsTrend: { text: string; up: boolean } | null; clipsSub: string; active: string; activeTotal: string; activeSub: string; accounts: string; accountsSub: string; toPayLabel: string; toPay: string; toPaySub: string };
+  kpis: { views: string; viewsTrend: { text: string; up: boolean } | null; viewsSub: string; clips: string; clipsTrend: { text: string; up: boolean } | null; clipsSub: string; active: string; activeTotal: string; activeSub: string; accounts: string; accountsSub: string; referrals: string; referralsSub: string; toPayLabel: string; toPay: string; toPaySub: string };
   chart: ChartData;
   platforms: { label: string; value: string; pct: number }[];
   clicks: string;
@@ -136,7 +136,7 @@ export function AdminOverview({ v }: { v: OverviewVals }) {
         <Kpi label="Clips publiés" value={v.kpis.clips} trend={v.kpis.clipsTrend} sub={v.kpis.clipsSub} />
         <Kpi label="Clippeurs actifs" value={v.kpis.active} suffix={v.kpis.activeTotal} sub={v.kpis.activeSub} />
         <Kpi label="Comptes suivis" value={v.kpis.accounts} sub={v.kpis.accountsSub} />
-        <Kpi label="VIP via les clips" value="—" sub="bientôt : membres VIP ramenés par les liens" />
+        <Kpi label="Parrainages" value={v.kpis.referrals} sub={v.kpis.referralsSub} />
         <Kpi label={v.kpis.toPayLabel} value={v.kpis.toPay} sub={v.kpis.toPaySub} gold />
       </section>
       <div style={{ display: "flex", flexWrap: "wrap", gap: "14px" }}>
@@ -183,7 +183,7 @@ export function AdminOverview({ v }: { v: OverviewVals }) {
         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
             <h2 id="t-campagnes" style={S.h2}>Campagnes</h2>
-            <span style={S.sub}>Chaque campagne a son brief, ses rushs, son barème et un objectif de clips par clippeur</span>
+            <span style={S.sub}>Chaque campagne a son brief, ses rushs, son montant par clip et un objectif de clips par clippeur</span>
           </div>
           <button type="button" onClick={v.onNewCampaign} style={S.ghost}><Icon name="plus" size={16} stroke="2.2" />Nouvelle campagne</button>
         </div>

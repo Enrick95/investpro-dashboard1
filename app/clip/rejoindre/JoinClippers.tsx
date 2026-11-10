@@ -6,9 +6,10 @@ import { Check, Loader2 } from "lucide-react";
 import styles from "../clip.module.css";
 import ClipLogin from "../ClipLogin";
 import { ClipApiError, clipApi, clipSignIn, clipSignOut, clipToken } from "@/lib/clip/client";
-import { enrickWhatsApp } from "@/lib/clip/rules";
+import { candidateWhatsAppText, enrickWhatsApp } from "@/lib/clip/rules";
+import { StartSlides, startSlides } from "../views/clipper/StartSlides";
 
-type Me = { email: string | null; clipper: { id: string } | null; candidate?: { status: "new" | "accepted" | "refused" } | null };
+type Me = { email: string | null; clipper: { id: string } | null; candidate?: { status: "new" | "accepted" | "refused"; display_name?: string } | null };
 type Phase = "loading" | "signup" | "login" | "form" | "member" | "pending" | "sent" | "error";
 
 const AVAILABILITY = ["1 à 3 clips par semaine", "4 à 7 clips par semaine", "8 à 14 clips par semaine", "15 clips ou plus par semaine"];
@@ -25,6 +26,7 @@ export default function JoinClippers() {
   const [password, setPassword] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [telegram, setTelegram] = useState("");
+  const [referral, setReferral] = useState("");
   const [accounts, setAccounts] = useState("");
   const [availability, setAvailability] = useState(AVAILABILITY[1]);
   const [sample, setSample] = useState("");
@@ -42,8 +44,11 @@ export default function JoinClippers() {
       const me = await clipApi<Me>("/api/clip/me");
       setAccount(me.email);
       if (me.clipper) setPhase("member");
-      else if (me.candidate?.status === "new") setPhase("pending");
-      else setPhase("form");
+      else if (me.candidate?.status === "new") {
+        const applied = me.candidate.display_name ?? "";
+        setName((current) => current || applied);
+        setPhase("pending");
+      } else setPhase("form");
     } catch (e) {
       if (e instanceof ClipApiError && e.status === 401) setPhase("signup");
       else {
@@ -54,6 +59,12 @@ export default function JoinClippers() {
   }, []);
 
   useEffect(() => {
+    try {
+      const code = new URLSearchParams(window.location.search).get("parrain") ?? "";
+      if (/^[a-z0-9-]{3,40}$/.test(code)) setReferral(code);
+    } catch {
+      setReferral("");
+    }
     void detect();
   }, [detect]);
 
@@ -62,7 +73,7 @@ export default function JoinClippers() {
     if (busy) return;
     setBusy(true);
     setError("");
-    const candidature = { display_name: name, whatsapp, telegram, accounts, availability, sample_url: sample, message };
+    const candidature = { display_name: name, whatsapp, telegram, accounts, availability, sample_url: sample, message, referral };
     try {
       if (phase === "signup") {
         await clipApi("/api/clip/signup", { method: "POST", auth: false, body: { ...candidature, email, password, hp_field: trap } });
@@ -126,8 +137,14 @@ export default function JoinClippers() {
             <div className={styles.center}>
               <span className={`${styles.chip} ${styles.chipOk}`}><Check size={13} aria-hidden="true" />Candidature reçue</span>
               <h1 className={styles.h1}>Merci !</h1>
-              <p className={styles.soft}>Enrick regarde ta candidature et te répond sous 48 h sur WhatsApp. Dès qu&apos;elle est acceptée, ton espace s&apos;ouvre ici avec ton e-mail et ton mot de passe.</p>
+              <p className={styles.soft}>Dernière étape : préviens Enrick sur WhatsApp avec le message tout prêt. Il voit ta demande, il l&apos;accepte, et ton espace s&apos;ouvre ici avec ton e-mail et ton mot de passe.</p>
+              <a href={enrickWhatsApp(candidateWhatsAppText(name))} target="_blank" rel="noopener noreferrer" className={`${styles.btn} ${styles.btnBlock}`}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20.5 11.6a8.4 8.4 0 0 1-12.4 7.4L3.5 20.5l1.5-4.3a8.4 8.4 0 1 1 15.5-4.6z" /></svg>
+                Prévenir Enrick sur WhatsApp
+              </a>
               <Link href="/clip" className={`${styles.btnGhost} ${styles.btnBlock}`}>Aller à l&apos;espace clippeurs</Link>
+              <h2 className={styles.h3} style={{ alignSelf: "stretch", textAlign: "left", marginTop: 10 }}>En attendant ma réponse, tu peux déjà commencer</h2>
+              <StartSlides slides={startSlides("join")} label="En attendant, tu peux déjà commencer" />
             </div>
           ) : null}
 
@@ -155,10 +172,7 @@ export default function JoinClippers() {
                   <button type="button" className={styles.linkBtn} onClick={async () => { await clipSignOut(); setAccount(null); setPhase("signup"); }}>Changer de compte</button>
                 </div>
               )}
-              <div className={styles.cardGold} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <span className={styles.h3}>Comment ça marche</span>
-                <span className={`${styles.small} ${styles.soft}`}>Tu choisis une campagne, tu coupes les rushs d&apos;Enrick, tu publies sur tes comptes et tu colles le lien dans ton espace. Tu es payé selon tes vues, deux fois par mois.</span>
-              </div>
+              <StartSlides slides={startSlides("join")} label="Comment ça marche" />
 
               <div className={styles.field}>
                 <label htmlFor="j-name" className={styles.label}>Prénom et initiale du nom</label>

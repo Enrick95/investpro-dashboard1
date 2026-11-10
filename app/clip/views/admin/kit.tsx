@@ -56,6 +56,8 @@ const PATHS: Record<string, ReactNode> = {
   calendar: <><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" /><path d="M3.5 10h17M8 3v4M16 3v4" /></>,
   dots: <><circle cx="6" cy="12" r="1.6" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none" /><circle cx="18" cy="12" r="1.6" fill="currentColor" stroke="none" /></>,
   user: <><circle cx="12" cy="8" r="3.5" /><path d="M5 20c.9-3.6 3.6-5.5 7-5.5s6.1 1.9 7 5.5" /></>,
+  gift: <><rect x="3.5" y="8" width="17" height="4.5" rx="1.2" /><path d="M5 12.5v6.5a1.5 1.5 0 0 0 1.5 1.5h11a1.5 1.5 0 0 0 1.5-1.5v-6.5" /><path d="M12 8v12.5" /><path d="M12 8H8.6a2.3 2.3 0 1 1 0-4.6C11 3.4 12 8 12 8zM12 8h3.4a2.3 2.3 0 1 0 0-4.6C13 3.4 12 8 12 8z" /></>,
+  trash: <><path d="M4.5 7h15" /><path d="M9.5 7V5a1.5 1.5 0 0 1 1.5-1.5h2A1.5 1.5 0 0 1 14.5 5v2" /><path d="M6.5 7l.8 11.6A2 2 0 0 0 9.3 20.5h5.4a2 2 0 0 0 2-1.9L17.5 7" /></>,
 };
 
 export function Icon({ name, size = 16, stroke = "2", color = "currentColor", style }: { name: keyof typeof PATHS | string; size?: number; stroke?: string; color?: string; style?: CSSProperties }) {

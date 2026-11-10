@@ -2,7 +2,7 @@
 
 import { go } from "./Shell";
 
-export type CharterVals = { rate: string; minViews: string; cap: string; vip: string; minPayout: string; onBack: () => void };
+export type CharterVals = { minPayout: string; referral: string; onBack: () => void };
 
 const card = { padding: "16px", borderRadius: "20px", background: "#121511", border: "1px solid rgba(255,255,255,0.08)", display: "flex", flexDirection: "column", gap: "10px" } as const;
 
@@ -39,11 +39,11 @@ export function ClipperCharter({ v }: { v: CharterVals }) {
       </section>
       <section style={card}>
         <h2 style={{ margin: "0", fontSize: "14px", fontWeight: "800" }}>Paiement</h2>
-        <Lines tone="ok" items={[`${v.rate} pour 1 000 vues, vues figées 7 jours après la publication.`, `À partir de ${v.minViews} vues par clip, jusqu'à ${v.cap} par clip.`, `${v.vip} par membre VIP ramené avec ton lien.`, `Versements le 1er et le 16 du mois, dès ${v.minPayout} acquis.`]} />
+        <Lines tone="ok" items={["Chaque clip validé par Enrick te rapporte de l'argent : tu vois le montant sur le clip dès qu'il est validé.", "Un clip qui cartonne peut recevoir un bonus en plus.", v.referral, `Versements le 1er et le 16 du mois, dès ${v.minPayout} acquis.`]} />
       </section>
       <section style={card}>
         <h2 style={{ margin: "0", fontSize: "14px", fontWeight: "800" }}>Si une règle n&apos;est pas respectée</h2>
-        <Lines tone="bad" items={["Le clip est refusé et ne rapporte rien : tu reçois le motif.", "Des vues suspectes bloquent le paiement le temps de vérifier.", "En cas de récidive, le compte clippeur est mis en pause."]} />
+        <Lines tone="bad" items={["Le clip est refusé et ne rapporte rien : tu reçois le motif.", "Vues achetées ou compte qui n'est pas à toi : le clip est refusé.", "En cas de récidive, le compte clippeur est mis en pause."]} />
       </section>
     </>
   );

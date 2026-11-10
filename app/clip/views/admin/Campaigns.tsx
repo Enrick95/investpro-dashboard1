@@ -12,10 +12,8 @@ export type CampaignFormData = {
   starts_on: string;
   ends_on: string;
   quota_per_clipper: string;
-  rate_per_1000: string;
-  min_views: string;
-  max_per_clip: string;
-  vip_bonus: string;
+  /** Montant proposé quand tu valides un clip de cette campagne (tu peux le changer à chaque fois). */
+  amount_per_clip: string;
   status: "draft" | "active" | "ended";
   rushes_url: string;
   brief: string;
@@ -69,7 +67,7 @@ export function AdminCampaigns({ v }: { v: AdminCampaignsVals }) {
         <form onSubmit={submit} aria-labelledby="t-form" style={{ padding: "22px", borderRadius: "20px", background: "#15170f", border: "1px solid rgba(240,197,117,0.45)", display: "flex", flexDirection: "column", gap: "16px" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
             <h2 id="t-form" style={S.h2}>{form.id ? "Modifier la campagne" : "Nouvelle campagne"}</h2>
-            <span style={S.sub}>Les clippeurs voient le brief, les interdits, les rushs et le barème dans leur onglet Campagnes.</span>
+            <span style={S.sub}>Les clippeurs voient le brief, les interdits et les rushs dans leur onglet Campagnes. Le montant par clip reste entre toi et toi : ils voient seulement ce qu&apos;ils ont gagné.</span>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: "12px" }}>
             <Field id="c-title" label="Titre"><input id="c-title" required maxLength={80} value={form.title} onChange={(event) => v.setField("title", event.target.value)} style={input} /></Field>
@@ -84,11 +82,9 @@ export function AdminCampaigns({ v }: { v: AdminCampaignsVals }) {
               </select>
             </Field>
             <Field id="c-quota" label="Objectif de clips par clippeur"><input id="c-quota" inputMode="numeric" value={form.quota_per_clipper} onChange={(event) => v.setField("quota_per_clipper", event.target.value)} style={input} /></Field>
-            <Field id="c-rate" label="€ pour 1 000 vues"><input id="c-rate" inputMode="decimal" value={form.rate_per_1000} onChange={(event) => v.setField("rate_per_1000", event.target.value)} style={input} /></Field>
-            <Field id="c-min" label="Minimum de vues par clip"><input id="c-min" inputMode="numeric" value={form.min_views} onChange={(event) => v.setField("min_views", event.target.value)} style={input} /></Field>
-            <Field id="c-max" label="Plafond par clip (€)"><input id="c-max" inputMode="decimal" value={form.max_per_clip} onChange={(event) => v.setField("max_per_clip", event.target.value)} style={input} /></Field>
-            <Field id="c-vip" label="Bonus par VIP (€)"><input id="c-vip" inputMode="decimal" value={form.vip_bonus} onChange={(event) => v.setField("vip_bonus", event.target.value)} style={input} /></Field>
+            <Field id="c-amount" label="Montant par clip validé (€)"><input id="c-amount" inputMode="decimal" value={form.amount_per_clip} onChange={(event) => v.setField("amount_per_clip", event.target.value)} style={input} /></Field>
           </div>
+          <span style={{ marginTop: "-6px", fontSize: "12.5px", color: "#A8ADA3" }}>C&apos;est le montant proposé quand tu valides un clip : tu peux le changer clip par clip, et ajouter un bonus à un clip qui cartonne.</span>
           <Field id="c-rushes" label="Lien des rushs (Drive, Dropbox…)"><input id="c-rushes" type="url" placeholder="https://…" value={form.rushes_url} onChange={(event) => v.setField("rushes_url", event.target.value)} style={input} /></Field>
           <Field id="c-brief" label="Brief (une consigne par ligne)"><textarea id="c-brief" maxLength={2000} value={form.brief} onChange={(event) => v.setField("brief", event.target.value)} style={area} /></Field>
           <Field id="c-forbidden" label="Interdits"><textarea id="c-forbidden" maxLength={600} value={form.forbidden} onChange={(event) => v.setField("forbidden", event.target.value)} style={{ ...area, minHeight: "70px" }} /></Field>

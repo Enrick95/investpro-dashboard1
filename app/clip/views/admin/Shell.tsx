@@ -4,13 +4,14 @@ import type { ReactNode } from "react";
 import "../../clip.module.css";
 import { go } from "./kit";
 
-export type AdminSection = "overview" | "clippers" | "accounts" | "review" | "campaigns" | "candidates" | "payments" | "whatsapp" | "rules" | "settings";
+export type AdminSection = "overview" | "clippers" | "accounts" | "review" | "videos" | "campaigns" | "candidates" | "payments" | "whatsapp" | "rules" | "settings";
 
 const ICONS: Record<AdminSection, ReactNode> = {
   overview: <><rect x="3.5" y="3.5" width="7" height="7" rx="1.8" /><rect x="13.5" y="3.5" width="7" height="7" rx="1.8" /><rect x="3.5" y="13.5" width="7" height="7" rx="1.8" /><rect x="13.5" y="13.5" width="7" height="7" rx="1.8" /></>,
   clippers: <><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5" /><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8" /><path d="M18.4 14.9c1.6.8 2.6 2.4 3.1 5.1" /></>,
   accounts: <><rect x="6.5" y="2.5" width="11" height="19" rx="2.5" /><path d="M10.5 18.5h3" /></>,
   review: <><rect x="3" y="4.5" width="18" height="15" rx="3" /><path d="M10 9.2v5.6l4.8-2.8z" /></>,
+  videos: <><path d="M4.5 4.5h15a1.5 1.5 0 0 1 1.5 1.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 15V6a1.5 1.5 0 0 1 1.5-1.5z" /><path d="M8 20.5h8" /><path d="M12 9v4M10 11h4" /></>,
   campaigns: <><path d="M5.5 21V4" /><path d="M5.5 4.5h11.5l-2.2 4.25L17 13H5.5" /></>,
   candidates: <><path d="M3 13.5l2.4-6.7A2.5 2.5 0 0 1 7.8 5h8.4a2.5 2.5 0 0 1 2.4 1.8l2.4 6.7" /><path d="M3 13.5V17a2.5 2.5 0 0 0 2.5 2.5h13A2.5 2.5 0 0 0 21 17v-3.5h-5l-1.5 2.5h-5L8 13.5z" /></>,
   payments: <><path d="M17.5 7.5V6a2 2 0 0 0-2-2H5.5A2.5 2.5 0 0 0 3 6.5" /><rect x="3" y="7.5" width="18" height="12.5" rx="2.5" /><circle cx="16.5" cy="13.75" r="1" /></>,
@@ -24,17 +25,18 @@ const PILOT: { key: AdminSection; label: string }[] = [
   { key: "clippers", label: "Clippeurs" },
   { key: "accounts", label: "Comptes" },
   { key: "review", label: "Clips à valider" },
+  { key: "videos", label: "Vidéos" },
   { key: "campaigns", label: "Campagnes" },
   { key: "candidates", label: "Candidatures" },
   { key: "payments", label: "Paiements" },
   { key: "whatsapp", label: "WhatsApp" },
 ];
 const SETTINGS: { key: AdminSection; label: string }[] = [
-  { key: "rules", label: "Barème et charte" },
+  { key: "rules", label: "Paiement et charte" },
   { key: "settings", label: "Réglages" },
 ];
 
-export type NavCounts = { clippers: number; accounts: number; review: number; campaigns: number; candidates: number };
+export type NavCounts = { clippers: number; accounts: number; review: number; videos: number; campaigns: number; candidates: number };
 
 const CSS = `
 @media (max-width: 760px) {
@@ -60,7 +62,7 @@ export function AdminShell({ active, onSection, counts, joinLabel, copied, onCop
   const item = (entry: { key: AdminSection; label: string }) => {
     const on = active === entry.key;
     const badge = entry.key === "review" ? counts.review : entry.key === "candidates" ? counts.candidates : 0;
-    const count = entry.key === "clippers" ? counts.clippers : entry.key === "accounts" ? counts.accounts : entry.key === "campaigns" ? counts.campaigns : null;
+    const count = entry.key === "clippers" ? counts.clippers : entry.key === "accounts" ? counts.accounts : entry.key === "videos" ? counts.videos : entry.key === "campaigns" ? counts.campaigns : null;
     return (
       <a key={entry.key} href={`#${entry.key}`} className="ipc-nav-item" onClick={go(() => onSection(entry.key))} aria-current={on ? "page" : undefined} style={on
         ? { display: "flex", alignItems: "center", gap: "12px", minHeight: "44px", padding: "0 12px", borderRadius: "12px", background: "rgba(240,197,117,0.12)", color: "#F0C575", fontWeight: "700", textDecoration: "none" }
@@ -69,7 +71,6 @@ export function AdminShell({ active, onSection, counts, joinLabel, copied, onCop
         {entry.label}
         {badge ? <span style={{ marginLeft: "auto", minWidth: "22px", padding: "1px 7px", borderRadius: "999px", background: "#F0C575", color: "#0b0d0b", fontSize: "12px", fontWeight: "800", textAlign: "center" }}>{badge}</span> : null}
         {count !== null && !badge ? <span style={{ marginLeft: "auto", fontSize: "12px", color: "#A8ADA3" }}>{count}</span> : null}
-        {entry.key === "whatsapp" ? <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "6px", fontSize: "11.5px", color: "#A8ADA3" }}><span aria-hidden="true" style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#8E938A" }} />bientôt</span> : null}
       </a>
     );
   };

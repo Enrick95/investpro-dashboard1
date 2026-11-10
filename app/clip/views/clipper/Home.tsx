@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { go } from "./Shell";
 
-export type HomeTodo = { key: string; icon: "link" | "flag" | "alert" | "wallet"; tone: "warn" | "teal"; title: string; sub: string; cta: string; primary: boolean; onClick: () => void };
+export type HomeTodo = { key: string; icon: "link" | "flag" | "alert" | "wallet" | "film" | "gift"; tone: "warn" | "teal"; title: string; sub: string; cta: string; primary: boolean; onClick: () => void };
 export type HomeCampaign = { id: string; title: string; progress: string; pct: number; meta: string };
 export type HomeVals = {
   firstName: string;
@@ -18,8 +18,8 @@ export type HomeVals = {
   methodLine: string;
   methodMissing: boolean;
   acquiredClips: string;
-  pending: string;
-  pendingNote: string;
+  received: string;
+  receivedNote: string;
   review: string;
   reviewNote: string;
   todos: HomeTodo[];
@@ -30,6 +30,7 @@ export type HomeVals = {
   onCopyLink: () => void;
   onPayments: () => void;
   onCampaigns: () => void;
+  referral: { link: string; copied: boolean; onCopy: () => void; pitch: string; summary: string; list: { name: string; progress: string; status: string; done: boolean }[] };
 };
 
 const ICONS: Record<HomeTodo["icon"], ReactNode> = {
@@ -37,6 +38,8 @@ const ICONS: Record<HomeTodo["icon"], ReactNode> = {
   flag: <><path d="M5.5 21V4" /><path d="M5.5 4.5h11.5l-2.2 4.25L17 13H5.5" /></>,
   alert: <><path d="M12 4.5l9 15.5H3z" /><path d="M12 10v4.5M12 17.6v.1" /></>,
   wallet: <><path d="M17.5 7.5V6a2 2 0 0 0-2-2H5.5A2.5 2.5 0 0 0 3 6.5" /><rect x="3" y="7.5" width="18" height="12.5" rx="2.5" /><circle cx="16.5" cy="13.75" r="1" /></>,
+  film: <><rect x="3" y="4.5" width="18" height="15" rx="3" /><path d="M10 9.2v5.6l4.8-2.8z" /></>,
+  gift: <><rect x="3.5" y="8.5" width="17" height="4" rx="1" /><path d="M5 12.5v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7M12 8.5v12" /><path d="M12 8.5C10.5 5 7 5 7 7s3 1.5 5 1.5zM12 8.5C13.5 5 17 5 17 7s-3 1.5-5 1.5z" /></>,
 };
 
 export function ClipperHome({ v }: { v: HomeVals }) {
@@ -82,9 +85,9 @@ export function ClipperHome({ v }: { v: HomeVals }) {
           <span style={{ fontSize: "11.5px", color: "#A8ADA3" }}>{v.acquiredClips}</span>
         </div>
         <div style={{ padding: "12px 10px", borderRadius: "16px", background: "#121511", border: "1px solid rgba(255,255,255,0.08)", display: "flex", flexDirection: "column", gap: "4px" }}>
-          <span style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11.5px", fontWeight: "700", color: "#F2B45A" }}><span aria-hidden="true" style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#F2B45A" }} />En cours</span>
-          <span style={{ fontFamily: "Unbounded, sans-serif", fontWeight: "500", fontSize: "15px" }}>{v.pending}</span>
-          <span style={{ fontSize: "11.5px", color: "#A8ADA3" }}>{v.pendingNote}</span>
+          <span style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11.5px", fontWeight: "700", color: "#F0C575" }}><span aria-hidden="true" style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#F0C575" }} />Déjà reçu</span>
+          <span style={{ fontFamily: "Unbounded, sans-serif", fontWeight: "500", fontSize: "15px" }}>{v.received}</span>
+          <span style={{ fontSize: "11.5px", color: "#A8ADA3" }}>{v.receivedNote}</span>
         </div>
         <div style={{ padding: "12px 10px", borderRadius: "16px", background: "#121511", border: "1px solid rgba(255,255,255,0.08)", display: "flex", flexDirection: "column", gap: "4px" }}>
           <span style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11.5px", fontWeight: "700", color: "#C4C8BD" }}><span aria-hidden="true" style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#C4C8BD" }} />En revue</span>
@@ -145,6 +148,31 @@ export function ClipperHome({ v }: { v: HomeVals }) {
             </svg>
           </button>
         </div>
+      </section>
+      <section aria-labelledby="t-parrainage" style={{ padding: "16px", borderRadius: "20px", background: "#121511", border: "1px solid rgba(145,214,208,0.3)", display: "flex", flexDirection: "column", gap: "10px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+          <h2 id="t-parrainage" style={{ margin: "0", fontSize: "14px", fontWeight: "800" }}>Parrainage</h2>
+          <span style={{ fontSize: "12.5px", color: "#C4C8BD" }}>{v.referral.pitch}</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "4px 4px 4px 12px", borderRadius: "14px", background: "#181c16" }}>
+          <span style={{ flex: "1 1 auto", minWidth: "0", fontSize: "13px", fontWeight: "700", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.referral.copied ? "Lien copié" : v.referral.link}</span>
+          <button type="button" onClick={v.referral.onCopy} aria-label="Copier mon lien de parrainage" style={{ flexShrink: "0", width: "44px", height: "44px", borderRadius: "12px", border: "0", background: "rgba(145,214,208,0.14)", color: "#91D6D0", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="8.5" y="8.5" width="12" height="12" rx="2.5" />
+              <path d="M15.5 8.5V6A2.5 2.5 0 0 0 13 3.5H6A2.5 2.5 0 0 0 3.5 6v7A2.5 2.5 0 0 0 6 15.5h2.5" />
+            </svg>
+          </button>
+        </div>
+        <span style={{ fontSize: "12px", color: "#A8ADA3" }}>{v.referral.summary}</span>
+        {v.referral.list.map((item) => (
+          <div key={item.name + item.progress} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", minHeight: "40px", borderTop: "1px solid rgba(255,255,255,0.06)", fontSize: "13px" }}>
+            <span style={{ display: "flex", flexDirection: "column" }}>
+              <span style={{ fontWeight: "700" }}>{item.name}</span>
+              <span style={{ fontSize: "12px", color: "#A8ADA3" }}>{item.progress}</span>
+            </span>
+            <span style={{ padding: "3px 8px", borderRadius: "999px", background: item.done ? "rgba(145,214,208,0.12)" : "rgba(255,255,255,0.07)", color: item.done ? "#91D6D0" : "#C4C8BD", fontSize: "11.5px", fontWeight: "700", whiteSpace: "nowrap" }}>{item.status}</span>
+          </div>
+        ))}
       </section>
     </>
   );

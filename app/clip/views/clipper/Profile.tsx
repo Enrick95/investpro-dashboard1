@@ -79,7 +79,7 @@ export function ClipperProfile({ v }: { v: ProfileVals }) {
 
       <section aria-labelledby="t-comptes" style={{ ...card, gap: "6px" }}>
         <h2 id="t-comptes" style={{ margin: "0", fontSize: "14px", fontWeight: "800" }}>Mes comptes</h2>
-        <span style={{ fontSize: "12.5px", color: "#A8ADA3", paddingBottom: "6px" }}>Les comptes sur lesquels tu publies tes clips. Enrick les vérifie avant de compter tes vues.</span>
+        <span style={{ fontSize: "12.5px", color: "#A8ADA3", paddingBottom: "6px" }}>Les comptes sur lesquels tu publies tes clips. Enrick les vérifie avant de valider tes clips.</span>
         {v.accounts.map((account) => (
           <div key={account.id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 0", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
             <span aria-hidden="true" style={{ flexShrink: "0", width: "40px", height: "40px", borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center", background: "#181c16", border: "1px solid rgba(255,255,255,0.1)", color: "#C4C8BD", fontSize: "12px", fontWeight: "800" }}>{account.short}</span>

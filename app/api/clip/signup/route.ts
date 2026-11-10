@@ -7,6 +7,7 @@ import {
   clipJson,
   limitSignupAttempts,
   parseCandidature,
+  referrerId,
   parseEmail,
   readJson,
   readPassword,
@@ -51,7 +52,9 @@ export async function POST(request: Request) {
     }
 
     const userId = created.data.user.id;
-    const { error } = await db.from("clip_candidates").insert({ user_id: userId, email, ...fields, source: "form" });
+    const { referral_code: referralCode, ...candidature } = fields;
+    const referredBy = await referrerId(db, referralCode, userId).catch(() => null);
+    const { error } = await db.from("clip_candidates").insert({ user_id: userId, email, ...candidature, referred_by: referredBy, source: "form" });
     if (error) {
       await db.auth.admin.deleteUser(userId);
       throw error;

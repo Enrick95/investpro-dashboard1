@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { go } from "./Shell";
 
-export type ClipChipState = "review" | "counting" | "frozen" | "paid" | "rejected";
+export type ClipChipState = "review" | "validated" | "paid" | "rejected";
 export type ClipItem = { id: string; title: string; meta: string; state: ClipChipState; note: string; views: string; money: string; url: string };
 export type ClipsVals = {
   subline: string;
@@ -15,8 +15,7 @@ export type ClipsVals = {
 
 const CHIP: Record<ClipChipState, { label: string; bg: string; color: string; icon: ReactNode; stroke: string }> = {
   review: { label: "En revue", bg: "rgba(255,255,255,0.07)", color: "#C4C8BD", stroke: "2.4", icon: <><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" /><circle cx="12" cy="12" r="3" /></> },
-  counting: { label: "Vues en cours", bg: "rgba(242,180,90,0.12)", color: "#F2B45A", stroke: "2.4", icon: <><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></> },
-  frozen: { label: "Figé", bg: "rgba(145,214,208,0.12)", color: "#91D6D0", stroke: "2.6", icon: <path d="M5 12.5l4.5 4.5L19 7.5" /> },
+  validated: { label: "Validé", bg: "rgba(145,214,208,0.12)", color: "#91D6D0", stroke: "2.6", icon: <path d="M5 12.5l4.5 4.5L19 7.5" /> },
   paid: { label: "Payé", bg: "rgba(240,197,117,0.14)", color: "#F0C575", stroke: "2.6", icon: <path d="M5 12.5l4.5 4.5L19 7.5" /> },
   rejected: { label: "Refusé", bg: "rgba(255,111,145,0.12)", color: "#FF6F91", stroke: "2.6", icon: <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" /> },
 };

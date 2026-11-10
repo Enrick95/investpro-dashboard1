@@ -12,18 +12,19 @@ export type CampaignCard = {
   dates: string;
   mine: number;
   quota: number;
-  rate: string;
-  rateNote: string;
-  vip: string;
   brief: string[];
   forbidden: string;
   rushesUrl: string | null;
   open: boolean;
 };
+export type VideoItem = { id: string; title: string; note: string | null; meta: string; url: string; isNew: boolean };
 export type CampaignsVals = {
   filter: CampaignFilter;
   counts: Record<CampaignFilter, number>;
   cards: CampaignCard[];
+  videos: VideoItem[];
+  /** Le TikTok d'Enrick : de quoi clipper tout de suite, en plus des vidéos postées ici. */
+  tiktok: { handle: string; url: string };
   setFilter: (filter: CampaignFilter) => void;
   openCard: (id: string) => void;
   submitFor: (id: string) => void;
@@ -68,8 +69,38 @@ export function ClipperCampaigns({ v }: { v: CampaignsVals }) {
     <>
       <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
         <h1 style={{ margin: "0", fontFamily: "Unbounded, sans-serif", fontWeight: "500", fontSize: "24px", letterSpacing: "-0.02em", lineHeight: "1.2" }}>Campagnes</h1>
-        <span style={{ fontSize: "13px", color: "#A8ADA3" }}>Les briefs d&apos;Enrick et ce que chaque clip te rapporte.</span>
+        <span style={{ fontSize: "13px", color: "#A8ADA3" }}>Les vidéos à couper et les briefs d&apos;Enrick.</span>
       </div>
+      <section aria-labelledby="t-videos" style={{ padding: "16px", borderRadius: "20px", background: "#121511", border: "1px solid rgba(240,197,117,0.3)", display: "flex", flexDirection: "column" }}>
+          <h2 id="t-videos" style={{ margin: "0 0 6px", fontSize: "14px", fontWeight: "800" }}>Vidéos à clipper</h2>
+          {!v.videos.length ? <span style={{ paddingBottom: "4px", fontSize: "13px", color: "#C4C8BD" }}>La prochaine vidéo longue d&apos;Enrick arrive ici : tu pourras la télécharger et en tirer plusieurs clips.</span> : null}
+          {v.videos.map((video, index) => (
+            <div key={video.id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 0", borderTop: index ? "1px solid rgba(255,255,255,0.06)" : "0" }}>
+              <span aria-hidden="true" style={{ flexShrink: "0", width: "40px", height: "40px", borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(240,197,117,0.12)", color: "#F0C575" }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="3" /><path d="M10 9.2v5.6l4.8-2.8z" /></svg>
+              </span>
+              <span style={{ flex: "1 1 auto", minWidth: "0", display: "flex", flexDirection: "column", gap: "2px" }}>
+                <span style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px" }}>
+                  <span style={{ fontWeight: "700" }}>{video.title}</span>
+                  {video.isNew ? <span style={{ padding: "2px 7px", borderRadius: "999px", background: "#F0C575", color: "#0b0d0b", fontSize: "10.5px", fontWeight: "800" }}>Nouveau</span> : null}
+                </span>
+                {video.note ? <span style={{ fontSize: "12.5px", color: "#C4C8BD", whiteSpace: "pre-wrap" }}>{video.note}</span> : null}
+                <span style={{ fontSize: "12px", color: "#A8ADA3" }}>{video.meta}</span>
+              </span>
+              <a href={video.url} target="_blank" rel="noopener noreferrer" style={{ flexShrink: "0", display: "flex", alignItems: "center", minHeight: "44px", padding: "0 14px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.2)", color: "#F3EFE6", fontSize: "13px", fontWeight: "700", textDecoration: "none" }}>Ouvrir</a>
+            </div>
+          ))}
+          <a href={v.tiktok.url} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: "12px", marginTop: "4px", padding: "12px 0 2px", borderTop: "1px solid rgba(255,255,255,0.06)", color: "#F3EFE6", textDecoration: "none" }}>
+            <span aria-hidden="true" style={{ flexShrink: "0", width: "40px", height: "40px", borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(145,214,208,0.12)", color: "#91D6D0" }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 3.5c.4 2.6 2 4.3 4.5 4.6v3.2c-1.7 0-3.2-.5-4.5-1.4v5.6a5.4 5.4 0 1 1-5.4-5.4c.3 0 .6 0 .9.1v3.3a2.2 2.2 0 1 0 1.3 2V3.5z" /></svg>
+            </span>
+            <span style={{ flex: "1 1 auto", minWidth: "0", display: "flex", flexDirection: "column", gap: "2px" }}>
+              <span style={{ fontWeight: "700" }}>Toutes mes vidéos TikTok</span>
+              <span style={{ fontSize: "12.5px", color: "#A8ADA3" }}>{v.tiktok.handle} : coupe-les et republie-les sur tes comptes, dès maintenant.</span>
+            </span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#A8ADA3" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: "0" }}><path d="M14 4h6v6M20 4l-9 9" /><path d="M18 14v4.5A1.5 1.5 0 0 1 16.5 20h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10" /></svg>
+          </a>
+        </section>
       <div role="group" aria-label="Filtrer les campagnes" style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
         {FILTERS.map((filter) => {
           const on = v.filter === filter.key;
@@ -98,12 +129,12 @@ export function ClipperCampaigns({ v }: { v: CampaignsVals }) {
           <Progress card={card} />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "8px" }}>
             <div style={{ padding: "12px", borderRadius: "14px", background: "#181c16", display: "flex", flexDirection: "column", gap: "2px" }}>
-              <span style={{ fontFamily: "Unbounded, sans-serif", fontWeight: "500", fontSize: "15px", color: "#F0C575" }}>{card.rate}</span>
-              <span style={{ fontSize: "12px", color: "#A8ADA3" }}>{card.rateNote}</span>
+              <span style={{ fontFamily: "Unbounded, sans-serif", fontWeight: "500", fontSize: "15px", color: "#F0C575" }}>Payé par clip</span>
+              <span style={{ fontSize: "12px", color: "#A8ADA3" }}>chaque clip validé te rapporte</span>
             </div>
             <div style={{ padding: "12px", borderRadius: "14px", background: "#181c16", display: "flex", flexDirection: "column", gap: "2px" }}>
-              <span style={{ fontFamily: "Unbounded, sans-serif", fontWeight: "500", fontSize: "15px", color: "#F0C575" }}>{card.vip}</span>
-              <span style={{ fontSize: "12px", color: "#A8ADA3" }}>ramené par ton lien</span>
+              <span style={{ fontFamily: "Unbounded, sans-serif", fontWeight: "500", fontSize: "15px", color: "#F0C575" }}>+ bonus</span>
+              <span style={{ fontSize: "12px", color: "#A8ADA3" }}>pour les clips qui cartonnent</span>
             </div>
           </div>
           {card.brief.length ? (
