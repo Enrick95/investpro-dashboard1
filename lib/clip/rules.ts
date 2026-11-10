@@ -10,10 +10,11 @@ export const PLATFORM_SHORT: Record<ClipPlatform, string> = { tiktok: "TT", inst
 export const NETWORKS_TEXT = "TikTok, Instagram, YouTube Shorts, Facebook, Snapchat ou X";
 export const NETWORKS_LIST = ["TikTok", "Instagram", "YouTube Shorts", "Facebook", "Snapchat", "X (Twitter)"];
 
-export const PAYOUT_METHODS = ["usdt_trc20", "wise", "paypal", "sepa"] as const;
+/** Crypto, PayPal ou virement (la clé usdt_trc20 reste celle de la base pour la crypto). */
+export const PAYOUT_METHODS = ["usdt_trc20", "paypal", "sepa"] as const;
 export type PayoutMethod = (typeof PAYOUT_METHODS)[number];
-export const PAYOUT_LABEL: Record<PayoutMethod, string> = { usdt_trc20: "USDT (TRC20)", wise: "Wise", paypal: "PayPal", sepa: "Virement SEPA" };
-export const PAYOUT_HINT: Record<PayoutMethod, string> = { usdt_trc20: "Adresse TRC20", wise: "E-mail Wise", paypal: "E-mail PayPal", sepa: "IBAN" };
+export const PAYOUT_LABEL: Record<PayoutMethod, string> = { usdt_trc20: "Crypto", paypal: "PayPal", sepa: "Virement" };
+export const PAYOUT_HINT: Record<PayoutMethod, string> = { usdt_trc20: "Adresse crypto et réseau (ex. USDT TRC20)", paypal: "E-mail PayPal", sepa: "IBAN" };
 
 export const FREEZE_DAYS = 7;
 export const MIN_PAYOUT = 20;

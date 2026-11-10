@@ -396,7 +396,7 @@ export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; 
     if (!accounts.length) todos.push({ key: "accounts", icon: "alert", tone: "warn", title: "Ajoute tes comptes", sub: "TikTok, Instagram, YouTube, Facebook, Snapchat ou X : sans eux, tes clips ne peuvent pas être validés.", cta: "Ajouter", primary: true, onClick: () => setTab("profile") });
     const unverified = accounts.filter((account) => !account.verified);
     if (accounts.length && unverified.length) todos.push({ key: "verify", icon: "link", tone: "warn", title: unverified.length > 1 ? `${unverified.length} comptes en vérification` : `@${unverified[0].handle} en vérification`, sub: "Enrick vérifie qu'ils t'appartiennent avant de valider tes clips.", cta: "Voir", primary: false, onClick: () => setTab("profile") });
-    if (!clipper.payout_method) todos.push({ key: "payout", icon: "wallet", tone: "warn", title: "Choisis comment être payé", sub: "USDT, Wise, PayPal ou virement.", cta: "Choisir", primary: true, onClick: () => setTab("profile") });
+    if (!clipper.payout_method) todos.push({ key: "payout", icon: "wallet", tone: "warn", title: "Choisis comment être payé", sub: "Crypto, PayPal ou virement.", cta: "Choisir", primary: true, onClick: () => setTab("profile") });
     const freshVideos = (me.videos ?? []).filter((video) => now.getTime() - new Date(video.created_at).getTime() < 3 * 86_400_000);
     if (freshVideos.length) todos.push({ key: "videos", icon: "film", tone: "teal", title: freshVideos.length > 1 ? `${freshVideos.length} nouvelles vidéos à clipper` : `Nouvelle vidéo : ${freshVideos[0].title}`, sub: "Enrick vient de les poster, à toi de les couper.", cta: "Voir", primary: true, onClick: () => { setCampaignFilter("live"); setTab("campaigns"); } });
     if (!clips.length) todos.push({ key: "start", icon: "film", tone: "teal", title: "Commence avec mes vidéos TikTok", sub: "Coupe-les et republie-les sur tes comptes, en attendant les vidéos longues.", cta: "Comment ?", primary: false, onClick: () => setStartOpen(true) });
@@ -416,7 +416,7 @@ export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; 
         cycleLabel: `Cycle du ${dateRange(cycle.start, cycle.end).replace(/^Du /, "")}`,
         cycleDay: progress.day,
         cycleLength: progress.length,
-        methodLine: methodLabel ? `Versement en ${methodLabel}` : "Choisis ton moyen de paiement",
+        methodLine: methodLabel ? `Versement : ${methodLabel}` : "Choisis ton moyen de paiement",
         methodMissing: !methodLabel,
         acquiredClips: summary.acquiredClips ? plural(summary.acquiredClips, "clip validé", "clips validés") : referral.count ? "prime de parrainage" : "aucun clip validé",
         received: euroShort(received),
@@ -649,7 +649,7 @@ export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; 
     const steps: PayStep[] = [
       { title: `${dayMonth(cycle.start)} · début du cycle`, sub: "Chaque clip validé s'ajoute au fur et à mesure", state: "done" },
       { title: `${dayMonth(cycle.end)} à 23 h 59 · clôture`, sub: `Le montant est arrêté · ${inDays(daysUntil(cycle.end, now))}`, state: "current" },
-      { title: `${shortDay(cycle.payDate)} · versement`, sub: methodLabel ? `Sur ton compte ${methodLabel}` : "Choisis d'abord ton moyen de paiement", state: "todo" },
+      { title: `${shortDay(cycle.payDate)} · versement`, sub: methodLabel ? `Paiement : ${methodLabel}` : "Choisis d'abord ton moyen de paiement", state: "todo" },
       { title: "Juste après · la preuve", sub: "Le reçu arrive ici, avec la référence du virement", state: "todo" },
     ];
     screen = (
