@@ -257,7 +257,7 @@ function PaymentsScreen() {
       <div style={{ padding: "8px", borderRadius: "12px", background: "#15170f", border: "1px solid rgba(240,197,117,0.45)", display: "flex", flexDirection: "column", gap: "3px" }}>
         <span style={{ fontSize: "8px", fontWeight: "700", color: "#C4C8BD" }}>Prochain versement</span>
         <span style={{ fontFamily: "Unbounded, sans-serif", fontWeight: "500", fontSize: "12.5px", color: "#F0C575" }}>lun. 16 nov.</span>
-        <span style={{ fontSize: "8px", color: "#A8ADA3" }}>USDT · Wise · PayPal · virement</span>
+        <span style={{ fontSize: "8px", color: "#A8ADA3" }}>Crypto · PayPal · virement</span>
       </div>
       <div style={{ position: "relative", display: "flex", flexDirection: "column", gap: "8px", paddingLeft: "2px" }}>
         <span style={{ position: "absolute", left: "7px", top: "8px", bottom: "8px", width: "2px", background: "rgba(255,255,255,0.1)" }} />

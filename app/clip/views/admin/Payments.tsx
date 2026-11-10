@@ -249,7 +249,7 @@ export function AdminPayments({ v }: { v: PaymentsVals }) {
             <div id="pay-bar" role="row" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "12px", minHeight: "68px", padding: "10px 8px 4px", borderTop: "1px solid rgba(240,197,117,0.25)" }}>
               <span role="cell" style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: "10px", minWidth: "0", flex: "1 1 320px" }}>
                 <span style={{ fontWeight: "800" }}>Sélection : {chosen.length} clippeur{chosen.length > 1 ? "s" : ""}</span>
-                <span style={{ fontSize: "12.5px", color: "#A8ADA3" }}>{confirm ? "Fais d'abord les virements (USDT, Wise, PayPal ou SEPA), puis confirme : chacun voit « Payé » dans son espace." : blocked.length ? `${blocked.map((row) => row.name).slice(0, 3).join(", ")}${blocked.length > 3 ? "…" : ""} ${blocked.length > 1 ? "restent" : "reste"} pour le prochain cycle` : "Tout le monde est prêt."}</span>
+                <span style={{ fontSize: "12.5px", color: "#A8ADA3" }}>{confirm ? "Fais d'abord les paiements (crypto, PayPal ou virement), puis confirme : chacun voit « Payé » dans son espace." : blocked.length ? `${blocked.map((row) => row.name).slice(0, 3).join(", ")}${blocked.length > 3 ? "…" : ""} ${blocked.length > 1 ? "restent" : "reste"} pour le prochain cycle` : "Tout le monde est prêt."}</span>
               </span>
               <span role="cell" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "14px" }}>
                 <span style={{ fontFamily: "Unbounded, sans-serif", fontWeight: "500", fontSize: "20px", color: "#F0C575" }}>{v.euro(chosenTotal)}</span>
