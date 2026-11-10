@@ -219,6 +219,10 @@ export async function POST(req: Request) {
       if (message === 'limit') {
         return reply({ error: 'Tu as atteint la limite de cinquante connexions hébergées.' }, 409);
       }
+      if (message === 'currency mismatch') {
+        // The account is already paired with another currency; a second pairing would never sync.
+        return reply({ error: 'Ce compte MetaTrader est déjà enregistré avec une autre devise. Garde la même devise, ou écris à @EquipeInvestPro pour la corriger.' }, 409);
+      }
       if (message === 'existing local connection') {
         return reply({ error: 'Ce compte a déjà une connexion MetaTrader enregistrée dans InvestPro. Réutilise cette connexion ou déconnecte-la avant de créer une connexion hébergée.' }, 409);
       }

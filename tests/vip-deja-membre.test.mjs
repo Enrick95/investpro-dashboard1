@@ -176,6 +176,28 @@ test("a subscriber gives the date of their last payment, and the request is a su
   }
 });
 
+test("right after the access code, the page offers to connect MetaTrader through the site's own connector, and never keeps the password", () => {
+  const page = fs.readFileSync(path.join(project, "public/vip-deja-membre-v2.html"), "utf8");
+  const screens = [...page.matchAll(/<section class="screen" data-s="(\d)"/g)].map(match => Number(match[1]));
+  assert.deepEqual(screens, [1, 2, 3, 4, 5], "Infos, code, MetaTrader, alerts, waiting");
+  const step = page.slice(page.indexOf('<section class="screen" data-s="3"'), page.indexOf('<section class="screen" data-s="4"'));
+  assert.match(step, /<h2>Ton compte MetaTrader<\/h2>/);
+  assert.match(step, /<input id="mtPwd" type="password" autocomplete="new-password"/, "The MetaTrader password is a masked field browsers do not fill with the site password");
+  assert.match(step, /Le mot de passe investisseur \(lecture seule\) suffit/, "The read-only password is offered first");
+  assert.match(step, /<button class="back" type="button" id="mtLater">Plus tard<\/button>/, "The step can be skipped");
+  assert.match(page, /var HOSTED='\/api\/metasync\/hosted'/, "The page uses the same hosted connector as the site");
+  assert.match(page, /headers\['X-InvestPro-MT-Token'\]=token/, "With the fresh proof the site's own form sends");
+  assert.match(page, /hostedSend\(\{broker:id,login:login,password:pwd,currency:cur,type:type,syncConsent:true\}\)/);
+  assert.match(page, /if\(!\/\^\[A-Z\]\{3\}\$\/\.test\(cur\)\)return fail3\(/, "The currency must be chosen: a wrong one would never sync");
+  assert.match(page, /if\(!\$\('mtOk'\)\.checked\)return fail3\(/, "The consent box is required");
+  assert.match(page, /\$\('mtPwd'\)\.value='';/, "The password field is emptied once sent");
+  const stored = [...page.matchAll(/(?:sessionStorage|localStorage)\.setItem\(([A-Z_]+),/g)].map(match => match[1]);
+  assert.deepEqual([...new Set(stored)].sort(), ["CODE_KEY", "SEEN_KEY"], "Nothing else, and never the MetaTrader password, is stored by the page");
+  assert.match(page, /else\{S\.email=data\.email\|\|mail;S\.mtAvailable=false\}/, "Without an open session the step is skipped");
+  assert.match(page, /if\(n===3&&!mtOn\(\)\)n=4;/);
+  assert.ok(page.includes("$('codeOk').onclick=function(){try{sessionStorage.removeItem(CODE_KEY)}catch(e){}show(3)};"), "The step comes right after the access code");
+});
+
 test("the déjà-membre page asks for the broker, a subscription with its payment date, or another broker, before sending", () => {
   const page = fs.readFileSync(path.join(project, "public/vip-deja-membre-v2.html"), "utf8");
   const choices = [...page.matchAll(/class="bk" data-bk="([a-z_]+)"/g)].map(match => match[1]);

@@ -149,6 +149,29 @@ input[readonly]{color:var(--muted)}
 /* Date du dernier paiement : à gauche comme les autres champs, même sur iPhone */
 input[type=date]{display:block}
 input[type=date]::-webkit-date-and-time-value{text-align:left;margin:0}
+/* Étape « Ton compte MetaTrader » : mêmes champs que le reste du parcours */
+select{width:100%;min-height:54px;padding:0 42px 0 46px;border-radius:14px;background:#0c0f0b;border:1px solid #2a3026;color:var(--fg);font:600 16px Manrope,sans-serif;outline:none;-webkit-appearance:none;appearance:none;text-overflow:ellipsis;transition:border-color .2s,box-shadow .2s}
+select:focus{border-color:var(--gold);box-shadow:0 0 0 4px rgba(240,197,117,.12)}
+select[aria-invalid=true]{border-color:var(--rose);box-shadow:0 0 0 4px rgba(232,163,154,.1)}
+select:disabled{color:var(--dim);cursor:not-allowed}
+.field svg.chev{left:auto;right:15px;opacity:.6}
+.field.plain select{padding-left:15px}
+.consent{display:flex;gap:12px;align-items:flex-start;margin:18px 0 0;padding:14px;border-radius:14px;background:rgba(145,214,208,.05);border:1px solid rgba(145,214,208,.25);font-size:13px;font-weight:600;line-height:1.5;color:var(--soft);cursor:pointer}
+.consent input{flex-shrink:0;width:22px;height:22px;min-height:22px;margin:1px 0 0;padding:0;border-radius:6px;accent-color:#F0C575;-webkit-appearance:checkbox;appearance:auto}
+.consent:has(input[aria-invalid=true]){border-color:var(--rose)}
+.mt-list{display:grid;gap:8px;margin-top:16px}
+.mt-row{display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:14px;background:#0c0f0b;border:1px solid #2a3026}
+.mt-ic{width:40px;height:40px;border-radius:11px;background:rgba(240,197,117,.12);color:var(--gold);display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:800;flex-shrink:0}
+.mt-tx{min-width:0;flex:1 1 150px}
+.bk.pf{justify-content:center}
+.mt-tx b{display:block;font-size:15px;overflow-wrap:anywhere}
+.mt-tx small{display:block;color:var(--muted);font-size:12.5px;margin-top:2px;overflow-wrap:anywhere}
+.mt-st{flex-shrink:0;font-size:12px;font-weight:800;padding:6px 10px;border-radius:999px;border:1px solid #2f352b;color:var(--soft);white-space:nowrap}
+.mt-st[data-tone=ok]{color:var(--teal);border-color:rgba(145,214,208,.45)}
+.mt-st[data-tone=bad]{color:var(--rose);border-color:rgba(232,163,154,.45)}
+.mt-st[data-tone=wait]{color:var(--gold);border-color:var(--line)}
+.mt-msg{margin:12px 0 0;font-size:13.5px;line-height:1.55;color:var(--soft)}
+.mt-msg.bad{color:#f2c3bc}
 
 .codebox{margin-top:18px;border-radius:18px;background:#0c0f0b;border:1px solid #2a3026;overflow:hidden}
 .cb-row{padding:14px 16px;border-top:1px solid rgba(255,255,255,.06)}
@@ -201,7 +224,8 @@ input[type=date]::-webkit-date-and-time-value{text-align:left;margin:0}
 .install-final-item{padding:13px;border:1px solid var(--line2);border-radius:14px;background:rgba(11,13,11,.48)}
 .install-final-item b{display:block;color:var(--gold);font-size:13px}
 .install-final-item span{display:block;margin-top:5px;color:var(--soft);font-size:12px;line-height:1.5}
-@media(max-width:400px){.install-final-grid{grid-template-columns:1fr}.al{flex-wrap:wrap}.al .act{width:100%;padding-left:56px}}
+@media(max-width:400px){.install-final-grid{grid-template-columns:1fr}.al{flex-wrap:wrap}.al .act{width:100%;padding-left:56px}.mt-row{flex-wrap:wrap}.mt-st{margin-left:52px}.mt-cta{flex-wrap:wrap}.mt-cta .mini{width:100%}}
+.mt-cta .mini{flex-shrink:0}
 @media(max-width:340px){.row2{grid-template-columns:1fr;gap:0}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.js .rv,.word{opacity:1!important;transform:none!important}}
 </style>
@@ -222,16 +246,17 @@ input[type=date]::-webkit-date-and-time-value{text-align:left;margin:0}
 <section class="hero">
 <span class="k"><i></i>Déjà membre du canal VIP</span>
 <h1><span class="word" style="animation-delay:.1s">Bon</span> <span class="word" style="animation-delay:.2s">retour</span><br><span class="word" style="animation-delay:.35s"><span class="shine">dans</span></span> <span class="word" style="animation-delay:.45s"><span class="shine">le</span></span> <span class="word" style="animation-delay:.55s"><span class="shine">VIP.</span></span></h1>
-<p class="lead">Tu es déjà dans le canal Telegram VIP ? Retrouve ton accès sur le site en une minute. Ton code d’accès s’affiche ici, tout de suite.</p>
+<p class="lead">Tu es déjà dans le canal Telegram VIP ? Retrouve ton accès sur le site en deux minutes. Ton code d’accès s’affiche ici, tout de suite.</p>
 </section>
 <div class="hero-card"><div data-card="intro"></div><p class="card-cap">Ta carte membre, à ton nom. Elle se débloque dès que l’équipe valide ton accès.</p></div>
 
 <section class="sec">
 <span class="k">Ton parcours</span>
-<h2 class="sec-t">3 étapes, environ 1 minute.</h2>
+<h2 class="sec-t">4 étapes, environ 2 minutes.</h2>
 <ol class="road rv">
 <li><span class="ri"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></span><span><b>Tes infos</b><small>Prénom, nom et e-mail. Ton WhatsApp si tu veux.</small></span></li>
 <li><span class="ri"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3"/></svg></span><span><b>Ton code d’accès</b><small>Il s’affiche tout de suite, ici. Pas d’e-mail à attendre.</small></span></li>
+<li><span class="ri"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M7 4v16M17 4v16"/><rect x="4.5" y="8" width="5" height="7" rx="1"/><rect x="14.5" y="6" width="5" height="9" rx="1"/></svg></span><span><b>Ton compte MetaTrader</b><small>Connecte-le ici : ton Journal VIP se remplit tout seul.</small></span></li>
 <li><span class="ri"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0b0d0b" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M7 15h4"/><path d="M14 11l2 2 4-4"/></svg></span><span><b>Ta carte débloquée</b><small>L’équipe valide, tu reçois une alerte et ton espace VIP s’ouvre.</small></span></li>
 </ol>
 </section>
@@ -304,6 +329,46 @@ input[type=date]::-webkit-date-and-time-value{text-align:left;margin:0}
 </div></section>
 
 <section class="screen" data-s="3"><div class="panel">
+<div class="ph"><span class="pi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M7 4v16M17 4v16"/><rect x="4.5" y="8" width="5" height="7" rx="1"/><rect x="14.5" y="6" width="5" height="9" rx="1"/></svg></span><h2>Ton compte MetaTrader</h2></div>
+<p class="lead" id="mtLead">Connecte-le maintenant : tes trades arrivent tout seuls dans ton Journal VIP, prêt dès que ton accès est validé. Rien à installer.</p>
+<p class="mt-msg" id="mtLoading" role="status" hidden><span class="spin" aria-hidden="true"></span> Chargement des serveurs…</p>
+<div class="mt-list" id="mtList" hidden></div>
+<p class="mt-msg" id="mtState" role="status" hidden></p>
+<form id="f3" novalidate hidden>
+<label id="mtPfLabel">Plateforme</label>
+<div class="bks" role="group" aria-labelledby="mtPfLabel">
+<button type="button" class="bk pf" data-pf="MT5" aria-pressed="true">MetaTrader 5</button>
+<button type="button" class="bk pf" data-pf="MT4" aria-pressed="false">MetaTrader 4</button>
+</div>
+<label for="mtBroker">Broker</label><div class="field"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10l9-6 9 6"/><path d="M5 10v9M9 10v9M15 10v9M19 10v9M3 21h18"/></svg><select id="mtBroker"><option value="">Choisis ton broker</option></select><svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></div>
+<label for="mtServer">Serveur</label><div class="field"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="4" y="4" width="16" height="7" rx="1.5"/><rect x="4" y="13" width="16" height="7" rx="1.5"/><path d="M8 7.5h.01M8 16.5h.01"/></svg><select id="mtServer" aria-describedby="mtServerHelp" disabled><option value="">Choisis d’abord ton broker</option></select><svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></div>
+<p class="help" id="mtServerHelp">Le nom affiché dans MetaTrader, avec ton numéro de compte. <button type="button" class="linkbtn" id="mtMissing" aria-expanded="false" aria-controls="mtAsk">Il n’est pas dans la liste ?</button></p>
+<div class="login-box" id="mtAsk" hidden>
+<p>Écris le nom exact du serveur affiché dans MetaTrader : l’équipe l’ajoute, puis tu pourras connecter ton compte.</p>
+<label for="mtAskBroker">Broker</label><div class="field"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10l9-6 9 6"/><path d="M5 10v9M9 10v9M15 10v9M19 10v9M3 21h18"/></svg><input id="mtAskBroker" maxlength="80" autocomplete="off" placeholder="VT Markets"></div>
+<label for="mtAskServer">Serveur</label><div class="field"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="4" y="4" width="16" height="7" rx="1.5"/><rect x="4" y="13" width="16" height="7" rx="1.5"/><path d="M8 7.5h.01M8 16.5h.01"/></svg><input id="mtAskServer" maxlength="120" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="VTMarkets-Live 3"></div>
+<p class="mt-msg" id="mtAskMsg" role="status" hidden></p>
+<button class="mini" type="button" id="mtAskBtn" style="margin-top:12px">Demander l’ajout</button>
+</div>
+<label for="mtLogin">Numéro de compte</label><div class="field"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 9h14M5 15h14M10 4L8 20M16 4l-2 16"/></svg><input id="mtLogin" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="12345678"></div>
+<label for="mtPwd">Mot de passe MetaTrader</label><div class="field"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><input id="mtPwd" type="password" autocomplete="new-password" maxlength="128" aria-describedby="mtPwdHelp"></div>
+<p class="help" id="mtPwdHelp">Le mot de passe investisseur (lecture seule) suffit : il permet seulement de lire tes trades.</p>
+<div class="row2">
+<div><label for="mtCur">Devise du compte</label><div class="field plain"><select id="mtCur" aria-describedby="mtCurHelp"><option value="">Choisis</option><option value="USD">USD $</option><option value="EUR">EUR €</option><option value="GBP">GBP £</option><option value="CHF">CHF</option><option value="CAD">CAD</option><option value="AUD">AUD</option><option value="JPY">JPY ¥</option><option value="NZD">NZD</option><option value="SGD">SGD</option><option value="HKD">HKD</option><option value="ZAR">ZAR</option><option value="USC">USC (compte cent)</option></select><svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></div></div>
+<div><label for="mtType">Type de compte</label><div class="field plain"><select id="mtType"><option value="real">Réel</option><option value="demo">Démo</option><option value="prop">Prop firm</option></select><svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></div></div>
+</div>
+<p class="help" id="mtCurHelp">La devise affichée dans MetaTrader (USD, EUR…). Elle doit être exacte pour que tes trades arrivent.</p>
+<label class="consent"><input type="checkbox" id="mtOk"><span>Je suis autorisé à connecter ce compte et j’autorise InvestPro à conserver mes identifiants chiffrés afin de synchroniser les données du compte.</span></label>
+<div class="err" id="f3Err" role="alert" hidden></div>
+<button class="btn btn-gold" type="submit" id="f3Btn"><span id="f3BtnTxt">Connecter mon compte</span><span class="go" aria-hidden="true">→</span></button>
+</form>
+<button class="btn btn-gold" type="button" id="mtNext" hidden>Continuer<span class="go" aria-hidden="true">→</span></button>
+<button class="btn btn-ghost" type="button" id="mtAdd" hidden>Ajouter un autre compte</button>
+<button class="back" type="button" id="mtLater">Plus tard</button>
+<p class="note" id="mtLaterNote">Tu pourras aussi le connecter dans ton espace VIP, onglet « Compte ».</p>
+</div></section>
+
+<section class="screen" data-s="4"><div class="panel">
 <div class="ph"><span class="pi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span><h2>Sois prévenu de la validation</h2></div>
 <p class="lead">Dès que l’équipe valide ton accès, ta carte se débloque et tu es prévenu :</p>
 <div class="alerts">
@@ -315,16 +380,18 @@ input[type=date]::-webkit-date-and-time-value{text-align:left;margin:0}
 <button class="btn btn-gold" type="button" id="alertsOk">Continuer<span class="go" aria-hidden="true">→</span></button>
 </div></section>
 
-<section class="screen" data-s="4"><div class="panel wait">
+<section class="screen" data-s="5"><div class="panel wait">
 <div class="flow-card"><div data-card="wait"></div></div>
 <h2 id="wTitle">Demande envoyée ✓</h2>
 <p class="lead" id="wLead" style="text-align:center">L’équipe vérifie que tu es bien dans le canal VIP. Tu peux fermer cette page : tu seras prévenu dès que c’est validé.</p>
 <ol class="tl" id="wSteps">
 <li class="d"><i>✓</i><span><b>Tes infos</b><small>Reçues par l’équipe</small></span></li>
 <li class="d"><i>✓</i><span><b>Ton accès InvestPro</b><small id="wAccount">Prêt, tu es connecté</small></span></li>
-<li class="c"><i>3</i><span><b>Vérification par l’équipe</b><small>Elle confirme que tu es dans le canal</small></span></li>
-<li class="n"><i>4</i><span><b>Ta carte débloquée</b><small>Et ton espace VIP ouvert</small></span></li>
+<li class="d" id="wMt" hidden><i>✓</i><span><b>Ton compte MetaTrader</b><small>Connecté : ton Journal se remplit tout seul</small></span></li>
+<li class="c"><i id="wN3">3</i><span><b>Vérification par l’équipe</b><small>Elle confirme que tu es dans le canal</small></span></li>
+<li class="n"><i id="wN4">4</i><span><b>Ta carte débloquée</b><small>Et ton espace VIP ouvert</small></span></li>
 </ol>
+<div class="tip mt-cta" id="wMtCta" hidden><span class="pi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#91D6D0" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M7 4v16M17 4v16"/><rect x="4.5" y="8" width="5" height="7" rx="1"/><rect x="14.5" y="6" width="5" height="9" rx="1"/></svg></span><div class="mt-tx"><b>Prépare ton Journal</b><small>Connecte ton compte MetaTrader : tes trades seront là dès la validation.</small></div><button class="mini" type="button" id="wMtBtn">Connecter</button></div>
 <div class="alerts" id="wPush" hidden><div class="al" data-push><span class="pi"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span><div class="tx" style="text-align:left"><b>Notification sur ce téléphone</b><small data-push-txt>Même si cette page est fermée.</small></div><div class="act" data-push-act><button class="mini" type="button" data-push-btn>Activer</button></div></div></div>
 <div class="hint" data-push-hint hidden style="text-align:left"></div>
 <div id="wAction" hidden><a class="btn btn-gold" id="wLink" href="#"><span id="wLinkTxt"></span><span class="go" aria-hidden="true">→</span></a></div>
@@ -365,32 +432,37 @@ var APERCU=document.documentElement.classList.contains('apercu');
 var API='/api/vip/deja-membre',CODE_KEY='vip-deja-membre-code'+(APERCU?'-apercu':''),SEEN_KEY='vip-carte-ouverte';
 var intro=$('intro'),flow=$('flow'),done=$('done'),sticky=$('sticky');
 var cards={};['intro','live','wait','done'].forEach(function(k){cards[k]=IPCard.mount(document.querySelector('[data-card='+k+']'),k==='wait'?'pending':'locked')});
-var S={cur:0,signedIn:false,email:'',code:null,phone:'',memberNumber:null,since:null,loginMode:false,first:'',last:'',waitKind:null};
+var S={cur:0,signedIn:false,email:'',code:null,phone:'',memberNumber:null,since:null,loginMode:false,first:'',last:'',waitKind:null,mtAvailable:null};
 var pollTimer=null;
 
 /* ---------- apparitions ---------- */
 var els=document.querySelectorAll('.rv');
 if('IntersectionObserver' in window){var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{threshold:.2});els.forEach(function(e){io.observe(e)})}else els.forEach(function(e){e.classList.add('in')});
 
-/* ---------- navigation ---------- */
-function total(){return S.code||!(S.signedIn||S.loginMode)?3:2}
-function stepOf(n){return n===1?1:n===2?2:n===3?total():0}
+/* ---------- navigation ----------
+   0 accueil · 1 tes infos · 2 ton code (compte créé ici) · 3 ton compte MetaTrader · 4 tes alertes · 5 attente · 6 accès débloqué */
+function hasCode(){return !!S.code||!(S.signedIn||S.loginMode)}
+function total(){return 2+(hasCode()?1:0)+(mtOn()?1:0)}
+function stepOf(n){return n===1?1:n===2?2:n===3?(hasCode()?3:2):n===4?total():0}
 function show(n,rev){
-  if(n===2){$('cbMail').textContent=S.email;$('cbCode').textContent=S.code||''}
-  if(n===3)prepareAlerts();
+  if(n===3&&!mtOn())n=4;
+  if(n===2){$('cbMail').textContent=S.email;$('cbCode').textContent=S.code||'';mtPrefetch()}
+  if(n===3)prepareMt();
+  if(n===4)prepareAlerts();
   var prev=S.cur;S.cur=n;
-  intro.hidden=n!==0;flow.hidden=!(n>=1&&n<=4);done.hidden=n!==5;sticky.classList.toggle('hide',n!==0);
+  intro.hidden=n!==0;flow.hidden=!(n>=1&&n<=5);done.hidden=n!==6;sticky.classList.toggle('hide',n!==0);
   document.querySelectorAll('.screen').forEach(function(s){var on=+s.dataset.s===n;s.classList.toggle('show',on);s.classList.toggle('rev',on&&(rev||n<prev))});
-  if(n>=1&&n<=4){
-    var t=total(),st=stepOf(n),fin=n===4;
+  if(n>=1&&n<=5){
+    var t=total(),st=stepOf(n),fin=n===5;
     $('ringN').textContent=fin?'✓':st;
     $('stepOf').textContent=fin?'Demande envoyée':'Étape '+st+' sur '+t;
-    $('stepName').textContent=fin?'En vérification':({1:'Tes infos',2:'Ton code d’accès',3:'Tes alertes'})[n];
+    $('stepName').textContent=fin?'En vérification':({1:'Tes infos',2:'Ton code d’accès',3:'Ton compte MetaTrader',4:'Tes alertes'})[n];
     $('ringFg').style.strokeDashoffset=157-157*(fin?1:(st-.5)/t);
     var chips=$('chips');chips.innerHTML=new Array(t+1).join('<i></i>');
     chips.querySelectorAll('i').forEach(function(c,i){c.className=fin||i+1<st?'ok':i+1===st?'on':''});
   }
-  if(n!==4)stopPoll();
+  if(n!==5)stopPoll();
+  if(n!==3)stopMtPoll();
   window.scrollTo({top:0,behavior:'smooth'});
 }
 $('start').onclick=function(){show(1);setTimeout(function(){($('pre').value?$('mail'):$('pre')).focus({preventScroll:true})},450)};
@@ -446,7 +518,8 @@ $('f1').onsubmit=async function(e){
   if(res.status===409&&data.code==='EXISTING_ACCOUNT'){S.loginMode=true;$('loginBox').hidden=false;$('f1BtnTxt').textContent='Continuer';fail('');show(1);$('pwd').focus();return}
   if(!res.ok){if(data.signedIn)signedIn(data.email);return fail((data.error||'L’envoi n’a pas abouti. Réessaie dans un instant.')+(S.code?' Ton accès est créé : ton code s’affichera à l’étape suivante.':''),FIELD[data.field])}
   S.phone=tel?$('tel').value.trim():'';S.memberNumber=data.memberNumber||null;S.since=data.since||null;
-  if(data.signedIn!==false)signedIn(data.email||mail);else S.email=data.email||mail;
+  // Sans session ouverte, l'étape MetaTrader est sautée : le membre la fera dans son espace VIP.
+  if(data.signedIn!==false)signedIn(data.email||mail);else{S.email=data.email||mail;S.mtAvailable=false}
   names(data.firstName||pre,data.lastName||nom);
   route(data,true);
 };
@@ -470,6 +543,204 @@ $('copyCode').onclick=function(){
   try{navigator.clipboard.writeText(code).then(ok,select)}catch(e){select()}
 };
 $('codeOk').onclick=function(){try{sessionStorage.removeItem(CODE_KEY)}catch(e){}show(3)};
+
+/* ---------- ton compte MetaTrader (étape 3) ----------
+   La connexion hébergée du site (/api/metasync/hosted), avec la session ouverte à l'étape 1 : le Journal VIP est prêt
+   dès la validation. Le mot de passe part une seule fois vers le serveur, qui le chiffre ; la page ne le garde nulle part. */
+var HOSTED='/api/metasync/hosted';
+var MT={catalog:[],connections:[],loaded:false,loading:null,pf:'MT5',mode:'form',poll:null,polls:0,watch:null,back:false,asked:false};
+var MT_FROM_STEP1={vtmarkets:'vtmarkets',raise_fx:'raise',puprime:'puprime',axi:'axi'};
+function mtOn(){return S.mtAvailable!==false}
+function esc(v){return String(v==null?'':v).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function keyOf(v){return String(v||'').toLowerCase().replace(/[^a-z0-9]/g,'')}
+function mtLoad(){
+  return fetch(HOSTED,{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json().catch(function(){return {}}).then(function(d){
+    if(!r.ok||d.enabled!==true)throw Error('MT_OFF');
+    MT.catalog=(Array.isArray(d.brokers)?d.brokers:[]).filter(function(b){return b&&typeof b.id==='string'&&(b.platform==='MT4'||b.platform==='MT5')&&typeof b.label==='string'&&typeof b.server==='string'});
+    MT.connections=(Array.isArray(d.connections)?d.connections:[]).filter(function(c){return c&&c.investpro_mt_connections});
+    MT.loaded=true;
+  })});
+}
+function mtPrefetch(){
+  if(MT.loaded||!mtOn())return Promise.resolve();
+  if(!MT.loading)MT.loading=mtLoad().catch(function(){S.mtAvailable=false}).then(function(){MT.loading=null});
+  return MT.loading;
+}
+function activeConnections(){return MT.connections.filter(function(c){return c.active})}
+function mtStatus(c){
+  var m=c.investpro_mt_connections,fresh=!!m.last_sync&&Date.now()-Date.parse(m.last_sync)<=180000;
+  if(c.status==='error')return ['Échec','bad'];
+  if(c.status==='syncing'||c.status==='ready'){if(fresh)return ['Connecté ✓','ok'];if(m.last_sync)return ['Synchro interrompue','bad']}
+  if(c.status==='queued'||c.status==='capacity')return ['En attente','wait'];
+  return ['Connexion…','wait'];
+}
+function watched(){
+  var w=MT.watch;if(!w)return null;
+  return activeConnections().filter(function(c){var m=c.investpro_mt_connections;return String(m.login)===w.login&&m.platform===w.platform&&m.server===w.server})[0]||null;
+}
+function syncPf(){document.querySelectorAll('#f3 .bk[data-pf]').forEach(function(x){x.setAttribute('aria-pressed',String(x.dataset.pf===MT.pf))})}
+function brokersFor(pf){var seen={},out=[];MT.catalog.forEach(function(b){if(b.platform===pf&&!seen[b.label]){seen[b.label]=1;out.push(b.label)}});return out.sort(function(a,b){return a.localeCompare(b,'fr',{sensitivity:'base'})})}
+function serversFor(pf,label){return MT.catalog.filter(function(b){return b.platform===pf&&b.label===label}).sort(function(a,b){return a.server.localeCompare(b.server,'en',{numeric:true,sensitivity:'base'})})}
+// Le broker choisi à l'étape 1 est déjà sélectionné.
+function guessBroker(list){var k=MT_FROM_STEP1[BK];if(!k)return '';for(var i=0;i<list.length;i++)if(keyOf(list[i]).indexOf(k)===0)return list[i];return ''}
+function fillBrokers(keep){
+  var sel=$('mtBroker'),list=brokersFor(MT.pf),want=keep||sel.value||guessBroker(list);
+  sel.innerHTML='<option value="">Choisis ton broker</option>'+list.map(function(l){return '<option value="'+esc(l)+'">'+esc(l)+'</option>'}).join('');
+  sel.value=list.indexOf(want)>=0?want:'';
+  fillServers();
+}
+function fillServers(keepId){
+  var sel=$('mtServer'),label=$('mtBroker').value,list=label?serversFor(MT.pf,label):[];
+  sel.innerHTML='<option value="">'+(label?'Choisis ton serveur':'Choisis d’abord ton broker')+'</option>'+list.map(function(b){return '<option value="'+esc(b.id)+'">'+esc(b.server)+'</option>'}).join('');
+  sel.disabled=!label;
+  if(keepId&&list.some(function(b){return b.id===keepId}))sel.value=keepId;else if(list.length===1)sel.value=list[0].id;
+}
+function prepareMt(){
+  fail3('');
+  var ready=MT.loaded;
+  $('mtLoading').hidden=ready;
+  if(!ready)['f3','mtList','mtState','mtNext','mtAdd'].forEach(function(id){$(id).hidden=true});
+  mtPrefetch().then(function(){
+    if(S.cur!==3)return;
+    if(!mtOn())return leaveMt();
+    $('mtLoading').hidden=true;
+    fillBrokers($('mtBroker').value);
+    MT.mode=activeConnections().length?'list':'form';
+    renderMt();
+  });
+}
+function renderMt(){
+  var list=activeConnections(),box=$('mtList'),has=list.length>0,form=MT.mode==='form'||!has;
+  box.innerHTML='';
+  list.forEach(function(c){
+    var m=c.investpro_mt_connections,st=mtStatus(c),row=document.createElement('div');
+    row.className='mt-row';
+    row.innerHTML='<span class="mt-ic" aria-hidden="true"></span><span class="mt-tx"><b></b><small></small></span><span class="mt-st"></span>';
+    row.querySelector('.mt-ic').textContent=m.platform||'MT';
+    row.querySelector('b').textContent=String(m.login);
+    row.querySelector('small').textContent=[m.server,m.currency].filter(Boolean).join(' · ');
+    var badge=row.querySelector('.mt-st');badge.textContent=st[0];badge.dataset.tone=st[1];
+    box.appendChild(row);
+  });
+  box.hidden=!has;
+  $('f3').hidden=!form;
+  $('mtLead').textContent=has&&!form?'Ton compte est connecté : tes trades arrivent tout seuls dans ton Journal VIP.':'Connecte-le maintenant : tes trades arrivent tout seuls dans ton Journal VIP, prêt dès que ton accès est validé. Rien à installer.';
+  var w=watched(),failed=!!w&&mtStatus(w)[1]==='bad',pending=list.some(function(c){return mtStatus(c)[1]==='wait'}),msg=$('mtState');
+  msg.hidden=form||!(failed||pending);
+  msg.className='mt-msg'+(failed?' bad':'');
+  msg.textContent=failed?'La connexion n’a pas abouti. Vérifie le serveur, le numéro de compte et le mot de passe, puis réessaie.':'Ton historique arrive dans ton Journal dans quelques minutes. Tu peux continuer : la connexion se termine toute seule.';
+  $('mtNext').hidden=form;
+  $('mtAdd').hidden=form;$('mtAdd').textContent=failed?'Réessayer':'Ajouter un autre compte';
+  $('mtLater').hidden=!form;$('mtLater').textContent=has?'Retour':MT.asked?'Continuer':'Plus tard';
+  $('mtLaterNote').hidden=!form||has;
+}
+// Le statut du compte qui vient d'être connecté, sans recharger la page.
+function startMtPoll(){
+  stopMtPoll();MT.polls=0;
+  MT.poll=setInterval(function(){
+    if(document.visibilityState==='hidden')return;
+    if(++MT.polls>36)return stopMtPoll();
+    mtLoad().then(function(){
+      if(S.cur!==3)return;
+      renderMt();
+      var w=watched();if(w&&mtStatus(w)[1]!=='wait')stopMtPoll();
+    }).catch(function(){});
+  },5000);
+}
+function stopMtPoll(){if(MT&&MT.poll){clearInterval(MT.poll);MT.poll=null}}
+function fail3(msg,id){var e=$('f3Err');e.textContent=msg;e.hidden=!msg;if(id){var i=$(id);i.setAttribute('aria-invalid','true');i.focus()}return false}
+function clear3(e){if(e.target.getAttribute&&e.target.getAttribute('aria-invalid')==='true'){e.target.removeAttribute('aria-invalid');fail3('')}}
+$('f3').addEventListener('input',clear3);$('f3').addEventListener('change',clear3);
+document.querySelectorAll('#f3 .bk[data-pf]').forEach(function(b){b.onclick=function(){MT.pf=b.dataset.pf;syncPf();fillBrokers($('mtBroker').value);fail3('')}});
+$('mtBroker').addEventListener('change',function(){fillServers()});
+// Comme le formulaire du site : une preuve fraîche liée à la session, puis l'envoi.
+async function hostedProof(){
+  var r=await fetch(HOSTED+'?requestProof=1',{credentials:'same-origin',cache:'no-store',mode:'same-origin',redirect:'error'}),d=await r.json().catch(function(){return {}});
+  if(!r.ok)throw Error(d.error||'Connexion impossible. Réessaie dans quelques instants.');
+  if(d.enabled!==true)throw Error('Ta session a expiré : recharge la page, puis réessaie.');
+  return typeof d.requestToken==='string'&&d.requestToken.length>0&&d.requestToken.length<=160&&!/[\r\n]/.test(d.requestToken)?d.requestToken:null;
+}
+async function hostedSend(payload){
+  var token=await hostedProof(),body=JSON.stringify(payload);
+  for(var i=0;i<2;i++){
+    var headers={'Content-Type':'application/json'};if(token)headers['X-InvestPro-MT-Token']=token;
+    var r=await fetch(HOSTED,{method:'POST',credentials:'same-origin',cache:'no-store',mode:'same-origin',redirect:'error',headers:headers,body:body}),d=await r.json().catch(function(){return {}});
+    if(r.ok)return d;
+    // Seul ce refus, avant tout enregistrement, peut être renvoyé tel quel.
+    if(i===0&&(r.status===401||r.status===403)&&d.code==='MT_REQUEST_PROOF_EXPIRED'){token=await hostedProof();continue}
+    throw Error(d.error||'Connexion impossible. Réessaie dans quelques instants.');
+  }
+  throw Error('Connexion impossible. Réessaie dans quelques instants.');
+}
+$('f3').onsubmit=async function(e){
+  e.preventDefault();fail3('');
+  var label=$('mtBroker').value,id=$('mtServer').value,login=$('mtLogin').value.replace(/\s+/g,''),pwd=$('mtPwd').value,cur=$('mtCur').value,type=$('mtType').value;
+  if(!label)return fail3('Choisis ton broker.','mtBroker');
+  if(!id)return fail3('Choisis le serveur affiché dans MetaTrader.','mtServer');
+  if(!/^\d{1,10}$/.test(login)||+login<=0||(MT.pf==='MT4'&&+login>2147483647))return fail3('Numéro de compte : uniquement les chiffres de ton login MetaTrader.','mtLogin');
+  if(!pwd||pwd.length>128||/[\r\n\0]/.test(pwd))return fail3('Entre le mot de passe de ton compte MetaTrader.','mtPwd');
+  if(!/^[A-Z]{3}$/.test(cur))return fail3('Choisis la devise de ton compte, celle affichée dans MetaTrader.','mtCur');
+  if(!$('mtOk').checked)return fail3('Coche l’autorisation pour connecter ton compte.','mtOk');
+  var btn=$('f3Btn'),txt=$('f3BtnTxt').textContent;btn.disabled=true;$('f3BtnTxt').innerHTML='<span class="spin" aria-hidden="true"></span> Connexion…';
+  try{
+    await hostedSend({broker:id,login:login,password:pwd,currency:cur,type:type,syncConsent:true});
+    var b=MT.catalog.filter(function(x){return x.id===id})[0]||{platform:MT.pf,server:''};
+    MT.watch={login:login,platform:b.platform,server:b.server};
+    $('mtPwd').value='';$('mtOk').checked=false;
+    await mtLoad().catch(function(){});
+    if(!watched())MT.connections.push({active:true,status:'queued',investpro_mt_connections:{login:login,platform:b.platform,server:b.server,currency:cur,last_sync:null}});
+    MT.mode='list';renderMt();startMtPoll();
+  }catch(err){fail3(err instanceof TypeError?'Connexion impossible. Vérifie ton réseau et réessaie.':(err&&err.message)||'Connexion impossible. Réessaie dans quelques instants.')}
+  finally{btn.disabled=false;$('f3BtnTxt').textContent=txt}
+};
+// Serveur absent du catalogue : la demande d'ajout du site, sans quitter la page.
+function askMsg(text,bad){var m=$('mtAskMsg');m.textContent=text||'';m.hidden=!text;m.className='mt-msg'+(bad?' bad':'')}
+$('mtMissing').onclick=function(){
+  var box=$('mtAsk'),open=box.hidden;box.hidden=!open;this.setAttribute('aria-expanded',String(open));
+  if(open){if(!$('mtAskBroker').value)$('mtAskBroker').value=$('mtBroker').value||'';($('mtAskBroker').value?$('mtAskServer'):$('mtAskBroker')).focus()}
+};
+$('mtAskBtn').onclick=async function(){
+  var broker=$('mtAskBroker').value.trim(),server=$('mtAskServer').value.trim(),btn=this;
+  if(broker.length<2)return askMsg('Indique le nom de ton broker.',true);
+  if(server.length<2||/https?:|[\/\\]/i.test(server))return askMsg('Copie le nom exact du serveur affiché dans MetaTrader, pas une adresse web.',true);
+  btn.disabled=true;askMsg('');
+  try{
+    var r=await fetch('/api/metasync/servers',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({broker:broker,platform:MT.pf,server:server})}),d=await r.json().catch(function(){return {}});
+    if(!r.ok)return askMsg(d.error||'La demande n’est pas partie. Réessaie dans un instant.',true);
+    MT.asked=true;renderMt();
+    askMsg('Demande envoyée ✓ L’équipe ajoute ton serveur, puis tu pourras connecter ton compte dans ton espace VIP, onglet « Compte ».');
+  }catch(err){askMsg('Connexion impossible. Vérifie ton réseau et réessaie.',true)}
+  finally{btn.disabled=false}
+};
+function leaveMt(){stopMtPoll();if(MT.back){MT.back=false;return waiting('pending')}show(4)}
+$('mtNext').onclick=leaveMt;
+$('mtLater').onclick=function(){if(MT.mode==='form'&&activeConnections().length){MT.mode='list';fail3('');return renderMt()}leaveMt()};
+$('mtAdd').onclick=function(){
+  var w=watched(),failed=w&&mtStatus(w)[1]==='bad'?w.investpro_mt_connections:null;
+  MT.mode='form';fail3('');$('mtPwd').value='';$('mtOk').checked=false;
+  if(failed){
+    // Réessayer : le même compte, prérempli, sauf le mot de passe.
+    MT.pf=failed.platform==='MT4'?'MT4':'MT5';syncPf();
+    var b=MT.catalog.filter(function(x){return x.platform===MT.pf&&x.server===failed.server})[0];
+    fillBrokers(b?b.label:'');if(b)fillServers(b.id);
+    $('mtLogin').value=failed.login||'';$('mtCur').value=failed.currency||'';
+  }else $('mtLogin').value='';
+  renderMt();
+  var first=['mtBroker','mtServer','mtLogin','mtPwd'].map(function(id){return $(id)}).filter(function(el){return !el.value&&!el.disabled})[0]||$('mtPwd');
+  first.focus();
+};
+// Sur l'écran d'attente : le compte connecté, ou l'invitation à le connecter.
+function mtTimeline(kind){
+  function paint(){
+    var any=MT.loaded&&activeConnections().length>0,open=kind==='pending'||kind==='completion';
+    $('wMt').hidden=!(open&&any);
+    $('wN3').textContent=open&&any?'4':'3';$('wN4').textContent=open&&any?'5':'4';
+    $('wMtCta').hidden=!(kind==='pending'&&MT.loaded&&!any&&mtOn());
+  }
+  paint();
+  if(kind==='pending'&&!MT.loaded&&mtOn())mtPrefetch().then(function(){if(S.waitKind===kind)paint()});
+}
+$('wMtBtn').onclick=function(){MT.back=true;show(3)};
 
 /* ---------- alertes ---------- */
 function prepareAlerts(){
@@ -546,7 +817,8 @@ function waiting(kind,detail){
   var act=$('wAction'),link=$('wLink');act.hidden=!copy[2];link.onclick=null;
   if(copy[2]){$('wLinkTxt').textContent=copy[2][0];link.setAttribute('href',copy[2][1]);if(copy[2][1]==='#refaire')link.onclick=function(ev){ev.preventDefault();show(1)}}
   S.waitKind=kind;$('wPush').hidden=true;
-  show(4);
+  mtTimeline(kind);
+  show(5);
   var top={pending:['Demande envoyée','En vérification'],completion:['Demande envoyée','Précision demandée'],denied:['Demande traitée','Non validée'],inactive:['Accès VIP','À renouveler']}[kind];
   $('stepOf').textContent=top[0];$('stepName').textContent=top[1];if(kind==='denied'||kind==='inactive')$('ringN').textContent='!';
   if(kind==='pending'){enablePush(true);startPoll()}
@@ -567,7 +839,7 @@ function finish(animate){
   stopPoll();
   $('prenomWin').textContent=S.first?', '+S.first:'';
   IPCard.meta(cards.done,{since:S.since,number:S.memberNumber});
-  show(5);
+  show(6);
   if(animate&&!seen()){
     IPCard.state(cards.done,'locked');
     setTimeout(function(){IPCard.unlock(cards.done).then(function(){});confetti();if(!APERCU){try{localStorage.setItem(SEEN_KEY,'1')}catch(e){}}},700);
