@@ -497,7 +497,7 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
     ok: (first: string, title: string, until: string) => `Salut ${first} ! Ton clip « ${title} » est validé. Ses vues comptent jusqu'au ${until}, ensuite il entre dans ton prochain paiement.`,
     ko: (first: string, title: string, reason: string) => `Salut ${first}, ton clip « ${title} » n'est pas validé : ${reason.toLowerCase()}. Tu peux en proposer un autre en suivant la charte.`,
     password: (first: string, password: string) => `Salut ${first} ! Voici ton mot de passe provisoire pour l'espace clippeurs : ${password}\nConnecte-toi sur ${origin}/clip puis change-le dans ton profil.`,
-    method: (first: string, amount: string) => `Salut ${first} ! Tu as ${amount} acquis : ajoute ton moyen de paiement dans ton profil (${origin}/clip#profil) pour être payé le ${dayMonth(cycle.payDate)}.`,
+    method: (first: string, amount: string) => `Salut ${first} ! Tu as ${amount} acquis : ajoute ton moyen de paiement dans ton profil (${origin}/clip#profil) pour être payé le ${dayMonth(cycle.payDate)} !`,
   };
 
   function campaignCard(campaign: CampaignRow): CampaignCardData {
@@ -651,6 +651,7 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
 
     return {
       dateLine: `${longDay(todayIso)} · ${lastUpdate ? `vues mises à jour ${ago(lastUpdate, now)}` : "aucune vue saisie pour l'instant"}`,
+      clipperView: leaders[0] ? `/clip/apercu?c=${leaders[0].id}` : data.clippers[0] ? `/clip/apercu?c=${data.clippers[0].id}` : "/clip",
       period,
       setPeriod,
       kpis: {
@@ -724,6 +725,7 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
       meta: `Réf. ${c.ref} · depuis le ${dayMonth(c.created_at)}${c.whatsapp ? ` · ${maskPhone(c.whatsapp)}` : ""}${c.telegram ? ` · @${c.telegram}` : ""}`,
       wa: waLink(c.whatsapp),
       link: trackedLink(origin, c.tracking_code),
+      previewHref: `/clip/apercu?c=${c.id}`,
       stats: [
         { value: compact(stat.views30), label: "vues · 30 j" },
         { value: String(stat.clips30), label: "clips · 30 j" },
@@ -1332,7 +1334,7 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
   };
 
   return (
-    <AdminShell active={section} onSection={navigate} counts={counts} joinLabel={joinUrl.replace(/^https?:\/\//, "")} copied={copied === "join"} onCopyJoin={() => void copy(joinUrl, "join")} gap={section === "overview" ? "24px" : "20px"}>
+    <AdminShell active={section} onSection={navigate} counts={counts} joinLabel={joinUrl.replace(/^https?:\/\//, "")} copied={copied === "join"} onCopyJoin={() => void copy(joinUrl, "join")} onSignOut={() => { void clipSignOut().then(() => window.location.assign("/clip/admin")); }} gap={section === "overview" ? "24px" : "20px"}>
       <Flash flash={flash} />
       {section === "overview" ? <AdminOverview v={buildOverview()} /> : null}
       {section === "clippers" ? <AdminClippers v={buildClippers()} /> : null}

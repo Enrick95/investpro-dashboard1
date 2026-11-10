@@ -11,6 +11,7 @@ export type CandRow = { id: string; ini: string; name: string; phone: string; wh
 export type ChartData = { points: number[]; labels: { text: string; at: number }[]; range: string; peak: { index: number; value: string; day: string } | null; ticks: { label: string; value: number }[]; scaleMax: number };
 export type OverviewVals = {
   dateLine: string;
+  clipperView: string;
   period: 7 | 30 | 90;
   setPeriod: (period: 7 | 30 | 90) => void;
   kpis: { views: string; viewsTrend: { text: string; up: boolean } | null; viewsSub: string; clips: string; clipsTrend: { text: string; up: boolean } | null; clipsSub: string; active: string; activeTotal: string; activeSub: string; accounts: string; accountsSub: string; toPayLabel: string; toPay: string; toPaySub: string };
@@ -126,7 +127,7 @@ export function AdminOverview({ v }: { v: OverviewVals }) {
                 : { minHeight: "44px", padding: "0 16px", border: "0", background: "transparent", color: "#A8ADA3", fontSize: "13px", fontWeight: "700" }}>{days} j</button>
             ))}
           </div>
-          <Link href="/clip" style={{ ...S.ghost, fontSize: "14px" }}><Icon name="eye" size={17} stroke="1.9" />Voir comme un clippeur</Link>
+          <Link href={v.clipperView} style={{ ...S.ghost, fontSize: "14px" }}><Icon name="eye" size={17} stroke="1.9" />Voir comme un clippeur</Link>
           <button type="button" onClick={v.onInvite} style={S.primary}><Icon name="plus" size={18} stroke="2.2" />{v.inviteCopied ? "Lien copié" : "Inviter un clippeur"}</button>
         </div>
       </header>

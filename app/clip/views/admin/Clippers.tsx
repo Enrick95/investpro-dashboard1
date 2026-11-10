@@ -18,6 +18,7 @@ export type FicheData = {
   meta: string;
   wa: string | null;
   link: string;
+  previewHref: string;
   stats: { value: string; label: string; gold?: boolean }[];
   accounts: FicheAccount[];
   campaigns: { title: string; progress: string; pct: number }[];
@@ -88,12 +89,19 @@ function Fiche({ f, v }: { f: FicheData; v: ClippersVals }) {
         {f.wa ? (
           <a href={f.wa} target="_blank" rel="noopener noreferrer" style={{ ...S.primary, fontSize: "13px", padding: "0 14px" }}><Icon name="chat" />Écrire sur WhatsApp</a>
         ) : <span style={{ ...S.ghost, color: "#A8ADA3" }}>Pas de WhatsApp</span>}
-        <button type="button" onClick={() => v.onCopyLink(f.link)} style={{ ...S.ghost, padding: "0 14px" }}><Icon name="link" stroke="1.9" />{v.copiedLink ? "Lien copié" : "Copier son lien traqué"}</button>
+        <a href={f.previewHref} style={{ ...S.ghost, padding: "0 14px" }}><Icon name="eye" stroke="1.9" />Voir son espace</a>
         <button type="button" aria-label="Plus d'actions" aria-expanded={more} onClick={() => setMore((value) => !value)} style={{ width: "44px", height: "44px", borderRadius: "12px", border: more ? "1px solid rgba(240,197,117,0.5)" : "1px solid rgba(255,255,255,0.18)", background: "transparent", color: "#C4C8BD", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon name="dots" size={18} /></button>
       </div>
       {more ? (
         <div style={{ display: "flex", flexDirection: "column", gap: "12px", padding: "14px", borderRadius: "14px", background: "#181c16" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <span style={S.label}>Son lien traqué</span>
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px" }}>
+              <span style={{ flex: "1 1 200px", minWidth: "0", fontSize: "13px", fontWeight: "700", overflowWrap: "anywhere" }}>{f.link.replace(/^https?:\/\//, "")}</span>
+              <button type="button" onClick={() => v.onCopyLink(f.link)} style={S.ghost}><Icon name="copy" stroke="1.9" />{v.copiedLink ? "Copié" : "Copier"}</button>
+            </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px", paddingTop: "12px", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
             <span style={S.label}>Statut</span>
             <Pills
               label={`Statut de ${f.name}`}

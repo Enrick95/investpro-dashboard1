@@ -41,18 +41,19 @@ const CSS = `
   .ipc-nav { flex: 1 1 100% !important; min-width: 0 !important; max-width: 100%; padding: 12px !important; gap: 10px !important; border-right: 0 !important; border-bottom: 1px solid rgba(255,255,255,0.08) !important; }
   .ipc-nav-group { flex-direction: row !important; min-width: 0; overflow-x: auto; gap: 6px !important; padding-bottom: 2px; scrollbar-width: none; }
   .ipc-nav-group > .ipc-nav-title { display: none; }
-  .ipc-nav-item { flex: 0 0 auto; white-space: nowrap; border: 1px solid rgba(255,255,255,0.08); }
+  .ipc-nav-item { flex: 0 0 auto; white-space: nowrap; border: 1px solid rgba(255,255,255,0.08) !important; }
   .ipc-nav-share { display: none !important; }
   .ipc-main { padding: 20px 16px 48px !important; }
 }`;
 
-export function AdminShell({ active, onSection, counts, joinLabel, copied, onCopyJoin, gap = "24px", children }: {
+export function AdminShell({ active, onSection, counts, joinLabel, copied, onCopyJoin, onSignOut, gap = "24px", children }: {
   active: AdminSection;
   onSection: (section: AdminSection) => void;
   counts: NavCounts;
   joinLabel: string;
   copied: boolean;
   onCopyJoin: () => void;
+  onSignOut: () => void;
   gap?: string;
   children: ReactNode;
 }) {
@@ -91,6 +92,10 @@ export function AdminShell({ active, onSection, counts, joinLabel, copied, onCop
         <div className="ipc-nav-group" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
           <span className="ipc-nav-title" style={{ padding: "0 12px 8px", fontSize: "11px", fontWeight: "700", letterSpacing: "0.1em", color: "#8E938A" }}>RÉGLAGES</span>
           {SETTINGS.map(item)}
+          <button type="button" className="ipc-nav-item" onClick={onSignOut} style={{ display: "flex", alignItems: "center", gap: "12px", minHeight: "44px", padding: "0 12px", borderRadius: "12px", border: "0", background: "transparent", color: "#A8ADA3", fontSize: "14px", fontWeight: "600", textAlign: "left" }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 4h4.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H14" /><path d="M10 16.5L5.5 12 10 7.5" /><path d="M5.5 12H15" /></svg>
+            Se déconnecter
+          </button>
         </div>
         <div className="ipc-nav-share" style={{ marginTop: "auto", padding: "16px", borderRadius: "16px", background: "#121511", border: "1px solid rgba(240,197,117,0.18)", display: "flex", flexDirection: "column", gap: "10px" }}>
           <span style={{ fontSize: "12px", fontWeight: "600", color: "#A8ADA3" }}>Lien d&apos;inscription clippeurs</span>

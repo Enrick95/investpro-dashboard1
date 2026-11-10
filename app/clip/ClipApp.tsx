@@ -56,7 +56,7 @@ type Clipper = {
 };
 type Account = { id: string; platform: ClipPlatform; handle: string; followers: number | null; verified: boolean; created_at: string };
 type Candidate = { id: string; status: "new" | "accepted" | "refused"; created_at: string };
-type Me = {
+export type Me = {
   email: string | null;
   owner: boolean;
   clipper: Clipper | null;
@@ -202,7 +202,10 @@ export default function ClipApp() {
   return <ClipperSpace me={me} clipper={me.clipper} reload={load} />;
 }
 
-function ClipperSpace({ me, clipper, reload }: { me: Me; clipper: Clipper; reload: () => Promise<void> }) {
+export type ClipPreview = { name: string; backHref: string };
+
+/** Espace d'un clippeur. En aperçu (admin), rien n'est envoyé ni enregistré. */
+export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; clipper: Clipper; reload: () => Promise<void>; preview?: ClipPreview | null }) {
   const [tab, setTabState] = useState<ClipperTab>("home");
   const [campaignFilter, setCampaignFilter] = useState<CampaignFilter>("live");
   const [openCampaign, setOpenCampaign] = useState<string | null>(null);
@@ -224,7 +227,7 @@ function ClipperSpace({ me, clipper, reload }: { me: Me; clipper: Clipper; reloa
   useEffect(() => {
     setOrigin(window.location.origin);
     try {
-      setSeenAt(window.localStorage.getItem(SEEN_KEY));
+      if (!preview) setSeenAt(window.localStorage.getItem(SEEN_KEY));
     } catch {
       setSeenAt(null);
     }
@@ -263,6 +266,10 @@ function ClipperSpace({ me, clipper, reload }: { me: Me; clipper: Clipper; reloa
   const bellDot = clips.some((clip) => clip.status !== "review" && clip.reviewed_at && (!seenAt || clip.reviewed_at > seenAt));
 
   async function profileAction(action: () => Promise<unknown>, success: string): Promise<boolean> {
+    if (preview) {
+      setProfileMessage({ kind: "error", text: "Aperçu : rien n'est enregistré, c'est l'écran de ton clippeur." });
+      return false;
+    }
     setProfileBusy(true);
     setProfileMessage(null);
     try {
@@ -292,7 +299,7 @@ function ClipperSpace({ me, clipper, reload }: { me: Me; clipper: Clipper; reloa
   function openBell() {
     const stamp = new Date().toISOString();
     try {
-      window.localStorage.setItem(SEEN_KEY, stamp);
+      if (!preview) window.localStorage.setItem(SEEN_KEY, stamp);
     } catch {
       // pas de mémoire locale : la pastille réapparaîtra
     }
@@ -317,7 +324,7 @@ function ClipperSpace({ me, clipper, reload }: { me: Me; clipper: Clipper; reloa
     if (!clipper.payout_method) todos.push({ key: "payout", icon: "wallet", tone: "warn", title: "Choisis comment être payé", sub: "USDT, Wise, PayPal ou virement.", cta: "Choisir", primary: true, onClick: () => setTab("profile") });
     for (const campaign of live.slice(0, 2)) {
       const left = campaign.quota_per_clipper - mineIn(campaign.id);
-      if (left > 0) todos.push({ key: `c-${campaign.id}`, icon: "flag", tone: "teal", title: `Plus que ${plural(left, "clip")} pour « ${campaign.title} »`, sub: `Fin de la campagne le ${dayMonth(campaign.ends_on)}.`, cta: "Voir", primary: false, onClick: () => { setOpenCampaign(campaign.id); setCampaignFilter("live"); setTab("campaigns"); } });
+      if (left > 0) todos.push({ key: `c-${campaign.id}`, icon: "flag", tone: "teal", title: `Plus que ${plural(left, "clip")} pour « ${campaign.title} »`, sub: `Fin de la campagne le ${dayMonth(campaign.ends_on)}`, cta: "Voir", primary: false, onClick: () => { setOpenCampaign(campaign.id); setCampaignFilter("live"); setTab("campaigns"); } });
     }
     const rank = me.rank;
     screen = (
@@ -413,7 +420,7 @@ function ClipperSpace({ me, clipper, reload }: { me: Me; clipper: Clipper; reloa
         }),
         pick: (id) => setSubmitCampaign(id),
         checks: CHECKS.map((label, index) => ({ label, on: checks[index], toggle: () => setChecks((current) => current.map((value, i) => (i === index ? !value : value))) })),
-        freezeNote: freeze ? `Vues figées le ${dayMonth(freeze.toISOString())} (7 jours après la publication), payées le ${dayMonth(cycleFor(freeze).payDate)}.` : "Vues figées 7 jours après la publication.",
+        freezeNote: freeze ? `Vues figées le ${dayMonth(freeze.toISOString())} (7 jours après la publication), payées le ${dayMonth(cycleFor(freeze).payDate)}` : "Vues figées 7 jours après la publication.",
         canSend: !missing && !submitBusy,
         missing: missing || "Envoi…",
         busy: submitBusy,
@@ -421,6 +428,10 @@ function ClipperSpace({ me, clipper, reload }: { me: Me; clipper: Clipper; reloa
         sent,
         send: async () => {
           if (missing || !selected) return;
+          if (preview) {
+            setSubmitError("Aperçu : l'envoi est désactivé, c'est l'écran de ton clippeur.");
+            return;
+          }
           setSubmitBusy(true);
           setSubmitError(null);
           try {
@@ -550,7 +561,13 @@ function ClipperSpace({ me, clipper, reload }: { me: Me; clipper: Clipper; reloa
         changePassword: (current, next) => profileAction(() => clipApi("/api/clip/me", { method: "POST", body: { action: "change_password", current, next } }), "Mot de passe changé."),
         onCharter: () => setTab("charter"),
         onPayments: () => setTab("payments"),
-        signOut: () => { void clipSignOut().then(() => { window.location.href = "/clip"; }); },
+        signOut: () => {
+          if (preview) {
+            window.location.href = preview.backHref;
+            return;
+          }
+          void clipSignOut().then(() => { window.location.href = "/clip"; });
+        },
       }} />
     );
   }
@@ -570,6 +587,12 @@ function ClipperSpace({ me, clipper, reload }: { me: Me; clipper: Clipper; reloa
 
   return (
     <ClipperShell initials={initialsOf(clipper.display_name)} active={tab} onTab={(next) => (next === "submit" ? startSubmit(submitCampaign) : setTab(next))} bellDot={Boolean(bellDot)} onBell={openBell}>
+      {preview ? (
+        <div role="status" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", padding: "8px 8px 8px 12px", borderRadius: "14px", background: "rgba(145,214,208,0.08)", border: "1px solid rgba(145,214,208,0.35)", fontSize: "12.5px", color: "#C4C8BD" }}>
+          <span><b style={{ color: "#91D6D0" }}>Aperçu</b> · espace de {preview.name}, en lecture seule</span>
+          <a href={preview.backHref} style={{ flexShrink: 0, display: "flex", alignItems: "center", minHeight: "40px", padding: "0 10px", borderRadius: "10px", border: "1px solid rgba(255,255,255,0.18)", color: "#F3EFE6", fontSize: "12.5px", fontWeight: 800, textDecoration: "none" }}>Retour admin</a>
+        </div>
+      ) : null}
       {screen}
     </ClipperShell>
   );
