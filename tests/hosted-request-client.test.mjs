@@ -124,6 +124,15 @@ test("simultaneous operations keep their own proof even when responses arrive ou
   assert.deepEqual(JSON.parse(second.calls[1].options.body), { action: "stop", id: "second-operation" });
 });
 
+test("the site's form asks for the investor password, the only one the hosting PC accepts", () => {
+  const panel = fs.readFileSync(path.join(root, "components/metasync/HostedSyncPanel.tsx"), "utf8");
+  const messages = fs.readFileSync(path.join(root, "lib/i18n/connections-market.ts"), "utf8");
+  for (const text of ["Mot de passe investisseur (lecture seule)", "Utilisez le mot de passe investisseur (lecture seule), pas le mot de passe principal : par sécurité, le principal est refusé."]) {
+    assert.ok(panel.includes(text), text);
+    assert.ok(messages.includes(`"${text}`), `English copy for ${text}`);
+  }
+});
+
 test("the real form offers the fixed official-site link only after an explicit origin rejection", async () => {
   const output = ts.transpileModule(fs.readFileSync(path.join(root, "components/metasync/HostedSyncPanel.tsx"), "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
@@ -149,6 +158,8 @@ test("the real form offers the fixed official-site link only after an explicit o
       "react/jsx-runtime": { jsx, jsxs: jsx },
       "lucide-react": new Proxy({}, { get: (_target, name) => String(name) }),
       "@/components/i18n/LocaleProvider": { useLocale: () => ({ t: value => value, locale: "fr" }) },
+      // The « my server is missing » request block renders on its own; it is not part of this form's submission.
+      "@/components/metasync/ServerRequests": { __esModule: true, default: function ServerRequests() { return null; } },
       "@/lib/metasync/hosted-request-client": { HostedRequestError, async sendHostedMutation() { throw new HostedRequestError("Connexion refusée", code); } },
     };
     vm.runInNewContext(output, {

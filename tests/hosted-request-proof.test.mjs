@@ -173,9 +173,9 @@ function hostedRoute({ signedIn = true, authFailure = false, authId = userId, en
     '@/lib/supabase/server': { createClient() { throw Error('NO_AUTH_EXPECTED_IN_PURE_ORIGIN'); } },
     '@/lib/telegram/server': { database() { throw Error('NO_DB_EXPECTED_IN_PURE_ORIGIN'); } },
   }, { environment: env, now });
+  const catalog = () => { counts.catalog++; if (dependenciesUnavailable) throw Error('CATALOG_UNAVAILABLE'); return successfulMutation ? [{ id: 'offline-fixture', label: 'Offline fixture', platform: 'MT5', server: 'Offline-Fixture' }] : []; };
   const modules = {
     'node:crypto': { randomBytes(size) { counts.crypto++; if (successfulMutation) return crypto.randomBytes(size); throw Error('NO_CONNECTION_CRYPTO_EXPECTED'); } },
-    '@/lib/metasync/server-catalog': { async serverCatalog() { counts.catalog++; if (dependenciesUnavailable) throw Error('CATALOG_UNAVAILABLE'); return successfulMutation ? [{ id: 'offline-fixture', label: 'Offline fixture', platform: 'MT5', server: 'Offline-Fixture' }] : []; } },
     '@/lib/metasync/server': {
       sameOrigin: realOrigin.sameOrigin,
       digest(value) { counts.crypto++; if (successfulMutation) return realOrigin.digest(value); throw Error('NO_CONNECTION_DIGEST_EXPECTED'); },
@@ -204,6 +204,10 @@ function hostedRoute({ signedIn = true, authFailure = false, authId = userId, en
     },
     '@/lib/metasync/request-proof': realProof,
     '@/lib/metasync/hosted': {
+      // The route reads the server catalog from lib/metasync/hosted (the templates installed on the hosting PC).
+      brokers: catalog,
+      brokersWithStatus: () => catalog().map(item => ({ ...item, pending: false })),
+      awaitingInstall: () => false,
       async hostedUser() { counts.auth++; if (authFailure) throw Error('AUTH_UNAVAILABLE'); return signedIn ? { id: authId } : null; },
       async body(req) { counts.body++; if (successfulMutation) return realHosted.body(req); throw Error('INTENTIONAL_INVALID_FIXTURE_BODY'); },
       seal(password, owner) { counts.seal++; if (successfulMutation) return realHosted.seal(password, owner); throw Error('NO_SEAL_ALLOWED'); },

@@ -261,8 +261,11 @@ export default function HostedSyncPanel({ initialPlatform = "MT5" }: { initialPl
                 className="ip-connection-input"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                placeholder={translate("Mot de passe du compte")}
+                placeholder={translate("Mot de passe investisseur (lecture seule)")}
               />
+              {/* The hosting PC refuses a master (trading) password: allow_trading_password stays off. */}
+              <span className="mt-2 block text-[10px] leading-4 text-white/40">
+                {translate("Utilisez le mot de passe investisseur (lecture seule), pas le mot de passe principal : par sécurité, le principal est refusé. Il figure dans l’e-mail d’ouverture du compte, ou se crée dans MetaTrader : Outils › Options › Serveur › Changer.")}</span>
             </Field>
 
             <Field label={translate("Devise")}>

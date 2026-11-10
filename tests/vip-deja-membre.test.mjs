@@ -183,7 +183,9 @@ test("right after the access code, the page offers to connect MetaTrader through
   const step = page.slice(page.indexOf('<section class="screen" data-s="3"'), page.indexOf('<section class="screen" data-s="4"'));
   assert.match(step, /<h2>Ton compte MetaTrader<\/h2>/);
   assert.match(step, /<input id="mtPwd" type="password" autocomplete="new-password"/, "The MetaTrader password is a masked field browsers do not fill with the site password");
-  assert.match(step, /Le mot de passe investisseur \(lecture seule\) suffit/, "The read-only password is offered first");
+  // The hosting PC refuses a master (trading) password: the page says so before the member sends it, and after a failure.
+  assert.match(step, /Mets ton mot de passe investisseur \(lecture seule\), pas le principal : par sécurité, le principal est refusé\./, "The read-only password is asked for");
+  assert.match(page, /La connexion n’a pas abouti\. Vérifie le serveur, le numéro de compte et que c’est bien le mot de passe investisseur \(lecture seule\), pas le principal/);
   assert.match(step, /<button class="back" type="button" id="mtLater">Plus tard<\/button>/, "The step can be skipped");
   assert.match(page, /var HOSTED='\/api\/metasync\/hosted'/, "The page uses the same hosted connector as the site");
   assert.match(page, /headers\['X-InvestPro-MT-Token'\]=token/, "With the fresh proof the site's own form sends");
