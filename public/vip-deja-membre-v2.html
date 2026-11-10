@@ -554,7 +554,7 @@ var MT={catalog:[],connections:[],loaded:false,loading:null,pf:'MT5',mode:'form'
 // Les brokers du VIP seulement, avec leurs plateformes. Un serveur est rangé chez son broker d'après son nom
 // (« VTMarkets-Live 3 », « PUPrime-Live 5 »…) ; les autres brokers du PC d'hébergement ne sont pas proposés ici.
 var MT_BROKERS=[
-  {key:'axi',label:'Axi',pf:['MT4','MT5'],re:/^axi\b/i},
+  {key:'axi',label:'Axi',pf:['MT4','MT5'],re:/^axi(?:\b|trader|corp)/i},
   {key:'bullwaves',label:'Bullwaves',pf:['MT5'],re:/bullwaves/i},
   {key:'puprime',label:'PU Prime',pf:['MT4','MT5'],re:/^pu ?prime/i},
   {key:'raise_fx',label:'Raise FX',pf:['MT5'],re:/^raise/i},
