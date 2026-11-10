@@ -5,8 +5,8 @@ import { NETWORKS_LIST } from "@/lib/clip/rules";
 
 /**
  * Habillage animé de l'espace clippeurs : fond (lueurs, formats 9:16 qui montent, ciseaux,
- * lecture, vues) et en-tête de la page d'inscription (téléphone avec sous-titres, timeline
- * coupée, notifications, réseaux qui défilent). Tout est en CSS, coupé si l'appareil
+ * lecture, vues) et en-tête de la page d'inscription (téléphone qui montre l'espace clippeur,
+ * timeline coupée, notifications, réseaux qui défilent). Tout est en CSS, coupé si l'appareil
  * demande moins d'animations.
  */
 
@@ -16,10 +16,11 @@ const CSS = `
 @keyframes ipch-toast { 0% { opacity: 0; transform: translate3d(0, 10px, 0) scale(0.96); } 6%, 30% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } 38%, 100% { opacity: 0; transform: translate3d(0, -8px, 0) scale(0.98); } }
 @keyframes ipch-progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes ipch-head { from { left: 0%; } to { left: 100%; } }
-@keyframes ipch-word { 0%, 100% { background: transparent; color: #F3EFE6; } 8%, 30% { background: #F0C575; color: #0b0d0b; } 38% { background: transparent; color: #F3EFE6; } }
+@keyframes ipch-swap-a { 0%, 4% { opacity: 1; } 8%, 92% { opacity: 0; } 96%, 100% { opacity: 1; } }
+@keyframes ipch-swap-b { 0%, 4% { opacity: 0; } 8%, 92% { opacity: 1; } 96%, 100% { opacity: 0; } }
+@keyframes ipch-pulse-gold { 0%, 100% { box-shadow: 0 0 0 0 rgba(240, 197, 117, 0.55); } 60% { box-shadow: 0 0 0 8px rgba(240, 197, 117, 0); } }
 @keyframes ipch-marquee { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(-50%, 0, 0); } }
 @keyframes ipch-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(145, 214, 208, 0.55); } 60% { box-shadow: 0 0 0 7px rgba(145, 214, 208, 0); } }
-@keyframes ipch-draw { 0% { stroke-dashoffset: 260; } 55%, 100% { stroke-dashoffset: 0; } }
 @keyframes ipch-snip { 0%, 40%, 100% { transform: translate(-50%, 0) rotate(0deg); } 48% { transform: translate(-50%, 0) rotate(-22deg); } 56% { transform: translate(-50%, 0) rotate(0deg); } }
 @keyframes ipch-float { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(0, -8px, 0); } }
 .ipch-gradient { background: linear-gradient(100deg, #F0C575 0%, #F7DDA4 45%, #91D6D0 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
@@ -77,8 +78,6 @@ export function ClipBackdrop() {
   );
 }
 
-const WORDS = ["Entrée", "Gold", "en", "direct", "🔥"];
-
 function Toast({ children, tone, style, delay }: { children: ReactNode; tone: "gold" | "teal"; style: CSSProperties; delay: number }) {
   return (
     <span className="ipch-toast" style={{ position: "absolute", display: "inline-flex", alignItems: "center", gap: "7px", padding: "9px 12px", borderRadius: "14px", background: "rgba(18,21,17,0.92)", border: tone === "gold" ? "1px solid rgba(240,197,117,0.45)" : "1px solid rgba(145,214,208,0.45)", boxShadow: "0 12px 30px rgba(0,0,0,0.45)", color: "#F3EFE6", fontSize: "12.5px", fontWeight: "800", whiteSpace: "nowrap", opacity: 0, animation: `ipch-toast 9s ease-in-out ${delay}s infinite`, ...style }}>
@@ -87,33 +86,68 @@ function Toast({ children, tone, style, delay }: { children: ReactNode; tone: "g
   );
 }
 
+type DashClip = { title: string; network: string; views: string; viewsNext?: string; state: "review-validated" | "validated" | "paid" };
+
+const DASH_CLIPS: DashClip[] = [
+  { title: "clip-12", network: "TikTok", views: "2,1 k vues", viewsNext: "12,4 k vues", state: "review-validated" },
+  { title: "clip-11", network: "Instagram", views: "18,2 k vues", state: "validated" },
+  { title: "clip-10", network: "YouTube", views: "41,7 k vues", state: "paid" },
+];
+
+function DashChip({ tone, children, style }: { tone: "warn" | "teal" | "gold"; children: ReactNode; style?: CSSProperties }) {
+  const colors = { warn: ["rgba(242,180,90,0.16)", "#F2B45A"], teal: ["rgba(145,214,208,0.16)", "#91D6D0"], gold: ["rgba(240,197,117,0.16)", "#F0C575"] }[tone];
+  return <span style={{ display: "inline-flex", alignItems: "center", gap: "3px", padding: "2px 6px", borderRadius: "999px", background: colors[0], color: colors[1], fontSize: "8.5px", fontWeight: "800", whiteSpace: "nowrap", ...style }}>{children}</span>;
+}
+
+/** Téléphone qui montre l'espace clippeur : prochain versement, clips qui passent « Validé ». */
 function Phone() {
   return (
-    <div style={{ position: "relative", width: "168px", height: "300px", borderRadius: "30px", padding: "8px", background: "linear-gradient(160deg, #23281f, #0e110d)", border: "1px solid rgba(255,255,255,0.14)", boxShadow: "0 30px 60px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(240,197,117,0.08)", animation: "ipch-float 4s ease-in-out infinite alternate" }}>
-      <div style={{ position: "relative", width: "100%", height: "100%", borderRadius: "23px", overflow: "hidden", background: "linear-gradient(180deg, #11150f 0%, #0b0d0b 100%)" }}>
-        <div style={{ position: "absolute", top: "10px", left: "10px", right: "10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "3px 7px", borderRadius: "999px", background: "rgba(255,111,145,0.16)", color: "#FF6F91", fontSize: "9.5px", fontWeight: "800", letterSpacing: "0.06em" }}><span style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#FF6F91" }} />EN DIRECT</span>
-          <span style={{ fontSize: "9.5px", fontWeight: "800", color: "#A8ADA3" }}>9:16</span>
+    <div style={{ position: "relative", width: "192px", height: "352px", borderRadius: "30px", padding: "8px", background: "linear-gradient(160deg, #23281f, #0e110d)", border: "1px solid rgba(255,255,255,0.14)", boxShadow: "0 30px 60px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(240,197,117,0.08)", animation: "ipch-float 4s ease-in-out infinite alternate" }}>
+      <div style={{ position: "relative", width: "100%", height: "100%", borderRadius: "23px", overflow: "hidden", background: "linear-gradient(180deg, #11150f 0%, #0b0d0b 100%)", padding: "12px 10px 0", display: "flex", flexDirection: "column", gap: "8px", textAlign: "left" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+            <svg width="14" height="14" viewBox="0 0 30 30"><rect x="1" y="1" width="28" height="28" rx="9" fill="none" stroke="#F0C575" strokeWidth="2.4" /><path d="M12.5 9.5v11l8.5-5.5z" fill="#F0C575" /></svg>
+            <span style={{ fontSize: "8px", fontWeight: "800", color: "#0b0d0b", background: "#F0C575", padding: "1px 4px", borderRadius: "999px" }}>CLIP</span>
+          </span>
+          <span style={{ width: "18px", height: "18px", borderRadius: "50%", background: "rgba(240,197,117,0.16)", color: "#F0C575", fontSize: "7.5px", fontWeight: "800", display: "flex", alignItems: "center", justifyContent: "center" }}>KL</span>
         </div>
-        <svg viewBox="0 0 150 120" width="100%" style={{ position: "absolute", top: "46px", left: "0" }} aria-hidden="true">
-          {[[12, 70, 92, 60, 84], [26, 62, 86, 66, 78], [40, 58, 80, 52, 74], [54, 50, 74, 56, 66], [68, 44, 66, 40, 60], [82, 38, 60, 44, 52], [96, 30, 52, 26, 46], [110, 24, 46, 30, 40], [124, 16, 38, 12, 32]].map(([x, top, bottom, high, low], index) => {
-            const up = index % 3 !== 1;
-            return (
-              <g key={x}>
-                <line x1={x} x2={x} y1={high} y2={bottom + 6} stroke={up ? "#91D6D0" : "#FF6F91"} strokeWidth="1.2" opacity="0.7" />
-                <rect x={x - 4} y={Math.min(top, low)} width="8" height={Math.abs(low - top) + 8} rx="1.5" fill={up ? "#91D6D0" : "#FF6F91"} opacity="0.85" />
-              </g>
-            );
-          })}
-          <path d="M6 98 L30 88 L48 90 L66 70 L84 72 L102 50 L120 44 L144 22" fill="none" stroke="#F0C575" strokeWidth="2" strokeLinecap="round" strokeDasharray="260" style={{ animation: "ipch-draw 6s ease-out infinite" }} />
-        </svg>
-        <div style={{ position: "absolute", left: "10px", right: "10px", bottom: "34px", display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "3px" }}>
-          {WORDS.map((word, index) => (
-            <span key={word} style={{ padding: "2px 5px", borderRadius: "6px", fontSize: "13px", fontWeight: "800", color: "#F3EFE6", textShadow: "0 1px 2px rgba(0,0,0,0.6)", animation: `ipch-word 3s ease-in-out ${index * 0.45}s infinite` }}>{word}</span>
+        <span style={{ fontFamily: "Unbounded, sans-serif", fontWeight: "500", fontSize: "12.5px", color: "#F3EFE6" }}>Salut Kevin</span>
+        <div style={{ padding: "8px", borderRadius: "12px", background: "#15170f", border: "1px solid rgba(240,197,117,0.45)", display: "flex", flexDirection: "column", gap: "5px" }}>
+          <span style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "8px", fontWeight: "700", color: "#C4C8BD" }}>Prochain versement<DashChip tone="gold">lun. 16 nov.</DashChip></span>
+          <span style={{ fontFamily: "Unbounded, sans-serif", fontWeight: "500", fontSize: "13px", color: "#F0C575" }}>3 clips validés</span>
+          <span style={{ height: "3px", borderRadius: "999px", background: "rgba(255,255,255,0.1)", overflow: "hidden" }}>
+            <span style={{ display: "block", width: "100%", height: "100%", background: "#F0C575", transformOrigin: "left", animation: "ipch-progress 9s ease-in-out infinite" }} />
+          </span>
+        </div>
+        <span style={{ fontSize: "8.5px", fontWeight: "800", color: "#A8ADA3", letterSpacing: "0.06em" }}>MES CLIPS</span>
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+          {DASH_CLIPS.map((clip) => (
+            <div key={clip.title} style={{ display: "flex", alignItems: "center", gap: "7px", padding: "6px", borderRadius: "10px", background: "#181c16" }}>
+              <span style={{ flexShrink: "0", width: "16px", height: "26px", borderRadius: "5px", background: "linear-gradient(160deg, rgba(240,197,117,0.35), rgba(145,214,208,0.25))", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <svg width="8" height="8" viewBox="0 0 24 24" fill="#F3EFE6"><path d="M8 5.5v13l10.5-6.5z" /></svg>
+              </span>
+              <span style={{ flex: "1 1 auto", minWidth: "0", display: "flex", flexDirection: "column", gap: "1px" }}>
+                <span style={{ fontSize: "9.5px", fontWeight: "800", color: "#F3EFE6", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{clip.network}</span>
+                {clip.viewsNext ? (
+                  <span style={{ position: "relative", height: "11px", fontSize: "8.5px", color: "#A8ADA3" }}>
+                    <span style={{ position: "absolute", left: "0", top: "0", whiteSpace: "nowrap", animation: "ipch-swap-a 9s ease-in-out infinite" }}>{clip.views}</span>
+                    <span style={{ position: "absolute", left: "0", top: "0", whiteSpace: "nowrap", color: "#F0C575", fontWeight: "700", opacity: 0, animation: "ipch-swap-b 9s ease-in-out infinite" }}>{clip.viewsNext}</span>
+                  </span>
+                ) : <span style={{ fontSize: "8.5px", color: "#A8ADA3", whiteSpace: "nowrap" }}>{clip.views}</span>}
+              </span>
+              {clip.state === "review-validated" ? (
+                <span style={{ position: "relative", width: "50px", height: "15px", flexShrink: "0" }}>
+                  <DashChip tone="warn" style={{ position: "absolute", right: "0", top: "0", animation: "ipch-swap-a 9s ease-in-out infinite" }}>En revue</DashChip>
+                  <DashChip tone="teal" style={{ position: "absolute", right: "0", top: "0", opacity: 0, animation: "ipch-swap-b 9s ease-in-out infinite" }}>✓ Validé</DashChip>
+                </span>
+              ) : clip.state === "validated" ? <DashChip tone="teal">✓ Validé</DashChip> : <DashChip tone="gold">Payé</DashChip>}
+            </div>
           ))}
         </div>
-        <div style={{ position: "absolute", left: "10px", right: "10px", bottom: "16px", height: "3px", borderRadius: "999px", background: "rgba(255,255,255,0.15)", overflow: "hidden" }}>
-          <div style={{ width: "100%", height: "100%", background: "#F0C575", transformOrigin: "left", animation: "ipch-progress 6s linear infinite" }} />
+        <div style={{ marginTop: "auto", flexShrink: "0", height: "36px", display: "flex", alignItems: "center", justifyContent: "space-around", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+          {[0, 1].map((index) => <span key={index} style={{ width: "14px", height: "3px", borderRadius: "999px", background: "rgba(255,255,255,0.2)" }} />)}
+          <span style={{ width: "24px", height: "24px", borderRadius: "50%", background: "#F0C575", color: "#0b0d0b", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", fontWeight: "800", lineHeight: "1", animation: "ipch-pulse-gold 2.4s ease-out infinite" }}>+</span>
+          {[2, 3].map((index) => <span key={index} style={{ width: "14px", height: "3px", borderRadius: "999px", background: "rgba(255,255,255,0.2)" }} />)}
         </div>
       </div>
     </div>
@@ -173,9 +207,9 @@ export function JoinHero({ onJoin, onHow }: { onJoin: () => void; onHow: () => v
         </button>
         <button type="button" onClick={onHow} style={{ minHeight: "50px", padding: "0 18px", borderRadius: "14px", border: "1px solid rgba(255,255,255,0.2)", background: "rgba(18,21,17,0.6)", color: "#F3EFE6", fontSize: "14px", fontWeight: "700" }}>Comment ça marche</button>
       </div>
-      <div aria-hidden="true" style={{ position: "relative", height: "330px", display: "flex", justifyContent: "center", alignItems: "center", marginTop: "4px" }}>
+      <div aria-hidden="true" style={{ position: "relative", height: "380px", display: "flex", justifyContent: "center", alignItems: "center", marginTop: "4px" }}>
         <Phone />
-        <Toast tone="teal" delay={0} style={{ top: "22px", left: "0" }}>
+        <Toast tone="teal" delay={0} style={{ top: "70px", left: "0" }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#91D6D0" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
           Clip validé
         </Toast>
