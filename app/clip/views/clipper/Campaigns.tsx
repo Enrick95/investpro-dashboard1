@@ -23,8 +23,8 @@ export type CampaignsVals = {
   counts: Record<CampaignFilter, number>;
   cards: CampaignCard[];
   videos: VideoItem[];
-  /** Le TikTok d'Enrick : de quoi clipper tout de suite, en plus des vidéos postées ici. */
-  tiktok: { handle: string; url: string };
+  /** TikTok et YouTube d'Enrick : de quoi clipper tout de suite, en plus des vidéos postées ici. */
+  sources: { key: "tiktok" | "youtube"; title: string; sub: string; url: string }[];
   setFilter: (filter: CampaignFilter) => void;
   openCard: (id: string) => void;
   submitFor: (id: string) => void;
@@ -90,16 +90,20 @@ export function ClipperCampaigns({ v }: { v: CampaignsVals }) {
               <a href={video.url} target="_blank" rel="noopener noreferrer" style={{ flexShrink: "0", display: "flex", alignItems: "center", minHeight: "44px", padding: "0 14px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.2)", color: "#F3EFE6", fontSize: "13px", fontWeight: "700", textDecoration: "none" }}>Ouvrir</a>
             </div>
           ))}
-          <a href={v.tiktok.url} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: "12px", marginTop: "4px", padding: "12px 0 2px", borderTop: "1px solid rgba(255,255,255,0.06)", color: "#F3EFE6", textDecoration: "none" }}>
-            <span aria-hidden="true" style={{ flexShrink: "0", width: "40px", height: "40px", borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(145,214,208,0.12)", color: "#91D6D0" }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 3.5c.4 2.6 2 4.3 4.5 4.6v3.2c-1.7 0-3.2-.5-4.5-1.4v5.6a5.4 5.4 0 1 1-5.4-5.4c.3 0 .6 0 .9.1v3.3a2.2 2.2 0 1 0 1.3 2V3.5z" /></svg>
-            </span>
-            <span style={{ flex: "1 1 auto", minWidth: "0", display: "flex", flexDirection: "column", gap: "2px" }}>
-              <span style={{ fontWeight: "700" }}>Toutes mes vidéos TikTok</span>
-              <span style={{ fontSize: "12.5px", color: "#A8ADA3" }}>{v.tiktok.handle} : coupe-les et republie-les sur tes comptes, dès maintenant.</span>
-            </span>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#A8ADA3" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: "0" }}><path d="M14 4h6v6M20 4l-9 9" /><path d="M18 14v4.5A1.5 1.5 0 0 1 16.5 20h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10" /></svg>
-          </a>
+          {v.sources.map((source, index) => (
+            <a key={source.key} href={source.url} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: "12px", marginTop: index ? "0" : "4px", padding: "12px 0 2px", borderTop: "1px solid rgba(255,255,255,0.06)", color: "#F3EFE6", textDecoration: "none" }}>
+              <span aria-hidden="true" style={{ flexShrink: "0", width: "40px", height: "40px", borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(145,214,208,0.12)", color: "#91D6D0" }}>
+                {source.key === "tiktok"
+                  ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5" /><path d="M10.5 9.2v5.6l4.3-2.8z" /></svg>
+                  : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><rect x="2.5" y="4.5" width="19" height="13" rx="2.5" /><path d="M8 20.5h8" /><path d="M10.5 8.5v5l4-2.5z" /></svg>}
+              </span>
+              <span style={{ flex: "1 1 auto", minWidth: "0", display: "flex", flexDirection: "column", gap: "2px" }}>
+                <span style={{ fontWeight: "700" }}>{source.title}</span>
+                <span style={{ fontSize: "12.5px", color: "#A8ADA3" }}>{source.sub}</span>
+              </span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#A8ADA3" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: "0" }}><path d="M14 4h6v6M20 4l-9 9" /><path d="M18 14v4.5A1.5 1.5 0 0 1 16.5 20h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10" /></svg>
+            </a>
+          ))}
         </section>
       <div role="group" aria-label="Filtrer les campagnes" style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
         {FILTERS.map((filter) => {

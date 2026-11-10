@@ -9,6 +9,9 @@ import { ClipApiError, clipApi, clipSignOut } from "@/lib/clip/client";
 import {
   ENRICK_TIKTOK_HANDLE,
   ENRICK_TIKTOK_URL,
+  ENRICK_YOUTUBE_HANDLE,
+  ENRICK_YOUTUBE_URL,
+  NETWORKS_TEXT,
   ENRICK_WHATSAPP_LABEL,
   MIN_PAYOUT,
   PAYOUT_HINT,
@@ -51,6 +54,7 @@ import { ClipperPayments, type PayStep } from "./views/clipper/Payments";
 import { ClipperProfile } from "./views/clipper/Profile";
 import { ClipperCharter } from "./views/clipper/Charter";
 import { StartPopup, StartSlides, startSlides } from "./views/clipper/StartSlides";
+import { ClipBackdrop } from "./views/clipper/ClipHero";
 
 type Clipper = {
   id: string;
@@ -155,7 +159,8 @@ export default function ClipApp() {
   if (state.phase === "guest") {
     return (
       <div className={styles.page}>
-        <div className={styles.app}>
+        <ClipBackdrop />
+        <div className={styles.app} style={{ position: "relative", zIndex: 1 }}>
           <header className={styles.topbar}><Brand /></header>
           <main className={styles.main} style={{ paddingBottom: 48 }}>
             <section style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -185,7 +190,8 @@ export default function ClipApp() {
     const candidate = me.candidate;
     return (
       <div className={styles.page}>
-        <div className={styles.center}>
+        <ClipBackdrop />
+        <div className={styles.center} style={{ position: "relative", zIndex: 1 }}>
           <BrandMark size={48} />
           {candidate?.status === "new" ? (
             <>
@@ -365,7 +371,7 @@ export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; 
 
   if (tab === "home") {
     const todos: HomeTodo[] = [];
-    if (!accounts.length) todos.push({ key: "accounts", icon: "alert", tone: "warn", title: "Ajoute tes comptes", sub: "TikTok, Instagram ou YouTube : sans eux, tes clips ne peuvent pas être validés.", cta: "Ajouter", primary: true, onClick: () => setTab("profile") });
+    if (!accounts.length) todos.push({ key: "accounts", icon: "alert", tone: "warn", title: "Ajoute tes comptes", sub: "TikTok, Instagram, YouTube, Facebook, Snapchat ou X : sans eux, tes clips ne peuvent pas être validés.", cta: "Ajouter", primary: true, onClick: () => setTab("profile") });
     const unverified = accounts.filter((account) => !account.verified);
     if (accounts.length && unverified.length) todos.push({ key: "verify", icon: "link", tone: "warn", title: unverified.length > 1 ? `${unverified.length} comptes en vérification` : `@${unverified[0].handle} en vérification`, sub: "Enrick vérifie qu'ils t'appartiennent avant de valider tes clips.", cta: "Voir", primary: false, onClick: () => setTab("profile") });
     if (!clipper.payout_method) todos.push({ key: "payout", icon: "wallet", tone: "warn", title: "Choisis comment être payé", sub: "USDT, Wise, PayPal ou virement.", cta: "Choisir", primary: true, onClick: () => setTab("profile") });
@@ -457,7 +463,10 @@ export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; 
         isNew: now.getTime() - new Date(video.created_at).getTime() < 3 * 86_400_000,
       };
     });
-    screen = <ClipperCampaigns v={{ filter: campaignFilter, counts, cards, videos, tiktok: { handle: ENRICK_TIKTOK_HANDLE, url: ENRICK_TIKTOK_URL }, setFilter: setCampaignFilter, openCard: setOpenCampaign, submitFor: (id) => startSubmit(id) }} />;
+    screen = <ClipperCampaigns v={{ filter: campaignFilter, counts, cards, videos, sources: [
+      { key: "tiktok", title: "Toutes mes vidéos TikTok", sub: `${ENRICK_TIKTOK_HANDLE} : coupe-les et republie-les sur tes réseaux, dès maintenant.`, url: ENRICK_TIKTOK_URL },
+      { key: "youtube", title: "Ma chaîne YouTube", sub: `${ENRICK_YOUTUBE_HANDLE} : mes vidéos longues et mes lives, à découper aussi.`, url: ENRICK_YOUTUBE_URL },
+    ], setFilter: setCampaignFilter, openCard: setOpenCampaign, submitFor: (id) => startSubmit(id) }} />;
   }
 
   if (tab === "submit") {
@@ -467,7 +476,7 @@ export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; 
     const ok = platform ? onPlatform.length > 0 && (!handle || onPlatform.some((account) => account.handle === handle)) : false;
     const selected = submitCampaign && live.some((campaign) => campaign.id === submitCampaign) ? submitCampaign : live.length === 1 ? live[0].id : null;
     const allChecked = checks.every(Boolean);
-    const missing = !link.trim() ? "Colle le lien de ton clip" : !platform ? "Lien TikTok, Instagram ou YouTube attendu" : !selected ? "Choisis une campagne" : !allChecked ? "Coche les 3 points pour envoyer" : "";
+    const missing = !link.trim() ? "Colle le lien de ton clip" : !platform ? "Colle le lien d'une vidéo publiée" : !selected ? "Choisis une campagne" : !allChecked ? "Coche les 3 points pour envoyer" : "";
     screen = (
       <ClipperSubmit v={{
         link,
@@ -481,7 +490,7 @@ export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; 
           ok,
           views: "Enrick regarde ton clip et le valide sous 24 h",
         } : null,
-        linkError: link.trim() && !platform ? "Colle le lien complet d'une vidéo TikTok, Instagram ou YouTube (https://…)." : null,
+        linkError: link.trim() && !platform ? `Colle le lien complet de ta vidéo (${NETWORKS_TEXT}), qui commence par https://.` : null,
         campaigns: live.map((campaign) => {
           const mine = mineIn(campaign.id);
           const quota = campaign.quota_per_clipper;

@@ -1,5 +1,5 @@
 import { CLIP_COLUMNS, assertSameOrigin, authenticateClip, ClipError, clipErrorResponse, clipJson, httpsUrl, readJson, text } from "@/lib/clip/server";
-import { PLATFORM_LABEL, platformFromUrl, tiktokHandleFromUrl } from "@/lib/clip/rules";
+import { NETWORKS_TEXT, PLATFORM_LABEL, platformFromUrl, tiktokHandleFromUrl } from "@/lib/clip/rules";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     const body = await readJson(request);
     const url = httpsUrl(text(body, "url"), "Lien du clip");
     const platform = platformFromUrl(url);
-    if (!platform) throw new ClipError("Colle le lien d'une vidéo TikTok, Instagram ou YouTube.");
+    if (!platform) throw new ClipError(`Colle le lien de ta vidéo (${NETWORKS_TEXT}).`);
     const titleRaw = text(body, "title");
     if (titleRaw && (titleRaw.length < 2 || titleRaw.length > 120)) throw new ClipError("Titre du clip : 2 à 120 caractères.");
     const campaignId = text(body, "campaign_id");

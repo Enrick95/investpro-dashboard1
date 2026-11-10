@@ -1,21 +1,21 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { ENRICK_TIKTOK_HANDLE, ENRICK_TIKTOK_URL, REFERRAL_BONUS, REFERRAL_CLIPS } from "@/lib/clip/rules";
+import { ENRICK_TIKTOK_HANDLE, ENRICK_TIKTOK_URL, ENRICK_YOUTUBE_HANDLE, ENRICK_YOUTUBE_URL, REFERRAL_BONUS, REFERRAL_CLIPS } from "@/lib/clip/rules";
 
 /** Diaporama « Pour bien démarrer » : page d'inscription, attente de réponse et première visite de l'espace. */
 
-export type StartSlide = { key: string; icon: "tiktok" | "film" | "check" | "gift"; title: string; text: string; cta?: { label: string; href: string } };
+export type StartSlide = { key: string; icon: "phone" | "film" | "check" | "gift"; title: string; text: string; ctas?: { label: string; href: string }[] };
 
 export function startSlides(where: "join" | "space"): StartSlide[] {
   const space = where === "space";
   return [
     {
-      key: "tiktok",
-      icon: "tiktok",
+      key: "start",
+      icon: "phone",
       title: "Commence dès aujourd'hui",
-      text: `Prends mes vidéos sur mon TikTok ${ENRICK_TIKTOK_HANDLE}, coupe les meilleurs passages et republie-les sur tes comptes : TikTok, Reels, Shorts.`,
-      cta: { label: "Ouvrir mon TikTok", href: ENRICK_TIKTOK_URL },
+      text: `Prends mes vidéos sur mon TikTok ${ENRICK_TIKTOK_HANDLE} et sur ma chaîne YouTube ${ENRICK_YOUTUBE_HANDLE}, coupe les meilleurs passages et republie-les sur tous tes réseaux : TikTok, Instagram, YouTube Shorts, Facebook, Snapchat, X…`,
+      ctas: [{ label: "Mon TikTok", href: ENRICK_TIKTOK_URL }, { label: "Ma chaîne YouTube", href: ENRICK_YOUTUBE_URL }],
     },
     {
       key: "long",
@@ -30,8 +30,8 @@ export function startSlides(where: "join" | "space"): StartSlide[] {
       icon: "check",
       title: "Colle ton lien, je valide",
       text: space
-        ? "Ton clip est en ligne ? Colle son lien dans « Soumettre ». Je le regarde, je le valide, et il entre dans ton prochain versement (le 1er ou le 16)."
-        : "Une fois accepté, tu colles le lien de chaque clip dans ton espace. Je le valide, et il entre dans ton prochain versement (le 1er ou le 16).",
+        ? "Ton clip est en ligne ? Colle son lien dans « Soumettre ». Je le regarde, je le valide, et il entre dans ton prochain versement."
+        : "Une fois accepté, tu colles le lien de chaque clip dans ton espace. Je le valide, et il entre dans ton prochain versement.",
     },
     {
       key: "referral",
@@ -45,7 +45,7 @@ export function startSlides(where: "join" | "space"): StartSlide[] {
 }
 
 const ICONS: Record<StartSlide["icon"], ReactNode> = {
-  tiktok: <path d="M14.5 3.5c.4 2.6 2 4.3 4.5 4.6v3.2c-1.7 0-3.2-.5-4.5-1.4v5.6a5.4 5.4 0 1 1-5.4-5.4c.3 0 .6 0 .9.1v3.3a2.2 2.2 0 1 0 1.3 2V3.5z" />,
+  phone: <><rect x="6.5" y="2.5" width="11" height="19" rx="2.5" /><path d="M10.5 9.2v5.6l4.3-2.8z" /></>,
   film: <><rect x="3" y="4.5" width="18" height="15" rx="3" /><path d="M10 9.2v5.6l4.8-2.8z" /></>,
   check: <><circle cx="12" cy="12" r="8.5" /><path d="M8 12.3l2.7 2.7L16.2 9.5" /></>,
   gift: <><rect x="3.5" y="8.5" width="17" height="4" rx="1" /><path d="M5 12.5v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7M12 8.5v12" /><path d="M12 8.5C10.5 5 7 5 7 7s3 1.5 5 1.5zM12 8.5C13.5 5 17 5 17 7s-3 1.5-5 1.5z" /></>,
@@ -114,11 +114,15 @@ export function StartSlides({ slides, label = "Pour bien démarrer", interval = 
             </div>
             <h3 style={{ margin: "0", fontFamily: "Unbounded, sans-serif", fontWeight: "500", fontSize: "18px", letterSpacing: "-0.01em", lineHeight: "1.3", color: "#F3EFE6" }}>{slide.title}</h3>
             <p style={{ margin: "0", fontSize: "14px", lineHeight: "1.5", color: "#C4C8BD" }}>{slide.text}</p>
-            {slide.cta ? (
-              <a href={slide.cta.href} target="_blank" rel="noopener noreferrer" tabIndex={index === active ? 0 : -1} style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: "8px", minHeight: "44px", padding: "0 14px", borderRadius: "12px", border: "1px solid rgba(240,197,117,0.45)", color: "#F0C575", fontSize: "13.5px", fontWeight: "800", textDecoration: "none" }}>
-                {slide.cta.label}
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9" /><path d="M18 14v4.5A1.5 1.5 0 0 1 16.5 20h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10" /></svg>
-              </a>
+            {slide.ctas?.length ? (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                {slide.ctas.map((cta) => (
+                  <a key={cta.href} href={cta.href} target="_blank" rel="noopener noreferrer" tabIndex={index === active ? 0 : -1} style={{ display: "inline-flex", alignItems: "center", gap: "8px", minHeight: "44px", padding: "0 14px", borderRadius: "12px", border: "1px solid rgba(240,197,117,0.45)", color: "#F0C575", fontSize: "13.5px", fontWeight: "800", textDecoration: "none" }}>
+                    {cta.label}
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9" /><path d="M18 14v4.5A1.5 1.5 0 0 1 16.5 20h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10" /></svg>
+                  </a>
+                ))}
+              </div>
             ) : null}
           </div>
         ))}

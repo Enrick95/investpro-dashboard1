@@ -2,10 +2,13 @@
 // Chaque clip validé rapporte le montant choisi par Enrick à la validation (plus un
 // bonus éventuel). Les clippeurs ne voient jamais de barème, seulement ce qu'ils ont gagné.
 
-export const CLIP_PLATFORMS = ["tiktok", "instagram", "youtube"] as const;
+export const CLIP_PLATFORMS = ["tiktok", "instagram", "youtube", "facebook", "snapchat", "x"] as const;
 export type ClipPlatform = (typeof CLIP_PLATFORMS)[number];
-export const PLATFORM_LABEL: Record<ClipPlatform, string> = { tiktok: "TikTok", instagram: "Instagram", youtube: "YouTube" };
-export const PLATFORM_SHORT: Record<ClipPlatform, string> = { tiktok: "TT", instagram: "IG", youtube: "YT" };
+export const PLATFORM_LABEL: Record<ClipPlatform, string> = { tiktok: "TikTok", instagram: "Instagram", youtube: "YouTube", facebook: "Facebook", snapchat: "Snapchat", x: "X (Twitter)" };
+export const PLATFORM_SHORT: Record<ClipPlatform, string> = { tiktok: "TT", instagram: "IG", youtube: "YT", facebook: "FB", snapchat: "SC", x: "X" };
+/** Les réseaux où les clippeurs peuvent publier, dits simplement. */
+export const NETWORKS_TEXT = "TikTok, Instagram, YouTube Shorts, Facebook, Snapchat ou X";
+export const NETWORKS_LIST = ["TikTok", "Instagram", "YouTube Shorts", "Facebook", "Snapchat", "X (Twitter)"];
 
 export const PAYOUT_METHODS = ["usdt_trc20", "wise", "paypal", "sepa"] as const;
 export type PayoutMethod = (typeof PAYOUT_METHODS)[number];
@@ -18,7 +21,7 @@ export const MIN_PAYOUT = 20;
 export const DEFAULT_CLIP_AMOUNT = 7;
 /** Parrainage : prime pour le parrain quand son filleul atteint ce nombre de clips validés. */
 export const REFERRAL_BONUS = 20;
-export const REFERRAL_CLIPS = 5;
+export const REFERRAL_CLIPS = 10;
 /** WhatsApp d'Enrick (Bali) : le canal de contact des clippeurs et des candidats. */
 export const ENRICK_WHATSAPP_LABEL = "+62 851 2811 5218";
 
@@ -36,6 +39,9 @@ export function candidateWhatsAppText(name?: string | null): string {
 /** Le TikTok d'Enrick : les clippeurs peuvent déjà y prendre ses vidéos pour les couper et les republier. */
 export const ENRICK_TIKTOK_HANDLE = "@enrick95__";
 export const ENRICK_TIKTOK_URL = "https://www.tiktok.com/@enrick95__";
+/** Sa chaîne YouTube : vidéos longues et lives, à découper aussi. */
+export const ENRICK_YOUTUBE_HANDLE = "@Enrick95";
+export const ENRICK_YOUTUBE_URL = "https://www.youtube.com/@Enrick95";
 
 /** Adresse publique de l'espace clippeurs, en attendant son propre nom de domaine. */
 export const CLIP_PUBLIC_URL = "https://investprotrading.fr/clip";
@@ -210,6 +216,9 @@ export function platformFromUrl(raw: string): ClipPlatform | null {
     if (host === "tiktok.com" || host.endsWith(".tiktok.com")) return "tiktok";
     if (host === "instagram.com" || host.endsWith(".instagram.com")) return "instagram";
     if (host === "youtube.com" || host.endsWith(".youtube.com") || host === "youtu.be") return "youtube";
+    if (host === "facebook.com" || host.endsWith(".facebook.com") || host === "fb.watch" || host === "fb.com" || host.endsWith(".fb.com")) return "facebook";
+    if (host === "snapchat.com" || host.endsWith(".snapchat.com")) return "snapchat";
+    if (host === "x.com" || host.endsWith(".x.com") || host === "twitter.com" || host.endsWith(".twitter.com")) return "x";
     return null;
   } catch {
     return null;
