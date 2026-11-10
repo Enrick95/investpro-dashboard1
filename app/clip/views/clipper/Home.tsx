@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { go } from "./Shell";
+import { RankRow, type RankingRow } from "./Ranking";
 
 export type HomeTodo = { key: string; icon: "link" | "flag" | "alert" | "wallet" | "film" | "gift"; tone: "warn" | "teal"; title: string; sub: string; cta: string; primary: boolean; onClick: () => void };
 export type HomeCampaign = { id: string; title: string; progress: string; pct: number; meta: string };
@@ -31,6 +32,8 @@ export type HomeVals = {
   onPayments: () => void;
   onCampaigns: () => void;
   referral: { link: string; copied: boolean; onCopy: () => void; pitch: string; summary: string; list: { name: string; progress: string; status: string; done: boolean }[] };
+  /** Aperçu du classement du mois (le détail est dans l'onglet Classement). */
+  ranking: { place: string; rows: RankingRow[]; empty: string; viewsLine: string; onOpen: () => void };
 };
 
 const ICONS: Record<HomeTodo["icon"], ReactNode> = {
@@ -114,6 +117,24 @@ export function ClipperHome({ v }: { v: HomeVals }) {
           ))}
         </section>
       ) : null}
+      <section aria-labelledby="t-rank" style={{ padding: "16px", borderRadius: "20px", background: "#121511", border: "1px solid rgba(240,197,117,0.3)", display: "flex", flexDirection: "column", gap: "6px" }}>
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: "8px" }}>
+          <h2 id="t-rank" style={{ margin: "0", fontSize: "14px", fontWeight: "800" }}>Classement du mois</h2>
+          <span style={{ fontSize: "12px", color: "#A8ADA3" }}>{v.ranking.place}</span>
+        </div>
+        {v.ranking.rows.length ? (
+          <ol style={{ listStyle: "none", margin: "0", padding: "0", display: "flex", flexDirection: "column" }}>
+            {v.ranking.rows.map((row, index) => <RankRow key={row.key} row={row} first={index === 0} />)}
+          </ol>
+        ) : (
+          <span style={{ fontSize: "13px", lineHeight: "1.5", color: "#A8ADA3" }}>{v.ranking.empty}</span>
+        )}
+        <span style={{ fontSize: "12.5px", color: "#C4C8BD" }}>{v.ranking.viewsLine}</span>
+        <a href="#classement" onClick={go(v.ranking.onOpen)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: "44px", marginTop: "4px", borderTop: "1px solid rgba(255,255,255,0.06)", fontSize: "13px", fontWeight: "800", textDecoration: "none" }}>
+          Voir le classement complet
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+        </a>
+      </section>
       <section aria-labelledby="t-camp" style={{ display: "flex", flexDirection: "column" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
           <h2 id="t-camp" style={{ margin: "0", fontFamily: "Unbounded, sans-serif", fontWeight: "500", fontSize: "16px", letterSpacing: "-0.01em" }}>Mes campagnes</h2>

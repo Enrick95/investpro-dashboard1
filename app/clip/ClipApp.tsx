@@ -45,6 +45,8 @@ import {
   type PayoutRow,
 } from "@/lib/clip/rules";
 import { clipPathNow, useClipPath } from "./views/clipPath";
+import { ClipperRanking, type RankingRow } from "./views/clipper/Ranking";
+import { dayIso, dayNumber, viewGains, type ViewSnapshot } from "@/lib/clip/stats";
 import { ago, compact, dateRange, dayMonth, firstNameOf, initialsOf, longDay, maskDetails, monthName, ordinal, pct, plural, rankLabel, shortDay } from "@/lib/clip/format";
 import { ClipperShell, type ClipperTab } from "./views/clipper/Shell";
 import { ClipperHome, type HomeTodo } from "./views/clipper/Home";
@@ -81,13 +83,15 @@ export type Me = {
   clips?: ClipRow[];
   payouts?: PayoutRow[];
   rank?: { position: number; total: number; views: number };
+  ranking?: { top: { position: number; name: string; views: number; clips: number; me: boolean }[]; ahead: { name: string; gap: number } | null; clips: number };
+  viewSnapshots?: ViewSnapshot[];
   clicks?: { total: number; last30: number };
   videos?: { id: string; title: string; note: string | null; url: string; campaign_id: string | null; created_at: string }[];
   referrals?: { name: string; approved: number; paid: boolean; joined: string }[];
 };
 type LoadState = { phase: "loading" } | { phase: "guest" } | { phase: "error"; message: string } | { phase: "ready"; me: Me };
 
-const HASH: Record<ClipperTab, string> = { home: "#accueil", campaigns: "#campagnes", submit: "#soumettre", clips: "#clips", payments: "#paiements", profile: "#profil", charter: "#charte" };
+const HASH: Record<ClipperTab, string> = { home: "#accueil", campaigns: "#campagnes", submit: "#soumettre", clips: "#clips", ranking: "#classement", payments: "#paiements", profile: "#profil", charter: "#charte" };
 const SEEN_KEY = "investpro-clip-seen";
 const CHECKS = ["Sous-titres et accroche dans les 2 premières secondes", "Aucune promesse de gains ni montant gagné", "Mon lien traqué est dans ma bio"];
 
@@ -288,6 +292,23 @@ export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; 
   const summary = useMemo(() => summarize(clips, now), [clips, now]);
   const referrals = useMemo(() => me.referrals ?? [], [me.referrals]);
   const referral = referralDue(referrals);
+  // Vues gagnées par jour (même calcul que la courbe de l'admin) : les 30 derniers jours et les 30 d'avant.
+  const statDay = dayNumber(now.getTime());
+  const gains30 = useMemo(() => viewGains(clips, me.viewSnapshots ?? [], statDay - 29, 30), [clips, me.viewSnapshots, statDay]);
+  const gainsBefore = useMemo(() => viewGains(clips, me.viewSnapshots ?? [], statDay - 59, 30), [clips, me.viewSnapshots, statDay]);
+  const views30 = gains30.daily.reduce((sum, value) => sum + value, 0);
+  const viewsBefore = gainsBefore.daily.reduce((sum, value) => sum + value, 0);
+  const rankRows = (limit: number): RankingRow[] => {
+    const top = me.ranking?.top ?? [];
+    const rows = top.slice(0, limit).map((entry): RankingRow => ({ key: `${entry.position}-${entry.name}`, position: entry.position, initials: initialsOf(entry.name), name: entry.me ? `Toi · ${entry.name}` : entry.name, detail: plural(entry.clips, "clip validé", "clips validés"), views: compact(entry.views), me: entry.me }));
+    const rankNow = me.rank;
+    if (rankNow && rankNow.views > 0 && !rows.some((row) => row.me)) {
+      rows.push({ key: "moi", position: rankNow.position, initials: initialsOf(clipper.display_name), name: "Toi", detail: plural(me.ranking?.clips ?? 0, "clip validé", "clips validés"), views: compact(rankNow.views), me: true });
+    }
+    return rows;
+  };
+  const rankEmpty = "Le classement démarre avec les premières vues relevées ce mois-ci. Publie tes clips et colle tes liens : tu peux être en tête dès cette semaine.";
+  const viewsLine = views30 > 0 ? `Tes vues sur 30 jours : ${compact(views30)}${viewsBefore > 0 ? ` (${views30 >= viewsBefore ? "+" : "−"}${Math.abs(Math.round((views30 / viewsBefore - 1) * 100))} %)` : ""}` : "Tes vues apparaîtront ici dès qu'elles seront relevées.";
   const acquiredTotal = summary.acquired + referral.amount;
   const received = payouts.reduce((sum, payout) => sum + num(payout.total), 0);
   const cycle = summary.cycle;
@@ -414,6 +435,13 @@ export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; 
         onCopyLink: () => void copyLink(),
         onPayments: () => setTab("payments"),
         onCampaigns: () => setTab("campaigns"),
+        ranking: {
+          place: rank && rank.views > 0 ? `${rankLabel(rank.position)} sur ${rank.total}` : "par vues",
+          rows: rankRows(3),
+          empty: rankEmpty,
+          viewsLine,
+          onOpen: () => setTab("ranking"),
+        },
         referral: {
           link: origin ? referralLink(origin, clipper.tracking_code).replace(/^https?:\/\//, "") : "Chargement…",
           copied: refCopied,
@@ -576,6 +604,44 @@ export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; 
         clips: shown.map(toItem),
         more: rest.length ? { label: `+ ${plural(rest.length, "autre clip", "autres clips")}`, show: () => setShowAll(true) } : null,
         emptyLabel: items.length ? "Aucun clip dans ce filtre." : "Pas encore de clip : publie ta première vidéo puis colle son lien dans « Soumettre ».",
+      }} />
+    );
+  }
+
+  if (tab === "ranking") {
+    const rankNow = me.rank;
+    const ahead = me.ranking?.ahead ?? null;
+    const placed = Boolean(rankNow && rankNow.views > 0);
+    const rows = rankRows(10);
+    const shown = rows.length;
+    const byPlatform = new Map<ClipPlatform, number>();
+    for (const [clipId, gained] of gains30.byClip) {
+      const clip = clips.find((item) => item.id === clipId);
+      if (clip) byPlatform.set(clip.platform, (byPlatform.get(clip.platform) ?? 0) + gained);
+    }
+    const delta = viewsBefore > 0 ? Math.round((views30 / viewsBefore - 1) * 100) : null;
+    const monthLabel = monthName(today);
+    screen = (
+      <ClipperRanking v={{
+        subline: `${monthLabel.charAt(0).toUpperCase()}${monthLabel.slice(1)} · classés par vues · repart à zéro le 1er du mois`,
+        place: placed && rankNow ? {
+          position: rankLabel(rankNow.position),
+          context: `sur ${plural(rankNow.total, "clippeur")} · ${compact(rankNow.views)} vues`,
+          ahead: ahead ? { text: `Pour dépasser ${ahead.name}`, gap: `encore ${compact(ahead.gap)} vues`, pct: Math.max(4, Math.min(100, Math.round((rankNow.views / (rankNow.views + ahead.gap)) * 100))) } : null,
+          leader: rankNow.position === 1,
+        } : null,
+        noPlace: "Pas encore classé ce mois-ci : tes clips validés comptent dès que leurs vues sont relevées.",
+        rows,
+        others: rankNow && rankNow.total > shown ? `+ ${plural(rankNow.total - shown, "autre clippeur", "autres clippeurs")}` : null,
+        empty: rankEmpty,
+        views: {
+          total: `${compact(views30)} vues`,
+          delta: delta === null || views30 <= 0 ? null : `${delta >= 0 ? "+" : "−"}${Math.abs(delta)} % vs les 30 jours d'avant`,
+          up: (delta ?? 0) >= 0,
+          daily: gains30.daily,
+          labels: [dayMonth(dayIso(statDay - 29)), dayMonth(dayIso(statDay - 15)), dayMonth(dayIso(statDay))],
+          platforms: [...byPlatform.entries()].filter(([, gained]) => gained > 0).sort((a, b) => b[1] - a[1]).map(([platform, gained]) => ({ label: PLATFORM_LABEL[platform], value: compact(gained), pct: views30 > 0 ? Math.round((gained / views30) * 100) : 0 })),
+        },
       }} />
     );
   }
