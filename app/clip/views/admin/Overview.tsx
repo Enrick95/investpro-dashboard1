@@ -136,7 +136,7 @@ export function AdminOverview({ v }: { v: OverviewVals }) {
         <Kpi label="Clips publiés" value={v.kpis.clips} trend={v.kpis.clipsTrend} sub={v.kpis.clipsSub} />
         <Kpi label="Clippeurs actifs" value={v.kpis.active} suffix={v.kpis.activeTotal} sub={v.kpis.activeSub} />
         <Kpi label="Comptes suivis" value={v.kpis.accounts} sub={v.kpis.accountsSub} />
-        <Kpi label="Membres via les clips" value="—" sub="Telegram et VIP : bientôt" />
+        <Kpi label="VIP via les clips" value="—" sub="bientôt : membres VIP ramenés par les liens" />
         <Kpi label={v.kpis.toPayLabel} value={v.kpis.toPay} sub={v.kpis.toPaySub} gold />
       </section>
       <div style={{ display: "flex", flexWrap: "wrap", gap: "14px" }}>
@@ -166,14 +166,10 @@ export function AdminOverview({ v }: { v: OverviewVals }) {
               <h3 style={S.h3}>Ce que les clips ramènent</h3>
               <span style={{ fontSize: "12px", color: "#A8ADA3" }}>liens traqués</span>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "8px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "8px" }}>
               <div style={{ padding: "12px 10px", borderRadius: "14px", background: "#181c16", display: "flex", flexDirection: "column", gap: "2px" }}>
                 <span style={{ fontFamily: "Unbounded, sans-serif", fontWeight: "500", fontSize: "18px" }}>{v.clicks}</span>
-                <span style={{ fontSize: "12px", color: "#A8ADA3" }}>clics</span>
-              </div>
-              <div style={{ padding: "12px 10px", borderRadius: "14px", background: "#181c16", display: "flex", flexDirection: "column", gap: "2px" }}>
-                <span style={{ fontFamily: "Unbounded, sans-serif", fontWeight: "500", fontSize: "18px", color: "#8E938A" }}>—</span>
-                <span style={{ fontSize: "12px", color: "#A8ADA3" }}>Telegram · bientôt</span>
+                <span style={{ fontSize: "12px", color: "#A8ADA3" }}>clics · 30 j</span>
               </div>
               <div style={{ padding: "12px 10px", borderRadius: "14px", background: "#181c16", display: "flex", flexDirection: "column", gap: "2px" }}>
                 <span style={{ fontFamily: "Unbounded, sans-serif", fontWeight: "500", fontSize: "18px", color: "#8E938A" }}>—</span>
@@ -266,7 +262,7 @@ export function AdminOverview({ v }: { v: OverviewVals }) {
               <h2 id="t-candidatures" style={S.h2}>Candidatures</h2>
               {v.candidatesNew ? <span style={{ padding: "3px 9px", borderRadius: "999px", background: "#F0C575", color: "#0b0d0b", fontSize: "12px", fontWeight: "800" }}>{v.candidatesNew} nouvelle{v.candidatesNew > 1 ? "s" : ""}</span> : null}
             </div>
-            <span style={S.sub}>Elles arrivent par ton lien d&apos;inscription. Quand WhatsApp sera branché, les messages « clip » arriveront ici aussi.</span>
+            <span style={S.sub}>Elles arrivent par ton lien d&apos;inscription. Quand ton WhatsApp sera relié au site, les messages « clip » arriveront ici aussi.</span>
           </div>
           {v.candidates.map((cand) => (
             <div key={cand.id} style={{ display: "flex", alignItems: "flex-start", gap: "14px", padding: "14px 0", borderTop: "1px solid rgba(255,255,255,0.06)" }}>

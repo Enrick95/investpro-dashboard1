@@ -21,33 +21,70 @@ function Lines({ items, tone }: { items: string[]; tone: "ok" | "bad" }) {
   );
 }
 
-export function AdminWhatsApp({ onCandidates }: { onCandidates: () => void }) {
+export type WhatsAppVals = {
+  number: string;
+  greeting: string;
+  quickReply: string;
+  copied: string | null;
+  copy: (key: string, text: string) => void;
+  onCandidates: () => void;
+};
+
+function CopyBlock({ id, title, hint, text, v }: { id: string; title: string; hint: string; text: string; v: WhatsAppVals }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "14px", borderRadius: "14px", background: "#181c16" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+        <h3 style={S.h3}>{title}</h3>
+        <button type="button" onClick={() => v.copy(id, text)} style={{ ...S.ghost, minHeight: "40px" }}><Icon name={v.copied === id ? "check" : "copy"} stroke="1.9" />{v.copied === id ? "Copié" : "Copier le texte"}</button>
+      </div>
+      <span style={{ fontSize: "12.5px", color: "#A8ADA3" }}>{hint}</span>
+      <p style={{ margin: "0", padding: "12px 14px", borderRadius: "12px", background: "#0f110e", border: "1px solid rgba(255,255,255,0.08)", fontSize: "13.5px", lineHeight: "1.5", color: "#F3EFE6", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{text}</p>
+    </div>
+  );
+}
+
+export function AdminWhatsApp({ v }: { v: WhatsAppVals }) {
   return (
     <>
       <header style={S.header}>
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-          <span style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "#A8ADA3" }}><span aria-hidden="true" style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#8E938A" }} />Pas encore connecté · on le branche dès que tu me donnes ton numéro</span>
+          <span style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "#A8ADA3" }}><span aria-hidden="true" style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#F2B45A" }} />Ton numéro {v.number} · pas encore relié au site</span>
           <h1 style={S.h1}>WhatsApp</h1>
         </div>
-        <span style={{ maxWidth: "460px", fontSize: "13px", color: "#A8ADA3" }}>Chaque message sera rangé dans une file selon ses mots-clés. Tu répondras d&apos;ici ou de ton téléphone : tout restera synchronisé.</span>
+        <span style={{ maxWidth: "460px", fontSize: "13px", color: "#A8ADA3" }}>Tous les messages aux clippeurs partent déjà de ton WhatsApp, en un clic depuis chaque fiche. Une fois ton numéro relié au site, les messages « clip » seront rangés ici automatiquement.</span>
       </header>
       <div style={{ display: "flex", flexWrap: "wrap", gap: "14px", alignItems: "flex-start" }}>
-        <section aria-labelledby="t-wa" style={{ flex: "2 1 460px", minWidth: "0", padding: "24px", borderRadius: "20px", background: "#15170f", border: "1px solid rgba(240,197,117,0.45)", display: "flex", flexDirection: "column", gap: "16px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <h2 id="t-wa" style={S.h2}>Ton WhatsApp dans le dashboard</h2>
-            <Soon />
-          </div>
-          <Lines tone="ok" items={[
-            "Les messages qui parlent de clips arrivent dans la file Clips, avec une réponse auto qui envoie ton lien d'inscription.",
-            "Les messages Conférences et VIP sont rangés dans leur propre file.",
-            "Les autres messages restent seulement dans ton appli WhatsApp : rien de privé ici.",
-            "Tu valides, mets en test ou refuses un candidat, et le message part tout seul.",
-          ]} />
-          <div style={{ padding: "12px 14px", borderRadius: "14px", background: "#181c16", fontSize: "13px", color: "#C4C8BD" }}>Ce qu&apos;il me faut pour le brancher : ton numéro WhatsApp Business (celui de Bali). En attendant, les candidatures arrivent par ton lien d&apos;inscription et tu réponds avec les raccourcis WhatsApp de chaque fiche.</div>
-          <button type="button" onClick={onCandidates} style={{ ...S.primary, alignSelf: "flex-start" }}>Voir les candidatures<Icon name="arrow" /></button>
-        </section>
+        <div style={{ flex: "2 1 460px", minWidth: "0", display: "flex", flexDirection: "column", gap: "14px" }}>
+          <section aria-labelledby="t-wa-now" style={{ padding: "22px", borderRadius: "20px", background: "#15170f", border: "1px solid rgba(240,197,117,0.45)", display: "flex", flexDirection: "column", gap: "14px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              <h2 id="t-wa-now" style={S.h2}>Dès maintenant, gratuit</h2>
+              <span style={S.sub}>Dans ton appli WhatsApp Business : Réglages › Outils professionnels. À activer le jour où l&apos;espace clippeurs est en ligne, pour que le lien marche.</span>
+            </div>
+            <CopyBlock id="wa-greeting" title="Message d'accueil" hint="WhatsApp Business l'envoie tout seul quand un nouveau contact t'écrit pour la première fois." text={v.greeting} v={v} />
+            <CopyBlock id="wa-quick" title="Réponse rapide « /clip »" hint="Tu tapes /clip dans une discussion, le message s'écrit tout seul." text={v.quickReply} v={v} />
+          </section>
+          <section aria-labelledby="t-wa-auto" style={{ ...S.card, gap: "14px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <h2 id="t-wa-auto" style={S.h2}>Le tri automatique</h2>
+              <Soon />
+            </div>
+            <Lines tone="ok" items={[
+              "Les messages qui parlent de clips arrivent dans la file Clips, avec une réponse auto qui envoie ton lien d'inscription.",
+              "Les messages Conférences et VIP sont rangés dans leur propre file.",
+              "Les autres messages restent seulement dans ton appli : rien de privé ici.",
+              "Tu acceptes, mets en test ou refuses un candidat, et le message part tout seul.",
+            ]} />
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "12px 14px", borderRadius: "14px", background: "#181c16", fontSize: "13px", color: "#C4C8BD" }}>
+              <span style={{ fontWeight: "800", color: "#F3EFE6" }}>Pour le brancher</span>
+              <span>1. Ton numéro doit être sur l&apos;appli WhatsApp Business (pas WhatsApp normal) depuis au moins 7 jours.</span>
+              <span>2. On le relie au site via un partenaire officiel de Meta, en scannant un QR code. Tu gardes ton appli et tes discussions.</span>
+              <span>3. Les messages tapés dans ton appli restent gratuits ; ceux envoyés par le site sont facturés par Meta, plus l&apos;abonnement du partenaire.</span>
+            </div>
+          </section>
+        </div>
         <div style={{ flex: "1 1 300px", minWidth: "0", display: "flex", flexDirection: "column", gap: "14px" }}>
           <SortRules soon />
+          <button type="button" onClick={v.onCandidates} style={{ ...S.primary, alignSelf: "stretch" }}>Voir les candidatures<Icon name="arrow" /></button>
         </div>
       </div>
     </>

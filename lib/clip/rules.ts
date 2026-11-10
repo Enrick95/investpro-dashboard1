@@ -14,6 +14,16 @@ export const PAYOUT_HINT: Record<PayoutMethod, string> = { usdt_trc20: "Adresse 
 
 export const FREEZE_DAYS = 7;
 export const MIN_PAYOUT = 20;
+/** WhatsApp d'Enrick (Bali) : le canal de contact des clippeurs et des candidats. */
+export const ENRICK_WHATSAPP_LABEL = "+62 851 2811 5218";
+
+export function enrickWhatsApp(text?: string): string {
+  return `https://wa.me/6285128115218${text ? `?text=${encodeURIComponent(text)}` : ""}`;
+}
+
+/** Adresse publique de l'espace clippeurs, en attendant son propre nom de domaine. */
+export const CLIP_PUBLIC_URL = "https://investprotrading.fr/clip";
+
 /** Page vers laquelle renvoie le lien traqué de chaque clippeur (le lien en bio d'Enrick). */
 export const TRACKED_LINK_TARGET = "https://investprotrading.fr/enrick";
 

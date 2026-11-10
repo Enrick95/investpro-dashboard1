@@ -7,6 +7,8 @@ import styles from "../clip.module.css";
 import ClipLogin from "../ClipLogin";
 import { ClipApiError, clipApi, clipSignOut } from "@/lib/clip/client";
 import {
+  CLIP_PUBLIC_URL,
+  ENRICK_WHATSAPP_LABEL,
   MIN_PAYOUT,
   PAYOUT_LABEL,
   PAYOUT_METHODS,
@@ -42,7 +44,7 @@ import { AdminReview, type ReviewCurrent, type ReviewTab, type ReviewVals } from
 import { AdminCampaigns, type AdminCampaignFilter, type AdminCampaignsVals, type CampaignFormData } from "../views/admin/Campaigns";
 import { AdminCandidates, type CandDecision, type CandTab, type CandidatesVals } from "../views/admin/Candidates";
 import { AdminPayments, type PayFilter, type PayRowData, type PaymentsVals } from "../views/admin/Payments";
-import { AdminRules, AdminSettings, AdminWhatsApp, type RulesVals, type SettingsVals } from "../views/admin/More";
+import { AdminRules, AdminSettings, AdminWhatsApp, type RulesVals, type SettingsVals, type WhatsAppVals } from "../views/admin/More";
 
 type Clipper = {
   id: string;
@@ -1295,6 +1297,18 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
     };
   }
 
+  function buildWhatsApp(): WhatsAppVals {
+    const join = `${CLIP_PUBLIC_URL}/rejoindre`;
+    return {
+      number: ENRICK_WHATSAPP_LABEL,
+      greeting: `Salut 👋 Merci pour ton message, je te réponds dès que possible !\n\nTu veux devenir clippeur ? Inscris-toi ici en 2 minutes : ${join}`,
+      quickReply: `Pour devenir clippeur, inscris-toi ici en 2 minutes : ${join}\nTu crées ton compte, tu postules, et je te réponds ici sur WhatsApp.`,
+      copied: copied?.startsWith("wa-") ? copied : null,
+      copy: (key, text) => void copy(text, key),
+      onCandidates: () => navigate("candidates"),
+    };
+  }
+
   function buildRules(): RulesVals {
     return {
       rate: `${euro(rules.rate)} pour 1 000 vues`,
@@ -1318,8 +1332,8 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
         { label: "Seuil de versement", value: euroRound(MIN_PAYOUT), note: "En dessous, le montant passe au cycle suivant" },
         { label: "Vues figées", value: "7 jours après la publication" },
         { label: "Synchronisation des vues", value: "Saisie à la main", note: "TikTok, Instagram et YouTube reliés automatiquement : bientôt", soon: true },
-        { label: "Membres Telegram et VIP ramenés", value: "Pas encore suivis", soon: true },
-        { label: "WhatsApp", value: "Pas encore connecté", soon: true },
+        { label: "VIP ramenés par les clips", value: "Pas encore suivis", soon: true },
+        { label: "WhatsApp", value: `${ENRICK_WHATSAPP_LABEL} · pas encore relié au site`, note: "Les messages partent déjà de ton WhatsApp en un clic ; le tri automatique viendra quand il sera relié", soon: true },
         { label: "Accès admin", value: "Toi seul (propriétaire du site)" },
       ],
     };
@@ -1343,7 +1357,7 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
       {section === "campaigns" ? <AdminCampaigns v={buildCampaigns()} /> : null}
       {section === "candidates" ? <AdminCandidates v={buildCandidates()} /> : null}
       {section === "payments" ? <AdminPayments v={buildPayments()} /> : null}
-      {section === "whatsapp" ? <AdminWhatsApp onCandidates={() => navigate("candidates")} /> : null}
+      {section === "whatsapp" ? <AdminWhatsApp v={buildWhatsApp()} /> : null}
       {section === "rules" ? <AdminRules v={buildRules()} /> : null}
       {section === "settings" ? <AdminSettings v={buildSettings()} /> : null}
     </AdminShell>

@@ -16,6 +16,7 @@ export type ProfileVals = {
   payoutDetails: string;
   infos: { key: "display_name" | "whatsapp" | "telegram"; label: string; value: string; placeholder: string }[];
   payoutCount: number;
+  contact: { label: string; href: string };
   owner: boolean;
   message: { kind: "ok" | "error"; text: string } | null;
   busy: boolean;
@@ -221,6 +222,16 @@ export function ClipperProfile({ v }: { v: ProfileVals }) {
           </span>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#A8ADA3" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M9 6l6 6-6 6" />
+          </svg>
+        </a>
+        <a href={v.contact.href} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", minHeight: "56px", borderTop: "1px solid rgba(255,255,255,0.06)", color: "#F3EFE6", textDecoration: "none" }}>
+          <span style={{ display: "flex", flexDirection: "column" }}>
+            <span style={{ fontWeight: "700" }}>Écrire à Enrick sur WhatsApp</span>
+            <span style={{ fontSize: "12px", color: "#A8ADA3" }}>{v.contact.label} · une question, un souci</span>
+          </span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#A8ADA3" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M14 4h6v6M20 4l-9 9" />
+            <path d="M18 14v4.5A1.5 1.5 0 0 1 16.5 20h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10" />
           </svg>
         </a>
       </section>

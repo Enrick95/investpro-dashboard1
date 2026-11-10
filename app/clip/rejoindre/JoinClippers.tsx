@@ -6,6 +6,7 @@ import { Check, Loader2 } from "lucide-react";
 import styles from "../clip.module.css";
 import ClipLogin from "../ClipLogin";
 import { ClipApiError, clipApi, clipSignIn, clipSignOut, clipToken } from "@/lib/clip/client";
+import { enrickWhatsApp } from "@/lib/clip/rules";
 
 type Me = { email: string | null; clipper: { id: string } | null; candidate?: { status: "new" | "accepted" | "refused" } | null };
 type Phase = "loading" | "signup" | "login" | "form" | "member" | "pending" | "sent" | "error";
@@ -215,6 +216,7 @@ export default function JoinClippers() {
                 {signup ? "Créer mon compte et envoyer" : "Envoyer ma candidature"}
               </button>
               <span className={`${styles.small} ${styles.muted}`} style={{ textAlign: "center" }}>En envoyant, tu acceptes d&apos;être contacté sur WhatsApp au sujet du programme clippeurs.</span>
+              <a href={enrickWhatsApp("Salut Enrick, j'ai une question sur le programme clippeurs : ")} target="_blank" rel="noopener noreferrer" className={styles.linkBtn} style={{ alignSelf: "center", textDecoration: "none" }}>Une question avant de postuler ? Écris-moi sur WhatsApp</a>
             </form>
           ) : null}
         </main>

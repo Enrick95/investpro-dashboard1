@@ -7,6 +7,7 @@ import styles from "./clip.module.css";
 import ClipLogin from "./ClipLogin";
 import { ClipApiError, clipApi, clipSignOut } from "@/lib/clip/client";
 import {
+  ENRICK_WHATSAPP_LABEL,
   MIN_PAYOUT,
   PAYOUT_HINT,
   PAYOUT_LABEL,
@@ -18,6 +19,7 @@ import {
   cycleFor,
   cycleProgress,
   daysUntil,
+  enrickWhatsApp,
   formatEuro,
   formatInt,
   freezeAt,
@@ -351,7 +353,7 @@ export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; 
           return { id: campaign.id, title: campaign.title, progress: `${mine} / ${campaign.quota_per_clipper} clips`, pct: pct(mine, campaign.quota_per_clipper), meta: `${campaign.platforms} · fin le ${dayMonth(campaign.ends_on)}` };
         }),
         linkLabel: trackUrl.replace(/^https?:\/\//, "") || "Chargement…",
-        linkStats: `${formatInt(me.clicks?.total ?? 0)} clic${(me.clicks?.total ?? 0) > 1 ? "s" : ""} · Telegram et VIP : bientôt`,
+        linkStats: `${formatInt(me.clicks?.total ?? 0)} clic${(me.clicks?.total ?? 0) > 1 ? "s" : ""} · VIP ramenés : bientôt`,
         copied,
         onCopyLink: () => void copyLink(),
         onPayments: () => setTab("payments"),
@@ -548,7 +550,7 @@ export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; 
         infos: [
           { key: "display_name", label: "Nom affiché", value: clipper.display_name, placeholder: "Prénom et initiale" },
           { key: "whatsapp", label: "WhatsApp", value: clipper.whatsapp ?? "", placeholder: "+33612345678" },
-          { key: "telegram", label: "Telegram", value: clipper.telegram ? `@${clipper.telegram}` : "", placeholder: "@pseudo" },
+          { key: "telegram", label: "Telegram (facultatif)", value: clipper.telegram ? `@${clipper.telegram}` : "", placeholder: "@pseudo" },
         ],
         payoutCount: payouts.length,
         owner: me.owner,
@@ -559,6 +561,7 @@ export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; 
         savePayout: (method, details) => profileAction(() => clipApi("/api/clip/me", { method: "PATCH", body: { payout_method: method, payout_details: details } }), "Moyen de paiement enregistré."),
         saveInfo: (key, value) => profileAction(() => clipApi("/api/clip/me", { method: "PATCH", body: { [key]: key === "telegram" ? value.replace(/^@/, "") : value } }), "Infos enregistrées."),
         changePassword: (current, next) => profileAction(() => clipApi("/api/clip/me", { method: "POST", body: { action: "change_password", current, next } }), "Mot de passe changé."),
+        contact: { label: ENRICK_WHATSAPP_LABEL, href: enrickWhatsApp(`Salut Enrick, c'est ${clipper.display_name} (${clipper.ref}). `) },
         onCharter: () => setTab("charter"),
         onPayments: () => setTab("payments"),
         signOut: () => {

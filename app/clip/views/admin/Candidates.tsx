@@ -51,7 +51,7 @@ export function SortRules({ soon }: { soon?: boolean }) {
           <span style={{ fontSize: "12.5px", color: "#C4C8BD" }}>{words}</span>
         </div>
       ))}
-      <span style={{ fontSize: "12px", color: "#A8ADA3" }}>La file Clips enverra aussi une réponse auto avec ton lien d&apos;inscription, dès que ton numéro WhatsApp sera branché.</span>
+      <span style={{ fontSize: "12px", color: "#A8ADA3" }}>La file Clips enverra aussi une réponse auto avec ton lien d&apos;inscription, dès que ton WhatsApp sera relié au site.</span>
     </section>
   );
 }
