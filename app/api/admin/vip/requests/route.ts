@@ -7,7 +7,7 @@ import { deliverVipNotifications } from "@/lib/vip/notifications";
 import { deliverVipAccessConfirmations } from "@/lib/vip/access-confirmations";
 import { deliverVipRequestCompletionNotifications } from "@/lib/vip/request-completion-notifications";
 import { completionColumns, completionRevisionValid, validateCompletionRequest } from "@/lib/vip/request-completions";
-import type { VipAccessRequest } from "@/lib/vip/types";
+import type { VipAccessRequest, VipRequestMtAccount } from "@/lib/vip/types";
 import { telegram } from "@/lib/telegram/server";
 import { notifyAdminExistingMemberApproved } from "@/lib/vip/admin-request-alert";
 const REQUEST_COLUMNS = `${VIP_ACCESS_REQUEST_COLUMNS},${completionColumns}`;
@@ -17,6 +17,33 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+type MtLinkRow = { user_id: string; login: string; server: string; platform: string; currency: string | null; last_sync: string | null; investpro_mt_hosted: { status: string | null; active: boolean | null } | { status: string | null; active: boolean | null }[] | null };
+
+/**
+ * The MetaTrader accounts each requester connected (from « Déjà membre » or the site), so the team sees them
+ * while validating: platform, number, server, currency and sync status. The stored password is never selected.
+ * A failure here leaves the list of requests intact.
+ */
+async function requesterMetaTraderAccounts(admin: { from: (table: string) => any }, userIds: unknown[]): Promise<Map<string, VipRequestMtAccount[]>> {
+  const users = [...new Set(userIds.filter((id): id is string => typeof id === "string" && uuid.test(id)))];
+  const byUser = new Map<string, VipRequestMtAccount[]>();
+  if (!users.length) return byUser;
+  try {
+    const { data, error } = await admin.from("investpro_mt_connections")
+      .select("user_id,login,server,platform,currency,last_sync,investpro_mt_hosted(status,active)")
+      .in("user_id", users).eq("revoked", false).order("created_at", { ascending: true });
+    if (error) return byUser;
+    for (const row of (data || []) as MtLinkRow[]) {
+      const hosted = Array.isArray(row.investpro_mt_hosted) ? row.investpro_mt_hosted[0] ?? null : row.investpro_mt_hosted;
+      if (hosted && hosted.active === false) continue; // disconnected
+      const list = byUser.get(row.user_id) || [];
+      list.push({ platform: row.platform, login: String(row.login), server: row.server, currency: row.currency ?? null, status: hosted ? hosted.status ?? null : null, last_sync: row.last_sync ?? null });
+      byUser.set(row.user_id, list);
+    }
+  } catch { /* the requests stay visible without their accounts */ }
+  return byUser;
+}
+
 export async function GET(request: Request) {
   const context = await authenticateAdmin(request, "users_write");
   if ("error" in context) return vipJson({ error: context.error }, context.status);
@@ -24,7 +51,10 @@ export async function GET(request: Request) {
     const history = new URL(request.url).searchParams.get("history") === "1";
     const { data, error } = await context.admin.from("vip_access_requests").select(REQUEST_COLUMNS).eq("status", history ? "approved" : "pending").order(history ? "reviewed_at" : "created_at", { ascending: !history }).limit(history ? 100 : 1000);
     if (error) throw error;
-    return vipJson(history ? { history: data || [] } : { requests: data || [] });
+    if (history) return vipJson({ history: data || [] });
+    const rows = (data || []) as unknown as VipAccessRequest[];
+    const accounts = await requesterMetaTraderAccounts(context.admin, rows.map((row: VipAccessRequest) => row.user_id));
+    return vipJson({ requests: rows.map((row: VipAccessRequest) => ({ ...row, mt_accounts: accounts.get(row.user_id) || [] })) });
   } catch (error) { return vipErrorResponse(error); }
 }
 

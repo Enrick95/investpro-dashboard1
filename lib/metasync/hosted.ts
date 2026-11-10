@@ -56,7 +56,8 @@ export function brokers(): Broker[] {
   const configured = rows.filter((value: unknown): value is Broker => {
     if (!value || typeof value !== 'object') return false;
     const b = value as Partial<Broker>;
-    return /^[a-f0-9-]{1,60}$/.test(b.id ?? '') &&
+    // Same rule as `host.py register` on the hosting PC (ex. « puprime-mt5-live6 »): letters a-z, digits, hyphens.
+    return /^[a-z0-9-]{1,60}$/.test(b.id ?? '') &&
       (b.platform === 'MT4' || b.platform === 'MT5') &&
       typeof b.label === 'string' &&
       typeof b.server === 'string' &&

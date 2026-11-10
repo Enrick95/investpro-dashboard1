@@ -81,6 +81,17 @@ export type VipAccessResponse = {
 
 export type VipMemberState = "none" | "active" | "suspended" | "expired" | "upcoming";
 
+/** A MetaTrader account linked to a VIP requester, as shown to the team: no credential. */
+export type VipRequestMtAccount = {
+  platform: string;
+  login: string;
+  server: string;
+  currency: string | null;
+  /** Hosted connector status (queued, connecting, syncing, error…); null for a local connector. */
+  status: string | null;
+  last_sync: string | null;
+};
+
 export type VipAccessRequest = {
   id: string;
   user_id: string;
@@ -117,6 +128,8 @@ export type VipAccessRequest = {
   member_number?: number | null;
   rejection_reason?: string | null;
   trading_account_id?: number | null;
+  /** MetaTrader accounts the requester has connected (admin list only). Never carries a password. */
+  mt_accounts?: VipRequestMtAccount[];
   member_intake?: boolean;
   channel_joined_at?: string | null;
   revision?: number;

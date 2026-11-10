@@ -38,7 +38,7 @@ const validators = compile("lib/vip/access-requests.ts", {
 });
 const completions = compile("lib/vip/request-completions.ts", { "./access-requests": validators });
 
-function fixture({ authorized = true, adminAuthorized = true, confirmed = true, existingRequest = null, existingMembership = null, databaseError = null, rpcError = null, environment = "production" } = {}) {
+function fixture({ authorized = true, adminAuthorized = true, confirmed = true, existingRequest = null, existingMembership = null, databaseError = null, rpcError = null, environment = "production", mtLinks = [] } = {}) {
   const calls = { auth: [], permissions: [], reads: [], writes: [], rpcs: [] };
   const db = {
     from(table) {
@@ -47,6 +47,7 @@ function fixture({ authorized = true, adminAuthorized = true, confirmed = true, 
         if (query.operation) return { data: { id: requestId, ...query.operation.value }, error: databaseError };
         calls.reads.push({ ...query, filters: [...query.filters] });
         const isAdminReviewRead = query.filters.some(([column]) => column === "id");
+        if (table === "investpro_mt_connections") return { data: mtLinks, error: databaseError };
         const row = table === "vip_memberships" ? existingMembership : (existingRequest ?? (isAdminReviewRead ? { id: requestId, status: "pending", request_kind: "existing", type: "affiliation", copy_requested: false } : null));
         return { data: single ? row : row ? [row] : [], error: databaseError };
       }
@@ -359,11 +360,30 @@ test("the admin queue is restricted to declarations awaiting a decision", async 
   const response = await api.adminGet();
   assert.equal(response.status, 200);
   assert.deepEqual(api.calls.permissions, ["users_write"]);
-  assert.equal(api.calls.reads.length, 1);
+  assert.equal(api.calls.reads.length, 2);
   assert.equal(api.calls.reads[0].table, "vip_access_requests");
   assert.ok(api.calls.reads[0].filters.some(([column, value]) => column === "status" && value === "pending"));
-  assert.deepEqual(response.body.requests, [existingRequest]);
+  // Then the MetaTrader accounts of these requesters, for the team: never the stored password.
+  assert.equal(api.calls.reads[1].table, "investpro_mt_connections");
+  assert.ok(api.calls.reads[1].filters.some(([column, value]) => column === "user_id" && Array.isArray(value) && value.includes(userId)));
+  assert.doesNotMatch(api.calls.reads[1].columns, /secret|password/);
+  assert.deepEqual(response.body.requests, [{ ...existingRequest, mt_accounts: [] }]);
   assert.equal(api.calls.writes.length + api.calls.rpcs.length, 0);
+});
+
+test("each request shows the MetaTrader accounts the member connected, with their status and no credential", async () => {
+  const existingRequest = { id: requestId, user_id: userId, status: "pending" };
+  const mtLinks = [
+    { user_id: userId, login: "88123456", server: "VTMarkets-Live 2", platform: "MT5", currency: "USD", last_sync: "2026-11-10T10:00:00.000Z", investpro_mt_hosted: { status: "syncing", active: true } },
+    { user_id: userId, login: "5550001", server: "PUPrime-Live", platform: "MT5", currency: "EUR", last_sync: null, investpro_mt_hosted: { status: "stopped", active: false } },
+    { user_id: userId, login: "3002159", server: "FusionMarkets-Live 2", platform: "MT4", currency: "USD", last_sync: null, investpro_mt_hosted: null },
+  ];
+  const response = await fixture({ existingRequest, mtLinks }).adminGet();
+  assert.equal(response.status, 200);
+  assert.deepEqual(response.body.requests[0].mt_accounts, [
+    { platform: "MT5", login: "88123456", server: "VTMarkets-Live 2", currency: "USD", status: "syncing", last_sync: "2026-11-10T10:00:00.000Z" },
+    { platform: "MT4", login: "3002159", server: "FusionMarkets-Live 2", currency: "USD", status: null, last_sync: null },
+  ], "A disconnected account is left out; a local connector has no hosted status");
 });
 
 test("approved request history requires admin permission and cannot mix in pending declarations", async () => {

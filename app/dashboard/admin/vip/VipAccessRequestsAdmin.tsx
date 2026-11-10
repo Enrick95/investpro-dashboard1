@@ -6,7 +6,7 @@ import { Check, Copy, RefreshCw } from "lucide-react";
 import { vipDate, vipRequest } from "@/lib/vip/client";
 import { VIP_AFFILIATION_BROKERS, vipAffiliationBrokerLabel } from "@/lib/vip/identity";
 import { validateVipApproval, vipParisPaymentDate, vipPaymentExpiry } from "@/lib/vip/access-requests";
-import type { VipAccessRequest } from "@/lib/vip/types";
+import type { VipAccessRequest, VipRequestMtAccount } from "@/lib/vip/types";
 import s from "./VipAdmin.module.css";
 import r from "./RequestsRedesign.module.css";
 import VipApplicationReview, { type VipMemberApplication } from "./VipApplicationReview";
@@ -44,6 +44,16 @@ function RequestReview({ request, onRefresh }: { request: VipAccessRequest; onRe
   const isNew = request.request_kind === "new";
   const text = (fr: string, en: string) => locale === "en" ? en : fr;
   const usd = (value: number) => new Intl.NumberFormat(locale, { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(value);
+  // The MetaTrader accounts the member connected, e.g. from the « Ton compte MetaTrader » step of « Déjà membre ».
+  const mtAccounts = request.mt_accounts || [];
+  const mtStatus = (account: VipRequestMtAccount) => {
+    if (account.status === null) return text("connecteur local", "local connector");
+    if (account.status === "error") return text("en erreur", "error");
+    const syncing = account.status === "syncing" || account.status === "ready";
+    if (syncing && account.last_sync && Date.now() - Date.parse(account.last_sync) <= 180000) return text("synchro active", "syncing");
+    if (syncing && account.last_sync) return text("synchro interrompue", "sync interrupted");
+    return text("connexion en cours", "connecting");
+  };
   const [form, setForm] = useState<Review>({ firstName: request.first_name, lastName: request.last_name, type: request.type, affiliationBroker: request.affiliation_broker || "", paidOn: request.paid_on || "", confirmed: false, brokerLinkedVerified: false, verifiedDepositUsd: "", depositVerified: false, paymentVerified: false });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -108,6 +118,7 @@ function RequestReview({ request, onRefresh }: { request: VipAccessRequest; onRe
       <div><dt>{text("E-mail", "Email")}</dt><dd>{request.email || "—"}</dd></div>
       <div><dt>WhatsApp</dt><dd>{request.phone_whatsapp || "—"}</dd></div>
       <div><dt>Telegram</dt><dd>{request.telegram_username ? `@${request.telegram_username}` : "—"}</dd></div>
+      <div data-tone={mtAccounts.some(account => account.status === "error") ? "warn" : undefined}><dt>MetaTrader</dt><dd>{mtAccounts.length ? mtAccounts.map((account, index) => <span key={`${account.platform}-${account.login}-${account.server}`}>{index ? <br /> : null}{`${account.platform} · ${account.login} · ${account.server}${account.currency ? ` · ${account.currency}` : ""} · ${mtStatus(account)}`}</span>) : text("Pas encore connecté", "Not connected yet")}</dd></div>
       {request.type === "abonnement" ? <>
         <div><dt>{text("Payé le", "Paid on")}</dt><dd>{vipDate(request.paid_on, locale)}</dd></div>
         <div><dt>{text("Fin d’abonnement", "Renewal due")}</dt><dd>{request.paid_on && vipPaymentExpiry(request.paid_on) ? vipDate(vipPaymentExpiry(request.paid_on), locale) : "—"}</dd></div>
