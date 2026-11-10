@@ -1,0 +1,25 @@
+{
+  "id": "/",
+  "name": "InvestPro Clip",
+  "short_name": "InvestPro Clip",
+  "description": "L'espace des clippeurs d'Enrick : campagnes, vidéos à clipper, clips et paiements.",
+  "lang": "fr",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b0d0b",
+  "theme_color": "#0b0d0b",
+  "categories": ["business", "productivity"],
+  "icons": [
+    { "src": "/clip-app/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/clip-app/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/clip-app/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Envoyer un clip", "short_name": "Envoyer", "url": "/#soumettre", "icons": [{ "src": "/clip-app/icon-96.png", "sizes": "96x96", "type": "image/png" }] },
+    { "name": "Campagnes", "short_name": "Campagnes", "url": "/#campagnes", "icons": [{ "src": "/clip-app/icon-96.png", "sizes": "96x96", "type": "image/png" }] },
+    { "name": "Mes paiements", "short_name": "Paiements", "url": "/#paiements", "icons": [{ "src": "/clip-app/icon-96.png", "sizes": "96x96", "type": "image/png" }] }
+  ]
+}
