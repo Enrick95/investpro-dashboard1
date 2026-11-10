@@ -632,7 +632,7 @@ export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; 
         } : null,
         noPlace: "Pas encore classé ce mois-ci : tes clips validés comptent dès que leurs vues sont relevées.",
         rows,
-        others: rankNow && rankNow.total > shown ? `+ ${plural(rankNow.total - shown, "autre clippeur", "autres clippeurs")}` : null,
+        others: rankNow && rankNow.total - shown - (rows.some((row) => row.me) ? 0 : 1) > 0 ? `+ ${plural(rankNow.total - shown - (rows.some((row) => row.me) ? 0 : 1), "autre clippeur", "autres clippeurs")}` : null,
         empty: rankEmpty,
         views: {
           total: `${compact(views30)} vues`,
