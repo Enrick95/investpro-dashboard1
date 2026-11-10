@@ -65,7 +65,7 @@ export default function InstallAppExperience() {
   const dialogRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    if (pathname === "/vip/nouveau-membre") {
+    if (pathname === "/vip/nouveau-membre" || pathname === "/clip" || pathname?.startsWith("/clip/")) {
       setBannerVisible(false);
       setGuideOpen(false);
       return;
