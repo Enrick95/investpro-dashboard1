@@ -88,6 +88,8 @@ html.iplogo input,html.iplogo select,html.iplogo .kd,html.iplogo .pl,html.iplogo
 html.iplogo input:focus,html.iplogo select:focus{border-color:var(--gold);box-shadow:0 0 0 4px rgba(247,195,80,.14)}
 html.iplogo input::placeholder{color:#6b665d}
 html.iplogo .bk span{background:#1a1813}
+/* The chosen broker keeps its gold badge, dark letters readable on it */
+html.iplogo .bk[aria-pressed=true] span{background:var(--gold);color:#0b0d0b}
 html.iplogo .kd[aria-pressed=true],html.iplogo .pl[aria-pressed=true],html.iplogo .bk[aria-pressed=true],html.iplogo .seg button[aria-pressed=true]{background:#1a1712}
 html.iplogo .opt{border-color:#3a372f;color:#9d978b}
 html.iplogo .req{background:var(--metal-silver);color:#141414}

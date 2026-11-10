@@ -137,6 +137,30 @@ test("WhatsApp and Telegram are optional but normalized when given", async () =>
   }
 });
 
+test("the broker the member picks goes on the request; « Abonnement ou autre broker » leaves the origin to confirm", async () => {
+  for (const [broker, saved] of [["vtmarkets", "vtmarkets"], ["raise_fx", "raise_fx"], ["puprime", "puprime"], ["axi", "axi"], ["abonnement", null]]) {
+    const api = fixture();
+    const response = await api.post({ ...member, broker });
+    assert.equal(response.status, 201, broker);
+    assert.equal(api.calls.inserts[0].value.affiliation_broker, saved, broker);
+    assert.equal(api.calls.inserts[0].value.type, "affiliation");
+    assert.equal(api.calls.inserts[0].value.paid_on, null);
+  }
+  const invalid = fixture();
+  const result = await invalid.post({ ...member, broker: "binance" });
+  assert.equal(result.status, 400);
+  assert.equal(result.body.field, "broker");
+  assert.equal(invalid.calls.created.length + invalid.calls.inserts.length + invalid.calls.limits, 0, "Nothing is created for an unknown broker");
+});
+
+test("the déjà-membre page asks for the broker among VT Markets, Raise FX, PU Prime, Axi or a subscription, before sending", () => {
+  const page = fs.readFileSync(path.join(project, "public/vip-deja-membre-v2.html"), "utf8");
+  const choices = [...page.matchAll(/class="bk" data-bk="([a-z_]+)"/g)].map(match => match[1]);
+  assert.deepEqual(choices, ["vtmarkets", "raise_fx", "puprime", "axi", "abonnement"]);
+  assert.match(page, /if\(!BK\)\{[^}]*return fail\('Choisis ton broker/, "The form stops until a broker is chosen");
+  assert.match(page, /broker:BK/, "The choice is sent with the request");
+});
+
 test("names and e-mail are required before any account or request is created", async () => {
   for (const [field, value] of [["firstName", ""], ["lastName", "   "], ["email", "pas-un-email"], ["email", ""]]) {
     const api = fixture();
