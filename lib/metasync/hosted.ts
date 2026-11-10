@@ -33,15 +33,24 @@ const FALLBACK_GROUPS: BrokerGroup[] = [
   { platform: 'MT5', broker: 'MetaQuotes', servers: ['MetaQuotes-Demo'] },
 ];
 
+const BULLWAVES_MT5: Broker = {
+  id: 'bullwaves-mt5-live', label: 'Bullwaves', platform: 'MT5', server: 'BullWaves-LIVE',
+};
+
+function includeBullwaves(rows: Broker[]): Broker[] {
+  return rows.some((broker) => broker.platform === 'MT5' && broker.server.toLowerCase() === BULLWAVES_MT5.server.toLowerCase())
+    ? rows : [...rows, BULLWAVES_MT5];
+}
+
 function fallbackBrokers(): Broker[] {
-  return FALLBACK_GROUPS.flatMap(({ platform, broker, servers }) =>
+  return includeBullwaves(FALLBACK_GROUPS.flatMap(({ platform, broker, servers }) =>
     servers.map((server, index) => ({
       id: `fallback-${platform.toLowerCase()}-${broker.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${index + 1}`,
       label: broker,
       platform,
       server,
     }))
-  );
+  ));
 }
 
 export function brokers(): Broker[] {
@@ -64,7 +73,7 @@ export function brokers(): Broker[] {
       b.server.length <= 120 &&
       !/[\r\n\0]/.test(b.server);
   });
-  return configured.length ? configured : fallbackBrokers();
+  return configured.length ? includeBullwaves(configured) : fallbackBrokers();
 }
 
 // La connexion MetaTrader hébergée est disponible pour tout utilisateur authentifié.
