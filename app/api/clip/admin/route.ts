@@ -15,6 +15,7 @@ import {
   httpsUrl,
   optionalText,
   readJson,
+  temporaryPassword,
   text,
   trackingCodeFrom,
 } from "@/lib/clip/server";
@@ -267,6 +268,24 @@ async function pay(db: SupabaseClient, body: Body) {
   return { payout };
 }
 
+/** Mot de passe provisoire, seulement pour les comptes créés depuis l'espace clippeurs. */
+async function resetPassword(db: SupabaseClient, body: Body) {
+  const id = uuid(body, "clipper_id");
+  const { data, error } = await db.from("clip_clippers").select("id,user_id").eq("id", id).maybeSingle();
+  if (error) throw error;
+  const clipper = data as unknown as { id: string; user_id: string } | null;
+  if (!clipper) throw new ClipError("Clippeur introuvable.", 404);
+  const found = await db.auth.admin.getUserById(clipper.user_id);
+  if (found.error || !found.data.user) throw new ClipError("Compte introuvable.", 404);
+  if (found.data.user.app_metadata?.clip_signup !== true) {
+    throw new ClipError("Ce compte n'a pas été créé depuis l'espace clippeurs : son mot de passe ne se change pas ici.", 409);
+  }
+  const password = temporaryPassword();
+  const { error: updateError } = await db.auth.admin.updateUserById(clipper.user_id, { password });
+  if (updateError) throw updateError;
+  return { password };
+}
+
 export async function POST(request: Request) {
   try {
     const ctx = await authenticateClipAdmin(request);
@@ -291,6 +310,8 @@ export async function POST(request: Request) {
         return clipJson(await setViews(ctx.db, body));
       case "pay":
         return clipJson(await pay(ctx.db, body));
+      case "reset_password":
+        return clipJson(await resetPassword(ctx.db, body));
       default:
         throw new ClipError("Action inconnue.");
     }

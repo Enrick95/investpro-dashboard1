@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { AlertTriangle, Check, ExternalLink, LayoutDashboard, Loader2, RefreshCw, ShieldCheck, Target, TrendingUp, UserPlus, Users, Wallet, X } from "lucide-react";
 import styles from "../clip.module.css";
-import { ClipApiError, clipApi } from "@/lib/clip/client";
+import ClipLogin from "../ClipLogin";
+import { ClipApiError, clipApi, clipSignOut } from "@/lib/clip/client";
 import {
   MIN_PAYOUT,
   PAYOUT_LABEL,
@@ -76,8 +77,35 @@ function ago(iso: string, now: Date): string {
   return `il y a ${Math.round(hours / 24)} j`;
 }
 
-function whatsappLink(phone: string | null): string | null {
-  return phone ? `https://wa.me/${phone.replace(/^\+/, "")}` : null;
+function whatsappLink(phone: string | null, message?: string): string | null {
+  if (!phone) return null;
+  return `https://wa.me/${phone.replace(/^\+/, "")}${message ? `?text=${encodeURIComponent(message)}` : ""}`;
+}
+
+/** Adresse du site actuel (l'espace admin ne s'affiche que dans le navigateur). */
+function siteOrigin(): string {
+  return typeof window === "undefined" ? "" : window.location.origin;
+}
+
+function JoinLinkCard() {
+  const [copied, setCopied] = useState(false);
+  const url = `${siteOrigin()}/clip/rejoindre`;
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  }
+  return (
+    <div className={styles.card} style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 16 }}>
+      <span className={`${styles.small} ${styles.muted}`} style={{ fontWeight: 600 }}>Lien de candidature à partager</span>
+      <span className={styles.small} style={{ fontWeight: 700, wordBreak: "break-all" }}>{url.replace(/^https?:\/\//, "")}</span>
+      <button type="button" className={styles.btnGhost} style={{ minHeight: 40, fontSize: 13 }} onClick={() => void copy()}>{copied ? "Lien copié" : "Copier le lien"}</button>
+    </div>
+  );
 }
 
 export default function ClipAdmin() {
@@ -120,12 +148,22 @@ export default function ClipAdmin() {
     return <div className={styles.page}><div className={styles.center}><Loader2 size={28} className={styles.spin} aria-hidden="true" /><span className={styles.muted}>Chargement de l&apos;espace admin…</span></div></div>;
   }
   if (state.phase === "denied") {
+    const retry = () => { setState({ phase: "loading" }); void load(); };
     return (
       <div className={styles.page}>
-        <div className={styles.center}>
-          <h1 className={styles.h1}>Espace admin des clippeurs</h1>
-          <p className={styles.soft}>{state.message}</p>
-          {state.login ? <Link href="/login?next=/clip/admin" className={`${styles.btn} ${styles.btnBlock}`}>Me connecter</Link> : <Link href="/clip" className={`${styles.btnGhost} ${styles.btnBlock}`}>Retour à l&apos;espace clippeurs</Link>}
+        <div className={styles.app}>
+          <main className={styles.main} style={{ paddingTop: 32, paddingBottom: 48 }}>
+            <h1 className={styles.h1}>Admin InvestPro Clip</h1>
+            {state.login ? (
+              <ClipLogin title="Connexion admin" intro="Connecte-toi avec ton compte administrateur." joinLink={false} onDone={retry} />
+            ) : (
+              <div className={styles.card} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <p className={styles.soft} style={{ margin: 0 }}>{state.message}</p>
+                <button type="button" className={`${styles.btn} ${styles.btnBlock}`} onClick={async () => { await clipSignOut(); retry(); }}>Changer de compte</button>
+                <Link href="/clip" className={`${styles.btnGhost} ${styles.btnBlock}`}>Retour à l&apos;espace clippeurs</Link>
+              </div>
+            )}
+          </main>
         </div>
       </div>
     );
@@ -179,8 +217,8 @@ function AdminSpace({ data, section, setSection, flash, busy, act, reload }: { d
         <nav className={styles.side} aria-label="Menu admin">
           <Link href="/clip" className={styles.brand} style={{ padding: "0 8px 18px" }}>
             <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect x="1" y="1" width="28" height="28" rx="9" fill="none" stroke="#F0C575" strokeWidth="1.6" /><path d="M12.5 9.5v11l8.5-5.5z" fill="#F0C575" /></svg>
-            <span className={styles.brandName}>Enrick95</span>
-            <span className={styles.brandPill}>CLIPS</span>
+            <span className={styles.brandName}>InvestPro</span>
+            <span className={styles.brandPill}>CLIP</span>
           </Link>
           {menu.map((item) => (
             <button key={item.key} type="button" aria-current={section === item.key ? "page" : undefined} className={`${styles.sideItem} ${section === item.key ? styles.sideItemOn : ""}`} onClick={() => setSection(item.key)}>
@@ -190,10 +228,7 @@ function AdminSpace({ data, section, setSection, flash, busy, act, reload }: { d
             </button>
           ))}
           <div style={{ flex: 1 }} />
-          <div className={styles.card} style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 16 }}>
-            <span className={`${styles.small} ${styles.muted}`} style={{ fontWeight: 600 }}>Lien de candidature</span>
-            <span className={styles.small} style={{ fontWeight: 700, wordBreak: "break-all" }}>investprotrading.fr/clip/rejoindre</span>
-          </div>
+          <JoinLinkCard />
         </nav>
         <main className={styles.content}>
           <div className={styles.row} style={{ flexWrap: "wrap" }}>
@@ -470,7 +505,55 @@ function ClipperCard({ item, busy, act, now }: { item: ClipperStats; busy: strin
           <button type="button" className={styles.btnGhost} disabled={busy !== null || note === (clipper.admin_note ?? "")} onClick={() => void act(`note-${clipper.id}`, { action: "update_clipper", id: clipper.id, admin_note: note }, "Note enregistrée.")}>Enregistrer la note</button>
         </div>
       </div>
+      <TemporaryPassword clipperId={clipper.id} name={clipper.display_name} phone={clipper.whatsapp} />
     </article>
+  );
+}
+
+/** Mot de passe oublié : l'admin crée un mot de passe provisoire et l'envoie sur WhatsApp. */
+function TemporaryPassword({ clipperId, name, phone }: { clipperId: string; name: string; phone: string | null }) {
+  const [step, setStep] = useState<"idle" | "confirm" | "busy">("idle");
+  const [password, setPassword] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function create() {
+    setStep("busy");
+    setError(null);
+    try {
+      const result = await clipApi<{ password: string }>("/api/clip/admin", { method: "POST", body: { action: "reset_password", clipper_id: clipperId } });
+      setPassword(result.password);
+      setStep("idle");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Impossible de créer un mot de passe provisoire.");
+      setStep("idle");
+    }
+  }
+
+  const firstName = name.split(/\s+/)[0] ?? name;
+  const wa = password ? whatsappLink(phone, `Salut ${firstName} ! Voici ton mot de passe provisoire pour l'espace clippeurs : ${password}\nConnecte-toi sur ${siteOrigin()}/clip puis change-le dans ton profil.`) : null;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+      {password ? (
+        <div className={styles.notice} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <span>Mot de passe provisoire : <b style={{ color: "#F3EFE6", letterSpacing: "0.04em" }}>{password}</b></span>
+          <span className={styles.small}>L&apos;ancien mot de passe ne marche plus. Envoie celui-ci au clippeur : il pourra le changer dans son profil.</span>
+          {wa ? <a href={wa} target="_blank" rel="noopener noreferrer" className={styles.btn} style={{ alignSelf: "flex-start", minHeight: 44, fontSize: 13 }}>Envoyer sur WhatsApp</a> : null}
+        </div>
+      ) : null}
+      {error ? <p className={styles.error} role="alert">{error}</p> : null}
+      {step === "confirm" ? (
+        <div className={styles.rowStart}>
+          <span className={`${styles.small} ${styles.warn}`}>Son mot de passe actuel ne marchera plus.</span>
+          <button type="button" className={styles.btnDanger} onClick={() => void create()}>Confirmer</button>
+          <button type="button" className={styles.btnGhost} onClick={() => setStep("idle")}>Annuler</button>
+        </div>
+      ) : (
+        <button type="button" className={styles.linkBtn} style={{ alignSelf: "flex-start" }} disabled={step === "busy"} onClick={() => { setPassword(null); setStep("confirm"); }}>
+          {step === "busy" ? "Création…" : "Mot de passe oublié : créer un mot de passe provisoire"}
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -628,7 +711,7 @@ function Candidates({ candidates, busy, act, now }: { candidates: Candidate[]; b
   const done = candidates.filter((candidate) => candidate.status !== "new").slice(0, 30);
   return (
     <div className={styles.stackLg}>
-      <p className={`${styles.small} ${styles.muted}`} style={{ margin: 0 }}>Les candidatures arrivent par le formulaire investprotrading.fr/clip/rejoindre. Quand WhatsApp sera branché, les messages « clip » arriveront ici aussi.</p>
+      <p className={`${styles.small} ${styles.muted}`} style={{ margin: 0 }}>Les candidatures arrivent par le formulaire {`${siteOrigin()}/clip/rejoindre`.replace(/^https?:\/\//, "")} : la personne y crée son compte et postule en même temps. Quand WhatsApp sera branché, les messages « clip » arriveront ici aussi.</p>
       {!fresh.length ? <p className={styles.notice}>Aucune nouvelle candidature.</p> : null}
       {fresh.map((candidate) => {
         const wa = whatsappLink(candidate.whatsapp);

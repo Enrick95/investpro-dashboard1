@@ -1,73 +1,94 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Check, Loader2 } from "lucide-react";
 import styles from "../clip.module.css";
-import { ClipApiError, clipApi, clipToken } from "@/lib/clip/client";
+import ClipLogin from "../ClipLogin";
+import { ClipApiError, clipApi, clipSignIn, clipSignOut, clipToken } from "@/lib/clip/client";
 
-type Me = { clipper: { id: string } | null; candidate?: { status: "new" | "accepted" | "refused" } | null };
-type Phase = "loading" | "guest" | "form" | "member" | "pending" | "sent" | "error";
+type Me = { email: string | null; clipper: { id: string } | null; candidate?: { status: "new" | "accepted" | "refused" } | null };
+type Phase = "loading" | "signup" | "login" | "form" | "member" | "pending" | "sent" | "error";
 
 const AVAILABILITY = ["1 à 3 clips par semaine", "4 à 7 clips par semaine", "8 à 14 clips par semaine", "15 clips ou plus par semaine"];
+const hidden = { position: "absolute", left: "-10000px", width: 1, height: 1, overflow: "hidden" } as const;
 
 export default function JoinClippers() {
   const [phase, setPhase] = useState<Phase>("loading");
   const [loadError, setLoadError] = useState("");
+  const [account, setAccount] = useState<string | null>(null);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginNotice, setLoginNotice] = useState("");
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [telegram, setTelegram] = useState("");
   const [accounts, setAccounts] = useState("");
   const [availability, setAvailability] = useState(AVAILABILITY[1]);
   const [sample, setSample] = useState("");
   const [message, setMessage] = useState("");
+  const [trap, setTrap] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        if (!(await clipToken())) {
-          if (active) setPhase("guest");
-          return;
-        }
-        const me = await clipApi<Me>("/api/clip/me");
-        if (!active) return;
-        if (me.clipper) setPhase("member");
-        else if (me.candidate?.status === "new") setPhase("pending");
-        else setPhase("form");
-      } catch (e) {
-        if (!active) return;
-        if (e instanceof ClipApiError && e.status === 401) setPhase("guest");
-        else {
-          setLoadError(e instanceof Error ? e.message : "Chargement impossible.");
-          setPhase("error");
-        }
+  const detect = useCallback(async () => {
+    try {
+      if (!(await clipToken())) {
+        setPhase("signup");
+        return;
       }
-    })();
-    return () => {
-      active = false;
-    };
+      const me = await clipApi<Me>("/api/clip/me");
+      setAccount(me.email);
+      if (me.clipper) setPhase("member");
+      else if (me.candidate?.status === "new") setPhase("pending");
+      else setPhase("form");
+    } catch (e) {
+      if (e instanceof ClipApiError && e.status === 401) setPhase("signup");
+      else {
+        setLoadError(e instanceof Error ? e.message : "Chargement impossible.");
+        setPhase("error");
+      }
+    }
   }, []);
+
+  useEffect(() => {
+    void detect();
+  }, [detect]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy) return;
     setBusy(true);
     setError("");
+    const candidature = { display_name: name, whatsapp, telegram, accounts, availability, sample_url: sample, message };
     try {
-      await clipApi("/api/clip/candidates", {
-        method: "POST",
-        body: { display_name: name, whatsapp, telegram, accounts, availability, sample_url: sample, message },
-      });
+      if (phase === "signup") {
+        await clipApi("/api/clip/signup", { method: "POST", auth: false, body: { ...candidature, email, password, hp_field: trap } });
+        try {
+          await clipSignIn(email, password);
+        } catch {
+          // Le compte est créé : la connexion pourra se refaire depuis l'espace clippeurs.
+        }
+      } else {
+        await clipApi("/api/clip/candidates", { method: "POST", body: candidature });
+      }
       setPhase("sent");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Envoi impossible.");
+      if (phase === "signup" && e instanceof ClipApiError && e.status === 409) {
+        setLoginEmail(email.trim().toLowerCase());
+        setLoginNotice(e.message);
+        setPhase("login");
+      } else {
+        setError(e instanceof Error ? e.message : "Envoi impossible.");
+      }
     } finally {
       setBusy(false);
     }
   }
+
+  const signup = phase === "signup";
+  const ready = name.trim() && whatsapp.trim() && accounts.trim() && (!signup || (email.trim() && password.length >= 8));
 
   return (
     <div className={styles.page}>
@@ -75,8 +96,8 @@ export default function JoinClippers() {
         <header className={styles.topbar}>
           <Link href="/clip" className={styles.brand} aria-label="Espace clippeurs">
             <svg width="28" height="28" viewBox="0 0 30 30" aria-hidden="true"><rect x="1" y="1" width="28" height="28" rx="9" fill="none" stroke="#F0C575" strokeWidth="1.6" /><path d="M12.5 9.5v11l8.5-5.5z" fill="#F0C575" /></svg>
-            <span className={styles.brandName}>Enrick95</span>
-            <span className={styles.brandPill}>CLIPS</span>
+            <span className={styles.brandName}>InvestPro</span>
+            <span className={styles.brandPill}>CLIP</span>
           </Link>
         </header>
         <main className={styles.main} style={{ paddingBottom: 48 }}>
@@ -84,12 +105,12 @@ export default function JoinClippers() {
             <div className={styles.center}><Loader2 size={28} className={styles.spin} aria-hidden="true" /></div>
           ) : null}
 
-          {phase === "guest" ? (
-            <div className={styles.center}>
-              <h1 className={styles.h1}>Deviens clippeur</h1>
-              <p className={styles.soft}>Tu coupes le contenu d&apos;Enrick, tu le publies sur tes comptes et tu es payé selon tes vues. Crée ton compte (ou connecte-toi), puis envoie ta candidature en 2 minutes.</p>
-              <Link href="/register?next=/clip/rejoindre" className={`${styles.btn} ${styles.btnBlock}`}>Créer mon compte</Link>
-              <Link href="/login?next=/clip/rejoindre" className={`${styles.btnGhost} ${styles.btnBlock}`}>J&apos;ai déjà un compte</Link>
+          {phase === "login" ? (
+            <div className={styles.stackLg}>
+              <h1 className={styles.h1}>Connexion</h1>
+              {loginNotice ? <p className={styles.notice}>{loginNotice}</p> : null}
+              <ClipLogin title="Connecte-toi" intro="Avec ton e-mail et ton mot de passe, puis tu envoies ta candidature." joinLink={false} defaultEmail={loginEmail} onDone={() => { setPhase("loading"); void detect(); }} />
+              <button type="button" className={styles.linkBtn} style={{ alignSelf: "center" }} onClick={() => { setLoginNotice(""); setPhase("signup"); }}>Créer un compte à la place</button>
             </div>
           ) : null}
 
@@ -104,30 +125,60 @@ export default function JoinClippers() {
             <div className={styles.center}>
               <span className={`${styles.chip} ${styles.chipOk}`}><Check size={13} aria-hidden="true" />Candidature reçue</span>
               <h1 className={styles.h1}>Merci !</h1>
-              <p className={styles.soft}>Enrick regarde ta candidature et te répond sous 48 h sur WhatsApp. Dès qu&apos;elle est acceptée, ton espace s&apos;ouvre sur investprotrading.fr/clip.</p>
+              <p className={styles.soft}>Enrick regarde ta candidature et te répond sous 48 h sur WhatsApp. Dès qu&apos;elle est acceptée, ton espace s&apos;ouvre ici avec ton e-mail et ton mot de passe.</p>
               <Link href="/clip" className={`${styles.btnGhost} ${styles.btnBlock}`}>Aller à l&apos;espace clippeurs</Link>
             </div>
           ) : null}
 
-          {phase === "error" ? <p className={styles.error}>{loadError}</p> : null}
+          {phase === "error" ? (
+            <div className={styles.center}>
+              <p className={styles.error}>{loadError}</p>
+              <button type="button" className={styles.btnGhost} onClick={() => { setPhase("loading"); void detect(); }}>Réessayer</button>
+            </div>
+          ) : null}
 
-          {phase === "form" ? (
+          {phase === "signup" || phase === "form" ? (
             <form onSubmit={submit} className={styles.stackLg}>
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 <h1 className={styles.h1}>Deviens clippeur</h1>
                 <span className={`${styles.small} ${styles.muted}`}>2 minutes. Réponse sous 48 h sur WhatsApp.</span>
               </div>
+              {signup ? (
+                <div className={styles.rowStart} style={{ gap: 8 }}>
+                  <span className={`${styles.small} ${styles.soft}`}>Déjà un compte ?</span>
+                  <button type="button" className={styles.linkBtn} onClick={() => { setLoginEmail(email.trim().toLowerCase()); setLoginNotice(""); setPhase("login"); }}>Connecte-toi</button>
+                </div>
+              ) : (
+                <div className={styles.rowStart} style={{ gap: 8 }}>
+                  <span className={`${styles.small} ${styles.soft} ${styles.ellipsis}`}>Connecté avec {account ?? "ton compte"}</span>
+                  <button type="button" className={styles.linkBtn} onClick={async () => { await clipSignOut(); setAccount(null); setPhase("signup"); }}>Changer de compte</button>
+                </div>
+              )}
               <div className={styles.cardGold} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <span className={styles.h3}>Comment ça marche</span>
                 <span className={`${styles.small} ${styles.soft}`}>Tu choisis une campagne, tu coupes les rushs d&apos;Enrick, tu publies sur tes comptes et tu colles le lien dans ton espace. Tu es payé selon tes vues, deux fois par mois.</span>
               </div>
+
               <div className={styles.field}>
                 <label htmlFor="j-name" className={styles.label}>Prénom et initiale du nom</label>
-                <input id="j-name" className={styles.input} maxLength={60} placeholder="Ex. Kevin L." value={name} onChange={(event) => setName(event.target.value)} required />
+                <input id="j-name" className={styles.input} maxLength={60} autoComplete="name" placeholder="Ex. Kevin L." value={name} onChange={(event) => setName(event.target.value)} required />
               </div>
+              {signup ? (
+                <>
+                  <div className={styles.field}>
+                    <label htmlFor="j-email" className={styles.label}>E-mail</label>
+                    <input id="j-email" className={styles.input} type="email" inputMode="email" autoComplete="email" maxLength={120} value={email} onChange={(event) => setEmail(event.target.value)} required />
+                  </div>
+                  <div className={styles.field}>
+                    <label htmlFor="j-password" className={styles.label}>Mot de passe</label>
+                    <input id="j-password" className={styles.input} type="password" autoComplete="new-password" maxLength={72} value={password} onChange={(event) => setPassword(event.target.value)} required />
+                    <span className={`${styles.small} ${styles.muted}`}>8 caractères minimum, avec des lettres et au moins un chiffre. Tu t&apos;en serviras pour ouvrir ton espace.</span>
+                  </div>
+                </>
+              ) : null}
               <div className={styles.field}>
                 <label htmlFor="j-wa" className={styles.label}>WhatsApp</label>
-                <input id="j-wa" className={styles.input} inputMode="tel" placeholder="+33612345678" value={whatsapp} onChange={(event) => setWhatsapp(event.target.value)} required />
+                <input id="j-wa" className={styles.input} inputMode="tel" autoComplete="tel" placeholder="+33612345678" value={whatsapp} onChange={(event) => setWhatsapp(event.target.value)} required />
               </div>
               <div className={styles.field}>
                 <label htmlFor="j-tg" className={styles.label}>Telegram (facultatif)</label>
@@ -152,10 +203,16 @@ export default function JoinClippers() {
                 <label htmlFor="j-msg" className={styles.label}>Un mot pour Enrick (facultatif)</label>
                 <textarea id="j-msg" className={styles.textarea} maxLength={600} value={message} onChange={(event) => setMessage(event.target.value)} />
               </div>
+              {signup ? (
+                <div aria-hidden="true" style={hidden}>
+                  <label htmlFor="j-trap">Ne pas remplir</label>
+                  <input id="j-trap" tabIndex={-1} autoComplete="off" value={trap} onChange={(event) => setTrap(event.target.value)} />
+                </div>
+              ) : null}
               {error ? <p className={styles.error} role="alert">{error}</p> : null}
-              <button type="submit" className={`${styles.btn} ${styles.btnBlock}`} disabled={busy || !name.trim() || !whatsapp.trim() || !accounts.trim()}>
+              <button type="submit" className={`${styles.btn} ${styles.btnBlock}`} disabled={busy || !ready}>
                 {busy ? <Loader2 size={17} className={styles.spin} aria-hidden="true" /> : null}
-                Envoyer ma candidature
+                {signup ? "Créer mon compte et envoyer" : "Envoyer ma candidature"}
               </button>
               <span className={`${styles.small} ${styles.muted}`} style={{ textAlign: "center" }}>En envoyant, tu acceptes d&apos;être contacté sur WhatsApp au sujet du programme clippeurs.</span>
             </form>

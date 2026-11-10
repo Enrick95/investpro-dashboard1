@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { AlertTriangle, CalendarDays, Check, ChevronRight, Clock, ExternalLink, LayoutDashboard, Loader2, Plus, Target, Trash2, TrendingUp, Wallet, X } from "lucide-react";
 import styles from "./clip.module.css";
+import ClipLogin from "./ClipLogin";
 import { ClipApiError, clipApi, clipSignOut } from "@/lib/clip/client";
 import {
   CLIP_PLATFORMS,
@@ -91,8 +92,8 @@ function Brand() {
   return (
     <span className={styles.brand}>
       <BrandMark />
-      <span className={styles.brandName}>Enrick95</span>
-      <span className={styles.brandPill}>CLIPS</span>
+      <span className={styles.brandName}>InvestPro</span>
+      <span className={styles.brandPill}>CLIP</span>
     </span>
   );
 }
@@ -143,12 +144,15 @@ export default function ClipApp() {
   if (state.phase === "guest") {
     return (
       <div className={styles.page}>
-        <div className={styles.center}>
-          <BrandMark size={48} />
-          <h1 className={styles.h1}>Espace clippeurs</h1>
-          <p className={styles.soft}>Tu clippes le contenu d&apos;Enrick, tu publies sur tes comptes et tu es payé selon tes vues. Connecte-toi pour retrouver ton espace.</p>
-          <Link href="/login?next=/clip" className={`${styles.btn} ${styles.btnBlock}`}>Me connecter</Link>
-          <Link href="/clip/rejoindre" className={`${styles.btnGhost} ${styles.btnBlock}`}>Devenir clippeur</Link>
+        <div className={styles.app}>
+          <header className={styles.topbar}><Brand /></header>
+          <main className={styles.main} style={{ paddingBottom: 48 }}>
+            <section style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <h1 className={styles.h1}>Espace clippeurs</h1>
+              <p className={styles.soft} style={{ margin: 0 }}>Tu clippes le contenu d&apos;Enrick, tu publies sur tes comptes et tu es payé selon tes vues. Connecte-toi pour retrouver tes clips et tes paiements.</p>
+            </section>
+            <ClipLogin onDone={() => { setState({ phase: "loading" }); void load(); }} />
+          </main>
         </div>
       </div>
     );
@@ -700,18 +704,22 @@ function Profile({ me, clipper, accounts, reload }: { me: Me; clipper: Clipper; 
   const [details, setDetails] = useState(clipper.payout_details ?? "");
   const [whatsapp, setWhatsapp] = useState(clipper.whatsapp ?? "");
   const [telegram, setTelegram] = useState(clipper.telegram ?? "");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [nextPassword, setNextPassword] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
-  const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
+  const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string; key: string } | null>(null);
 
-  async function run(key: string, action: () => Promise<unknown>, success: string) {
+  async function run(key: string, action: () => Promise<unknown>, success: string): Promise<boolean> {
     setBusy(key);
     setMessage(null);
     try {
       await action();
-      setMessage({ kind: "ok", text: success });
+      setMessage({ kind: "ok", text: success, key });
       await reload();
+      return true;
     } catch (e) {
-      setMessage({ kind: "error", text: e instanceof Error ? e.message : "Enregistrement impossible." });
+      setMessage({ kind: "error", text: e instanceof Error ? e.message : "Enregistrement impossible.", key });
+      return false;
     } finally {
       setBusy(null);
     }
@@ -727,7 +735,7 @@ function Profile({ me, clipper, accounts, reload }: { me: Me; clipper: Clipper; 
           <span className={`${styles.chip} ${clipper.status === "active" ? styles.chipOk : clipper.status === "test" ? styles.chipNeutral : styles.chipBad}`} style={{ alignSelf: "flex-start" }}>{clipper.status === "active" ? "Actif" : clipper.status === "test" ? "Période de test" : "En pause"}</span>
         </div>
       </div>
-      {message ? <p className={message.kind === "ok" ? styles.success : styles.error} role="status">{message.text}</p> : null}
+      {message && message.key !== "password" ? <p className={message.kind === "ok" ? styles.success : styles.error} role="status">{message.text}</p> : null}
 
       <section className={styles.card} aria-labelledby="t-accounts" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         <h2 id="t-accounts" className={styles.h3}>Mes comptes</h2>
@@ -751,7 +759,12 @@ function Profile({ me, clipper, accounts, reload }: { me: Me; clipper: Clipper; 
           style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 8, borderTop: "1px solid rgba(255,255,255,0.06)" }}
           onSubmit={(event) => {
             event.preventDefault();
-            void run("add", () => clipApi("/api/clip/me", { method: "POST", body: { action: "add_account", platform, handle, followers: followers || null } }), "Compte ajouté.").then(() => { setHandle(""); setFollowers(""); });
+            void run("add", () => clipApi("/api/clip/me", { method: "POST", body: { action: "add_account", platform, handle, followers: followers || null } }), "Compte ajouté.").then((ok) => {
+              if (ok) {
+                setHandle("");
+                setFollowers("");
+              }
+            });
           }}
         >
           <div className={styles.grid2}>
@@ -803,6 +816,35 @@ function Profile({ me, clipper, accounts, reload }: { me: Me; clipper: Clipper; 
           <input id="ct-telegram" className={styles.input} placeholder="@pseudo" value={telegram} onChange={(event) => setTelegram(event.target.value)} />
         </div>
         <button type="button" className={styles.btnGhost} disabled={busy !== null} onClick={() => run("contact", () => clipApi("/api/clip/me", { method: "PATCH", body: { whatsapp, telegram } }), "Contacts enregistrés.")}>Enregistrer mes contacts</button>
+      </section>
+
+      <section className={styles.card} aria-labelledby="t-password" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <h2 id="t-password" className={styles.h3}>Mot de passe</h2>
+        <div className={styles.field}>
+          <label htmlFor="pw-current" className={styles.label}>Mot de passe actuel</label>
+          <input id="pw-current" className={styles.input} type="password" autoComplete="current-password" maxLength={72} value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} />
+        </div>
+        <div className={styles.field}>
+          <label htmlFor="pw-next" className={styles.label}>Nouveau mot de passe</label>
+          <input id="pw-next" className={styles.input} type="password" autoComplete="new-password" maxLength={72} value={nextPassword} onChange={(event) => setNextPassword(event.target.value)} />
+          <span className={`${styles.small} ${styles.muted}`}>8 caractères minimum, avec des lettres et au moins un chiffre.</span>
+        </div>
+        {message && message.key === "password" ? <p className={message.kind === "ok" ? styles.success : styles.error} role="status">{message.text}</p> : null}
+        <button
+          type="button"
+          className={styles.btnGhost}
+          disabled={busy !== null || !currentPassword || nextPassword.length < 8}
+          onClick={() => {
+            void run("password", () => clipApi("/api/clip/me", { method: "POST", body: { action: "change_password", current: currentPassword, next: nextPassword } }), "Mot de passe changé.").then((ok) => {
+              if (ok) {
+                setCurrentPassword("");
+                setNextPassword("");
+              }
+            });
+          }}
+        >
+          Changer mon mot de passe
+        </button>
       </section>
 
       {me.owner ? <Link href="/clip/admin" className={`${styles.btnGhost} ${styles.btnBlock}`}>Ouvrir l&apos;espace admin</Link> : null}

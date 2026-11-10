@@ -4,14 +4,18 @@ import {
   CLIPPER_COLUMNS,
   CLIP_COLUMNS,
   PAYOUT_COLUMNS,
+  assertPassword,
   assertSameOrigin,
   authenticateClip,
+  authErrorCode,
   ClipError,
   clipErrorResponse,
   clipJson,
   freezeDueClips,
   readJson,
+  readPassword,
   text,
+  verifyPassword,
 } from "@/lib/clip/server";
 import { CLIP_PLATFORMS, PAYOUT_METHODS, normalizeHandle, normalizePhone, normalizeTelegram, type ClipPlatform, type PayoutMethod } from "@/lib/clip/rules";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -146,6 +150,20 @@ export async function POST(request: Request) {
       if (!/^[0-9a-f-]{36}$/i.test(id)) throw new ClipError("Compte introuvable.", 404);
       const { error } = await ctx.db.from("clip_accounts").delete().eq("id", id).eq("clipper_id", clipper.id);
       if (error) throw error;
+      return clipJson({ ok: true });
+    }
+    if (action === "change_password") {
+      const current = readPassword(body, "current");
+      const next = readPassword(body, "next");
+      if (!ctx.user.email) throw new ClipError("Ce compte n'a pas d'adresse e-mail.", 409);
+      assertPassword(next);
+      if (current === next) throw new ClipError("Choisis un mot de passe différent de l'actuel.");
+      if (!current || !(await verifyPassword(ctx.user.email, current))) throw new ClipError("Mot de passe actuel incorrect.");
+      const { error } = await ctx.db.auth.admin.updateUserById(ctx.user.id, { password: next });
+      if (error) {
+        if (authErrorCode(error) === "weak_password") throw new ClipError("Mot de passe trop simple : 8 caractères minimum, avec des lettres et au moins un chiffre.");
+        throw error;
+      }
       return clipJson({ ok: true });
     }
     throw new ClipError("Action inconnue.");

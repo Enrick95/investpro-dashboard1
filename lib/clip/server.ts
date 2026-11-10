@@ -1,9 +1,10 @@
 import "server-only";
 
+import { createHash, randomInt } from "node:crypto";
 import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { authenticateAdmin, permissionsFor } from "@/lib/admin/permissions";
-import { FREEZE_DAYS, freezeAt } from "@/lib/clip/rules";
+import { FREEZE_DAYS, freezeAt, normalizePhone, normalizeTelegram } from "@/lib/clip/rules";
 
 export const CLIPPER_COLUMNS = "id,user_id,ref,display_name,whatsapp,telegram,tracking_code,status,payout_method,payout_details,admin_note,created_at";
 export const ACCOUNT_COLUMNS = "id,clipper_id,platform,handle,followers,verified,created_at";
@@ -34,7 +35,7 @@ export function clipErrorResponse(error: unknown): NextResponse {
   return clipJson({ error: "Service momentanément indisponible, réessaie." }, 500);
 }
 
-function serviceDb(): SupabaseClient {
+export function serviceDb(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new ClipError("Service indisponible.", 503);
@@ -118,6 +119,98 @@ export function httpsUrl(value: string, label: string): string {
   } catch {
     throw new ClipError(`${label} : colle un lien qui commence par https://`);
   }
+}
+
+export type CandidatureFields = {
+  display_name: string;
+  whatsapp: string;
+  telegram: string | null;
+  accounts: string;
+  availability: string;
+  sample_url: string | null;
+  message: string | null;
+};
+
+/** Champs de la candidature, communs à l'inscription et au formulaire d'un compte déjà connecté. */
+export function parseCandidature(body: Record<string, unknown>): CandidatureFields {
+  const displayName = text(body, "display_name");
+  if (displayName.length < 2 || displayName.length > 60) throw new ClipError("Indique ton prénom et l'initiale de ton nom.");
+  const whatsapp = normalizePhone(text(body, "whatsapp"));
+  if (!whatsapp) throw new ClipError("Numéro WhatsApp au format international, par exemple +33612345678.");
+  const telegramRaw = text(body, "telegram");
+  const telegram = telegramRaw ? normalizeTelegram(telegramRaw) : null;
+  if (telegramRaw && !telegram) throw new ClipError("Pseudo Telegram invalide.");
+  const accounts = text(body, "accounts");
+  if (accounts.length < 3 || accounts.length > 400) throw new ClipError("Liste tes comptes (réseau, nom, abonnés).");
+  const availability = text(body, "availability");
+  if (!availability || availability.length > 60) throw new ClipError("Indique combien de clips tu peux faire par semaine.");
+  const sampleRaw = text(body, "sample_url");
+  const sampleUrl = sampleRaw ? httpsUrl(sampleRaw, "Exemple de montage") : null;
+  const message = optionalText(body, "message", 600, "Message");
+  return { display_name: displayName, whatsapp, telegram, accounts, availability, sample_url: sampleUrl, message };
+}
+
+export function parseEmail(raw: string): string {
+  const email = raw.trim().toLowerCase();
+  if (email.length > 120 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) throw new ClipError("Adresse e-mail invalide.");
+  return email;
+}
+
+/** Mot de passe tel que saisi (sans retirer les espaces). */
+export function readPassword(body: Record<string, unknown>, key: string): string {
+  const value = body[key];
+  return typeof value === "string" ? value : "";
+}
+
+export function assertPassword(password: string): void {
+  if (password.length < 8) throw new ClipError("Mot de passe : 8 caractères minimum.");
+  if (password.length > 72) throw new ClipError("Mot de passe : 72 caractères maximum.");
+  if (!/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) throw new ClipError("Mot de passe : des lettres et au moins un chiffre.");
+}
+
+export function authErrorCode(error: unknown): string {
+  return typeof error === "object" && error && "code" in error ? String((error as { code: unknown }).code ?? "") : "";
+}
+
+/** Limite les inscriptions par connexion (adresse IP hachée, jamais stockée en clair). */
+export async function limitSignupAttempts(db: SupabaseClient, request: Request): Promise<void> {
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "inconnue";
+  const ipHash = createHash("sha256").update(`enrick95-clips:${ip}`).digest("hex").slice(0, 32);
+  const [recent, daily] = await Promise.all([
+    db.from("clip_signup_attempts").select("id", { count: "exact", head: true }).eq("ip_hash", ipHash).gte("created_at", new Date(Date.now() - 15 * 60_000).toISOString()),
+    db.from("clip_signup_attempts").select("id", { count: "exact", head: true }).eq("ip_hash", ipHash).gte("created_at", new Date(Date.now() - 86_400_000).toISOString()),
+  ]);
+  if (recent.error) throw recent.error;
+  if (daily.error) throw daily.error;
+  if ((recent.count ?? 0) >= 5 || (daily.count ?? 0) >= 20) throw new ClipError("Trop d'essais depuis ta connexion. Réessaie dans un moment.", 429);
+  const { error } = await db.from("clip_signup_attempts").insert({ ip_hash: ipHash });
+  if (error) throw error;
+  await db.from("clip_signup_attempts").delete().lt("created_at", new Date(Date.now() - 2 * 86_400_000).toISOString());
+}
+
+/** Mot de passe provisoire lisible, envoyé par l'admin sur WhatsApp. */
+export function temporaryPassword(): string {
+  const letters = "abcdefghjkmnpqrstuvwxyz";
+  const digits = "23456789";
+  const pick = (set: string) => set[randomInt(set.length)];
+  const groups = [0, 1, 2].map(() => `${pick(letters)}${pick(letters + digits)}${pick(letters + digits)}${pick(digits)}`);
+  return groups.join("-");
+}
+
+/** Vérifie un mot de passe sans toucher à la session du navigateur. */
+export async function verifyPassword(email: string, password: string): Promise<boolean> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !key) throw new ClipError("Service indisponible.", 503);
+  const auth = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+  const { data, error } = await auth.auth.signInWithPassword({ email, password });
+  if (error || !data.session) return false;
+  try {
+    await auth.auth.signOut({ scope: "local" });
+  } catch {
+    // session jetable : rien à faire si la révocation échoue
+  }
+  return true;
 }
 
 export function trackingCodeFrom(name: string): string {

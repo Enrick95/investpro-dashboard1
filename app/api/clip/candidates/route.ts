@@ -1,10 +1,9 @@
-import { assertSameOrigin, authenticateClip, ClipError, clipErrorResponse, clipJson, httpsUrl, optionalText, readJson, text } from "@/lib/clip/server";
-import { normalizePhone, normalizeTelegram } from "@/lib/clip/rules";
+import { assertSameOrigin, authenticateClip, ClipError, clipErrorResponse, clipJson, parseCandidature, readJson } from "@/lib/clip/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Candidature pour devenir clippeur (le futur tri WhatsApp « clip » arrivera ici aussi). */
+/** Candidature d'un compte déjà connecté à l'espace clippeurs. */
 export async function POST(request: Request) {
   try {
     const ctx = await authenticateClip(request);
@@ -19,34 +18,8 @@ export async function POST(request: Request) {
     if (open.error) throw open.error;
     if (open.data) throw new ClipError("Ta candidature est déjà en cours d'examen.", 409);
 
-    const body = await readJson(request);
-    const displayName = text(body, "display_name");
-    if (displayName.length < 2 || displayName.length > 60) throw new ClipError("Indique ton prénom et l'initiale de ton nom.");
-    const whatsapp = normalizePhone(text(body, "whatsapp"));
-    if (!whatsapp) throw new ClipError("Numéro WhatsApp au format international, par exemple +33612345678.");
-    const telegramRaw = text(body, "telegram");
-    const telegram = telegramRaw ? normalizeTelegram(telegramRaw) : null;
-    if (telegramRaw && !telegram) throw new ClipError("Pseudo Telegram invalide.");
-    const accounts = text(body, "accounts");
-    if (accounts.length < 3 || accounts.length > 400) throw new ClipError("Liste tes comptes (réseau, nom, abonnés).");
-    const availability = text(body, "availability");
-    if (!availability || availability.length > 60) throw new ClipError("Indique combien de clips tu peux faire par semaine.");
-    const sampleRaw = text(body, "sample_url");
-    const sampleUrl = sampleRaw ? httpsUrl(sampleRaw, "Exemple de montage") : null;
-    const message = optionalText(body, "message", 600, "Message");
-
-    const { error } = await db.from("clip_candidates").insert({
-      user_id: user.id,
-      email: user.email ?? null,
-      display_name: displayName,
-      whatsapp,
-      telegram,
-      accounts,
-      availability,
-      sample_url: sampleUrl,
-      message,
-      source: "form",
-    });
+    const fields = parseCandidature(await readJson(request));
+    const { error } = await db.from("clip_candidates").insert({ user_id: user.id, email: user.email ?? null, ...fields, source: "form" });
     if (error) {
       if (error.code === "23505") throw new ClipError("Ta candidature est déjà en cours d'examen.", 409);
       throw error;
