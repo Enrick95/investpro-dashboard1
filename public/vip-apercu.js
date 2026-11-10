@@ -17,6 +17,7 @@
     ['MT5', 'Bullwaves', ['BullWaves-LIVE']],
     ['MT5', 'PU Prime', ['PUPrime-Demo', 'PUPrime-Live', 'PUPrime-Live2', 'PUPrime-Live 4', 'PUPrime-Live 5', 'PUPrime-Live 6', 'PUPrime-Live 7', 'PUPrimeTrading-Live']],
     ['MT5', 'Raise FX', ['RaiseGlobal-Live', 'RaiseGlobalSA-LIVE']],
+    ['MT5', 'Vantage', ['VantageMarkets-Demo', 'VantageMarkets-Live'].concat([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 17, 19, 21].map(function (i) { return 'VantageMarkets-Live ' + i; }))],
     ['MT5', 'VT Markets', ['VTMarkets-Demo'].concat(n('VTMarkets-Live', 1, 9), ['VTMarketsLtd-Live 4'])]
   ];
   var CATALOG = [];

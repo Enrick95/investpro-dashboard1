@@ -138,7 +138,7 @@ test("WhatsApp and Telegram are optional but normalized when given", async () =>
 });
 
 test("the broker the member picks goes on the request; « Autre broker » leaves the origin to confirm", async () => {
-  for (const [broker, saved] of [["vtmarkets", "vtmarkets"], ["raise_fx", "raise_fx"], ["puprime", "puprime"], ["axi", "axi"], ["bullwaves", "bullwaves"], ["autre", null]]) {
+  for (const [broker, saved] of [["vtmarkets", "vtmarkets"], ["raise_fx", "raise_fx"], ["puprime", "puprime"], ["axi", "axi"], ["bullwaves", "bullwaves"], ["vantage", "vantage"], ["autre", null]]) {
     const api = fixture();
     const response = await api.post({ ...member, broker });
     assert.equal(response.status, 201, broker);
@@ -198,7 +198,7 @@ test("right after the access code, the page offers to connect MetaTrader through
   assert.ok(page.includes("$('codeOk').onclick=function(){try{sessionStorage.removeItem(CODE_KEY)}catch(e){}show(3)};"), "The step comes right after the access code");
   // Only the VIP brokers are offered, each with its platforms; servers are sorted by their own names.
   const brokers = [...page.matchAll(/\{key:'([a-z_]+)',label:'([^']+)',pf:\[([^\]]+)\]/g)].map(match => `${match[1]} ${match[2]} ${match[3].replace(/'/g, "")}`);
-  assert.deepEqual(brokers, ["axi Axi MT4,MT5", "bullwaves Bullwaves MT5", "puprime PU Prime MT4,MT5", "raise_fx Raise FX MT5", "vtmarkets VT Markets MT4,MT5"]);
+  assert.deepEqual(brokers, ["axi Axi MT4,MT5", "bullwaves Bullwaves MT5", "puprime PU Prime MT4,MT5", "raise_fx Raise FX MT5", "vantage Vantage MT4,MT5", "vtmarkets VT Markets MT4,MT5"]);
   assert.doesNotMatch(page, /Fusion/i, "Fusion Markets is not one of the VIP brokers");
   assert.match(page, /function brokerOf\(b\)\{[^}]*x\.re\.test\(b\.server\)\|\|x\.re\.test\(b\.label\)/);
 });
@@ -206,7 +206,7 @@ test("right after the access code, the page offers to connect MetaTrader through
 test("the déjà-membre page asks for the broker, a subscription with its payment date, or another broker, before sending", () => {
   const page = fs.readFileSync(path.join(project, "public/vip-deja-membre-v2.html"), "utf8");
   const choices = [...page.matchAll(/class="bk" data-bk="([a-z_]+)"/g)].map(match => match[1]);
-  assert.deepEqual(choices, ["vtmarkets", "raise_fx", "puprime", "axi", "bullwaves", "abonnement", "autre"]);
+  assert.deepEqual(choices, ["vtmarkets", "raise_fx", "puprime", "axi", "bullwaves", "vantage", "abonnement", "autre"]);
   assert.match(page, /if\(!BK\)\{[^}]*return fail\('Choisis ton broker/, "The form stops until a choice is made");
   assert.match(page, /<div id="paidBox" hidden>[\s\S]*?<input id="paid" type="date"/, "The payment date waits, hidden, under the choices");
   assert.match(page, /\$\('paidBox'\)\.hidden=BK!=='abonnement'/, "It appears only for a subscription");

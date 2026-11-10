@@ -1,4 +1,4 @@
-import { VIP_AFFILIATION_BROKERS, normalizeVipPersonName, type VipAffiliationBroker } from "@/lib/vip/identity";
+import { isVipAffiliationBroker, normalizeVipPersonName, type VipAffiliationBroker } from "@/lib/vip/identity";
 
 const EMAIL = /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$/;
 const str = (value: unknown) => (typeof value === "string" ? value.trim() : "");
@@ -52,8 +52,9 @@ export function parseExistingMemberIdentity(body: Record<string, unknown>): Exis
       paidOn = paid;
     }
   } else if (declared && declared !== EXISTING_MEMBER_OTHER_BROKER) {
-    broker = VIP_AFFILIATION_BROKERS.find(item => item.value === declared)?.value ?? null;
-    if (!broker) return { ok: false, field: "broker", error: "Choisis ton broker, ton abonnement ou « Autre broker »." };
+    // The current brokers, plus Vantage: members who joined through it are still in the VIP.
+    if (!isVipAffiliationBroker(declared)) return { ok: false, field: "broker", error: "Choisis ton broker, ton abonnement ou « Autre broker »." };
+    broker = declared;
   }
   return { ok: true, value: { firstName, lastName, email, phone, telegram: telegram ? telegram.toLowerCase() : null, type, broker, paidOn } };
 }

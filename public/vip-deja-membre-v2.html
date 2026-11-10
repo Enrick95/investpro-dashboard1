@@ -294,6 +294,7 @@ select:disabled{color:var(--dim);cursor:not-allowed}
 <button type="button" class="bk" data-bk="puprime" aria-pressed="false"><span>PU</span>PU Prime</button>
 <button type="button" class="bk" data-bk="axi" aria-pressed="false"><span>A</span>Axi</button>
 <button type="button" class="bk" data-bk="bullwaves" aria-pressed="false"><span>B</span>Bullwaves</button>
+<button type="button" class="bk" data-bk="vantage" aria-pressed="false"><span>V</span>Vantage</button>
 <button type="button" class="bk" data-bk="abonnement" aria-pressed="false"><span>€</span>Abonnement</button>
 <button type="button" class="bk" data-bk="autre" aria-pressed="false"><span>+</span>Autre broker</button>
 </div>
@@ -558,6 +559,7 @@ var MT_BROKERS=[
   {key:'bullwaves',label:'Bullwaves',pf:['MT5'],re:/bullwaves/i},
   {key:'puprime',label:'PU Prime',pf:['MT4','MT5'],re:/^pu ?prime/i},
   {key:'raise_fx',label:'Raise FX',pf:['MT5'],re:/^raise/i},
+  {key:'vantage',label:'Vantage',pf:['MT4','MT5'],re:/^vantage/i},
   {key:'vtmarkets',label:'VT Markets',pf:['MT4','MT5'],re:/^vt ?markets/i}
 ];
 function mtOn(){return S.mtAvailable!==false}
