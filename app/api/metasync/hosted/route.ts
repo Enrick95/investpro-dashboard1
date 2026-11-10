@@ -1,7 +1,7 @@
 import { brokers } from '@/lib/metasync/hosted';
 import { randomBytes } from 'node:crypto';
 import { database, digest, sameOrigin } from '@/lib/metasync/server';
-import { body, hostedUser, seal } from '@/lib/metasync/hosted';
+import { awaitingInstall, body, hostedUser, seal } from '@/lib/metasync/hosted';
 import { issueHostedRequestToken, verifyHostedRequestToken } from '@/lib/metasync/request-proof';
 
 export const runtime = 'nodejs';
@@ -229,7 +229,13 @@ export async function POST(req: Request) {
       return reply({ error: 'InvestPro n’a pas pu enregistrer cette connexion. Réessaie ou contacte le support.' }, 503);
     }
 
-    return reply({ ok: true, id: data });
+    // Server not installed on the hosting PC yet: the team sees the request in Admin › Serveurs MT4 / MT5.
+    if (awaitingInstall(broker)) {
+      try {
+        await db.rpc('investpro_request_server', { p_user: user.id, p_broker: broker.label, p_platform: broker.platform, p_server: broker.server });
+      } catch { /* the connection is saved either way */ }
+    }
+    return reply({ ok: true, id: data, awaitingInstall: awaitingInstall(broker) });
   } catch {
     return reply({ error: 'InvestPro n’a pas pu enregistrer cette connexion. Réessaie ou contacte le support.' }, 503);
   }

@@ -578,8 +578,11 @@ function mtPrefetch(){
   return MT.loading;
 }
 function activeConnections(){return MT.connections.filter(function(c){return c.active})}
+function installing(c){return String(c.broker_id||'').indexOf('fallback-')===0}
 function mtStatus(c){
   var m=c.investpro_mt_connections,fresh=!!m.last_sync&&Date.now()-Date.parse(m.last_sync)<=180000;
+  // Serveur pas encore installé sur le PC d'hébergement : l'équipe l'ajoute, la connexion démarre ensuite.
+  if(installing(c)&&!(c.status==='syncing'&&m.last_sync))return ['Serveur en ajout','wait'];
   if(c.status==='error')return ['Échec','bad'];
   if(c.status==='syncing'||c.status==='ready'){if(fresh)return ['Connecté ✓','ok'];if(m.last_sync)return ['Synchro interrompue','bad']}
   if(c.status==='queued'||c.status==='capacity')return ['En attente','wait'];
@@ -641,10 +644,10 @@ function renderMt(){
   box.hidden=!has;
   $('f3').hidden=!form;
   $('mtLead').textContent=has&&!form?'Ton compte est connecté : tes trades arrivent tout seuls dans ton Journal VIP.':'Connecte-le maintenant : tes trades arrivent tout seuls dans ton Journal VIP, prêt dès que ton accès est validé. Rien à installer.';
-  var w=watched(),failed=!!w&&mtStatus(w)[1]==='bad',pending=list.some(function(c){return mtStatus(c)[1]==='wait'}),msg=$('mtState');
+  var w=watched(),failed=!!w&&mtStatus(w)[1]==='bad',pending=list.some(function(c){return mtStatus(c)[1]==='wait'}),adding=list.some(function(c){return mtStatus(c)[0]==='Serveur en ajout'}),msg=$('mtState');
   msg.hidden=form||!(failed||pending);
   msg.className='mt-msg'+(failed?' bad':'');
-  msg.textContent=failed?'La connexion n’a pas abouti. Vérifie le serveur, le numéro de compte et le mot de passe, puis réessaie.':'Ton historique arrive dans ton Journal dans quelques minutes. Tu peux continuer : la connexion se termine toute seule.';
+  msg.textContent=failed?'La connexion n’a pas abouti. Vérifie le serveur, le numéro de compte et le mot de passe, puis réessaie.':adding?'Ton compte est enregistré. L’équipe ajoute ton serveur : ton Journal se remplira tout seul dès qu’il est prêt. Tu peux continuer.':'Ton historique arrive dans ton Journal dans quelques minutes. Tu peux continuer : la connexion se termine toute seule.';
   $('mtNext').hidden=form;
   $('mtAdd').hidden=form;$('mtAdd').textContent=failed?'Réessayer':'Ajouter un autre compte';
   $('mtLater').hidden=!form;$('mtLater').textContent=has?'Retour':MT.asked?'Continuer':'Plus tard';

@@ -41,10 +41,14 @@ const BULLWAVES_MT5: Broker = {
  * One entry per platform and server. The hosting PC can hold several IDs (aliases) for the same server; members
  * see it once. A named template is preferred over a legacy « fallback-… » alias, both being installed on the PC.
  */
+function serverKey(row: Broker): string {
+  return `${row.platform}:${row.server.trim().toLowerCase()}`;
+}
+
 function uniqueServers(rows: Broker[]): Broker[] {
   const kept = new Map<string, Broker>();
   for (const row of rows) {
-    const key = `${row.platform}:${row.server.trim().toLowerCase()}`;
+    const key = serverKey(row);
     const seen = kept.get(key);
     if (!seen || (seen.id.startsWith('fallback-') && !row.id.startsWith('fallback-'))) kept.set(key, row);
   }
@@ -87,7 +91,18 @@ export function brokers(): Broker[] {
       b.server.length <= 120 &&
       !/[\r\n\0]/.test(b.server);
   });
-  return configured.length ? includeBullwaves(uniqueServers(configured)) : fallbackBrokers();
+  if (!configured.length) return fallbackBrokers();
+  // The templates installed on the hosting PC come first, with their own IDs. Every other known server stays
+  // offered (« fallback-… » ID) so members still find theirs: the connection is saved, the team is asked to install
+  // the server (see the hosted route), and the PC connects it once a template with that ID is registered.
+  const installed = uniqueServers(configured);
+  const onPc = new Set(installed.map(serverKey));
+  return includeBullwaves(uniqueServers([...installed, ...fallbackBrokers().filter(item => !onPc.has(serverKey(item)))]));
+}
+
+/** True when this catalog entry is not (yet) a template installed on the hosting PC. */
+export function awaitingInstall(broker: Broker): boolean {
+  return broker.id.startsWith('fallback-');
 }
 
 // La connexion MetaTrader hébergée est disponible pour tout utilisateur authentifié.

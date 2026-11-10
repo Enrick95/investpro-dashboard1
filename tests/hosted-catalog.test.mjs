@@ -29,17 +29,22 @@ const installed = [
 
 const bullwaves = { id: "bullwaves-mt5-live", label: "Bullwaves", platform: "MT5", server: "BullWaves-LIVE" };
 
-test("the templates installed on the hosting PC are offered with their own IDs, plus the Bullwaves MT5 server", () => {
-  const list = brokers({ METASYNC_HOSTED_BROKERS: JSON.stringify(installed) });
-  assert.deepEqual(Array.from(list, item => item.id), [...installed.map(item => item.id), bullwaves.id]);
-  assert.deepEqual({ ...list[list.length - 1] }, bullwaves);
-  assert.ok(!list.some(item => item.id.startsWith("fallback-")), "No emergency entry when the configuration is valid");
+const onPc = list => Array.from(list).filter(item => !item.id.startsWith("fallback-"));
+
+test("the templates installed on the hosting PC come first with their own IDs, then every other known server", () => {
+  const list = Array.from(brokers({ METASYNC_HOSTED_BROKERS: JSON.stringify(installed) }));
+  assert.deepEqual(list.slice(0, installed.length).map(item => item.id), installed.map(item => item.id), "Installed servers first, in order");
+  assert.ok(list.length > 100, "The whole list of known servers stays offered");
+  assert.deepEqual(onPc(list).map(item => item.id), [...installed.map(item => item.id), bullwaves.id]);
+  // A server installed on the PC is never offered a second time under its emergency ID.
+  for (const item of installed) assert.equal(list.filter(other => other.platform === item.platform && other.server.toLowerCase() === item.server.toLowerCase()).length, 1, item.server);
+  assert.ok(list.some(item => item.id.startsWith("fallback-mt4-vt-markets") && item.server === "VTMarkets-Live 3"), "MT4 brokers are back");
 });
 
 test("Bullwaves is not added twice when the configuration already lists its server", () => {
   const list = brokers({ METASYNC_HOSTED_BROKERS: JSON.stringify([...installed, { id: "mt5-bullwaves-live", label: "Bullwaves", platform: "MT5", server: "Bullwaves-Live" }]) });
-  assert.equal(list.filter(item => /bullwaves/i.test(item.server)).length, 1);
-  assert.equal(list.length, installed.length + 1);
+  assert.equal(Array.from(list).filter(item => /bullwaves/i.test(item.server)).length, 1);
+  assert.equal(onPc(list).length, installed.length + 1);
 });
 
 test("a server the PC holds under two IDs is offered once, under its named template", () => {
@@ -50,12 +55,13 @@ test("a server the PC holds under two IDs is offered once, under its named templ
     { id: "axi-mt5-us50-demo", label: "Axi", platform: "MT5", server: "axi-us50-demo" },
     { id: "puprime-mt4-live6", label: "PU Prime", platform: "MT4", server: "PUPrime-Live 6" },
   ]) });
-  assert.deepEqual(Array.from(list, item => item.id), ["puprime-mt5-live6", "mt5-axi-us50-demo", "puprime-mt4-live6", bullwaves.id], "Same order, one per platform and server");
+  assert.deepEqual(onPc(list).map(item => item.id), ["puprime-mt5-live6", "mt5-axi-us50-demo", "puprime-mt4-live6", bullwaves.id], "Same order, one per platform and server");
+  assert.equal(Array.from(list).filter(item => item.platform === "MT5" && item.server.toLowerCase() === "puprime-live 6").length, 1, "No emergency twin either");
 });
 
 test("only malformed entries are dropped; the emergency list is used only when nothing is valid", () => {
   const list = brokers({ METASYNC_HOSTED_BROKERS: JSON.stringify([...installed, { id: "Bad ID", label: "X", platform: "MT5", server: "X-Live" }, { id: "mt5-x", label: "X", platform: "MT6", server: "X-Live" }]) });
-  assert.equal(list.length, installed.length + 1, "The installed templates, plus Bullwaves");
+  assert.equal(onPc(list).length, installed.length + 1, "The installed templates, plus Bullwaves");
   for (const emergency of [brokers({ METASYNC_HOSTED_BROKERS: "not json" }), brokers({})]) {
     assert.ok(emergency.every(item => item.id.startsWith("fallback-") || item.id === bullwaves.id));
     assert.ok(emergency.some(item => item.id === bullwaves.id), "Bullwaves stays offered with the emergency list");

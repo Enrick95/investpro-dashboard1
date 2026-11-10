@@ -10,10 +10,11 @@ import ts from "typescript";
 const root = path.resolve(import.meta.dirname, "..");
 const user = { id: "33333333-3333-4333-8333-333333333333" };
 const key = "a".repeat(64);
-const broker = { id: "b1", label: "VT Markets", platform: "MT5", server: "VTMarkets-Live" };
-const payload = { broker: "b1", login: "88123456", password: "lecture-seule", currency: "EUR", type: "real", syncConsent: true };
+const installedBroker = { id: "mt5-vtmarkets-live", label: "VT Markets", platform: "MT5", server: "VTMarkets-Live" };
+const notInstalled = { id: "fallback-mt5-vt-markets-5", label: "VT Markets", platform: "MT5", server: "VTMarkets-Live 4" };
+const payload = { broker: installedBroker.id, login: "88123456", password: "lecture-seule", currency: "EUR", type: "real", syncConsent: true };
 
-function hostedRoute(databaseError) {
+function hostedRoute(databaseError, chosen = installedBroker) {
   const calls = { rpc: [] };
   const cjsModule = { exports: {} };
   const modules = {
@@ -24,7 +25,7 @@ function hostedRoute(databaseError) {
       database: () => ({ async rpc(name, args) { calls.rpc.push({ name, args }); return { data: databaseError ? null : "job-1", error: databaseError }; } }),
     },
     "@/lib/metasync/request-proof": { issueHostedRequestToken: () => "token", verifyHostedRequestToken: () => true },
-    "@/lib/metasync/hosted": { brokers: () => [broker], async hostedUser() { return user; }, async body() { return payload; }, seal: () => "sealed" },
+    "@/lib/metasync/hosted": { brokers: () => [installedBroker, notInstalled], awaitingInstall: item => item.id.startsWith("fallback-"), async hostedUser() { return user; }, async body() { return { ...payload, broker: chosen.id }; }, seal: () => "sealed" },
   };
   const source = fs.readFileSync(path.join(root, "app/api/metasync/hosted/route.ts"), "utf8");
   vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText, {
@@ -57,6 +58,16 @@ test("a new account is still paired as before", async () => {
   const route = hostedRoute(null);
   const result = await route.post();
   assert.equal(result.status, 200);
-  assert.deepEqual(result.body, { ok: true, id: "job-1" });
+  assert.deepEqual(result.body, { ok: true, id: "job-1", awaitingInstall: false });
   assert.equal(route.calls.rpc[0].name, "investpro_hosted_pair_auto");
+  assert.equal(route.calls.rpc.length, 1, "An installed server needs no request");
+});
+
+test("a server not installed on the hosting PC yet is saved, and the team gets the request to install it", async () => {
+  const route = hostedRoute(null, notInstalled);
+  const result = await route.post();
+  assert.equal(result.status, 200);
+  assert.deepEqual(result.body, { ok: true, id: "job-1", awaitingInstall: true });
+  assert.deepEqual(route.calls.rpc.map(call => call.name), ["investpro_hosted_pair_auto", "investpro_request_server"]);
+  assert.deepEqual({ ...route.calls.rpc[1].args }, { p_user: user.id, p_broker: "VT Markets", p_platform: "MT5", p_server: "VTMarkets-Live 4" });
 });
