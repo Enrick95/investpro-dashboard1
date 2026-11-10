@@ -7,6 +7,7 @@ import styles from "../clip.module.css";
 import ClipLogin from "../ClipLogin";
 import { ClipApiError, clipApi, clipSignOut } from "@/lib/clip/client";
 import {
+  CLIP_PLATFORMS,
   CLIP_PUBLIC_URL,
   candidateWhatsAppText,
   ENRICK_WHATSAPP_LABEL,
@@ -213,6 +214,9 @@ function normalizeUrl(raw: string): string {
 function profileUrl(account: Pick<Account, "platform" | "handle">): string {
   if (account.platform === "tiktok") return `https://www.tiktok.com/@${account.handle}`;
   if (account.platform === "instagram") return `https://www.instagram.com/${account.handle}`;
+  if (account.platform === "facebook") return `https://www.facebook.com/${account.handle}`;
+  if (account.platform === "snapchat") return `https://www.snapchat.com/add/${account.handle}`;
+  if (account.platform === "x") return `https://x.com/${account.handle}`;
   return `https://www.youtube.com/@${account.handle}`;
 }
 
@@ -296,7 +300,7 @@ function emptyForm(todayIso: string): CampaignFormData {
   return {
     id: null,
     title: "",
-    platforms: "TikTok · Shorts · Reels",
+    platforms: "TikTok · Instagram · YouTube Shorts · Facebook",
     starts_on: todayIso,
     ends_on: end,
     quota_per_clipper: "10",
@@ -607,15 +611,16 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
       ticks: [0, 1, 2, 3].map((i) => ({ label: compact(step * i), value: step * i })),
       scaleMax: step * 3.5,
     };
-    const byPlatform: Record<ClipPlatform, number> = { tiktok: 0, instagram: 0, youtube: 0 };
-    const clipsByPlatform: Record<ClipPlatform, number> = { tiktok: 0, instagram: 0, youtube: 0 };
+    const byPlatform: Record<ClipPlatform, number> = { tiktok: 0, instagram: 0, youtube: 0, facebook: 0, snapchat: 0, x: 0 };
+    const clipsByPlatform: Record<ClipPlatform, number> = { tiktok: 0, instagram: 0, youtube: 0, facebook: 0, snapchat: 0, x: 0 };
     for (const [id, value] of gainsP.byClip) {
       const clip = base.clipsById.get(id);
       if (clip) byPlatform[clip.platform] += value;
     }
     for (const clip of data.clips) if (clip.status !== "rejected" && dayNumber(new Date(clip.published_at).getTime()) >= startDay) clipsByPlatform[clip.platform] += 1;
-    const totalPlatforms = byPlatform.tiktok + byPlatform.instagram + byPlatform.youtube;
-    const platforms = (([["tiktok", "TikTok"], ["youtube", "YouTube Shorts"], ["instagram", "Instagram Reels"]] as [ClipPlatform, string][])
+    const totalPlatforms = CLIP_PLATFORMS.reduce((sum, key) => sum + byPlatform[key], 0);
+    const platforms = (([["tiktok", "TikTok"], ["youtube", "YouTube Shorts"], ["instagram", "Instagram"], ["facebook", "Facebook"], ["snapchat", "Snapchat"], ["x", "X (Twitter)"]] as [ClipPlatform, string][])
+      .filter(([key]) => ["tiktok", "youtube", "instagram"].includes(key) || byPlatform[key] > 0 || clipsByPlatform[key] > 0)
       .map(([key, label]) => ({ label, value: `${compact(byPlatform[key])} vues · ${plural(clipsByPlatform[key], "clip")}`, pct: pct(byPlatform[key], totalPlatforms), raw: byPlatform[key] }))
       .sort((a, b) => b.raw - a.raw))
       .map(({ label, value, pct: share }) => ({ label, value, pct: share }));

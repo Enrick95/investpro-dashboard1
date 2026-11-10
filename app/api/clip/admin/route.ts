@@ -150,7 +150,7 @@ async function saveCampaign(db: SupabaseClient, body: Body) {
   const id = body.id ? uuid(body, "id") : null;
   const title = text(body, "title");
   if (title.length < 3 || title.length > 80) throw new ClipError("Titre de campagne : 3 à 80 caractères.");
-  const platforms = text(body, "platforms") || "TikTok · Shorts · Reels";
+  const platforms = text(body, "platforms") || "TikTok · Instagram · YouTube Shorts · Facebook";
   if (platforms.length > 80) throw new ClipError("Plateformes : 80 caractères maximum.");
   const brief = text(body, "brief");
   if (brief.length > 2000) throw new ClipError("Brief : 2 000 caractères maximum.");

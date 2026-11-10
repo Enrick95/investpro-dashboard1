@@ -110,6 +110,9 @@ export function ClipperProfile({ v }: { v: ProfileVals }) {
                   <option value="tiktok">TikTok</option>
                   <option value="instagram">Instagram</option>
                   <option value="youtube">YouTube</option>
+                  <option value="facebook">Facebook</option>
+                  <option value="snapchat">Snapchat</option>
+                  <option value="x">X (Twitter)</option>
                 </select>
               </label>
               <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}><span style={label}>Abonnés</span>

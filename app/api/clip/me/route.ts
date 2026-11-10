@@ -93,7 +93,7 @@ export async function PATCH(request: Request) {
   }
 }
 
-/** Ajout ou retrait d'un compte TikTok, Instagram ou YouTube. */
+/** Ajout ou retrait d'un compte (TikTok, Instagram, YouTube, Facebook, Snapchat ou X). */
 export async function POST(request: Request) {
   try {
     const ctx = await authenticateClip(request);
@@ -105,7 +105,7 @@ export async function POST(request: Request) {
     const action = text(body, "action");
     if (action === "add_account") {
       const platform = text(body, "platform");
-      if (!(CLIP_PLATFORMS as readonly string[]).includes(platform)) throw new ClipError("Choisis TikTok, Instagram ou YouTube.");
+      if (!(CLIP_PLATFORMS as readonly string[]).includes(platform)) throw new ClipError("Choisis le réseau de ton compte dans la liste.");
       const handle = normalizeHandle(text(body, "handle"));
       if (!handle) throw new ClipError("Nom de compte invalide (lettres, chiffres, point, tiret).");
       const followersRaw = body.followers;

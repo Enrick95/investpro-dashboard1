@@ -8,6 +8,11 @@ import ClipLogin from "../ClipLogin";
 import { ClipApiError, clipApi, clipSignIn, clipSignOut, clipToken } from "@/lib/clip/client";
 import { candidateWhatsAppText, enrickWhatsApp } from "@/lib/clip/rules";
 import { StartSlides, startSlides } from "../views/clipper/StartSlides";
+import { ClipBackdrop, JoinHero } from "../views/clipper/ClipHero";
+
+function scrollToId(id: string) {
+  document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
 
 type Me = { email: string | null; clipper: { id: string } | null; candidate?: { status: "new" | "accepted" | "refused"; display_name?: string } | null };
 type Phase = "loading" | "signup" | "login" | "form" | "member" | "pending" | "sent" | "error";
@@ -104,7 +109,8 @@ export default function JoinClippers() {
 
   return (
     <div className={styles.page}>
-      <div className={styles.app}>
+      <ClipBackdrop />
+      <div className={styles.app} style={{ position: "relative", zIndex: 1 }}>
         <header className={styles.topbar}>
           <Link href="/clip" className={styles.brand} aria-label="Espace clippeurs">
             <svg width="28" height="28" viewBox="0 0 30 30" aria-hidden="true"><rect x="1" y="1" width="28" height="28" rx="9" fill="none" stroke="#F0C575" strokeWidth="1.6" /><path d="M12.5 9.5v11l8.5-5.5z" fill="#F0C575" /></svg>
@@ -156,9 +162,15 @@ export default function JoinClippers() {
           ) : null}
 
           {phase === "signup" || phase === "form" ? (
-            <form onSubmit={submit} className={styles.stackLg}>
+            <>
+            <JoinHero onJoin={() => scrollToId("inscription")} onHow={() => scrollToId("comment")} />
+            <div id="comment" style={{ display: "flex", flexDirection: "column", gap: 10, scrollMarginTop: 16, marginTop: 8 }}>
+              <h2 className={styles.h3} style={{ margin: 0, fontSize: 13, letterSpacing: "0.08em", color: "#A8ADA3" }}>COMMENT ÇA MARCHE</h2>
+              <StartSlides slides={startSlides("join")} label="Comment ça marche" />
+            </div>
+            <form id="inscription" onSubmit={submit} className={styles.stackLg} style={{ scrollMarginTop: 16, marginTop: 8, padding: 18, borderRadius: 22, background: "rgba(18,21,17,0.88)", border: "1px solid rgba(240,197,117,0.3)" }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <h1 className={styles.h1}>Deviens clippeur</h1>
+                <h2 className={styles.h1} style={{ margin: 0, fontSize: 24 }}>Inscris-toi</h2>
                 <span className={`${styles.small} ${styles.muted}`}>2 minutes. Réponse sous 48 h sur WhatsApp.</span>
               </div>
               {signup ? (
@@ -172,8 +184,6 @@ export default function JoinClippers() {
                   <button type="button" className={styles.linkBtn} onClick={async () => { await clipSignOut(); setAccount(null); setPhase("signup"); }}>Changer de compte</button>
                 </div>
               )}
-              <StartSlides slides={startSlides("join")} label="Comment ça marche" />
-
               <div className={styles.field}>
                 <label htmlFor="j-name" className={styles.label}>Prénom et initiale du nom</label>
                 <input id="j-name" className={styles.input} maxLength={60} autoComplete="name" placeholder="Ex. Kevin L." value={name} onChange={(event) => setName(event.target.value)} required />
@@ -232,6 +242,7 @@ export default function JoinClippers() {
               <span className={`${styles.small} ${styles.muted}`} style={{ textAlign: "center" }}>En envoyant, tu acceptes d&apos;être contacté sur WhatsApp au sujet du programme clippeurs.</span>
               <a href={enrickWhatsApp("Salut Enrick, j'ai une question sur le programme clippeurs : ")} target="_blank" rel="noopener noreferrer" className={styles.linkBtn} style={{ alignSelf: "center", textDecoration: "none" }}>Une question avant de postuler ? Écris-moi sur WhatsApp</a>
             </form>
+            </>
           ) : null}
         </main>
       </div>
