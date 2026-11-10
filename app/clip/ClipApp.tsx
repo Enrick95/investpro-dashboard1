@@ -44,6 +44,7 @@ import {
   type PayoutMethod,
   type PayoutRow,
 } from "@/lib/clip/rules";
+import { clipPathNow, useClipPath } from "./views/clipPath";
 import { ago, compact, dateRange, dayMonth, firstNameOf, initialsOf, longDay, maskDetails, monthName, ordinal, pct, plural, rankLabel, shortDay } from "@/lib/clip/format";
 import { ClipperShell, type ClipperTab } from "./views/clipper/Shell";
 import { ClipperHome, type HomeTodo } from "./views/clipper/Home";
@@ -129,6 +130,7 @@ function Brand() {
 }
 
 export default function ClipApp() {
+  const to = useClipPath();
   const [state, setState] = useState<LoadState>({ phase: "loading" });
 
   const load = useCallback(async () => {
@@ -214,11 +216,11 @@ export default function ClipApp() {
             <>
               <h1 className={styles.h1}>Rejoins les clippeurs</h1>
               <p className={styles.soft}>Ton compte n&apos;a pas encore d&apos;espace clippeur. Envoie ta candidature en 2 minutes.</p>
-              <Link href="/clip/rejoindre" className={`${styles.btn} ${styles.btnBlock}`}>Envoyer ma candidature</Link>
+              <Link href={to("/clip")} className={`${styles.btn} ${styles.btnBlock}`}>Envoyer ma candidature</Link>
             </>
           )}
-          {me.owner ? <Link href="/clip/admin" className={`${styles.btnGhost} ${styles.btnBlock}`}>Ouvrir l&apos;espace admin</Link> : null}
-          <button type="button" className={styles.linkBtn} onClick={async () => { await clipSignOut(); window.location.href = "/clip"; }}>Changer de compte</button>
+          {me.owner ? <Link href={to("/clip/admin")} className={`${styles.btnGhost} ${styles.btnBlock}`}>Ouvrir l&apos;espace admin</Link> : null}
+          <button type="button" className={styles.linkBtn} onClick={async () => { await clipSignOut(); window.location.href = clipPathNow("/clip/login"); }}>Changer de compte</button>
         </div>
       </div>
     );
@@ -644,7 +646,7 @@ export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; 
             window.location.href = preview.backHref;
             return;
           }
-          void clipSignOut().then(() => { window.location.href = "/clip"; });
+          void clipSignOut().then(() => { window.location.href = clipPathNow("/clip/login"); });
         },
       }} />
     );

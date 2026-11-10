@@ -61,6 +61,16 @@ export function clipBase(origin: string): string {
   return `${origin}/clip`;
 }
 
+/** Chemin d'une page de l'espace : à la racine sur investproclip.com (/login), sous /clip ailleurs (/clip/login). */
+export function clipPath(origin: string, path: string): string {
+  return clipBase(origin) === CLIP_PUBLIC_URL ? path.replace(/^\/clip(?=[/?#]|$)/, "") || "/" : path;
+}
+
+/** Page de connexion des clippeurs, qui ouvre aussi leur espace une fois connectés. */
+export function clipSpaceUrl(origin: string): string {
+  return `${clipBase(origin)}/login`;
+}
+
 /** Page vers laquelle renvoie le lien traqué de chaque clippeur (le lien en bio d'Enrick). */
 export const TRACKED_LINK_TARGET = "https://investprotrading.fr/enrick";
 

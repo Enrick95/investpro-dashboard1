@@ -1,12 +1,9 @@
-import type { Metadata } from "next";
-import ClipApp from "./ClipApp";
+import JoinClippers from "./rejoindre/JoinClippers";
+import { joinMetadata } from "./rejoindre/joinMetadata";
 
-export const metadata: Metadata = {
-  title: "Espace clippeurs",
-  description: "Espace des clippeurs d'Enrick95 : campagnes, vidéos à clipper, clips et paiements.",
-  robots: { index: false, follow: false },
-};
+/** investproclip.com : on arrive directement sur l'inscription ; les clippeurs se connectent sur /login. */
+export const metadata = joinMetadata;
 
-export default function ClipPage() {
-  return <ClipApp />;
+export default function ClipHomePage() {
+  return <JoinClippers />;
 }

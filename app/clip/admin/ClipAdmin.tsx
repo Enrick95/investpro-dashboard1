@@ -34,6 +34,8 @@ import {
   summarize,
   tiktokHandleFromUrl,
   trackedLink,
+  clipPath,
+  clipSpaceUrl,
   type CampaignRow,
   type ClipPlatform,
   type ClipRow,
@@ -43,6 +45,7 @@ import {
 } from "@/lib/clip/rules";
 import { ago, compact, dateRange, dayMonth, firstNameOf, initialsOf, longDay, maskDetails, maskPhone, monthName, ordinal, pct, plural, shortDay } from "@/lib/clip/format";
 import { AdminShell, type AdminSection, type NavCounts } from "../views/admin/Shell";
+import { useClipPath } from "../views/clipPath";
 import { Flash } from "../views/admin/kit";
 import { AdminOverview, type AlertRow, type CampaignCardData, type ChartData, type OverviewVals } from "../views/admin/Overview";
 import { AdminClippers, type ClipperFilter, type ClipperStatus, type ClippersVals, type FicheData, type StatusChip } from "../views/admin/Clippers";
@@ -315,6 +318,7 @@ function emptyForm(todayIso: string): CampaignFormData {
 }
 
 export default function ClipAdmin() {
+  const to = useClipPath();
   const [state, setState] = useState<LoadState>({ phase: "loading" });
 
   const load = useCallback(async () => {
@@ -347,7 +351,7 @@ export default function ClipAdmin() {
               <div className={styles.card} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <p className={styles.soft} style={{ margin: 0 }}>{state.message}</p>
                 <button type="button" className={`${styles.btn} ${styles.btnBlock}`} onClick={async () => { await clipSignOut(); retry(); }}>Changer de compte</button>
-                <Link href="/clip" className={`${styles.btnGhost} ${styles.btnBlock}`}>Retour à l&apos;espace clippeurs</Link>
+                <Link href={to("/clip/login")} className={`${styles.btnGhost} ${styles.btnBlock}`}>Retour à l&apos;espace clippeurs</Link>
               </div>
             )}
           </main>
@@ -440,7 +444,10 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
   const host = origin.replace(/^https?:\/\//, "");
   const clipHome = clipBase(origin);
   const clipHost = clipHome.replace(/^https?:\/\//, "");
-  const joinUrl = `${clipHome}/rejoindre`;
+  // investproclip.com = inscription ; investproclip.com/login = connexion et espace des clippeurs.
+  const joinUrl = clipHome;
+  const spaceUrl = clipSpaceUrl(origin);
+  const spaceHost = spaceUrl.replace(/^https?:\/\//, "");
   const today = dayNumber(now.getTime());
   const todayIso = dayIso(today);
   const cycle = cycleFor(now);
@@ -525,16 +532,16 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
   const unverified = data.accounts.filter((account) => !account.verified);
 
   const msg = {
-    welcome: (first: string) => `Salut ${first} ! Bienvenue dans l'équipe InvestPro Clip.\nTon espace clippeur : ${clipHome}\nConnecte-toi avec l'e-mail et le mot de passe choisis à l'inscription, ajoute tes comptes et lis la charte avant ton premier clip.`,
-    test: (first: string) => `Salut ${first} ! On démarre par une période de test : publie quelques clips sur la campagne en cours et je regarde ton montage.\nTon espace clippeur : ${clipHome} (même e-mail et mot de passe qu'à l'inscription).`,
+    welcome: (first: string) => `Salut ${first} ! Bienvenue dans l'équipe InvestPro Clip.\nTon espace clippeur : ${spaceUrl}\nConnecte-toi avec l'e-mail et le mot de passe choisis à l'inscription, ajoute tes comptes et lis la charte avant ton premier clip.`,
+    test: (first: string) => `Salut ${first} ! On démarre par une période de test : publie quelques clips sur la campagne en cours et je regarde ton montage.\nTon espace clippeur : ${spaceUrl} (même e-mail et mot de passe qu'à l'inscription).`,
     refused: (first: string) => `Salut ${first}, merci pour ta candidature ! Je ne peux pas te prendre pour le moment, je te recontacte dès qu'une place se libère.`,
     example: (first: string) => `Salut ${first} ! Merci pour ta candidature. Tu peux m'envoyer un exemple de montage que tu as déjà fait ?`,
     link: (first: string) => `Salut ${first} ! Voici le lien pour t'inscrire comme clippeur : ${joinUrl}`,
     idle: (first: string, days: number) => `Salut ${first} ! Ça fait ${days} jours sans nouveau clip.${mainCampaign && campaignPhase(mainCampaign, todayIso) === "live" ? ` La campagne « ${mainCampaign.title} » est ouverte,` : ""} tu peux reprendre quand tu veux. Besoin d'un coup de main ?`,
     ok: (first: string, title: string, amount: string) => `Salut ${first} ! Ton clip « ${title} » est validé : +${amount} sur ton prochain versement (le ${dayMonth(cycle.payDate)}). Continue comme ça !`,
     ko: (first: string, title: string, reason: string) => `Salut ${first}, ton clip « ${title} » n'est pas validé : ${reason.toLowerCase()}. Tu peux en proposer un autre en suivant la charte.`,
-    password: (first: string, password: string) => `Salut ${first} ! Voici ton mot de passe provisoire pour l'espace clippeurs : ${password}\nConnecte-toi sur ${clipHome} puis change-le dans ton profil.`,
-    method: (first: string, amount: string) => `Salut ${first} ! Tu as ${amount} acquis : ajoute ton moyen de paiement dans ton profil (${clipHome}#profil) pour être payé le ${dayMonth(cycle.payDate)} !`,
+    password: (first: string, password: string) => `Salut ${first} ! Voici ton mot de passe provisoire pour l'espace clippeurs : ${password}\nConnecte-toi sur ${spaceUrl} puis change-le dans ton profil.`,
+    method: (first: string, amount: string) => `Salut ${first} ! Tu as ${amount} acquis : ajoute ton moyen de paiement dans ton profil (${spaceUrl}#profil) pour être payé le ${dayMonth(cycle.payDate)} !`,
   };
 
   function campaignCard(campaign: CampaignRow): CampaignCardData {
@@ -691,7 +698,7 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
 
     return {
       dateLine: `${longDay(todayIso)} · ${lastUpdate ? `vues mises à jour ${ago(lastUpdate, now)}` : "aucune vue saisie pour l'instant"}`,
-      clipperView: leaders[0] ? `/clip/apercu?c=${leaders[0].id}` : data.clippers[0] ? `/clip/apercu?c=${data.clippers[0].id}` : "/clip",
+      clipperView: clipPath(origin, leaders[0] ? `/clip/apercu?c=${leaders[0].id}` : data.clippers[0] ? `/clip/apercu?c=${data.clippers[0].id}` : "/clip/login"),
       period,
       setPeriod,
       kpis: {
@@ -767,7 +774,7 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
       meta: `Réf. ${c.ref} · depuis le ${dayMonth(c.created_at)}${c.whatsapp ? ` · ${maskPhone(c.whatsapp)}` : ""}${c.telegram ? ` · @${c.telegram}` : ""}`,
       wa: waLink(c.whatsapp),
       link: trackedLink(origin, c.tracking_code),
-      previewHref: `/clip/apercu?c=${c.id}`,
+      previewHref: clipPath(origin, `/clip/apercu?c=${c.id}`),
       stats: [
         { value: compact(stat.views30), label: "vues · 30 j" },
         { value: String(stat.clips30), label: "clips · 30 j" },
@@ -1379,7 +1386,7 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
   function buildSettings(): SettingsVals {
     return {
       rows: [
-        { label: "Adresse de l'espace clippeurs", value: clipHost, note: clipHost.startsWith(CLIP_DOMAIN) ? "Ton domaine : à partager à ta communauté" : `Ton domaine : ${CLIP_DOMAIN}` },
+        { label: "Connexion des clippeurs", value: spaceHost, note: clipHost.startsWith(CLIP_DOMAIN) ? "Ils s'y connectent pour retrouver leur espace : campagnes, clips, paiements" : `Ton domaine : ${CLIP_DOMAIN}` },
         { label: "Lien d'inscription", value: joinUrl.replace(/^https?:\/\//, ""), note: "À partager : le clippeur crée son compte et postule au même endroit", copy: () => void copy(joinUrl, "join-settings"), copied: copied === "join-settings" },
         { label: "Lien traqué des clippeurs", value: `${clipHost}/l/… → ${TRACKED_LINK_TARGET.replace(/^https?:\/\//, "")}`, note: "Chaque clic est compté pour le clippeur" },
         { label: "Cycles de paiement", value: "Du 1er au 15 (versé le 16) · du 16 à la fin du mois (versé le 1er)" },
@@ -1448,7 +1455,7 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
   };
 
   return (
-    <AdminShell active={section} onSection={navigate} counts={counts} joinLabel={joinUrl.replace(/^https?:\/\//, "")} copied={copied === "join"} onCopyJoin={() => void copy(joinUrl, "join")} onSignOut={() => { void clipSignOut().then(() => window.location.assign("/clip/admin")); }} gap={section === "overview" ? "24px" : "20px"}>
+    <AdminShell active={section} onSection={navigate} counts={counts} joinLabel={joinUrl.replace(/^https?:\/\//, "")} copied={copied === "join"} onCopyJoin={() => void copy(joinUrl, "join")} onSignOut={() => { void clipSignOut().then(() => window.location.assign(clipPath(origin, "/clip/admin"))); }} gap={section === "overview" ? "24px" : "20px"}>
       <Flash flash={flash} />
       {section === "overview" ? <AdminOverview v={buildOverview()} /> : null}
       {section === "clippers" ? <AdminClippers v={buildClippers()} /> : null}

@@ -9,6 +9,7 @@ import { ClipApiError, clipApi, clipSignIn, clipSignOut, clipToken } from "@/lib
 import { candidateWhatsAppText, enrickWhatsApp } from "@/lib/clip/rules";
 import { StartSlides, startSlides } from "../views/clipper/StartSlides";
 import { ClipBackdrop, JoinHero } from "../views/clipper/ClipHero";
+import { clipPathNow, useClipPath } from "../views/clipPath";
 
 function scrollToId(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -21,6 +22,7 @@ const AVAILABILITY = ["1 à 3 clips par semaine", "4 à 7 clips par semaine", "8
 const hidden = { position: "absolute", left: "-10000px", width: 1, height: 1, overflow: "hidden" } as const;
 
 export default function JoinClippers() {
+  const to = useClipPath();
   const [phase, setPhase] = useState<Phase>("loading");
   const [loadError, setLoadError] = useState("");
   const [account, setAccount] = useState<string | null>(null);
@@ -48,8 +50,13 @@ export default function JoinClippers() {
       }
       const me = await clipApi<Me>("/api/clip/me");
       setAccount(me.email);
-      if (me.clipper) setPhase("member");
-      else if (me.candidate?.status === "new") {
+      if (me.clipper) {
+        // Un clippeur déjà accepté va directement dans son espace.
+        setPhase("member");
+        window.location.replace(clipPathNow("/clip/login"));
+        return;
+      }
+      if (me.candidate?.status === "new") {
         const applied = me.candidate.display_name ?? "";
         setName((current) => current || applied);
         setPhase("pending");
@@ -105,6 +112,7 @@ export default function JoinClippers() {
   }
 
   const signup = phase === "signup";
+  const connected = phase === "member" || phase === "pending" || phase === "sent" || phase === "form";
   const ready = name.trim() && whatsapp.trim() && accounts.trim() && (!signup || (email.trim() && password.length >= 8));
 
   return (
@@ -112,10 +120,15 @@ export default function JoinClippers() {
       <ClipBackdrop />
       <div className={styles.app} style={{ position: "relative", zIndex: 1 }}>
         <header className={styles.topbar}>
-          <Link href="/clip" className={styles.brand} aria-label="Espace clippeurs">
+          <Link href={to("/clip")} className={styles.brand} aria-label="InvestPro Clip, accueil">
             <svg width="28" height="28" viewBox="0 0 30 30" aria-hidden="true"><rect x="1" y="1" width="28" height="28" rx="9" fill="none" stroke="#F0C575" strokeWidth="1.6" /><path d="M12.5 9.5v11l8.5-5.5z" fill="#F0C575" /></svg>
             <span className={styles.brandName}>InvestPro</span>
             <span className={styles.brandPill}>CLIP</span>
+          </Link>
+          {/* Les clippeurs déjà inscrits se connectent ici (investproclip.com/login). */}
+          <Link href={to("/clip/login")} className={styles.loginBtn}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F0C575" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" /><path d="M10 17l5-5-5-5" /><path d="M15 12H3" /></svg>
+            {connected ? "Mon espace" : "Se connecter"}
           </Link>
         </header>
         <main className={styles.main} style={{ paddingBottom: 48 }}>
@@ -135,7 +148,7 @@ export default function JoinClippers() {
           {phase === "member" ? (
             <div className={styles.center}>
               <h1 className={styles.h1}>Tu es déjà clippeur</h1>
-              <Link href="/clip" className={`${styles.btn} ${styles.btnBlock}`}>Ouvrir mon espace</Link>
+              <Link href={to("/clip/login")} className={`${styles.btn} ${styles.btnBlock}`}>Ouvrir mon espace</Link>
             </div>
           ) : null}
 
@@ -148,7 +161,7 @@ export default function JoinClippers() {
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20.5 11.6a8.4 8.4 0 0 1-12.4 7.4L3.5 20.5l1.5-4.3a8.4 8.4 0 1 1 15.5-4.6z" /></svg>
                 Prévenir Enrick sur WhatsApp
               </a>
-              <Link href="/clip" className={`${styles.btnGhost} ${styles.btnBlock}`}>Aller à l&apos;espace clippeurs</Link>
+              <Link href={to("/clip/login")} className={`${styles.btnGhost} ${styles.btnBlock}`}>Aller à l&apos;espace clippeurs</Link>
               <h2 className={styles.h3} style={{ alignSelf: "stretch", textAlign: "left", marginTop: 10 }}>En attendant ma réponse, tu peux déjà commencer</h2>
               <StartSlides slides={startSlides("join")} label="En attendant, tu peux déjà commencer" />
             </div>
