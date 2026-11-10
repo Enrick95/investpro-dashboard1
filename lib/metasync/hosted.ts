@@ -8,6 +8,9 @@ type BrokerGroup = { platform: Broker['platform']; broker: string; servers: stri
 // Keep a safe catalogue available if the optional Vercel catalogue variable is
 // malformed or empty. The hosted connection page must remain usable while an
 // administrator repairs the environment value.
+// The « fallback-… » IDs are positions in these lists (see fallbackBrokers), and saved connections and the templates
+// of the hosting PC use them (Metatrader5/hosted-be-update/serveurs-a-installer.json): never reorder or remove a
+// server here, only add new ones at the end of a group.
 const FALLBACK_GROUPS: BrokerGroup[] = [
   { platform: 'MT4', broker: 'Axi', servers: ['Axi-US02-Live','Axi-US03-Demo','Axi-US03-Live','Axi-US05-Live','Axi-US06-Live','Axi-US07-Live','Axi-US09-Live','Axi-US10-Live','Axi-US12-Live','Axi-US15-Live','Axi-US16-Live','Axi-US17-Live','Axi-US18-Live','Axi-US888-Demo','Axi-US888-Live'] },
   { platform: 'MT4', broker: 'FTMO', servers: ['FTMO-Demo2','FTMO-Server','FTMO-Server2','FTMO-Server3','FTMO-Server4'] },
