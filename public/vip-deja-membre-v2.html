@@ -293,6 +293,7 @@ select:disabled{color:var(--dim);cursor:not-allowed}
 <button type="button" class="bk" data-bk="raise_fx" aria-pressed="false"><span>R</span>Raise FX</button>
 <button type="button" class="bk" data-bk="puprime" aria-pressed="false"><span>PU</span>PU Prime</button>
 <button type="button" class="bk" data-bk="axi" aria-pressed="false"><span>A</span>Axi</button>
+<button type="button" class="bk" data-bk="bullwaves" aria-pressed="false"><span>B</span>Bullwaves</button>
 <button type="button" class="bk" data-bk="abonnement" aria-pressed="false"><span>€</span>Abonnement</button>
 <button type="button" class="bk" data-bk="autre" aria-pressed="false"><span>+</span>Autre broker</button>
 </div>
@@ -340,9 +341,10 @@ select:disabled{color:var(--dim);cursor:not-allowed}
 <button type="button" class="bk pf" data-pf="MT5" aria-pressed="true">MetaTrader 5</button>
 <button type="button" class="bk pf" data-pf="MT4" aria-pressed="false">MetaTrader 4</button>
 </div>
+<p class="help" id="mtPfHelp" hidden>Raise FX et Bullwaves ne proposent que MetaTrader 5.</p>
 <label for="mtBroker">Broker</label><div class="field"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10l9-6 9 6"/><path d="M5 10v9M9 10v9M15 10v9M19 10v9M3 21h18"/></svg><select id="mtBroker"><option value="">Choisis ton broker</option></select><svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></div>
 <label for="mtServer">Serveur</label><div class="field"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="4" y="4" width="16" height="7" rx="1.5"/><rect x="4" y="13" width="16" height="7" rx="1.5"/><path d="M8 7.5h.01M8 16.5h.01"/></svg><select id="mtServer" aria-describedby="mtServerHelp" disabled><option value="">Choisis d’abord ton broker</option></select><svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></div>
-<p class="help" id="mtServerHelp">Le nom affiché dans MetaTrader, avec ton numéro de compte. <button type="button" class="linkbtn" id="mtMissing" aria-expanded="false" aria-controls="mtAsk">Il n’est pas dans la liste ?</button></p>
+<p class="help" id="mtServerHelp"><span id="mtServerTip">Le nom affiché dans MetaTrader, avec ton numéro de compte.</span> <button type="button" class="linkbtn" id="mtMissing" aria-expanded="false" aria-controls="mtAsk">Il n’est pas dans la liste ?</button></p>
 <div class="login-box" id="mtAsk" hidden>
 <p>Écris le nom exact du serveur affiché dans MetaTrader : l’équipe l’ajoute, puis tu pourras connecter ton compte.</p>
 <label for="mtAskBroker">Broker</label><div class="field"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10l9-6 9 6"/><path d="M5 10v9M9 10v9M15 10v9M19 10v9M3 21h18"/></svg><input id="mtAskBroker" maxlength="80" autocomplete="off" placeholder="VT Markets"></div>
@@ -549,10 +551,17 @@ $('codeOk').onclick=function(){try{sessionStorage.removeItem(CODE_KEY)}catch(e){
    dès la validation. Le mot de passe part une seule fois vers le serveur, qui le chiffre ; la page ne le garde nulle part. */
 var HOSTED='/api/metasync/hosted';
 var MT={catalog:[],connections:[],loaded:false,loading:null,pf:'MT5',mode:'form',poll:null,polls:0,watch:null,back:false,asked:false};
-var MT_FROM_STEP1={vtmarkets:'vtmarkets',raise_fx:'raise',puprime:'puprime',axi:'axi'};
+// Les brokers du VIP seulement, avec leurs plateformes. Un serveur est rangé chez son broker d'après son nom
+// (« VTMarkets-Live 3 », « PUPrime-Live 5 »…) ; les autres brokers du PC d'hébergement ne sont pas proposés ici.
+var MT_BROKERS=[
+  {key:'axi',label:'Axi',pf:['MT4','MT5'],re:/^axi\b/i},
+  {key:'bullwaves',label:'Bullwaves',pf:['MT5'],re:/bullwaves/i},
+  {key:'puprime',label:'PU Prime',pf:['MT4','MT5'],re:/^pu ?prime/i},
+  {key:'raise_fx',label:'Raise FX',pf:['MT5'],re:/^raise/i},
+  {key:'vtmarkets',label:'VT Markets',pf:['MT4','MT5'],re:/^vt ?markets/i}
+];
 function mtOn(){return S.mtAvailable!==false}
 function esc(v){return String(v==null?'':v).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
-function keyOf(v){return String(v||'').toLowerCase().replace(/[^a-z0-9]/g,'')}
 function mtLoad(){
   return fetch(HOSTED,{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json().catch(function(){return {}}).then(function(d){
     if(!r.ok||d.enabled!==true)throw Error('MT_OFF');
@@ -579,21 +588,26 @@ function watched(){
   return activeConnections().filter(function(c){var m=c.investpro_mt_connections;return String(m.login)===w.login&&m.platform===w.platform&&m.server===w.server})[0]||null;
 }
 function syncPf(){document.querySelectorAll('#f3 .bk[data-pf]').forEach(function(x){x.setAttribute('aria-pressed',String(x.dataset.pf===MT.pf))})}
-function brokersFor(pf){var seen={},out=[];MT.catalog.forEach(function(b){if(b.platform===pf&&!seen[b.label]){seen[b.label]=1;out.push(b.label)}});return out.sort(function(a,b){return a.localeCompare(b,'fr',{sensitivity:'base'})})}
-function serversFor(pf,label){return MT.catalog.filter(function(b){return b.platform===pf&&b.label===label}).sort(function(a,b){return a.server.localeCompare(b.server,'en',{numeric:true,sensitivity:'base'})})}
+function brokerOf(b){for(var i=0;i<MT_BROKERS.length;i++){var x=MT_BROKERS[i];if(x.re.test(b.server)||x.re.test(b.label))return x}return null}
+function brokerLabel(key){var x=MT_BROKERS.filter(function(b){return b.key===key})[0];return x?x.label:''}
+function brokersFor(pf){return MT_BROKERS.filter(function(x){return x.pf.indexOf(pf)>=0})}
+function serversFor(pf,key){return MT.catalog.filter(function(b){var x=b.platform===pf&&brokerOf(b);return x&&x.key===key}).sort(function(a,b){return a.server.localeCompare(b.server,'en',{numeric:true,sensitivity:'base'})})}
 // Le broker choisi à l'étape 1 est déjà sélectionné.
-function guessBroker(list){var k=MT_FROM_STEP1[BK];if(!k)return '';for(var i=0;i<list.length;i++)if(keyOf(list[i]).indexOf(k)===0)return list[i];return ''}
 function fillBrokers(keep){
-  var sel=$('mtBroker'),list=brokersFor(MT.pf),want=keep||sel.value||guessBroker(list);
-  sel.innerHTML='<option value="">Choisis ton broker</option>'+list.map(function(l){return '<option value="'+esc(l)+'">'+esc(l)+'</option>'}).join('');
-  sel.value=list.indexOf(want)>=0?want:'';
+  var sel=$('mtBroker'),list=brokersFor(MT.pf),want=keep||sel.value||BK||'';
+  sel.innerHTML='<option value="">Choisis ton broker</option>'+list.map(function(x){return '<option value="'+x.key+'">'+esc(x.label)+'</option>'}).join('');
+  sel.value=list.some(function(x){return x.key===want})?want:'';
+  $('mtPfHelp').hidden=MT.pf!=='MT4';
   fillServers();
 }
 function fillServers(keepId){
-  var sel=$('mtServer'),label=$('mtBroker').value,list=label?serversFor(MT.pf,label):[];
-  sel.innerHTML='<option value="">'+(label?'Choisis ton serveur':'Choisis d’abord ton broker')+'</option>'+list.map(function(b){return '<option value="'+esc(b.id)+'">'+esc(b.server)+'</option>'}).join('');
-  sel.disabled=!label;
+  var sel=$('mtServer'),key=$('mtBroker').value,list=key?serversFor(MT.pf,key):[],none=!!key&&!list.length;
+  sel.innerHTML='<option value="">'+(!key?'Choisis d’abord ton broker':none?'Aucun serveur pour l’instant':'Choisis ton serveur')+'</option>'+list.map(function(b){return '<option value="'+esc(b.id)+'">'+esc(b.server)+'</option>'}).join('');
+  sel.disabled=!key||none;
   if(keepId&&list.some(function(b){return b.id===keepId}))sel.value=keepId;else if(list.length===1)sel.value=list[0].id;
+  // Aucun serveur de ce broker sur le PC d'hébergement : le membre demande l'ajout du sien.
+  $('mtServerTip').textContent=none?'Pas encore de serveur '+brokerLabel(key)+' ici.':'Le nom affiché dans MetaTrader, avec ton numéro de compte.';
+  $('mtMissing').textContent=none?'Demander l’ajout de mon serveur':'Il n’est pas dans la liste ?';
 }
 function prepareMt(){
   fail3('');
@@ -697,7 +711,7 @@ $('f3').onsubmit=async function(e){
 function askMsg(text,bad){var m=$('mtAskMsg');m.textContent=text||'';m.hidden=!text;m.className='mt-msg'+(bad?' bad':'')}
 $('mtMissing').onclick=function(){
   var box=$('mtAsk'),open=box.hidden;box.hidden=!open;this.setAttribute('aria-expanded',String(open));
-  if(open){if(!$('mtAskBroker').value)$('mtAskBroker').value=$('mtBroker').value||'';($('mtAskBroker').value?$('mtAskServer'):$('mtAskBroker')).focus()}
+  if(open){if(!$('mtAskBroker').value)$('mtAskBroker').value=brokerLabel($('mtBroker').value);($('mtAskBroker').value?$('mtAskServer'):$('mtAskBroker')).focus()}
 };
 $('mtAskBtn').onclick=async function(){
   var broker=$('mtAskBroker').value.trim(),server=$('mtAskServer').value.trim(),btn=this;
@@ -721,8 +735,8 @@ $('mtAdd').onclick=function(){
   if(failed){
     // Réessayer : le même compte, prérempli, sauf le mot de passe.
     MT.pf=failed.platform==='MT4'?'MT4':'MT5';syncPf();
-    var b=MT.catalog.filter(function(x){return x.platform===MT.pf&&x.server===failed.server})[0];
-    fillBrokers(b?b.label:'');if(b)fillServers(b.id);
+    var b=MT.catalog.filter(function(x){return x.platform===MT.pf&&x.server===failed.server})[0],o=b?brokerOf(b):null;
+    fillBrokers(o?o.key:'');if(b)fillServers(b.id);
     $('mtLogin').value=failed.login||'';$('mtCur').value=failed.currency||'';
   }else $('mtLogin').value='';
   renderMt();

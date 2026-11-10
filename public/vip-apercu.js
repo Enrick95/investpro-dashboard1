@@ -6,17 +6,17 @@
   root.classList.add('iplogo', 'apercu');
 
   var demo = { member: null, active: false, connections: [] };
-  // Les serveurs des brokers du VIP, pour l'étape « Ton compte MetaTrader ». Sur le site, la liste vient des
-  // modèles installés sur le PC d'hébergement (METASYNC_HOSTED_BROKERS).
+  // Les serveurs des brokers du VIP (Raise FX et Bullwaves : MT5 uniquement), pour l'étape « Ton compte MetaTrader ».
+  // Sur le site, la liste vient des modèles installés sur le PC d'hébergement (METASYNC_HOSTED_BROKERS).
   var n = function (prefix, from, to, extra) { var out = []; for (var i = from; i <= to; i++) out.push(prefix + (i === 1 ? '' : ' ' + i)); return out.concat(extra || []); };
   var GROUPS = [
     ['MT4', 'Axi', ['Axi-US02-Live', 'Axi-US03-Demo', 'Axi-US03-Live', 'Axi-US05-Live', 'Axi-US06-Live', 'Axi-US07-Live', 'Axi-US09-Live', 'Axi-US10-Live', 'Axi-US12-Live', 'Axi-US15-Live', 'Axi-US16-Live', 'Axi-US17-Live', 'Axi-US18-Live', 'Axi-US888-Demo', 'Axi-US888-Live']],
-    ['MT4', 'Fusion Markets', ['FusionMarkets-Demo', 'FusionMarkets-Live', 'FusionMarkets-Live 2', 'FusionMarkets-Live 3']],
     ['MT4', 'PU Prime', ['PUPrime-Demo'].concat(n('PUPrime-Live', 1, 7))],
     ['MT4', 'VT Markets', ['VTMarkets-Demo'].concat(n('VTMarkets-Live', 1, 9))],
     ['MT5', 'Axi', ['Axi-US50-Demo', 'Axi-US50-Live', 'Axi-US51-Live', 'Axi-US52-Live', 'Axi-US53-Live', 'Axi-US54-Live', 'Axi-US88-Live']],
+    ['MT5', 'Bullwaves', ['Bullwaves-Demo', 'Bullwaves-Live']],
     ['MT5', 'PU Prime', ['PUPrime-Demo', 'PUPrime-Live', 'PUPrime-Live2', 'PUPrime-Live 4', 'PUPrime-Live 5', 'PUPrime-Live 6', 'PUPrime-Live 7', 'PUPrimeTrading-Live']],
-    ['MT5', 'Raise Global', ['RaiseGlobal-Live', 'RaiseGlobalSA-LIVE']],
+    ['MT5', 'Raise FX', ['RaiseGlobal-Live', 'RaiseGlobalSA-LIVE']],
     ['MT5', 'VT Markets', ['VTMarkets-Demo'].concat(n('VTMarkets-Live', 1, 9), ['VTMarketsLtd-Live 4'])]
   ];
   var CATALOG = [];
