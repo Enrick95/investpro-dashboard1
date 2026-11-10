@@ -42,6 +42,17 @@ test("Bullwaves is not added twice when the configuration already lists its serv
   assert.equal(list.length, installed.length + 1);
 });
 
+test("a server the PC holds under two IDs is offered once, under its named template", () => {
+  const list = brokers({ METASYNC_HOSTED_BROKERS: JSON.stringify([
+    { id: "fallback-mt5-pu-prime-14", label: "PU Prime", platform: "MT5", server: "PUPrime-Live 6" },
+    { id: "mt5-axi-us50-demo", label: "Axi", platform: "MT5", server: "Axi-US50-Demo" },
+    { id: "puprime-mt5-live6", label: "PU Prime", platform: "MT5", server: "PUPrime-Live 6" },
+    { id: "axi-mt5-us50-demo", label: "Axi", platform: "MT5", server: "axi-us50-demo" },
+    { id: "puprime-mt4-live6", label: "PU Prime", platform: "MT4", server: "PUPrime-Live 6" },
+  ]) });
+  assert.deepEqual(Array.from(list, item => item.id), ["puprime-mt5-live6", "mt5-axi-us50-demo", "puprime-mt4-live6", bullwaves.id], "Same order, one per platform and server");
+});
+
 test("only malformed entries are dropped; the emergency list is used only when nothing is valid", () => {
   const list = brokers({ METASYNC_HOSTED_BROKERS: JSON.stringify([...installed, { id: "Bad ID", label: "X", platform: "MT5", server: "X-Live" }, { id: "mt5-x", label: "X", platform: "MT6", server: "X-Live" }]) });
   assert.equal(list.length, installed.length + 1, "The installed templates, plus Bullwaves");

@@ -37,6 +37,20 @@ const BULLWAVES_MT5: Broker = {
   id: 'bullwaves-mt5-live', label: 'Bullwaves', platform: 'MT5', server: 'BullWaves-LIVE',
 };
 
+/**
+ * One entry per platform and server. The hosting PC can hold several IDs (aliases) for the same server; members
+ * see it once. A named template is preferred over a legacy « fallback-… » alias, both being installed on the PC.
+ */
+function uniqueServers(rows: Broker[]): Broker[] {
+  const kept = new Map<string, Broker>();
+  for (const row of rows) {
+    const key = `${row.platform}:${row.server.trim().toLowerCase()}`;
+    const seen = kept.get(key);
+    if (!seen || (seen.id.startsWith('fallback-') && !row.id.startsWith('fallback-'))) kept.set(key, row);
+  }
+  return [...kept.values()];
+}
+
 function includeBullwaves(rows: Broker[]): Broker[] {
   return rows.some((broker) => broker.platform === 'MT5' && broker.server.toLowerCase() === BULLWAVES_MT5.server.toLowerCase())
     ? rows : [...rows, BULLWAVES_MT5];
@@ -73,7 +87,7 @@ export function brokers(): Broker[] {
       b.server.length <= 120 &&
       !/[\r\n\0]/.test(b.server);
   });
-  return configured.length ? includeBullwaves(configured) : fallbackBrokers();
+  return configured.length ? includeBullwaves(uniqueServers(configured)) : fallbackBrokers();
 }
 
 // La connexion MetaTrader hébergée est disponible pour tout utilisateur authentifié.
