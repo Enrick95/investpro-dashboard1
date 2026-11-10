@@ -242,6 +242,18 @@ async function saveVideo(db: SupabaseClient, body: Body) {
   return { video: result.data };
 }
 
+/** Supprime une campagne sans clip. Avec des clips, on la termine : leur historique et leurs paiements restent. */
+async function deleteCampaign(db: SupabaseClient, body: Body) {
+  const id = uuid(body, "id");
+  const { count, error: countError } = await db.from("clip_clips").select("id", { count: "exact", head: true }).eq("campaign_id", id);
+  if (countError) throw countError;
+  if (count) throw new ClipError(`Cette campagne a déjà ${count} clip${count > 1 ? "s" : ""} : passe-la en « Terminée » pour l'arrêter, leur historique et leurs paiements restent.`, 409);
+  // Les vidéos rattachées restent dans l'espace des clippeurs, simplement sans campagne.
+  const { error } = await db.from("clip_campaigns").delete().eq("id", id);
+  if (error) throw error;
+  return { ok: true };
+}
+
 async function deleteVideo(db: SupabaseClient, body: Body) {
   const id = uuid(body, "id");
   const { error } = await db.from("clip_videos").delete().eq("id", id);
@@ -378,6 +390,8 @@ export async function POST(request: Request) {
         return clipJson(await saveVideo(ctx.db, body));
       case "delete_video":
         return clipJson(await deleteVideo(ctx.db, body));
+      case "delete_campaign":
+        return clipJson(await deleteCampaign(ctx.db, body));
       case "pay":
         return clipJson(await pay(ctx.db, body));
       case "reset_password":
