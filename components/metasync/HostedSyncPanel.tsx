@@ -261,11 +261,11 @@ export default function HostedSyncPanel({ initialPlatform = "MT5" }: { initialPl
                 className="ip-connection-input"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                placeholder={translate("Mot de passe investisseur (lecture seule)")}
+                placeholder={translate("Mot de passe du compte")}
               />
-              {/* The hosting PC refuses a master (trading) password: allow_trading_password stays off. */}
+              {/* investpro_hosted_pair_auto sets allow_trading_password: the master password is accepted, never used to trade. */}
               <span className="mt-2 block text-[10px] leading-4 text-white/40">
-                {translate("Utilisez le mot de passe investisseur (lecture seule), pas le mot de passe principal : par sécurité, le principal est refusé. Il figure dans l’e-mail d’ouverture du compte, ou se crée dans MetaTrader : Outils › Options › Serveur › Changer.")}</span>
+                {translate("Le mot de passe avec lequel vous vous connectez à MetaTrader. Le mot de passe investisseur fonctionne aussi.")}</span>
             </Field>
 
             <Field label={translate("Devise")}>
@@ -324,7 +324,7 @@ export default function HostedSyncPanel({ initialPlatform = "MT5" }: { initialPl
               className="mt-1"
             />
             <span>
-              {translate("Je suis autorisé à connecter ce compte et j’autorise InvestPro à conserver mes identifiants chiffrés afin de synchroniser les données du compte.")}</span>
+              {translate("Je suis autorisé à connecter ce compte et j’autorise InvestPro à conserver mon mot de passe chiffré pour lire mes trades. Je sais que le mot de passe principal permet aussi de trader : InvestPro ne l’affiche jamais et ne passe jamais d’ordre.")}</span>
           </label>
 
           <button

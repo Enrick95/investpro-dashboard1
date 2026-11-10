@@ -124,12 +124,15 @@ test("simultaneous operations keep their own proof even when responses arrive ou
   assert.deepEqual(JSON.parse(second.calls[1].options.body), { action: "stop", id: "second-operation" });
 });
 
-test("the site's form asks for the investor password, the only one the hosting PC accepts", () => {
+// investpro_hosted_pair_auto sets allow_trading_password on every site connection: the master password is accepted,
+// so the member is told plainly that it can also trade, and that InvestPro never shows it nor places an order with it.
+test("the site's form takes the MetaTrader password and says it is never shown nor used to trade", () => {
   const panel = fs.readFileSync(path.join(root, "components/metasync/HostedSyncPanel.tsx"), "utf8");
   const messages = fs.readFileSync(path.join(root, "lib/i18n/connections-market.ts"), "utf8");
-  for (const text of ["Mot de passe investisseur (lecture seule)", "Utilisez le mot de passe investisseur (lecture seule), pas le mot de passe principal : par sécurité, le principal est refusé."]) {
+  assert.ok(!panel.includes("le principal est refusé"), "The master password is not refused");
+  for (const text of ["Le mot de passe avec lequel vous vous connectez à MetaTrader. Le mot de passe investisseur fonctionne aussi.", "Je sais que le mot de passe principal permet aussi de trader : InvestPro ne l’affiche jamais et ne passe jamais d’ordre."]) {
     assert.ok(panel.includes(text), text);
-    assert.ok(messages.includes(`"${text}`), `English copy for ${text}`);
+    assert.ok(messages.includes(text), `English copy for ${text}`);
   }
 });
 

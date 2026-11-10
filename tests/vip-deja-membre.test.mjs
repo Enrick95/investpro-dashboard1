@@ -183,9 +183,12 @@ test("right after the access code, the page offers to connect MetaTrader through
   const step = page.slice(page.indexOf('<section class="screen" data-s="3"'), page.indexOf('<section class="screen" data-s="4"'));
   assert.match(step, /<h2>Ton compte MetaTrader<\/h2>/);
   assert.match(step, /<input id="mtPwd" type="password" autocomplete="new-password"/, "The MetaTrader password is a masked field browsers do not fill with the site password");
-  // The hosting PC refuses a master (trading) password: the page says so before the member sends it, and after a failure.
-  assert.match(step, /Mets ton mot de passe investisseur \(lecture seule\), pas le principal : par sécurité, le principal est refusé\./, "The read-only password is asked for");
-  assert.match(page, /La connexion n’a pas abouti\. Vérifie le serveur, le numéro de compte et que c’est bien le mot de passe investisseur \(lecture seule\), pas le principal/);
+  // Site connections accept the master password (allow_trading_password): the member gives the one they log in with,
+  // and the consent box says plainly that it can also trade, and that InvestPro never shows it nor places an order.
+  assert.match(step, /<label for="mtPwd">Mot de passe MetaTrader<\/label>/);
+  assert.match(step, /Celui avec lequel tu te connectes à MetaTrader\. Ton mot de passe investisseur marche aussi\./);
+  assert.match(step, /<input type="checkbox" id="mtOk"><span>[^<]*Je sais que le mot de passe principal permet aussi de trader : InvestPro ne l’affiche jamais et ne passe jamais d’ordre\.<\/span>/);
+  assert.ok(!page.includes("le principal est refusé"), "The master password is not refused");
   assert.match(step, /<button class="back" type="button" id="mtLater">Plus tard<\/button>/, "The step can be skipped");
   assert.match(page, /var HOSTED='\/api\/metasync\/hosted'/, "The page uses the same hosted connector as the site");
   assert.match(page, /headers\['X-InvestPro-MT-Token'\]=token/, "With the fresh proof the site's own form sends");
