@@ -3,7 +3,8 @@ import { CLIP_OG_IMAGE, CLIP_PUBLIC_URL } from "@/lib/clip/rules";
 
 /** Page d'inscription, servie à la racine (investproclip.com) et sur /rejoindre (liens déjà partagés). */
 export const joinMetadata: Metadata = {
-  title: "Devenir clippeur",
+  // Titre complet : à la racine, le modèle « · InvestPro Clip » du layout ne s'applique pas (même segment).
+  title: { absolute: "Devenir clippeur · InvestPro Clip" },
   description: "Rejoins les clippeurs d'Enrick95 : coupe ses vidéos, publie sur tes comptes et sois payé pour chaque clip validé.",
   robots: { index: false, follow: false },
   // Le lien partagé à la communauté : son propre aperçu dans WhatsApp, Telegram, Discord…
