@@ -27,15 +27,26 @@ const installed = [
   { id: "mt5-raiseglobalsa-live", label: "Raise Global", platform: "MT5", server: "RaiseGlobalSA-LIVE" },
 ];
 
-test("the templates installed on the hosting PC are offered with their own IDs", () => {
+const bullwaves = { id: "bullwaves-mt5-live", label: "Bullwaves", platform: "MT5", server: "BullWaves-LIVE" };
+
+test("the templates installed on the hosting PC are offered with their own IDs, plus the Bullwaves MT5 server", () => {
   const list = brokers({ METASYNC_HOSTED_BROKERS: JSON.stringify(installed) });
-  assert.deepEqual(Array.from(list, item => item.id), installed.map(item => item.id));
+  assert.deepEqual(Array.from(list, item => item.id), [...installed.map(item => item.id), bullwaves.id]);
+  assert.deepEqual({ ...list[list.length - 1] }, bullwaves);
   assert.ok(!list.some(item => item.id.startsWith("fallback-")), "No emergency entry when the configuration is valid");
+});
+
+test("Bullwaves is not added twice when the configuration already lists its server", () => {
+  const list = brokers({ METASYNC_HOSTED_BROKERS: JSON.stringify([...installed, { id: "mt5-bullwaves-live", label: "Bullwaves", platform: "MT5", server: "Bullwaves-Live" }]) });
+  assert.equal(list.filter(item => /bullwaves/i.test(item.server)).length, 1);
+  assert.equal(list.length, installed.length + 1);
 });
 
 test("only malformed entries are dropped; the emergency list is used only when nothing is valid", () => {
   const list = brokers({ METASYNC_HOSTED_BROKERS: JSON.stringify([...installed, { id: "Bad ID", label: "X", platform: "MT5", server: "X-Live" }, { id: "mt5-x", label: "X", platform: "MT6", server: "X-Live" }]) });
-  assert.equal(list.length, installed.length);
-  assert.ok(brokers({ METASYNC_HOSTED_BROKERS: "not json" }).every(item => item.id.startsWith("fallback-")));
-  assert.ok(brokers({}).every(item => item.id.startsWith("fallback-")));
+  assert.equal(list.length, installed.length + 1, "The installed templates, plus Bullwaves");
+  for (const emergency of [brokers({ METASYNC_HOSTED_BROKERS: "not json" }), brokers({})]) {
+    assert.ok(emergency.every(item => item.id.startsWith("fallback-") || item.id === bullwaves.id));
+    assert.ok(emergency.some(item => item.id === bullwaves.id), "Bullwaves stays offered with the emergency list");
+  }
 });

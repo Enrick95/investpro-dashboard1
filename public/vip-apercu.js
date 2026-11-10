@@ -14,7 +14,7 @@
     ['MT4', 'PU Prime', ['PUPrime-Demo'].concat(n('PUPrime-Live', 1, 7))],
     ['MT4', 'VT Markets', ['VTMarkets-Demo'].concat(n('VTMarkets-Live', 1, 9))],
     ['MT5', 'Axi', ['Axi-US50-Demo', 'Axi-US50-Live', 'Axi-US51-Live', 'Axi-US52-Live', 'Axi-US53-Live', 'Axi-US54-Live', 'Axi-US88-Live']],
-    ['MT5', 'Bullwaves', ['Bullwaves-Demo', 'Bullwaves-Live']],
+    ['MT5', 'Bullwaves', ['BullWaves-LIVE']],
     ['MT5', 'PU Prime', ['PUPrime-Demo', 'PUPrime-Live', 'PUPrime-Live2', 'PUPrime-Live 4', 'PUPrime-Live 5', 'PUPrime-Live 6', 'PUPrime-Live 7', 'PUPrimeTrading-Live']],
     ['MT5', 'Raise FX', ['RaiseGlobal-Live', 'RaiseGlobalSA-LIVE']],
     ['MT5', 'VT Markets', ['VTMarkets-Demo'].concat(n('VTMarkets-Live', 1, 9), ['VTMarketsLtd-Live 4'])]
