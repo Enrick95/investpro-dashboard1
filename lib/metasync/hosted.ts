@@ -63,6 +63,19 @@ function includeBullwaves(rows: Broker[]): Broker[] {
     ? rows : [...rows, BULLWAVES_MT5];
 }
 
+// Servers the hosting PC could not find at their broker on 11 November 2026 (no .srv file in MT4, absent from the MT5
+// search): no longer offered, so no member picks a server that cannot connect; a member on one of them asks for it with
+// « Il n'est pas dans la liste ? ». Their IDs stay reserved (positions in FALLBACK_GROUPS): one installed later on the
+// PC is offered again through METASYNC_HOSTED_BROKERS.
+const NOT_FOUND_AT_BROKER = new Set([
+  'fallback-mt4-axi-14', 'fallback-mt4-axi-15', 'fallback-mt4-ftmo-1', 'fallback-mt4-ftmo-2', 'fallback-mt4-ftmo-3',
+  'fallback-mt4-ftmo-4', 'fallback-mt4-ftmo-5', 'fallback-mt4-fusion-markets-7', 'fallback-mt4-megafusiongroup-1',
+  'fallback-mt4-megafusiongroup-2', 'fallback-mt4-megafusiongroup-3', 'fallback-mt4-megafusiongroup-4',
+  'fallback-mt4-pu-prime-10', 'fallback-mt5-ftmo-2', 'fallback-mt5-fusion-markets-3', 'fallback-mt5-fusion-markets-4',
+  'fallback-mt5-fusion-markets-5', 'fallback-mt5-pu-prime-11', 'fallback-mt5-vt-markets-5', 'fallback-mt5-vantage-20',
+  'fallback-mt5-vantage-21', 'fallback-mt5-avatrade-1', 'fallback-mt5-avatrade-2',
+]);
+
 function fallbackBrokers(): Broker[] {
   return includeBullwaves(FALLBACK_GROUPS.flatMap(({ platform, broker, servers }) =>
     servers.map((server, index) => ({
@@ -71,7 +84,7 @@ function fallbackBrokers(): Broker[] {
       platform,
       server,
     }))
-  ));
+  ).filter((item) => !NOT_FOUND_AT_BROKER.has(item.id)));
 }
 
 /** The templates installed on the hosting PC, as listed in METASYNC_HOSTED_BROKERS (empty when it is unreadable). */

@@ -11,18 +11,29 @@ import ts from "typescript";
 const root = path.resolve(import.meta.dirname, "..");
 const list = JSON.parse(fs.readFileSync(path.join(root, "Metatrader5/hosted-be-update/serveurs-a-installer.json"), "utf8"));
 
-function siteList() {
+function siteList(env = {}) {
   const cjsModule = { exports: {} };
   const modules = { "node:crypto": {}, "@/lib/supabase/server": { createClient() { throw new Error("NO_AUTH_IN_LIST_TEST"); } } };
   const source = fs.readFileSync(path.join(root, "lib/metasync/hosted.ts"), "utf8");
   vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText, {
-    module: cjsModule, exports: cjsModule.exports, Buffer, process: { env: {} },
+    module: cjsModule, exports: cjsModule.exports, Buffer, process: { env },
     require: name => { assert(Object.hasOwn(modules, name), `Unexpected import ${name}`); return modules[name]; },
   });
   return Array.from(cjsModule.exports.brokers());
 }
 
 const entries = [...list.vip, ...list.autres];
+
+test("the servers the hosting PC could not find at their broker are no longer offered, until the PC lists one", () => {
+  assert.equal(list.introuvables.length, 23);
+  const offered = siteList();
+  const key = item => `${item.platform}:${item.server.trim().toLowerCase()}`;
+  for (const entry of list.introuvables) {
+    assert.ok(!offered.some(item => item.id === entry.id || key(item) === key(entry)), `${entry.id} (${entry.server}) is hidden`);
+  }
+  const later = list.introuvables[0];
+  assert.ok(siteList({ METASYNC_HOSTED_BROKERS: JSON.stringify([later]) }).some(item => item.id === later.id), "Installed later, it is offered again");
+});
 
 test("every server to install keeps the ID the site gives it, on the same platform and server", () => {
   const byId = new Map(siteList().map(item => [item.id, item]));
@@ -34,8 +45,9 @@ test("every server to install keeps the ID the site gives it, on the same platfo
 });
 
 test("each ID is accepted by host.py register and appears once", () => {
-  assert.equal(new Set(entries.map(entry => entry.id)).size, entries.length);
-  for (const entry of entries) assert.match(entry.id, /^[a-z0-9-]{1,60}$/, entry.id);
+  const ids = [...entries, ...list.introuvables];
+  assert.equal(new Set(ids.map(entry => entry.id)).size, ids.length);
+  for (const entry of ids) assert.match(entry.id, /^[a-z0-9-]{1,60}$/, entry.id);
 });
 
 test("the VIP brokers come first, the other brokers after", () => {
