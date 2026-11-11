@@ -1,0 +1,41 @@
+MISE A JOUR DU CONNECTEUR INVESTPRO D11 - MOINS DE CHARGE POUR LE PC
+
+Ce qui change pour chaque compte MT5 :
+- La liaison Python avec le terminal reste ouverte : une connexion au compte,
+  au lieu d'une nouvelle connexion toutes les 30 secondes.
+- Tout l'historique n'est relu que si le compte a change (nouvelle execution,
+  solde different) ou toutes les 15 minutes. Entre les deux, le site recoit
+  toutes les 30 secondes le solde et l'equity, sans relire l'historique.
+Pour tous les comptes (MT4 et MT5) :
+- Seuls les trades nouveaux ou modifies sont envoyes au site. Le site garde
+  chaque trade recu et n'en supprime jamais : rien n'est perdu. Apres un
+  redemarrage, un compte renvoie une fois tout son historique.
+
+Fichiers a remplacer dans votre dossier WINDOWS (celui du host.py actuel) :
+  host.py
+  mt5_exit_evidence.py, normalize.py, capital.py (versions du meme dossier)
+Gardez tous les autres fichiers. Ne relancez ni la configuration, ni la
+generation des secrets, ni l'enregistrement des brokers : les modeles deja
+enregistres restent valables.
+
+Installation :
+1. Gardez une copie de votre host.py actuel pour pouvoir revenir en arriere.
+2. Copiez les fichiers ci-dessus a cote de votre host.py.
+3. Optionnel : dans ce dossier, lancez
+     .venv\Scripts\python.exe -m unittest test_host_sync test_mt5_exit_evidence
+   (tests hors ligne, sans terminal ni compte reel) : ils doivent finir par OK.
+4. Arretez l'hebergeur avec Ctrl+C dans sa fenetre, attendez son arret, puis
+   relancez 4-DEMARRER.cmd.
+5. La premiere ligne doit commencer par « InvestPro D11 ».
+
+Ce que la console affiche ensuite pour un compte MT5 :
+- au demarrage puis a chaque changement : « ENVOI ACCEPTE MT5 compte ...1234:
+  N trades nouveaux ou modifies sur M » ;
+- entre les deux, toutes les 30 secondes : « ENVOI ACCEPTE MT5 compte
+  ...1234: solde et equity, historique inchange ».
+
+Le connecteur lit l'historique et ne passe, ne modifie et ne cloture aucun
+ordre.
+
+Retour arriere : arretez l'hebergeur, remettez votre ancien host.py, puis
+relancez 4-DEMARRER.cmd.

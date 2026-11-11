@@ -168,10 +168,8 @@ class MT5InitializationError(RuntimeError):
   self.code=code
 
 
-def snapshot_mt5(mt5,job,folder):
- from normalize import normalize
- from capital import funding_mt5
- from mt5_exit_evidence import read_export,enrich_trades,price_steps
+def connect_mt5(mt5,job,folder):
+ """Open the Python link to this account's terminal and log in (once per link, not every cycle)."""
  a=job['investpro_mt_connections']
  if not mt5.initialize(str(folder/'terminal64.exe'),login=int(a['login']),password=job['password'],server=a['server'],timeout=180000,portable=True):
   error=mt5.last_error()
@@ -179,8 +177,12 @@ def snapshot_mt5(mt5,job,folder):
   labels={-6:'AUTHENTIFICATION REFUSEE : verifier numero, serveur et mot de passe',-10005:'DELAI DEPASSE entre Python et le terminal',-10003:'INITIALISATION IPC IMPOSSIBLE',-10001:'ENVOI IPC IMPOSSIBLE',-10002:'RECEPTION IPC IMPOSSIBLE',-5:'VERSION MT5 INCOMPATIBLE'}
   diagnostic('MT5 INITIALISATION compte ...'+str(a['login'])[-4:]+' : code '+str(code)+' ; '+labels.get(code,'ECHEC TECHNIQUE'))
   raise MT5InitializationError(code)
+
+
+def check_mt5(mt5,job,folder):
+ """Account, terminal and permission checks on the open link; returns (account info, USC to USD, expected identity)."""
+ a=job['investpro_mt_connections']
  info=mt5.account_info();terminal=mt5.terminal_info()
- identity=lambda x:(str(x.login),x.server,x.currency)
  cent_to_usd=info is not None and info.currency=='USC' and a['currency']=='USD'
  expected=(a['login'],a['server'],'USC' if cent_to_usd else a['currency'])
  problems=[]
@@ -197,9 +199,24 @@ def snapshot_mt5(mt5,job,folder):
  if problems:
   for problem in problems:diagnostic('MT5 CONTROLE : '+problem)
   raise RuntimeError('identity or credential permission')
+ return info,cent_to_usd,expected
+
+
+def history_end():
  # Extend the query window to include recent deals with broker clock offsets.
- history_end=datetime.fromtimestamp(time.time()+86400,timezone.utc)
- deals=mt5.history_deals_get(datetime(1970,1,1,tzinfo=timezone.utc),history_end)
+ return datetime.fromtimestamp(time.time()+86400,timezone.utc)
+
+
+def snapshot_mt5(mt5,job,folder,connect=True):
+ """Complete snapshot: the whole deal history, every closed trade and the funding summary."""
+ from normalize import normalize
+ from capital import funding_mt5
+ from mt5_exit_evidence import read_export,enrich_trades,price_steps
+ a=job['investpro_mt_connections']
+ if connect:connect_mt5(mt5,job,folder)
+ info,cent_to_usd,expected=check_mt5(mt5,job,folder)
+ identity=lambda x:(str(x.login),x.server,x.currency)
+ deals=mt5.history_deals_get(datetime(1970,1,1,tzinfo=timezone.utc),history_end())
  positions=mt5.positions_get()
  after=mt5.account_info()
  if deals is None or positions is None or after is None or identity(after)!=expected or abs(after.balance-info.balance)>0.000001:raise RuntimeError('history')
@@ -230,6 +247,72 @@ def snapshot_mt5(mt5,job,folder):
   warnings=list(warnings)+['Compte USC : montants convertis en USD (100 USC = 1 USD). Prix et volumes inchanges.']
   diagnostic('MT5 COMPTE CENT : conversion USC vers USD appliquee aux montants (division par 100)')
  return dict(platform='MT5',login=a['login'],server=a['server'],currency=a['currency'],balance=balance,equity=equity,observed_at=datetime.now(timezone.utc).isoformat(),warnings=warnings,trades=trades,funding=funding)
+
+
+MT5_FULL_SCAN_SECONDS=900  # The whole history is re-read at least every 15 minutes, even when nothing changed.
+
+
+class Mt5Sync:
+ """One MT5 account: the link to its terminal stays open between cycles (one login, not one every 30 seconds), and
+ the whole history is re-read only when the account changed (new deal, balance) or every 15 minutes. In between, a
+ light snapshot keeps the site's balance, equity and last synchronisation current."""
+ def __init__(self,mt5,job,folder,clock=time.monotonic):
+  self.mt5,self.job,self.folder,self.clock=mt5,job,folder,clock
+  self.linked=False;self.full_at=None;self.mark=None;self.warnings=[]
+
+ def close(self):
+  if self.linked:
+   try:self.mt5.shutdown()
+   except Exception:pass
+  self.linked=False
+
+ def snapshot(self):
+  """Returns (snapshot, complete). A light snapshot carries no trade and no funding summary."""
+  a=self.job['investpro_mt_connections']
+  if not self.linked:
+   connect_mt5(self.mt5,self.job,self.folder);self.linked=True
+  info,cent_to_usd,expected=check_mt5(self.mt5,self.job,self.folder)
+  # A deal count is cheap; without it (older MetaTrader5 package) every cycle stays complete, as before.
+  counter=getattr(self.mt5,'history_deals_total',None)
+  mark=None
+  if counter is not None:
+   total=counter(datetime(1970,1,1,tzinfo=timezone.utc),history_end())
+   if total is None:raise RuntimeError('history')
+   mark=(int(total),round(float(info.balance),8))
+  if mark is None or self.full_at is None or mark!=self.mark or self.clock()-self.full_at>=MT5_FULL_SCAN_SECONDS:
+   snapshot=snapshot_mt5(self.mt5,self.job,self.folder,connect=False)
+   self.full_at=self.clock();self.mark=mark;self.warnings=list(snapshot['warnings'])
+   return snapshot,True
+  balance,equity=info.balance,info.equity
+  if cent_to_usd:balance,equity=balance/100,equity/100
+  return dict(platform='MT5',login=a['login'],server=a['server'],currency=a['currency'],balance=balance,equity=equity,observed_at=datetime.now(timezone.utc).isoformat(),warnings=list(self.warnings),trades=[]),False
+
+
+class SentTrades:
+ """Trades this connection already sent: only new or changed ones are sent again. The site keeps every trade it
+ received and never deletes one, so nothing is lost; a restarted connection sends everything once more."""
+ def __init__(self):self.seen={}
+
+ @staticmethod
+ def _key(trade):return json.dumps(trade,sort_keys=True,allow_nan=False)
+
+ def fresh(self,trades):
+  return [t for t in trades if self.seen.get(t['external_id'])!=self._key(t)]
+
+ def remember(self,trades):
+  for t in trades:self.seen[t['external_id']]=self._key(t)
+
+
+def send_changes(report,snapshot,trades,sent,lease=lambda:fresh_lease()):
+ """Sends the snapshot with only the new or changed trades (an empty batch still updates balance and equity).
+ They count as sent only once every batch was accepted. Returns the number of trades sent, None if the lease ended."""
+ from mt5_exit_evidence import trade_batches
+ changed=sent.fresh(trades)
+ for batch in trade_batches(snapshot,changed):
+  if not lease():return None
+  report('syncing',dict(snapshot,trades=batch))
+ sent.remember(changed)
+ return len(changed)
 
 
 def safe_ini(value):
@@ -368,7 +451,7 @@ def child():
  remove_instance(folder)
  shutil.copytree(template['path'],folder);private(folder)
  report=lambda status,snapshot=None:api(config,{'action':'report','id':job['id'],'generation':job['generation'],'status':status,'snapshot':snapshot})
- mt5=None
+ mt5=None;sync=None;sent=SentTrades()
  try:
   diagnostic('CONNEXION '+a['platform']+' compte ...'+str(a['login'])[-4:])
   report('connecting')
@@ -384,6 +467,7 @@ def child():
    except Exception:
     diagnostic('MT5 PREUVE SL INDISPONIBLE : synchronisation habituelle conservee ; aucun BE suppose')
    import MetaTrader5 as mt5
+   sync=Mt5Sync(mt5,job,folder)
   last=0;started=time.monotonic();last_stamp=None;failures=0;mt4_update_restarted=False;retry_at=None;recoveries=0
   # MT4 only: All History is asked once, after the first export; the outcome is logged once.
   history_asked_at=None;history_base=0;history_logged=False
@@ -404,7 +488,8 @@ def child():
    if time.monotonic()-last<30:time.sleep(1);continue
    last=time.monotonic()
    try:
-    if a['platform']=='MT5':snapshot=snapshot_mt5(mt5,job,folder)
+    complete=True
+    if a['platform']=='MT5':snapshot,complete=sync.snapshot()
     else:
      file=folder/'MQL4'/'Files'/'investpro.json'
      if not file.exists():
@@ -433,11 +518,12 @@ def child():
      if snapshot['observed_at']==last_stamp:continue
     if (snapshot['login'],snapshot['server'],snapshot['currency'],snapshot['platform'])!=(a['login'],a['server'],a['currency'],a['platform']):raise RuntimeError('identity')
     trades=snapshot.pop('trades')
-    from mt5_exit_evidence import trade_batches
-    for batch in trade_batches(snapshot,trades):
-     if not fresh_lease():return
-     report('syncing',dict(snapshot,trades=batch))
-    diagnostic('ENVOI ACCEPTE '+a['platform']+' compte ...'+str(a['login'])[-4:]+': '+str(len(trades))+' trades ; reception '+snapshot['observed_at'])
+    count=send_changes(report,snapshot,trades,sent)
+    if count is None:return
+    if complete:
+     diagnostic('ENVOI ACCEPTE '+a['platform']+' compte ...'+str(a['login'])[-4:]+': '+str(count)+' trades nouveaux ou modifies sur '+str(len(trades))+' ; reception '+snapshot['observed_at'])
+    else:
+     diagnostic('ENVOI ACCEPTE '+a['platform']+' compte ...'+str(a['login'])[-4:]+': solde et equity, historique inchange ; reception '+snapshot['observed_at'])
     last_stamp=snapshot['observed_at'];failures=0
     if a['platform']=='MT4':
      # The site keeps every trade it received: one export of the whole history is enough.
@@ -456,13 +542,14 @@ def child():
     if e.code in (401,409):return
    except Exception as e:
     diagnostic('LECTURE/ENVOI '+a['platform']+' compte ...'+str(a['login'])[-4:]+': '+safe_error(e))
+    if sync:sync.close()
     failures+=1
     if isinstance(e,MT5InitializationError) and e.code==-6:
      failures=3
      diagnostic('MT5 COMPTE A VERIFIER ...'+str(a['login'])[-4:]+' : authentification refusee ; corriger la connexion sur le site puis relancer si necessaire')
     if failures>=3:
      if a['platform']=='MT4':mt4_diagnostic(folder,'trois echecs de lecture ou envoi')
-     if mt5:mt5.shutdown()
+     if sync:sync.close()
      stop_terminals(folder);clear_mt4_start(folder)
      if isinstance(e,MT5InitializationError) and e.code in (-10000,-10001,-10002,-10003,-10005) and recoveries<2:
       recoveries+=1;retry_at=time.monotonic()+300
@@ -473,10 +560,8 @@ def child():
     except urllib.error.HTTPError as e:
      if e.code in (401,409):return
     except Exception:pass
-   finally:
-    if mt5:mt5.shutdown()
  finally:
-  if mt5:mt5.shutdown()
+  if sync:sync.close()
   stop_terminals(folder)
   remove_instance(folder)
 
@@ -506,7 +591,7 @@ def run():
   folder=STATE/'instances'/key;stop_terminals(folder)
   remove_instance(folder)
  try:
-  print('InvestPro D10 - MCP desactive ; delai MT5 60s ; plafond 50 comptes ; protection memoire. Ctrl+C pour arreter.',flush=True)
+  print('InvestPro D11 - MT5 : connexion gardee, historique relu seulement s il change ; envoi des seuls trades nouveaux ; MCP desactive ; plafond 50 comptes ; protection memoire. Ctrl+C pour arreter.',flush=True)
   while True:
    try:
     jobs=api(c,{'action':'poll'})['jobs'];failure_since=None;(STATE/'lease').touch()
