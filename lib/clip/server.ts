@@ -6,7 +6,7 @@ import { NextResponse } from "next/server";
 import { authenticateAdmin, permissionsFor } from "@/lib/admin/permissions";
 import { FREEZE_DAYS, freezeAt, normalizePhone, normalizeTelegram } from "@/lib/clip/rules";
 
-export const CLIPPER_COLUMNS = "id,user_id,ref,display_name,whatsapp,telegram,tracking_code,status,payout_method,payout_details,admin_note,referred_by,referral_payout_id,created_at";
+export const CLIPPER_COLUMNS = "id,user_id,ref,display_name,whatsapp,telegram,tracking_code,status,payout_method,payout_details,notify_email,admin_note,referred_by,referral_payout_id,created_at";
 export const ACCOUNT_COLUMNS = "id,clipper_id,platform,handle,followers,verified,created_at";
 export const CAMPAIGN_COLUMNS = "id,title,platforms,brief,forbidden,rushes_url,starts_on,ends_on,quota_per_clipper,amount_per_clip,status,created_at";
 /** Campagnes vues par les clippeurs : sans aucun montant. */
@@ -15,6 +15,8 @@ export const CLIP_COLUMNS = "id,ref,clipper_id,campaign_id,platform,url,title,pu
 export const PAYOUT_COLUMNS = "id,ref,clipper_id,cycle_start,cycle_end,clips_count,views_total,base_amount,bonus_amount,deduction_amount,referral_amount,total,method,proof,paid_at";
 export const CANDIDATE_COLUMNS = "id,user_id,email,display_name,whatsapp,telegram,accounts,availability,sample_url,message,source,status,referred_by,reviewed_at,created_at";
 export const VIDEO_COLUMNS = "id,title,note,url,campaign_id,created_at";
+/** Admin : avec le bilan des notifications envoyées à la publication. */
+export const ADMIN_VIDEO_COLUMNS = `${VIDEO_COLUMNS},notified_at,notified_push,notified_email`;
 
 export class ClipError extends Error {
   constructor(message: string, public status = 400) {

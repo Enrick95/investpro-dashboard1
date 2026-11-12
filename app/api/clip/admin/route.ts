@@ -6,7 +6,7 @@ import {
   CLIPPER_COLUMNS,
   CLIP_COLUMNS,
   PAYOUT_COLUMNS,
-  VIDEO_COLUMNS,
+  ADMIN_VIDEO_COLUMNS,
   assertSameOrigin,
   authenticateClipAdmin,
   ClipError,
@@ -20,6 +20,7 @@ import {
   text,
   trackingCodeFrom,
 } from "@/lib/clip/server";
+import { notifyNewVideo, type NotifyResult } from "@/lib/clip/notify";
 import { clipValue, cycleFor, DEFAULT_CLIP_AMOUNT, num, PAYOUT_LABEL, REFERRAL_BONUS, REFERRAL_CLIPS, round2, type PayoutMethod } from "@/lib/clip/rules";
 
 export const runtime = "nodejs";
@@ -63,7 +64,7 @@ export async function GET(request: Request) {
       db.from("clip_payouts").select(PAYOUT_COLUMNS).order("paid_at", { ascending: false }).limit(300),
       db.from("clip_view_snapshots").select("clip_id,views,recorded_at").gte("recorded_at", since).order("recorded_at", { ascending: true }).limit(20000),
       db.from("clip_click_stats").select("clipper_id,total,last30").limit(1000),
-      db.from("clip_videos").select(VIDEO_COLUMNS).order("created_at", { ascending: false }).limit(200),
+      db.from("clip_videos").select(ADMIN_VIDEO_COLUMNS).order("created_at", { ascending: false }).limit(200),
     ]);
     for (const result of [campaigns, clippers, accounts, clips, candidates, payouts, snapshots, clicks, videos]) if (result.error) throw result.error;
     return clipJson({
@@ -236,10 +237,33 @@ async function saveVideo(db: SupabaseClient, body: Body) {
   const campaignRaw = text(body, "campaign_id");
   const record = { title, url, note, campaign_id: campaignRaw ? uuid(body, "campaign_id") : null };
   const result = id
-    ? await db.from("clip_videos").update(record).eq("id", id).select(VIDEO_COLUMNS).single()
-    : await db.from("clip_videos").insert(record).select(VIDEO_COLUMNS).single();
+    ? await db.from("clip_videos").update(record).eq("id", id).select(ADMIN_VIDEO_COLUMNS).single()
+    : await db.from("clip_videos").insert(record).select(ADMIN_VIDEO_COLUMNS).single();
   if (result.error) throw result.error;
-  return { video: result.data };
+  // Les clippeurs ne sont prévenus qu'à la publication : modifier une vidéo ne renvoie rien.
+  if (id || body.notify !== true) return { video: result.data, notified: null };
+  const video = result.data as unknown as { id: string; title: string; note: string | null; campaign_id: string | null };
+  return { video: result.data, notified: await notifyVideo(db, video) };
+}
+
+/** Notification + e-mail aux clippeurs. La vidéo reste publiée même si l'envoi échoue. */
+async function notifyVideo(db: SupabaseClient, video: { id: string; title: string; note: string | null; campaign_id: string | null }): Promise<NotifyResult | { error: true }> {
+  try {
+    let campaign: string | null = null;
+    if (video.campaign_id) {
+      const { data } = await db.from("clip_campaigns").select("title,status").eq("id", video.campaign_id).maybeSingle();
+      const row = data as unknown as { title: string; status: string } | null;
+      // Une campagne en brouillon n'est pas encore visible des clippeurs : on ne la nomme pas.
+      if (row?.status === "active") campaign = row.title;
+    }
+    const notified = await notifyNewVideo(db, { id: video.id, title: video.title, note: video.note, campaign });
+    const { error } = await db.from("clip_videos").update({ notified_at: new Date().toISOString(), notified_push: notified.push, notified_email: notified.email }).eq("id", video.id);
+    if (error) console.error("[clip-notify] bilan non enregistré", error.code);
+    return notified;
+  } catch (error) {
+    console.error("[clip-notify] envoi impossible", error instanceof Error ? error.message : "inconnu");
+    return { error: true };
+  }
 }
 
 /** Supprime une campagne sans clip. Avec des clips, on la termine : leur historique et leurs paiements restent. */

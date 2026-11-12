@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { go } from "./Shell";
 import { RankRow, type RankingRow } from "./Ranking";
 
-export type HomeTodo = { key: string; icon: "link" | "flag" | "alert" | "wallet" | "film" | "gift"; tone: "warn" | "teal"; title: string; sub: string; cta: string; primary: boolean; onClick: () => void };
+export type HomeTodo = { key: string; icon: "link" | "flag" | "alert" | "wallet" | "film" | "gift" | "bell"; tone: "warn" | "teal"; title: string; sub: string; cta: string; primary: boolean; onClick: () => void };
 export type HomeCampaign = { id: string; title: string; progress: string; pct: number; meta: string };
 export type HomeVals = {
   firstName: string;
@@ -42,6 +42,7 @@ const ICONS: Record<HomeTodo["icon"], ReactNode> = {
   alert: <><path d="M12 4.5l9 15.5H3z" /><path d="M12 10v4.5M12 17.6v.1" /></>,
   wallet: <><path d="M17.5 7.5V6a2 2 0 0 0-2-2H5.5A2.5 2.5 0 0 0 3 6.5" /><rect x="3" y="7.5" width="18" height="12.5" rx="2.5" /><circle cx="16.5" cy="13.75" r="1" /></>,
   film: <><rect x="3" y="4.5" width="18" height="15" rx="3" /><path d="M10 9.2v5.6l4.8-2.8z" /></>,
+  bell: <><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z" /><path d="M10 20.5a2 2 0 0 0 4 0" /></>,
   gift: <><rect x="3.5" y="8.5" width="17" height="4" rx="1" /><path d="M5 12.5v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7M12 8.5v12" /><path d="M12 8.5C10.5 5 7 5 7 7s3 1.5 5 1.5zM12 8.5C13.5 5 17 5 17 7s-3 1.5-5 1.5z" /></>,
 };
 

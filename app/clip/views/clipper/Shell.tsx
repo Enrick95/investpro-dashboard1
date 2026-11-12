@@ -21,12 +21,14 @@ const TABS: { key: ClipperTab; label: string; hash: string; icon: ReactNode }[] 
   { key: "payments", label: "Paiements", hash: "#paiements", icon: <><path d="M17.5 7.5V6a2 2 0 0 0-2-2H5.5A2.5 2.5 0 0 0 3 6.5" /><rect x="3" y="7.5" width="18" height="12.5" rx="2.5" /><circle cx="16.5" cy="13.75" r="1" /></> },
 ];
 
-export function ClipperShell({ initials, active, onTab, bellDot, onBell, children }: {
+export function ClipperShell({ initials, active, onTab, bellDot, onBell, ticker = null, children }: {
   initials: string;
   active: ClipperTab;
   onTab: (tab: ClipperTab) => void;
   bellDot: boolean;
   onBell: () => void;
+  /** Bandeau défilant sous l'en-tête (nouvelle vidéo, nouvelle campagne). */
+  ticker?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -52,6 +54,7 @@ export function ClipperShell({ initials, active, onTab, bellDot, onBell, childre
             <a href="#profil" onClick={go(() => onTab("profile"))} aria-label="Mon profil" aria-current={active === "profile" ? "page" : undefined} style={{ width: "44px", height: "44px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid rgba(240,197,117,0.4)", background: active === "profile" ? "#F0C575" : "rgba(240,197,117,0.14)", color: active === "profile" ? "#0b0d0b" : "#F0C575", fontSize: "13px", fontWeight: "800", textDecoration: "none" }}>{initials}</a>
           </span>
         </header>
+        {ticker ? <div style={{ padding: "4px 16px 6px" }}>{ticker}</div> : null}
         <main style={{ display: "flex", flexDirection: "column", gap: "16px", padding: "6px 16px 96px" }}>{children}</main>
         <nav aria-label="Navigation" style={{ position: "sticky", bottom: "0", zIndex: 5, marginTop: "auto", display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", alignItems: "end", padding: "6px 6px calc(14px + env(safe-area-inset-bottom))", borderTop: "1px solid rgba(255,255,255,0.08)", background: "#0e100d" }}>
           {TABS.map((tab) => {
