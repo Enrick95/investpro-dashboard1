@@ -118,6 +118,68 @@ function clipSender(from: string): string {
   return address ? `InvestPro Clip <${address}>` : from;
 }
 
+type Mail = { from: string; to: string[]; subject: string; html: string; text: string; headers?: Record<string, string> };
+type BatchResult = { kind: "sent"; refused: Set<number> } | { kind: "rejected" } | { kind: "failed" };
+
+const pause = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/** Envoi groupé (100 e-mails max par appel). « rejected » : le service refuse la requête, rien n'est parti. */
+async function sendBatch(key: string, mails: Mail[], idempotencyKey: string): Promise<BatchResult> {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    let response: Response;
+    try {
+      response = await fetch("https://api.resend.com/emails/batch", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+          // Une adresse refusée n'empêche pas les autres de partir.
+          "x-batch-validation": "permissive",
+          "Idempotency-Key": idempotencyKey,
+        },
+        body: JSON.stringify(mails),
+        signal: AbortSignal.timeout(12_000),
+      });
+    } catch {
+      // Délai dépassé : on ne sait pas si le service a envoyé, on ne renvoie rien (pas de doublon).
+      return { kind: "failed" };
+    }
+    if (response.status === 429 && attempt === 0) {
+      await pause(1200);
+      continue;
+    }
+    if (response.ok) {
+      const result = (await response.json().catch(() => null)) as { errors?: { index?: number }[] } | null;
+      return { kind: "sent", refused: new Set((Array.isArray(result?.errors) ? result.errors : []).map((item) => Number(item.index))) };
+    }
+    console.error("[clip-notify] envoi groupé refusé par le service", response.status);
+    return response.status >= 400 && response.status < 500 && response.status !== 429 ? { kind: "rejected" } : { kind: "failed" };
+  }
+  return { kind: "failed" };
+}
+
+/** Un e-mail, par le même appel que le reste du site. */
+async function sendOne(key: string, mail: Mail, idempotencyKey: string): Promise<boolean> {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
+        body: JSON.stringify(mail),
+        signal: AbortSignal.timeout(8000),
+      });
+      if (response.status === 429 && attempt === 0) {
+        await pause(1200);
+        continue;
+      }
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
+
 async function emailNewVideo(db: SupabaseClient, recipients: Recipient[], notice: VideoNotice): Promise<Outcome & { ready: boolean }> {
   const outcome = { reached: new Set<string>(), failed: 0, ready: false };
   const key = process.env.RESEND_API_KEY;
@@ -139,9 +201,10 @@ async function emailNewVideo(db: SupabaseClient, recipients: Recipient[], notice
   });
 
   const sender = clipSender(from);
+  const deadline = Date.now() + 40_000;
   for (let start = 0; start < addressed.length; start += 100) {
     const chunk = addressed.slice(start, start + 100);
-    const messages = chunk.map((recipient) => {
+    const mails: Mail[] = chunk.map((recipient) => {
       const optOut = emailOptOutUrl(recipient.clipperId);
       const content = videoEmail({ first: recipient.first, notice, optOut });
       return {
@@ -153,33 +216,27 @@ async function emailNewVideo(db: SupabaseClient, recipients: Recipient[], notice
         ...(optOut ? { headers: { "List-Unsubscribe": `<${optOut}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } } : {}),
       };
     });
-    try {
-      const response = await fetch("https://api.resend.com/emails/batch", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${key}`,
-          "Content-Type": "application/json",
-          // Une adresse refusée n'empêche pas les autres de partir.
-          "x-batch-validation": "permissive",
-          "Idempotency-Key": `clip-video-${notice.id}-${start}`,
-        },
-        body: JSON.stringify(messages),
-        signal: AbortSignal.timeout(10_000),
-      });
-      if (!response.ok) {
-        console.error("[clip-notify] e-mails refusés par le service", response.status);
-        outcome.failed += chunk.length;
-        continue;
-      }
-      const result = (await response.json().catch(() => null)) as { errors?: { index?: number }[] } | null;
-      const refused = new Set((Array.isArray(result?.errors) ? result.errors : []).map((item) => Number(item.index)));
+    const batch = await sendBatch(key, mails, `clip-video-${notice.id}-${start}`);
+    if (batch.kind === "sent") {
       chunk.forEach((recipient, index) => {
-        if (refused.has(index)) outcome.failed += 1;
+        if (batch.refused.has(index)) outcome.failed += 1;
         else outcome.reached.add(recipient.clipperId);
       });
-    } catch {
-      console.error("[clip-notify] envoi des e-mails impossible");
+      continue;
+    }
+    if (batch.kind === "failed") {
       outcome.failed += chunk.length;
+      continue;
+    }
+    // Envoi groupé refusé (rien n'est parti) : un par un, au rythme permis par le service.
+    for (let index = 0; index < chunk.length; index += 1) {
+      if (Date.now() > deadline) {
+        outcome.failed += chunk.length - index;
+        break;
+      }
+      if (await sendOne(key, mails[index], `clip-video-${notice.id}-${chunk[index].clipperId}`)) outcome.reached.add(chunk[index].clipperId);
+      else outcome.failed += 1;
+      await pause(550);
     }
   }
   return outcome;

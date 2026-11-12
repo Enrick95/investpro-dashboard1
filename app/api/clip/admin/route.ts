@@ -25,6 +25,8 @@ import { clipValue, cycleFor, DEFAULT_CLIP_AMOUNT, num, PAYOUT_LABEL, REFERRAL_B
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// La publication d'une vidéo envoie les notifications et les e-mails avant de répondre.
+export const maxDuration = 60;
 
 type Body = Record<string, unknown>;
 
