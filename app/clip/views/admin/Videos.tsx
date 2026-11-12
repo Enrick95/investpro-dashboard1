@@ -9,7 +9,7 @@ import { Chip, Icon, S } from "./kit";
  */
 
 export type VideoFormData = { id: string | null; title: string; url: string; note: string; campaign_id: string };
-export type AdminVideoItem = { id: string; title: string; url: string; note: string | null; meta: string; isNew: boolean; whatsapp: string };
+export type AdminVideoItem = { id: string; title: string; url: string; note: string | null; meta: string; isNew: boolean; whatsapp: string; canNotify: boolean };
 /** Bilan affiché juste après la publication, avec le message WhatsApp prêt à envoyer. */
 export type PublishedNotice = { title: string; line: string; tone: "ok" | "warn"; whatsapp: string };
 export type AdminVideosVals = {
@@ -27,6 +27,8 @@ export type AdminVideosVals = {
   dismissPublished: () => void;
   save: () => void;
   remove: (id: string) => void;
+  /** Vidéo récente pas encore annoncée : notification + e-mail aux clippeurs, une seule fois. */
+  notifyNow: (id: string) => void;
   busy: boolean;
 };
 
@@ -133,6 +135,7 @@ export function AdminVideos({ v }: { v: AdminVideosVals }) {
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
                 <a href={item.url} target="_blank" rel="noopener noreferrer" style={{ ...S.ghost, minHeight: "40px", padding: "0 12px" }}>Ouvrir<Icon name="external" size={14} /></a>
+                {item.canNotify ? <button type="button" disabled={v.busy} onClick={() => v.notifyNow(item.id)} style={{ ...S.primary, minHeight: "40px", padding: "0 12px", fontSize: "13px" }}><Icon name="send" size={15} />Prévenir les clippeurs</button> : null}
                 <a href={item.whatsapp} target="_blank" rel="noopener noreferrer" aria-label={`Partager ${item.title} sur WhatsApp`} style={{ ...S.ghost, minHeight: "40px", padding: "0 12px" }}><WhatsAppIcon size={15} />WhatsApp</a>
                 <button type="button" onClick={() => { setConfirmId(null); v.edit(item.id); }} style={{ ...S.ghost, minHeight: "40px", padding: "0 12px" }}>Modifier</button>
                 {confirmId === item.id ? (

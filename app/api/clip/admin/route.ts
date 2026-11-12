@@ -248,6 +248,23 @@ async function saveVideo(db: SupabaseClient, body: Body) {
   return { video: result.data, notified: await notifyVideo(db, video) };
 }
 
+/** Vidéo déjà publiée sans prévenir (ou avant les notifications) : on prévient une seule fois. */
+async function notifyExistingVideo(db: SupabaseClient, body: Body) {
+  const id = uuid(body, "id");
+  const { data, error } = await db.from("clip_videos").select("id,title,note,campaign_id,notified_at").eq("id", id).maybeSingle();
+  if (error) throw error;
+  const video = data as unknown as { id: string; title: string; note: string | null; campaign_id: string | null; notified_at: string | null } | null;
+  if (!video) throw new ClipError("Vidéo introuvable.", 404);
+  // Réservé avant l'envoi : un double clic ne prévient les clippeurs qu'une fois.
+  const { data: claimed, error: claimError } = await db.from("clip_videos").update({ notified_at: new Date().toISOString() }).eq("id", id).is("notified_at", null).select("id");
+  if (claimError) throw claimError;
+  if (!claimed?.length) throw new ClipError("Les clippeurs ont déjà été prévenus pour cette vidéo.", 409);
+  const notified = await notifyVideo(db, video);
+  // Rien n'est parti : le bouton « Prévenir » revient pour réessayer.
+  if ("error" in notified) await db.from("clip_videos").update({ notified_at: null }).eq("id", id);
+  return { notified };
+}
+
 /** Notification + e-mail aux clippeurs. La vidéo reste publiée même si l'envoi échoue. */
 async function notifyVideo(db: SupabaseClient, video: { id: string; title: string; note: string | null; campaign_id: string | null }): Promise<NotifyResult | { error: true }> {
   try {
@@ -416,6 +433,8 @@ export async function POST(request: Request) {
         return clipJson(await saveVideo(ctx.db, body));
       case "delete_video":
         return clipJson(await deleteVideo(ctx.db, body));
+      case "notify_video":
+        return clipJson(await notifyExistingVideo(ctx.db, body));
       case "delete_campaign":
         return clipJson(await deleteCampaign(ctx.db, body));
       case "pay":
