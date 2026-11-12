@@ -148,3 +148,21 @@
   .side { flex-direction: row; flex-wrap: wrap; padding: 12px; gap: 6px; border-right: 0; border-bottom: 1px solid var(--line); }
   .sideItem { width: auto; }
 }
+
+/* Bandeau défilant en haut de l'espace : nouvelle vidéo ou nouvelle campagne d'Enrick */
+.ticker { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 42px; padding: 0 10px 0 6px; border-radius: 14px; border: 1px solid rgba(240, 197, 117, 0.42); background: linear-gradient(90deg, rgba(240, 197, 117, 0.2), rgba(240, 197, 117, 0.06)); color: var(--fg, #F3EFE6); font: inherit; text-align: left; cursor: pointer; overflow: hidden; }
+.tickerPill { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: 999px; background: #F0C575; color: #0b0d0b; font-size: 10.5px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+.tickerDot { width: 6px; height: 6px; border-radius: 50%; background: #0b0d0b; animation: tickerPulse 1.4s ease-in-out infinite; }
+.tickerWindow { flex: 1 1 auto; min-width: 0; overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 10px, #000 calc(100% - 16px), transparent); mask-image: linear-gradient(90deg, transparent, #000 10px, #000 calc(100% - 16px), transparent); }
+.tickerTrack { display: inline-flex; width: max-content; animation: tickerScroll 18s linear infinite; will-change: transform; }
+.tickerItem { padding-right: 56px; white-space: nowrap; font-size: 13px; font-weight: 700; }
+.tickerGo { flex-shrink: 0; color: #F0C575; }
+.ticker:hover .tickerTrack, .ticker:focus-visible .tickerTrack { animation-play-state: paused; }
+@keyframes tickerScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes tickerPulse { 50% { opacity: 0.25; } }
+@media (prefers-reduced-motion: reduce) {
+  .tickerTrack { display: block; width: 100%; animation: none; }
+  .tickerItem { display: block; padding-right: 0; overflow: hidden; text-overflow: ellipsis; }
+  .tickerItem + .tickerItem { display: none; }
+  .tickerDot { animation: none; }
+}

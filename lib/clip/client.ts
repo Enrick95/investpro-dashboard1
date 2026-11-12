@@ -40,7 +40,7 @@ export async function clipSignOut(): Promise<void> {
 }
 
 /** Appel aux routes /api/clip avec la session de l'espace clippeurs. */
-export async function clipApi<T>(path: string, init?: { method?: "GET" | "POST" | "PATCH"; body?: unknown; auth?: boolean }): Promise<T> {
+export async function clipApi<T>(path: string, init?: { method?: "GET" | "POST" | "PATCH" | "DELETE"; body?: unknown; auth?: boolean }): Promise<T> {
   const token = init?.auth === false ? null : await clipToken();
   if (init?.auth !== false && !token) throw new ClipApiError("Connecte-toi pour continuer.", 401);
   const hasBody = init?.body !== undefined;

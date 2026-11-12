@@ -3,10 +3,15 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Chip, Icon, S } from "./kit";
 
-/** Vidéos tournées par Enrick : les clippeurs les voient en haut de leur onglet Campagnes. */
+/**
+ * Vidéos tournées par Enrick : les clippeurs les voient en haut de leur onglet Campagnes
+ * et sont prévenus à la publication (notification sur leur téléphone + e-mail).
+ */
 
 export type VideoFormData = { id: string | null; title: string; url: string; note: string; campaign_id: string };
-export type AdminVideoItem = { id: string; title: string; url: string; note: string | null; meta: string; isNew: boolean };
+export type AdminVideoItem = { id: string; title: string; url: string; note: string | null; meta: string; isNew: boolean; whatsapp: string };
+/** Bilan affiché juste après la publication, avec le message WhatsApp prêt à envoyer. */
+export type PublishedNotice = { title: string; line: string; tone: "ok" | "warn"; whatsapp: string };
 export type AdminVideosVals = {
   subline: string;
   items: AdminVideoItem[];
@@ -16,6 +21,10 @@ export type AdminVideosVals = {
   edit: (id: string) => void;
   closeForm: () => void;
   setField: (key: keyof VideoFormData, value: string) => void;
+  notify: boolean;
+  setNotify: (value: boolean) => void;
+  published: PublishedNotice | null;
+  dismissPublished: () => void;
   save: () => void;
   remove: (id: string) => void;
   busy: boolean;
@@ -35,8 +44,13 @@ const input = { ...S.input, width: "100%" };
 const STEPS = [
   "Tu tournes ta vidéo et tu la mets sur Google Drive (partage : « tous ceux qui ont le lien »).",
   "Tu colles le lien ici avec un titre et, si tu veux, une consigne.",
-  "Les clippeurs la voient en haut de leur onglet Campagnes avec un badge « Nouveau », la découpent et soumettent leurs clips.",
+  "Les clippeurs sont prévenus tout de suite : notification sur leur téléphone, e-mail et bandeau « Nouveau » dans leur espace.",
+  "Ils la découpent et soumettent leurs clips, que tu valides dans « Clips à valider ».",
 ];
+
+function WhatsAppIcon({ size = 16 }: { size?: number }) {
+  return <Icon name="chat" size={size} stroke="2" />;
+}
 
 export function AdminVideos({ v }: { v: AdminVideosVals }) {
   const form = v.form;
@@ -71,11 +85,35 @@ export function AdminVideos({ v }: { v: AdminVideosVals }) {
           </div>
           <Field id="v-url" label="Lien de la vidéo (Drive, Dropbox, YouTube…)"><input id="v-url" type="url" required placeholder="https://drive.google.com/…" value={form.url} onChange={(event) => v.setField("url", event.target.value)} style={input} /></Field>
           <Field id="v-note" label="Consigne pour les clippeurs (facultatif)"><textarea id="v-note" maxLength={600} placeholder="Ex. Garde le passage sur la cassure de 14 min à 18 min, sous-titres obligatoires." value={form.note} onChange={(event) => v.setField("note", event.target.value)} style={{ ...input, minHeight: "90px", padding: "10px 12px", resize: "vertical", lineHeight: "1.45" }} /></Field>
+          {!form.id ? (
+            <label htmlFor="v-notify" style={{ display: "flex", alignItems: "flex-start", gap: "12px", padding: "12px 14px", borderRadius: "14px", background: "rgba(240,197,117,0.07)", border: "1px solid rgba(240,197,117,0.28)", cursor: "pointer" }}>
+              <input id="v-notify" type="checkbox" checked={v.notify} onChange={(event) => v.setNotify(Boolean(event.target.checked))} style={{ width: "20px", height: "20px", margin: "1px 0 0", accentColor: "#F0C575", flexShrink: "0" }} />
+              <span style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                <span style={{ fontWeight: "800", color: "#F3EFE6" }}>Prévenir les clippeurs</span>
+                <span style={S.sub}>Notification sur leur téléphone (s&apos;ils l&apos;ont activée) et e-mail, dès que tu publies.</span>
+              </span>
+            </label>
+          ) : null}
           <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
             <button type="submit" disabled={v.busy} style={S.primary}>{form.id ? "Enregistrer" : "Publier pour les clippeurs"}</button>
             <button type="button" onClick={v.closeForm} style={S.ghost}>Annuler</button>
           </div>
         </form>
+      ) : null}
+      {v.published ? (
+        <section role="status" aria-label="Vidéo publiée" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "12px", padding: "16px 18px", borderRadius: "18px", background: v.published.tone === "ok" ? "rgba(145,214,208,0.07)" : "rgba(242,180,90,0.08)", border: v.published.tone === "ok" ? "1px solid rgba(145,214,208,0.35)" : "1px solid rgba(242,180,90,0.4)" }}>
+          <span style={{ flex: "1 1 280px", minWidth: "0", display: "flex", gap: "12px", alignItems: "flex-start" }}>
+            <span aria-hidden="true" style={{ flexShrink: "0", width: "36px", height: "36px", borderRadius: "11px", display: "flex", alignItems: "center", justifyContent: "center", background: v.published.tone === "ok" ? "rgba(145,214,208,0.14)" : "rgba(242,180,90,0.14)", color: v.published.tone === "ok" ? "#91D6D0" : "#F2B45A" }}><Icon name={v.published.tone === "ok" ? "check" : "alert"} size={18} stroke="2.2" /></span>
+            <span style={{ display: "flex", flexDirection: "column", gap: "3px", minWidth: "0" }}>
+              <span style={{ fontWeight: "800", color: "#F3EFE6", overflowWrap: "anywhere" }}>« {v.published.title} » est en ligne</span>
+              <span style={{ fontSize: "13px", color: "#C4C8BD" }}>{v.published.line}</span>
+            </span>
+          </span>
+          <span style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+            <a href={v.published.whatsapp} target="_blank" rel="noopener noreferrer" style={{ ...S.primary, minHeight: "42px" }}><WhatsAppIcon />Prévenir aussi sur WhatsApp</a>
+            <button type="button" onClick={v.dismissPublished} aria-label="Fermer" style={{ ...S.ghost, minHeight: "42px", padding: "0 12px" }}><Icon name="x" size={15} /></button>
+          </span>
+        </section>
       ) : null}
       <div style={{ display: "flex", flexWrap: "wrap", gap: "14px", alignItems: "flex-start" }}>
         <section aria-labelledby="t-videos-list" style={{ ...S.card, flex: "2 1 460px", minWidth: "0", padding: "22px 22px 10px" }}>
@@ -95,6 +133,7 @@ export function AdminVideos({ v }: { v: AdminVideosVals }) {
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
                 <a href={item.url} target="_blank" rel="noopener noreferrer" style={{ ...S.ghost, minHeight: "40px", padding: "0 12px" }}>Ouvrir<Icon name="external" size={14} /></a>
+                <a href={item.whatsapp} target="_blank" rel="noopener noreferrer" aria-label={`Partager ${item.title} sur WhatsApp`} style={{ ...S.ghost, minHeight: "40px", padding: "0 12px" }}><WhatsAppIcon size={15} />WhatsApp</a>
                 <button type="button" onClick={() => { setConfirmId(null); v.edit(item.id); }} style={{ ...S.ghost, minHeight: "40px", padding: "0 12px" }}>Modifier</button>
                 {confirmId === item.id ? (
                   <button type="button" disabled={v.busy} onClick={() => { setConfirmId(null); v.remove(item.id); }} style={{ ...S.danger, minHeight: "40px" }}>Confirmer</button>
@@ -116,7 +155,7 @@ export function AdminVideos({ v }: { v: AdminVideosVals }) {
               </li>
             ))}
           </ol>
-          <span style={{ fontSize: "12.5px", color: "#A8ADA3" }}>Une vidéo reste marquée « Nouveau » pendant 3 jours dans l&apos;espace des clippeurs. Les clips qu&apos;ils en tirent arrivent dans « Clips à valider », comme les autres.</span>
+          <span style={{ fontSize: "12.5px", color: "#A8ADA3" }}>Une vidéo reste marquée « Nouveau » pendant 3 jours dans l&apos;espace des clippeurs. Le bouton WhatsApp ouvre ton WhatsApp avec le message prêt : choisis ta liste de diffusion ou ton groupe de clippeurs et envoie.</span>
         </section>
       </div>
     </>

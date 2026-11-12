@@ -67,18 +67,24 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
+// InvestPro Clip (investproclip.com) : son propre nom, son icône et son espace par défaut.
+const CLIP_SITE = /(^|\.)investproclip\.com$/i.test(self.location.hostname);
+const HOME_PATH = CLIP_SITE ? "/login" : "/dashboard/copieur";
+// Seules les icônes de l'app Clip peuvent remplacer le logo InvestPro.
+const notificationAsset = (value) => (typeof value === "string" && /^\/clip-app\/[a-z0-9-]+\.png$/.test(value) ? value : "/logo.webp");
+
 self.addEventListener("push", (event) => {
   let payload = {};
   try { payload = event.data ? event.data.json() : {}; } catch { payload = {}; }
-  const title = String(payload.title || "InvestPro Trading").slice(0, 100);
+  const title = String(payload.title || (CLIP_SITE ? "InvestPro Clip" : "InvestPro Trading")).slice(0, 100);
   const body = String(payload.body || "Vous avez une nouvelle information.").slice(0, 240);
   const tag = String(payload.tag || "investpro-notification").slice(0, 120);
-  const target = new URL(String(payload.url || "/dashboard/copieur"), self.location.origin);
-  const url = target.origin === self.location.origin ? target.href : new URL("/dashboard/copieur", self.location.origin).href;
+  const target = new URL(String(payload.url || HOME_PATH), self.location.origin);
+  const url = target.origin === self.location.origin ? target.href : new URL(HOME_PATH, self.location.origin).href;
   event.waitUntil(self.registration.showNotification(title, {
     body,
-    icon: "/logo.webp",
-    badge: "/logo.webp",
+    icon: notificationAsset(payload.icon),
+    badge: notificationAsset(payload.badge),
     tag,
     data: { url },
   }));
@@ -86,8 +92,8 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const target = new URL(String(event.notification.data?.url || "/dashboard/copieur"), self.location.origin);
-  const url = target.origin === self.location.origin ? target.href : new URL("/dashboard/copieur", self.location.origin).href;
+  const target = new URL(String(event.notification.data?.url || HOME_PATH), self.location.origin);
+  const url = target.origin === self.location.origin ? target.href : new URL(HOME_PATH, self.location.origin).href;
   event.waitUntil((async () => {
     const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     for (const client of windows) {

@@ -47,7 +47,7 @@ export async function GET(request: Request) {
   }
 }
 
-/** Moyen de paiement et coordonnées du clippeur. */
+/** Moyen de paiement, coordonnées et e-mails des nouvelles vidéos. */
 export async function PATCH(request: Request) {
   try {
     const ctx = await authenticateClip(request);
@@ -56,7 +56,7 @@ export async function PATCH(request: Request) {
     const clipper = await findClipper(ctx.db, ctx.user.id);
     if (!clipper) throw new ClipError("Ton espace clippeur n'est pas encore ouvert.", 403);
     const body = await readJson(request);
-    const update: Record<string, string | null> = {};
+    const update: Record<string, string | boolean | null> = {};
     if ("display_name" in body) {
       const name = text(body, "display_name");
       if (name.length < 2 || name.length > 60) throw new ClipError("Nom affiché : 2 à 60 caractères.");
@@ -83,6 +83,10 @@ export async function PATCH(request: Request) {
       const telegram = raw ? normalizeTelegram(raw) : null;
       if (raw && !telegram) throw new ClipError("Pseudo Telegram invalide.");
       update.telegram = telegram;
+    }
+    if ("notify_email" in body) {
+      if (typeof body.notify_email !== "boolean") throw new ClipError("Réglage des e-mails invalide.");
+      update.notify_email = body.notify_email;
     }
     if (!Object.keys(update).length) throw new ClipError("Rien à enregistrer.");
     const { error } = await ctx.db.from("clip_clippers").update(update).eq("id", clipper.id);

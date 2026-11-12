@@ -51,7 +51,7 @@ import { AdminOverview, type AlertRow, type CampaignCardData, type ChartData, ty
 import { AdminClippers, type ClipperFilter, type ClipperStatus, type ClippersVals, type FicheData, type StatusChip } from "../views/admin/Clippers";
 import { AdminAccounts, type AccountFilter, type AccountsVals } from "../views/admin/Accounts";
 import { AdminReview, type ReviewCurrent, type ReviewTab, type ReviewVals, type ViewsFilter } from "../views/admin/Review";
-import { AdminVideos, type AdminVideosVals, type VideoFormData } from "../views/admin/Videos";
+import { AdminVideos, type AdminVideosVals, type PublishedNotice, type VideoFormData } from "../views/admin/Videos";
 import { AdminCampaigns, type AdminCampaignFilter, type AdminCampaignsVals, type CampaignFormData } from "../views/admin/Campaigns";
 import { AdminCandidates, type CandDecision, type CandTab, type CandidatesVals } from "../views/admin/Candidates";
 import { AdminPayments, type PayFilter, type PayRowData, type PaymentsVals } from "../views/admin/Payments";
@@ -93,7 +93,9 @@ type Candidate = {
 };
 type Snapshot = { clip_id: string; views: number | string; recorded_at: string };
 type ClickStat = { clipper_id: string; total: number | string; last30: number | string };
-type Video = { id: string; title: string; note: string | null; url: string; campaign_id: string | null; created_at: string };
+type Video = { id: string; title: string; note: string | null; url: string; campaign_id: string | null; created_at: string; notified_at?: string | null; notified_push?: number | null; notified_email?: number | null };
+/** Bilan renvoyé par le serveur après l'envoi des notifications d'une nouvelle vidéo. */
+type NotifyOutcome = { clippers: number; reached: number; push: number; email: number; failed: number; emailReady: boolean } | { error: true };
 type Data = { campaigns: CampaignRow[]; clippers: Clipper[]; accounts: Account[]; clips: ClipRow[]; candidates: Candidate[]; payouts: PayoutRow[]; snapshots: Snapshot[]; clicks: ClickStat[]; videos: Video[] };
 type LoadState = { phase: "loading" } | { phase: "denied"; message: string; login: boolean } | { phase: "error"; message: string } | { phase: "ready"; data: Data };
 type FlashState = { kind: "ok" | "error"; text: string } | null;
@@ -382,6 +384,8 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
   const [decided, setDecided] = useState<Record<string, "ok" | "ko">>({});
   const [viewsFilter, setViewsFilter] = useState<ViewsFilter>("unpaid");
   const [videoForm, setVideoForm] = useState<VideoFormData | null>(null);
+  const [videoNotify, setVideoNotify] = useState(true);
+  const [published, setPublished] = useState<{ title: string; note: string | null; asked: boolean; outcome: NotifyOutcome | null } | null>(null);
   const [campFilter, setCampFilter] = useState<AdminCampaignFilter | null>(null);
   const [form, setForm] = useState<CampaignFormData | null>(null);
   const [candTab, setCandTab] = useState<CandTab>("new");
@@ -415,11 +419,12 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
 
   const post = useCallback(async <T,>(body: Record<string, unknown>): Promise<T> => clipApi<T>("/api/clip/admin", { method: "POST", body }), []);
 
-  const act = useCallback(async (body: Record<string, unknown>, success: string | null): Promise<boolean> => {
+  const act = useCallback(async (body: Record<string, unknown>, success: string | null | ((result: unknown) => string | null)): Promise<boolean> => {
     setBusy(true);
     try {
-      await post(body);
-      if (success) setFlash({ kind: "ok", text: success });
+      const result = await post<unknown>(body);
+      const message = typeof success === "function" ? success(result) : success;
+      if (message) setFlash({ kind: "ok", text: message });
       await reload();
       return true;
     } catch (error) {
@@ -542,7 +547,23 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
     ko: (first: string, title: string, reason: string) => `Salut ${first}, ton clip « ${title} » n'est pas validé : ${reason.toLowerCase()}. Tu peux en proposer un autre en suivant la charte.`,
     password: (first: string, password: string) => `Salut ${first} ! Voici ton mot de passe provisoire pour l'espace clippeurs : ${password}\nConnecte-toi sur ${spaceUrl} puis change-le dans ton profil.`,
     method: (first: string, amount: string) => `Salut ${first} ! Tu as ${amount} acquis : ajoute ton moyen de paiement dans ton profil (${spaceUrl}#profil) pour être payé au prochain versement !`,
+    video: (title: string, note: string | null) => `🎬 Nouvelle vidéo à clipper : « ${title} »${note ? `\nConsigne : ${note}` : ""}\nElle t'attend dans ton espace : ${spaceUrl}`,
   };
+
+  /** WhatsApp sans destinataire : Enrick choisit sa liste de diffusion ou son groupe de clippeurs. */
+  function waShare(text: string): string {
+    return `https://wa.me/?text=${encodeURIComponent(text)}`;
+  }
+
+  function publishedLine(asked: boolean, outcome: NotifyOutcome | null): { line: string; tone: "ok" | "warn" } {
+    if (!asked) return { line: "Publiée sans prévenir les clippeurs : ils la verront en ouvrant leur espace.", tone: "ok" };
+    if (!outcome || "error" in outcome) return { line: "Elle est visible dans leur espace, mais les notifications ne sont pas parties : préviens-les sur WhatsApp.", tone: "warn" };
+    if (!outcome.clippers) return { line: "Aucun clippeur actif à prévenir pour l'instant : les prochains la verront en arrivant.", tone: "ok" };
+    const channels = [outcome.push ? `${outcome.push} par notification` : null, outcome.email ? `${outcome.email} par e-mail` : null].filter(Boolean).join(", ");
+    const missed = outcome.failed ? ` ${plural(outcome.failed, "envoi n'est pas passé", "envois ne sont pas passés")}.` : "";
+    if (!outcome.reached) return { line: `Aucun clippeur n'a pu être prévenu (notifications pas encore activées${outcome.emailReady ? ", e-mails coupés" : ", e-mails indisponibles"}).${missed}`, tone: "warn" };
+    return { line: `${plural(outcome.reached, "clippeur prévenu", "clippeurs prévenus")} sur ${outcome.clippers} : ${channels}.${missed}`, tone: outcome.failed ? "warn" : "ok" };
+  }
 
   function campaignCard(campaign: CampaignRow): CampaignCardData {
     const phase = campaignPhase(campaign, todayIso);
@@ -690,7 +711,7 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
       alerts.push({ key: "pay", tone: "ok", icon: "wallet", title: `Versement le ${dayMonth(cycle.payDate)}`, text: `${euro(projected)} acquis à verser.`, cta: { label: "Préparer", primary: true, onClick: () => navigate("payments") } });
     }
     if (!data.videos.length) {
-      alerts.push({ key: "videos", tone: "ok", icon: "film", title: "Poste ta première vidéo", text: "Colle le lien Drive d'une vidéo que tu as tournée : les clippeurs la voient avec « Nouveau » et la découpent.", cta: { label: "Ajouter", onClick: () => { setVideoForm(newVideoForm()); navigate("videos"); } } });
+      alerts.push({ key: "videos", tone: "ok", icon: "film", title: "Poste ta première vidéo", text: "Colle le lien Drive d'une vidéo que tu as tournée : les clippeurs sont prévenus (notification et e-mail) et la découpent.", cta: { label: "Ajouter", onClick: () => { setVideoNotify(true); setPublished(null); setVideoForm(newVideoForm()); navigate("videos"); } } });
     }
 
     const campaigns = data.campaigns.filter((campaign) => ["live", "soon"].includes(campaignPhase(campaign, todayIso)));
@@ -1409,13 +1430,15 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
   function buildVideos(): AdminVideosVals {
     const items = [...data.videos].sort((a, b) => b.created_at.localeCompare(a.created_at)).map((video) => {
       const campaign = video.campaign_id ? base.campaignsById.get(video.campaign_id) : undefined;
+      const notified = video.notified_at ? ` · prévenus : ${plural(video.notified_push ?? 0, "notif")}, ${plural(video.notified_email ?? 0, "mail")}` : "";
       return {
         id: video.id,
         title: video.title,
         url: video.url,
         note: video.note,
-        meta: `${campaign ? campaign.title : "Toutes les campagnes"} · ajoutée ${ago(video.created_at, now)}`,
+        meta: `${campaign ? campaign.title : "Toutes les campagnes"} · ajoutée ${ago(video.created_at, now)}${notified}`,
         isNew: now.getTime() - new Date(video.created_at).getTime() < NEW_VIDEO_DAYS * DAY,
+        whatsapp: waShare(msg.video(video.title, video.note)),
       };
     });
     const fresh = items.filter((item) => item.isNew).length;
@@ -1427,7 +1450,11 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
       items,
       campaigns,
       form: videoForm,
-      openNew: () => setVideoForm(newVideoForm()),
+      openNew: () => {
+        setVideoNotify(true);
+        setPublished(null);
+        setVideoForm(newVideoForm());
+      },
       edit: (id) => {
         const video = data.videos.find((item) => item.id === id);
         if (!video) return;
@@ -1436,9 +1463,26 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
       },
       closeForm: () => setVideoForm(null),
       setField: (key, value) => setVideoForm((current) => (current ? { ...current, [key]: value } : current)),
+      notify: videoNotify,
+      setNotify: setVideoNotify,
+      published: published ? ((): PublishedNotice => {
+        const summary = publishedLine(published.asked, published.outcome);
+        return { title: published.title, line: summary.line, tone: summary.tone, whatsapp: waShare(msg.video(published.title, published.note)) };
+      })() : null,
+      dismissPublished: () => setPublished(null),
       save: () => {
         if (!videoForm) return;
-        void act({ action: "save_video", ...videoForm, id: videoForm.id ?? undefined }, videoForm.id ? "Vidéo mise à jour." : "Vidéo publiée : les clippeurs la voient maintenant.").then((ok) => { if (ok) setVideoForm(null); });
+        const draft = videoForm;
+        const creating = !draft.id;
+        const notify = creating && videoNotify;
+        void act({ action: "save_video", ...draft, id: draft.id ?? undefined, notify }, (result) => {
+          if (!creating) return "Vidéo mise à jour.";
+          // Le bandeau de publication (bilan + WhatsApp) remplace le message habituel.
+          setFlash(null);
+          const outcome = (result as { notified?: NotifyOutcome | null } | null)?.notified ?? null;
+          setPublished({ title: draft.title.trim(), note: draft.note.trim() || null, asked: notify, outcome });
+          return null;
+        }).then((ok) => { if (ok) setVideoForm(null); });
       },
       remove: (id) => { void act({ action: "delete_video", id }, "Vidéo retirée de l'espace des clippeurs."); },
       busy,

@@ -3,11 +3,24 @@
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 import { isClipStandalone, openClipInstall } from "../InstallClip";
+import type { ClipPushState } from "../clipPush";
 import { useClipPath } from "../clipPath";
 import { go } from "./Shell";
 
 export type ProfileAccount = { id: string; short: string; handle: string; sub: string; verified: boolean };
 export type ProfileMethod = { key: string; name: string; detail: string; on: boolean; hint: string };
+/** Nouvelles vidéos d'Enrick : notification sur ce téléphone et e-mail. */
+export type ProfileNotifications = {
+  push: ClipPushState | "preview";
+  pushBusy: boolean;
+  pushError: string | null;
+  enablePush: () => void;
+  disablePush: () => void;
+  installApp: () => void;
+  emailOn: boolean;
+  emailAddress: string | null;
+  toggleEmail: () => void;
+};
 export type ProfileVals = {
   initials: string;
   name: string;
@@ -20,6 +33,7 @@ export type ProfileVals = {
   payoutCount: number;
   contact: { label: string; href: string };
   owner: boolean;
+  notifications: ProfileNotifications;
   message: { kind: "ok" | "error"; text: string } | null;
   busy: boolean;
   addAccount: (platform: string, handle: string, followers: string) => Promise<boolean>;
@@ -37,7 +51,56 @@ const field = { width: "100%", minHeight: "48px", padding: "0 12px", borderRadiu
 const label = { fontSize: "12px", fontWeight: "700", color: "#C4C8BD" } as const;
 const primary = { display: "flex", alignItems: "center", justifyContent: "center", minHeight: "44px", padding: "0 16px", borderRadius: "12px", border: "0", background: "#F0C575", color: "#0b0d0b", fontSize: "13px", fontWeight: "800" } as const;
 const ghost = { display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", minHeight: "44px", padding: "0 14px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.18)", background: "transparent", color: "#F3EFE6", fontSize: "13px", fontWeight: "700" } as const;
-const NOTIFS = ["Clip validé ou refusé", "Paiement envoyé", "Nouvelle campagne"];
+
+/** Interrupteur accessible (zone de tap de 44 px). */
+function Switch({ on, disabled = false, label, onToggle }: { on: boolean; disabled?: boolean; label: string; onToggle: () => void }) {
+  return (
+    <button type="button" role="switch" aria-checked={on} aria-label={label} disabled={disabled} onClick={onToggle} style={{ flexShrink: "0", minWidth: "56px", minHeight: "44px", padding: "0", border: "0", background: "transparent", display: "flex", alignItems: "center", justifyContent: "flex-end", cursor: disabled ? "default" : "pointer", opacity: disabled ? "0.55" : "1" }}>
+      <span aria-hidden="true" style={{ width: "48px", height: "28px", padding: "3px", borderRadius: "999px", background: on ? "#91D6D0" : "rgba(255,255,255,0.16)", display: "flex", justifyContent: on ? "flex-end" : "flex-start", transition: "background 0.2s" }}>
+        <span style={{ width: "22px", height: "22px", borderRadius: "50%", background: on ? "#0b0d0b" : "#C4C8BD" }} />
+      </span>
+    </button>
+  );
+}
+
+const PUSH_SUB: Record<ProfileNotifications["push"], string> = {
+  loading: "Vérification…",
+  preview: "Réglé sur le téléphone du clippeur",
+  unsupported: "Pas disponible dans ce navigateur : ouvre ton espace dans Chrome ou Safari, ou installe l'app.",
+  install: "Sur iPhone, les alertes arrivent seulement avec l'app installée sur ton écran d'accueil.",
+  denied: "Bloquées sur ce téléphone : autorise les notifications d'InvestPro Clip dans les réglages, puis reviens ici.",
+  off: "Une alerte dès qu'Enrick publie une vidéo.",
+  on: "Activées : tu es prévenu dès qu'Enrick publie une vidéo.",
+};
+
+function NotificationsCard({ n, busy }: { n: ProfileNotifications; busy: boolean }) {
+  const canToggle = n.push === "on" || n.push === "off" || n.push === "loading";
+  return (
+    <section aria-labelledby="t-notif" style={{ padding: "6px 16px", borderRadius: "20px", background: "#121511", border: "1px solid rgba(255,255,255,0.08)", display: "flex", flexDirection: "column" }}>
+      <h2 id="t-notif" style={{ margin: "10px 0 2px", fontSize: "14px", fontWeight: "800" }}>Notifications</h2>
+      <span style={{ fontSize: "12px", color: "#A8ADA3", paddingBottom: "6px" }}>Pour ne rater aucune nouvelle vidéo d&apos;Enrick</span>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", minHeight: "64px", padding: "8px 0", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+        <span style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: "0" }}>
+          <span style={{ fontWeight: "700" }}>Sur ce téléphone</span>
+          <span style={{ fontSize: "12px", color: n.push === "denied" ? "#F2B45A" : "#A8ADA3" }}>{PUSH_SUB[n.push]}</span>
+          {n.pushError ? <span role="alert" style={{ fontSize: "12px", color: "#FF6F91" }}>{n.pushError}</span> : null}
+        </span>
+        {canToggle ? (
+          <Switch on={n.push === "on"} disabled={n.push === "loading" || n.pushBusy} label="Notifications des nouvelles vidéos sur ce téléphone" onToggle={n.push === "on" ? n.disablePush : n.enablePush} />
+        ) : n.push === "install" ? (
+          <button type="button" onClick={n.installApp} style={{ ...ghost, flexShrink: "0", minHeight: "40px", padding: "0 12px" }}>Installer</button>
+        ) : null}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", minHeight: "64px", padding: "8px 0", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+        <span style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: "0" }}>
+          <span style={{ fontWeight: "700" }}>Par e-mail</span>
+          <span style={{ fontSize: "12px", color: "#A8ADA3", overflowWrap: "anywhere" }}>{n.emailOn ? `À chaque nouvelle vidéo${n.emailAddress ? `, sur ${n.emailAddress}` : ""}` : "Coupés : plus d'e-mail pour les nouvelles vidéos."}</span>
+        </span>
+        <Switch on={n.emailOn} disabled={busy} label="E-mail à chaque nouvelle vidéo" onToggle={n.toggleEmail} />
+      </div>
+    </section>
+  );
+}
 
 function StatusChip({ status }: { status: ProfileVals["status"] }) {
   const tone = status === "active" ? { bg: "rgba(145,214,208,0.12)", color: "#91D6D0", label: "Actif" } : status === "test" ? { bg: "rgba(255,255,255,0.07)", color: "#C4C8BD", label: "Période de test" } : { bg: "rgba(255,111,145,0.12)", color: "#FF6F91", label: "En pause" };
@@ -188,19 +251,7 @@ export function ClipperProfile({ v }: { v: ProfileVals }) {
         ))}
       </section>
 
-      <section aria-labelledby="t-notif" style={{ padding: "6px 16px", borderRadius: "20px", background: "#121511", border: "1px solid rgba(255,255,255,0.08)", display: "flex", flexDirection: "column" }}>
-        <h2 id="t-notif" style={{ margin: "10px 0 6px", fontSize: "14px", fontWeight: "800", display: "flex", alignItems: "center", gap: "8px" }}>Messages WhatsApp<span style={{ padding: "2px 8px", borderRadius: "999px", background: "rgba(255,255,255,0.07)", color: "#C4C8BD", fontSize: "11px", fontWeight: "700" }}>bientôt</span></h2>
-        {NOTIFS.map((labelText) => (
-          <div key={labelText} style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-            <span role="switch" aria-checked="true" aria-disabled="true" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", width: "100%", minHeight: "52px", color: "#A8ADA3", fontSize: "14px" }}>
-              <span>{labelText}</span>
-              <span aria-hidden="true" style={{ flexShrink: "0", width: "46px", height: "28px", padding: "3px", borderRadius: "999px", background: "rgba(145,214,208,0.35)", display: "flex", justifyContent: "flex-end" }}>
-                <span style={{ width: "22px", height: "22px", borderRadius: "50%", background: "#0b0d0b" }} />
-              </span>
-            </span>
-          </div>
-        ))}
-      </section>
+      <NotificationsCard n={v.notifications} busy={v.busy} />
 
       <section aria-labelledby="t-password" style={card}>
         <h2 id="t-password" style={{ margin: "0", fontSize: "14px", fontWeight: "800" }}>Mot de passe</h2>

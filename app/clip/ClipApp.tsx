@@ -48,6 +48,9 @@ import { ClipperRanking, type RankingRow } from "./views/clipper/Ranking";
 import { dayIso, dayNumber, viewGains, type ViewSnapshot } from "@/lib/clip/stats";
 import { ago, compact, dateRange, dayMonth, firstNameOf, initialsOf, longDay, maskDetails, monthName, ordinal, pct, plural, rankLabel, shortDay } from "@/lib/clip/format";
 import { ClipperShell, type ClipperTab } from "./views/clipper/Shell";
+import { ClipTicker } from "./views/clipper/Ticker";
+import { clipPushForget, useClipPush } from "./views/clipPush";
+import { openClipInstall } from "./views/InstallClip";
 import { ClipperHome, type HomeTodo } from "./views/clipper/Home";
 import { ClipperCampaigns, type CampaignCard, type CampaignFilter } from "./views/clipper/Campaigns";
 import { ClipperSubmit } from "./views/clipper/Submit";
@@ -68,6 +71,8 @@ type Clipper = {
   status: "test" | "active" | "paused";
   payout_method: PayoutMethod | null;
   payout_details: string | null;
+  /** E-mail à chaque nouvelle vidéo (activé par défaut). */
+  notify_email?: boolean;
   created_at: string;
 };
 type Account = { id: string; platform: ClipPlatform; handle: string; followers: number | null; verified: boolean; created_at: string };
@@ -149,6 +154,31 @@ export default function ClipApp() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Retour dans l'app (notification touchée, onglet rouvert) : l'espace se met à jour sans écran de chargement.
+  const refresh = useCallback(async () => {
+    try {
+      const me = await clipApi<Me>("/api/clip/me");
+      setState((current) => (current.phase === "ready" ? { phase: "ready", me } : current));
+    } catch {
+      // on garde l'écran actuel ; la prochaine ouverture réessaiera
+    }
+  }, []);
+
+  useEffect(() => {
+    let last = Date.now();
+    const onShow = () => {
+      if (document.visibilityState !== "visible" || Date.now() - last < 60_000) return;
+      last = Date.now();
+      void refresh();
+    };
+    document.addEventListener("visibilitychange", onShow);
+    window.addEventListener("focus", onShow);
+    return () => {
+      document.removeEventListener("visibilitychange", onShow);
+      window.removeEventListener("focus", onShow);
+    };
+  }, [refresh]);
 
   if (state.phase === "loading") {
     return (
@@ -256,6 +286,11 @@ export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; 
   const [origin, setOrigin] = useState("");
   const [startOpen, setStartOpen] = useState(false);
   const startKey = `ipc-start-${clipper.id}`;
+  // Bandeau « nouvelle vidéo » : affiché jusqu'à ce que le clippeur ouvre l'onglet Campagnes.
+  const tickerKey = `ipc-ticker-${clipper.id}`;
+  const [tickerSeen, setTickerSeen] = useState<number | null>(null);
+  const [tickerReady, setTickerReady] = useState(false);
+  const push = useClipPush(!preview);
 
   useEffect(() => {
     setOrigin(window.location.origin);
@@ -263,13 +298,40 @@ export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; 
       if (!preview) {
         setSeenAt(window.localStorage.getItem(SEEN_KEY));
         if (!window.localStorage.getItem(startKey)) setStartOpen(true);
+        const seen = Number(window.localStorage.getItem(tickerKey));
+        if (Number.isFinite(seen) && seen > 0) setTickerSeen(seen);
       }
     } catch {
       setSeenAt(null);
     }
+    setTickerReady(true);
     const fromHash = (Object.entries(HASH) as [ClipperTab, string][]).find(([, hash]) => hash === window.location.hash)?.[0];
     if (fromHash) setTabState(fromHash);
   }, []);
+
+  // Notification touchée alors que l'app est déjà ouverte : l'adresse passe à #campagnes, l'onglet suit.
+  useEffect(() => {
+    const onHash = () => {
+      const fromHash = (Object.entries(HASH) as [ClipperTab, string][]).find(([, hash]) => hash === window.location.hash)?.[0];
+      if (!fromHash) return;
+      setTabState(fromHash);
+      window.scrollTo({ top: 0 });
+    };
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+
+  // Les nouveautés du bandeau sont vues dès que le clippeur ouvre l'onglet Campagnes.
+  useEffect(() => {
+    if (tab !== "campaigns" || preview) return;
+    const stamp = Date.now();
+    try {
+      window.localStorage.setItem(tickerKey, String(stamp));
+    } catch {
+      // pas de mémoire locale : le bandeau reviendra à la prochaine visite
+    }
+    setTickerSeen(stamp);
+  }, [tab, preview, tickerKey]);
 
   const setTab = useCallback((next: ClipperTab) => {
     setTabState(next);
@@ -389,6 +451,25 @@ export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; 
     setTab("submit");
   }
 
+  // Bandeau défilant : vidéos et campagnes publiées ces 3 derniers jours, pas encore vues.
+  const tickerItems: string[] = [];
+  if (tickerReady) {
+    const unseen = (iso: string) => {
+      const at = new Date(iso).getTime();
+      return now.getTime() - at < 3 * 86_400_000 && (Boolean(preview) || tickerSeen === null || at > tickerSeen);
+    };
+    const newVideos = (me.videos ?? []).filter((video) => unseen(video.created_at));
+    if (newVideos.length === 1) tickerItems.push(`🎬 Enrick a posté une nouvelle vidéo : « ${newVideos[0].title} », à toi de la clipper !`);
+    else if (newVideos.length > 1) tickerItems.push(`🎬 Enrick a posté ${newVideos.length} nouvelles vidéos : ${newVideos.slice(0, 3).map((video) => `« ${video.title} »`).join(", ")}${newVideos.length > 3 ? "…" : "."} À toi de les clipper !`);
+    for (const campaign of campaigns) {
+      if (campaignState(campaign, today) === "live" && unseen(campaign.created_at)) tickerItems.push(`🚀 Nouvelle campagne : « ${campaign.title} »`);
+    }
+  }
+  const openNews = () => {
+    setCampaignFilter("live");
+    setTab("campaigns");
+  };
+
   let screen: ReactNode = null;
 
   if (tab === "home") {
@@ -399,6 +480,7 @@ export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; 
     if (!clipper.payout_method) todos.push({ key: "payout", icon: "wallet", tone: "warn", title: "Choisis comment être payé", sub: "Crypto, PayPal ou virement.", cta: "Choisir", primary: true, onClick: () => setTab("profile") });
     const freshVideos = (me.videos ?? []).filter((video) => now.getTime() - new Date(video.created_at).getTime() < 3 * 86_400_000);
     if (freshVideos.length) todos.push({ key: "videos", icon: "film", tone: "teal", title: freshVideos.length > 1 ? `${freshVideos.length} nouvelles vidéos à clipper` : `Nouvelle vidéo : ${freshVideos[0].title}`, sub: "Enrick vient de les poster, à toi de les couper.", cta: "Voir", primary: true, onClick: () => { setCampaignFilter("live"); setTab("campaigns"); } });
+    if (push.state === "off") todos.push({ key: "notifs", icon: "bell", tone: "teal", title: "Active les notifications", sub: push.error ?? "Sois prévenu sur ton téléphone dès qu'Enrick publie une vidéo.", cta: push.busy ? "Patiente…" : "Activer", primary: false, onClick: () => { void push.enable(); } });
     if (!clips.length) todos.push({ key: "start", icon: "film", tone: "teal", title: "Commence avec mes vidéos TikTok", sub: "Coupe-les et republie-les sur tes comptes, en attendant les vidéos longues.", cta: "Comment ?", primary: false, onClick: () => setStartOpen(true) });
     for (const campaign of live.slice(0, 2)) {
       const left = campaign.quota_per_clipper - mineIn(campaign.id);
@@ -704,6 +786,20 @@ export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; 
         saveInfo: (key, value) => profileAction(() => clipApi("/api/clip/me", { method: "PATCH", body: { [key]: key === "telegram" ? value.replace(/^@/, "") : value } }), "Infos enregistrées."),
         changePassword: (current, next) => profileAction(() => clipApi("/api/clip/me", { method: "POST", body: { action: "change_password", current, next } }), "Mot de passe changé."),
         contact: { label: ENRICK_WHATSAPP_LABEL, href: enrickWhatsApp(`Salut Enrick, c'est ${clipper.display_name} (${clipper.ref}). `) },
+        notifications: {
+          push: preview ? "preview" : push.state,
+          pushBusy: push.busy,
+          pushError: push.error,
+          enablePush: () => { void push.enable(); },
+          disablePush: () => { void push.disable(); },
+          installApp: openClipInstall,
+          emailOn: clipper.notify_email !== false,
+          emailAddress: me.email,
+          toggleEmail: () => {
+            const next = clipper.notify_email === false;
+            void profileAction(() => clipApi("/api/clip/me", { method: "PATCH", body: { notify_email: next } }), next ? "E-mails des nouvelles vidéos réactivés." : "E-mails des nouvelles vidéos coupés.");
+          },
+        },
         onCharter: () => setTab("charter"),
         onPayments: () => setTab("payments"),
         signOut: () => {
@@ -711,7 +807,8 @@ export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; 
             window.location.href = preview.backHref;
             return;
           }
-          void clipSignOut().then(() => { window.location.href = clipPathNow("/clip/login"); });
+          // Ce téléphone arrête de recevoir les notifications de ce compte.
+          void clipPushForget().then(() => clipSignOut()).then(() => { window.location.href = clipPathNow("/clip/login"); });
         },
       }} />
     );
@@ -728,7 +825,7 @@ export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; 
   }
 
   return (
-    <ClipperShell initials={initialsOf(clipper.display_name)} active={tab} onTab={(next) => (next === "submit" ? startSubmit(submitCampaign) : setTab(next))} bellDot={Boolean(bellDot)} onBell={openBell}>
+    <ClipperShell initials={initialsOf(clipper.display_name)} active={tab} onTab={(next) => (next === "submit" ? startSubmit(submitCampaign) : setTab(next))} bellDot={Boolean(bellDot)} onBell={openBell} ticker={tickerItems.length && tab !== "submit" ? <ClipTicker items={tickerItems} onOpen={openNews} /> : null}>
       {preview ? (
         <div role="status" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", padding: "8px 8px 8px 12px", borderRadius: "14px", background: "rgba(145,214,208,0.08)", border: "1px solid rgba(145,214,208,0.35)", fontSize: "12.5px", color: "#C4C8BD" }}>
           <span><b style={{ color: "#91D6D0" }}>Aperçu</b> · espace de {preview.name}, en lecture seule</span>
