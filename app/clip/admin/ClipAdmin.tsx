@@ -1439,6 +1439,7 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
         meta: `${campaign ? campaign.title : "Toutes les campagnes"} · ajoutée ${ago(video.created_at, now)}${notified}`,
         isNew: now.getTime() - new Date(video.created_at).getTime() < NEW_VIDEO_DAYS * DAY,
         whatsapp: waShare(msg.video(video.title, video.note)),
+        canNotify: !video.notified_at && now.getTime() - new Date(video.created_at).getTime() < NEW_VIDEO_DAYS * DAY,
       };
     });
     const fresh = items.filter((item) => item.isNew).length;
@@ -1485,6 +1486,17 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
         }).then((ok) => { if (ok) setVideoForm(null); });
       },
       remove: (id) => { void act({ action: "delete_video", id }, "Vidéo retirée de l'espace des clippeurs."); },
+      notifyNow: (id) => {
+        const video = data.videos.find((item) => item.id === id);
+        if (!video) return;
+        void act({ action: "notify_video", id }, (result) => {
+          setFlash(null);
+          const outcome = (result as { notified?: NotifyOutcome | null } | null)?.notified ?? null;
+          setPublished({ title: video.title, note: video.note, asked: true, outcome });
+          window.scrollTo({ top: 0, behavior: "smooth" });
+          return null;
+        });
+      },
       busy,
     };
   }
