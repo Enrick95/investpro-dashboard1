@@ -1,6 +1,6 @@
 import {createClient} from '@/lib/supabase/server';
 import {database,sameOrigin} from '@/lib/metasync/server';
-import {body,brokers,hostedAllowed} from '@/lib/metasync/hosted';
+import {body,brokers,excludedServer,hostedAllowed} from '@/lib/metasync/hosted';
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
 const headers={'Cache-Control':'no-store'};
@@ -27,6 +27,7 @@ export async function POST(req:Request){try{
    if(v.tested!==true||typeof v.template!=='string'||!/^[a-z0-9-]{1,60}$/.test(v.template))return reply({error:'Indique l’identifiant exact du modèle Windows et confirme son test.'},400);
    const {data:request,error}=await db.from('investpro_mt_server_requests').select('platform,server').eq('id',v.id).single();
    if(error||!request)return reply({error:'Demande introuvable.'},404);
+   if(excludedServer(request.server))return reply({error:'Les serveurs de démo MetaQuotes ne sont pas proposés en connexion hébergée.'},400);
    const conflict=brokers().some(b=>(b.id===v.template&&(b.platform!==request.platform||b.server.toLowerCase()!==request.server.toLowerCase()))||(b.platform===request.platform&&b.server.toLowerCase()===request.server.toLowerCase()&&b.id!==v.template));
    if(conflict)return reply({error:'Ce modèle ou ce serveur existe déjà dans la configuration avec une autre correspondance.'},409);
   }
@@ -36,6 +37,7 @@ export async function POST(req:Request){try{
   const broker=typeof v.broker==='string'?v.broker.trim():'',server=typeof v.server==='string'?v.server.trim():'';
   if(!['MT4','MT5'].includes(v.platform)||broker.length<2||broker.length>80||server.length<2||server.length>120||/[\x00-\x1f\x7f]/.test(broker+server))return reply({error:'Renseigne le broker, MT4 ou MT5 et le nom exact du serveur (sans adresse web).'},400);
   if(/https?:|[\/\\]/i.test(server))return reply({error:'Copie le nom du serveur affiché dans MetaTrader, pas une URL.'},400);
+  if(excludedServer(server))return reply({error:'Les comptes démo MetaQuotes ne sont pas acceptés : connecte le compte ouvert chez ton broker.'},400);
   const {error}=await db.rpc('investpro_request_server',{p_user:user.id,p_broker:broker,p_platform:v.platform,p_server:server});
   if(error)return reply({error:'Demande non enregistrée. Limite : 10 demandes par jour.'},409);
  }

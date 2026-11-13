@@ -76,6 +76,14 @@ const NOT_FOUND_AT_BROKER = new Set([
   'fallback-mt5-vantage-21', 'fallback-mt5-avatrade-1', 'fallback-mt5-avatrade-2',
 ]);
 
+// Servers never offered for a hosted connection, even with a template on the hosting PC: accounts on MetaQuotes'
+// own demo servers receive MetaQuotes' beta builds, whose self-update asks for administrator rights on the PC and
+// stopped every MT5 account on 12 November 2026. They are not accounts at a broker.
+const EXCLUDED_SERVER = /^metaquotes-/i;
+export function excludedServer(server: string): boolean {
+  return EXCLUDED_SERVER.test(server.trim());
+}
+
 function fallbackBrokers(): Broker[] {
   return includeBullwaves(FALLBACK_GROUPS.flatMap(({ platform, broker, servers }) =>
     servers.map((server, index) => ({
@@ -110,6 +118,10 @@ function installedTemplates(): Broker[] {
 }
 
 export function brokers(): Broker[] {
+  return catalog().filter(item => !excludedServer(item.server));
+}
+
+function catalog(): Broker[] {
   const configured = installedTemplates();
   if (!configured.length) return fallbackBrokers();
   // The templates installed on the hosting PC come first, with their own IDs. Every other known server stays

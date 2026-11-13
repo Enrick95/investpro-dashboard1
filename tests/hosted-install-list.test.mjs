@@ -35,6 +35,18 @@ test("the servers the hosting PC could not find at their broker are no longer of
   assert.ok(siteList({ METASYNC_HOSTED_BROKERS: JSON.stringify([later]) }).some(item => item.id === later.id), "Installed later, it is offered again");
 });
 
+test("MetaQuotes' own demo servers are never offered, even with a template installed on the PC", () => {
+  const installed = [
+    { id: "mt5-metaquotes-demo", label: "MetaQuotes", platform: "MT5", server: "MetaQuotes-Demo" },
+    { id: "mt5-axi-us52-live", label: "Axi", platform: "MT5", server: "Axi-US52-Live" },
+  ];
+  const onPc = siteList({ METASYNC_HOSTED_BROKERS: JSON.stringify(installed) });
+  for (const offered of [siteList(), onPc]) {
+    assert.ok(!offered.some(item => /^metaquotes-/i.test(item.server)), "No MetaQuotes demo server is offered");
+  }
+  assert.ok(onPc.some(item => item.id === "mt5-axi-us52-live"), "The other installed servers stay offered");
+});
+
 test("every server to install keeps the ID the site gives it, on the same platform and server", () => {
   const byId = new Map(siteList().map(item => [item.id, item]));
   for (const entry of entries) {
