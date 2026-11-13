@@ -27,8 +27,14 @@ X-Vercel-Mitigated: deny, environ 1 sur 7 le 13/11). Ces refus (et 429/5xx) sont
 quelques secondes (2 essais pour l'interrogation, 3 pour un envoi) au lieu d'arreter le compte ;
 un compte arrete apres trois plantages est retente toutes les 30 minutes.
 
+D14.2 (13/11 au soir) : signe de vie remis a 90 s (le site et ses calculs considerent un compte
+interrompu apres 3 minutes sans nouvelles) ; l'interrogation du site reste a 60 s et seuls les
+trades nouveaux sont envoyes. Un compte dont le terminal a perdu le broker (export MT4 trop
+ancien, delai IPC MT5) est retente sans limite : MT4 toutes les 1 a 5 min, MT5 toutes les 5 puis
+10 min. Un mot de passe refuse n'est jamais retente.
+
 Retour arriere (dans le dossier WINDOWS du PC) : arreter la tache InvestProHostedCollector, remettre
-host-D14-avant-D14_1.py, host-D13b-avant-D14.py (ou host-D13-avant-D13b.py) en host.py et run_host_background-avant-D14.py en
+host-D14_1-avant-D14_2.py, host-D14-avant-D14_1.py, host-D13b-avant-D14.py (ou host-D13-avant-D13b.py) en host.py et run_host_background-avant-D14.py en
 run_host_background.py, relancer la tache.
 
 Les serveurs MetaQuotes-Demo ne sont plus proposes : ils recoivent les versions beta de MT5 et

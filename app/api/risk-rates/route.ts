@@ -25,6 +25,8 @@ function parseRates(value: unknown) {
     }
 
     const row = item as Record<string, unknown>;
+    // The provider also lists crypto-assets (AAVE, LINK, USDT…): only three-letter currency codes are used.
+    if (typeof row.quote === "string" && !/^[A-Z]{3}$/.test(row.quote) && /^[A-Z0-9]{2,12}$/.test(row.quote)) continue;
     if (
       row.base !== "EUR" ||
       typeof row.quote !== "string" ||
