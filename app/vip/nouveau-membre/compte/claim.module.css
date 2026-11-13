@@ -264,6 +264,54 @@
   opacity: 0.6;
   cursor: wait;
 }
+/* Compte créé avec Google : pas de code, connexion Google puis retour sur cette page. */
+.alt {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+.altText {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.google {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 52px;
+  padding: 12px 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease;
+}
+.google:hover:not(:disabled) {
+  border-color: var(--gold);
+  background: rgba(240, 197, 117, 0.06);
+}
+.google:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.google svg {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  padding: 4px;
+  border-radius: 50%;
+  background: #fff;
+}
 
 .error {
   margin: 22px 0 0;

@@ -57,6 +57,17 @@ test("OAuth encoding round trips nested invitation query strings without turning
   assert.equal(new URL(safeNextPath(callback.searchParams.get("next")), callback.origin).origin, callback.origin);
 });
 
+test("Google sign-in returns to the VIP access page with its application, and lookalikes are refused", () => {
+  const destination = "/vip/nouveau-membre/compte?application=20079d23-ae74-407a-a448-961a22eb23cb";
+  const callback = new URL("/auth/callback", "https://investprotrading.fr");
+  callback.searchParams.set("next", safeNextPath(destination));
+  assert.equal(safeNextPath(callback.searchParams.get("next")), destination);
+  assert.equal(safeNextPath("/vip/nouveau-membre/compte"), "/vip/nouveau-membre/compte");
+  for (const invalid of ["/vip/nouveau-membre/comptes", "/vip/nouveau-membre/compte/other", "/vip/nouveau-membre/compte/../admin", "/vip/nouveau-membre/compte%2fadmin", "/vip/nouveau-membre//compte"]) {
+    assert.equal(safeNextPath(invalid), "/dashboard", invalid);
+  }
+});
+
 test("signup and login callbacks preserve the exact former-member intake destination", () => {
   for (const path of ["/signup", "/login"]) {
     const entry = new URL(path, "https://investprotrading.fr");

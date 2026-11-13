@@ -44,7 +44,31 @@ async function claimApplication(accessToken: string, applicationId: string): Pro
 
 function signInMessage(message: string): string {
   if (/confirm/i.test(message)) return "Ton adresse e-mail doit être confirmée avant l’accès. Écris à @EquipeInvestPro si tu n’as pas le lien de confirmation.";
-  return "Identifiant ou code incorrect. Vérifie l’e-mail reçu. Si tu avais déjà un compte, entre ton mot de passe habituel.";
+  return "Identifiant ou code incorrect. Vérifie l’e-mail reçu. Si tu avais déjà un compte, entre ton mot de passe habituel, ou utilise « Continuer avec Google » si tu t’es inscrit avec Google.";
+}
+
+/**
+ * Un compte InvestPro créé avec Google n'a ni mot de passe ni code : la validation ne lui en envoie pas. Le membre se
+ * connecte avec Google et revient sur cette même page, qui rattache alors sa demande à son compte.
+ */
+async function continueWithGoogle(applicationId: string): Promise<string | null> {
+  const next = new URL("/vip/nouveau-membre/compte", window.location.origin);
+  if (applicationId) next.searchParams.set("application", applicationId);
+  const callback = new URL("/auth/callback", window.location.origin);
+  callback.searchParams.set("next", next.pathname + next.search);
+  const { error } = await createClient().auth.signInWithOAuth({ provider: "google", options: { redirectTo: callback.toString() } });
+  return error ? "La connexion Google n’a pas pu démarrer. Réessaie dans un instant ou écris à @EquipeInvestPro." : null;
+}
+
+function GoogleMark() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <path fill="#4285F4" d="M21.805 10.023h-9.63v3.955h5.54c-.238 1.273-.952 2.35-2.03 3.069v2.55h3.287c1.924-1.77 3.033-4.38 3.033-7.487 0-.73-.066-1.43-.2-2.087Z" />
+      <path fill="#34A853" d="M12.175 22c2.75 0 5.06-.91 6.747-2.47l-3.287-2.55c-.91.61-2.078.97-3.46.97-2.656 0-4.905-1.794-5.71-4.205H3.07v2.64A10.197 10.197 0 0 0 12.175 22Z" />
+      <path fill="#FBBC05" d="M6.465 13.745a6.157 6.157 0 0 1-.322-1.945c0-.675.116-1.33.322-1.945v-2.64H3.07A10.198 10.198 0 0 0 2 11.8c0 1.647.394 3.205 1.07 4.585l3.395-2.64Z" />
+      <path fill="#EA4335" d="M12.175 5.65c1.493 0 2.83.513 3.885 1.52l2.91-2.91C17.23 2.64 14.92 1.6 12.175 1.6A10.197 10.197 0 0 0 3.07 7.215l3.395 2.64c.805-2.41 3.054-4.205 5.71-4.205Z" />
+    </svg>
+  );
 }
 
 function Brand() {
@@ -70,7 +94,7 @@ function Steps() {
         <span className={s.stepNumber} aria-hidden="true">2</span>
         <div>
           <span className={s.stepTitle}>Ton code</span>
-          <span className={s.stepText}>Celui reçu par e-mail à la validation.</span>
+          <span className={s.stepText}>Celui reçu par e-mail à la validation. Tu avais déjà un compte ? Ton mot de passe habituel, ou Google.</span>
         </div>
       </li>
       <li>
@@ -119,6 +143,23 @@ export default function VipMemberClaimClient({ applicationId }: { applicationId:
   const [identifier, setIdentifier] = useState("");
   const [code, setCode] = useState("");
   const [showCode, setShowCode] = useState(false);
+  const [googleBusy, setGoogleBusy] = useState(false);
+
+  async function google() {
+    if (busy || googleBusy) return;
+    setGoogleBusy(true);
+    setError("");
+    try {
+      const failure = await continueWithGoogle(applicationId);
+      if (failure) {
+        setError(failure);
+        setGoogleBusy(false);
+      }
+    } catch {
+      setError("La connexion Google n’a pas pu démarrer. Réessaie dans un instant ou écris à @EquipeInvestPro.");
+      setGoogleBusy(false);
+    }
+  }
 
   // Une session déjà ouverte est rattachée tout de suite. Sans demande validée, le formulaire s’affiche sans message.
   useEffect(() => {
@@ -252,10 +293,18 @@ export default function VipMemberClaimClient({ applicationId }: { applicationId:
                   </div>
                   <span className={s.hint}>Majuscules et minuscules comptent.</span>
                 </div>
-                <button type="submit" className={s.primary} disabled={busy}>
+                <button type="submit" className={s.primary} disabled={busy || googleBusy}>
                   {busy ? "Vérification…" : "Ouvrir mon accès VIP"}
                 </button>
               </form>
+
+              <div className={s.alt}>
+                <p className={s.altText}>Ton compte InvestPro a été créé avec Google ? Tu n’as pas de code : connecte-toi avec Google.</p>
+                <button type="button" className={s.google} onClick={google} disabled={busy || googleBusy}>
+                  <GoogleMark />
+                  {googleBusy ? "Ouverture de Google…" : "Continuer avec Google"}
+                </button>
+              </div>
 
               <div className={s.links}>
                 <p className={s.linkRow}>

@@ -8,7 +8,8 @@ function permittedPath(value: unknown): value is string {
     if (parsed.origin !== LOCAL_ORIGIN) return false;
     // Route segments are deliberate: encoded separators and dot traversal are not destinations.
     const path = value.split(/[?#]/, 1)[0];
-    return path === "/vip" || path === "/vip/rejoindre" || path === "/vip/nouveau-membre" || path === "/vip/deja-membre" || path === "/vip/deja-membre-original" || path === "/admin-preview" || /^\/dashboard(?:\/[A-Za-z0-9_-]+)*\/?$/.test(path);
+    // /vip/nouveau-membre/compte : page « Ouvre ton accès VIP », où l'on revient après « Continuer avec Google ».
+    return path === "/vip" || path === "/vip/rejoindre" || path === "/vip/nouveau-membre" || path === "/vip/nouveau-membre/compte" || path === "/vip/deja-membre" || path === "/vip/deja-membre-original" || path === "/admin-preview" || /^\/dashboard(?:\/[A-Za-z0-9_-]+)*\/?$/.test(path);
   } catch {
     return false;
   }

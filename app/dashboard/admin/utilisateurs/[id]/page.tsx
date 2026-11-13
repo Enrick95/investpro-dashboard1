@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   CircleDollarSign,
   Database,
+  KeyRound,
   Mail,
   RefreshCw,
   ShieldCheck,
@@ -60,8 +61,12 @@ type Payload = {
 type ConfirmAction =
   | { kind: "suspend" }
   | { kind: "reactivate" }
+  | { kind: "code" }
   | { kind: "plan"; plan: "free" | "pro" | "elite" }
   | null;
+
+/** Code d'accès renvoyé une seule fois par le serveur : gardé seulement dans la page, jamais stocké. */
+type IssuedCode = { code: string; email: string };
 
 function dateLabel(value: string | null, locale: "fr" | "en" = "fr") {
   if (!value) return "—";
@@ -78,6 +83,7 @@ function logLabel(action: string) {
   if (action === "member_suspended") return "Membre suspendu";
   if (action === "member_reactivated") return "Membre réactivé";
   if (action === "plan_changed") return "Plan modifié";
+  if (action === "access_code_reset") return "Nouveau code d’accès créé";
   return action;
 }
 
@@ -96,6 +102,18 @@ export default function AdminMemberPage() {
   const [actionSuccess, setActionSuccess] = useState("");
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [issuedCode, setIssuedCode] = useState<IssuedCode | null>(null);
+  const [copyLabel, setCopyLabel] = useState("");
+
+  async function copyIssuedCode() {
+    if (!issuedCode) return;
+    try {
+      await navigator.clipboard.writeText(issuedCode.code);
+      setCopyLabel(tr("Copié"));
+    } catch {
+      setCopyLabel(tr("Sélectionne le code pour le copier"));
+    }
+  }
 
   async function getToken() {
     const {
@@ -155,7 +173,9 @@ export default function AdminMemberPage() {
       const payload =
         confirmAction.kind === "plan"
           ? { action: "change_plan", plan: confirmAction.plan }
-          : { action: confirmAction.kind };
+          : confirmAction.kind === "code"
+            ? { action: "new_access_code" }
+            : { action: confirmAction.kind };
 
       const response = await fetch(`/api/admin/member/${encodeURIComponent(memberId)}/actions`, {
         method: "POST",
@@ -173,6 +193,10 @@ export default function AdminMemberPage() {
       }
 
       setActionSuccess(json?.message || tr("Action effectuée."));
+      if (confirmAction.kind === "code" && typeof json?.accessCode === "string") {
+        setIssuedCode({ code: json.accessCode, email: typeof json?.email === "string" ? json.email : data?.member.email || "" });
+        setCopyLabel("");
+      }
       setConfirmAction(null);
       await load(true);
     } catch (e: any) {
@@ -236,6 +260,34 @@ export default function AdminMemberPage() {
       {actionSuccess ? (
         <div className="mb-4 rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.05] p-4 text-sm text-emerald-300">
           {actionSuccess}
+        </div>
+      ) : null}
+
+      {issuedCode ? (
+        <div className="mb-4 rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4" role="status">
+          <div className="flex items-center gap-2 text-sm font-semibold text-[color:var(--gold)]">
+            <KeyRound size={15} />{tr("Nouveau code d’accès")}</div>
+          <p className="mt-2 text-[11px] leading-5 text-white/55">{tr("Envoie-le au membre maintenant : il ne s’affichera plus une fois cette page quittée.")}</p>
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-[auto_1fr] sm:items-center sm:gap-x-4">
+            <span className="text-[10px] text-white/35">{tr("Identifiant")}</span>
+            <span className="break-all text-[12px] font-semibold text-white">{issuedCode.email}</span>
+            <span className="text-[10px] text-white/35">{tr("Code")}</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <code className="select-all rounded-lg border border-white/[0.08] bg-black/30 px-3 py-2 font-mono text-[15px] font-semibold tracking-[0.08em] text-white">
+                {issuedCode.code}
+              </code>
+              <button
+                type="button"
+                onClick={copyIssuedCode}
+                className="h-9 rounded-lg border border-[color:var(--gold-border)] bg-black/20 px-3 text-[11px] font-semibold text-[color:var(--gold)]"
+              >
+                {copyLabel || tr("Copier le code")}
+              </button>
+            </div>
+          </div>
+          <p className="mt-3 text-[10px] leading-5 text-white/40">{tr("Majuscules et minuscules comptent. L’ancien code ou mot de passe ne marche plus ; la connexion Google reste possible.")}</p>
+          <button type="button" onClick={() => setIssuedCode(null)} className="mt-2 text-[10px] font-semibold text-white/45 hover:text-white">
+            {tr("Masquer le code")}</button>
         </div>
       ) : null}
 
@@ -304,7 +356,7 @@ export default function AdminMemberPage() {
             <div className="flex items-center gap-2 text-sm font-semibold text-[color:var(--gold)]">
               <ShieldCheck size={15} />{tr("Actions administrateur")}</div>
 
-            <div className="mt-4 grid grid-cols-1 gap-3 xl:grid-cols-[1fr_1fr]">
+            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
               <div className="rounded-xl border border-white/[0.07] bg-black/20 p-4">
                 <div className="text-xs font-semibold text-white">{tr("Statut du membre")}</div>
                 <p className="mt-1 text-[10px] leading-5 text-white/35">{tr("Suspendre bloque la connexion du membre. L’action est réversible.")}</p>
@@ -349,6 +401,24 @@ export default function AdminMemberPage() {
                       {plan}
                     </button>
                   ))}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-white/[0.07] bg-black/20 p-4">
+                <div className="text-xs font-semibold text-white">{tr("Code d’accès")}</div>
+                <p className="mt-1 text-[10px] leading-5 text-white/35">
+                  {data.member.provider === "google"
+                    ? tr("Compte créé avec Google : il n’a ni mot de passe ni code. Il peut se connecter avec Google, ou avec un code que tu lui crées ici.")
+                    : tr("Code perdu ? Crée un nouveau code à lui envoyer : il se connecte avec son e-mail et ce code. Son ancien code ou mot de passe ne marchera plus.")}
+                </p>
+
+                <div className="mt-4">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmAction({ kind: "code" })}
+                    className="inline-flex h-10 items-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 text-xs font-semibold text-[color:var(--gold)]"
+                  >
+                    <KeyRound size={14} />{tr("Créer un nouveau code")}</button>
                 </div>
               </div>
             </div>
@@ -546,14 +616,18 @@ function ConfirmModal({
       ? tr("Suspendre ce membre ?")
       : action.kind === "reactivate"
         ? tr("Réactiver ce membre ?")
-        : (tr("Changer le plan vers ") + (action.plan.toUpperCase()) + " ?");
+        : action.kind === "code"
+          ? tr("Créer un nouveau code d’accès ?")
+          : (tr("Changer le plan vers ") + (action.plan.toUpperCase()) + " ?");
 
   const text =
     action.kind === "suspend"
       ? ((username) + tr(" ne pourra plus se connecter à InvestPro jusqu’à sa réactivation."))
       : action.kind === "reactivate"
         ? ((username) + tr(" pourra à nouveau se connecter à InvestPro."))
-        : (tr("Le plan administratif de ") + (username) + tr(" sera modifié. Pour l’instant cela ne change aucun accès puisque tout InvestPro est gratuit."));
+        : action.kind === "code"
+          ? ((username) + tr(" pourra se connecter avec son e-mail et ce nouveau code, affiché une seule fois ici. Son ancien code ou mot de passe ne marchera plus. La connexion Google, s’il l’utilise, continue de marcher."))
+          : (tr("Le plan administratif de ") + (username) + tr(" sera modifié. Pour l’instant cela ne change aucun accès puisque tout InvestPro est gratuit."));
 
   return (
     <div className="fixed inset-0 z-[100] grid place-items-center bg-black/70 p-4 backdrop-blur-sm">

@@ -136,6 +136,9 @@ input[readonly]{color:var(--muted)}
 .login-box{margin-top:18px;padding:16px;border-radius:16px;background:rgba(240,197,117,.06);border:1px solid var(--line)}
 .login-box p{margin:0;font-size:14px;line-height:1.55;color:var(--fg)}
 .login-box label{margin-top:12px}
+.login-box .g-help{margin-top:16px;padding-top:14px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+.g-btn{margin-top:10px;min-height:50px;font-size:15px}
+.g-btn svg{flex:none;width:26px;height:26px;padding:4px;border-radius:50%;background:#fff}
 .safe{display:flex;gap:10px;align-items:center;margin-top:16px;font-size:12.5px;color:var(--muted)}
 /* Le broker par lequel le membre est entré, comme les cartes de /vip/nouveau-membre */
 .bks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
@@ -311,6 +314,8 @@ select:disabled{color:var(--dim);cursor:not-allowed}
 <p>Tu as déjà un compte InvestPro avec cette adresse. Entre ton mot de passe (ou ton code d’accès) pour continuer.</p>
 <label for="pwd">Mot de passe</label><div class="field"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F0C575" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><input id="pwd" type="password" autocomplete="current-password" maxlength="72"></div>
 <p class="help"><a href="/forgot-password">Mot de passe oublié ?</a></p>
+<p class="g-help">Tu t’es inscrit avec Google ? Tu n’as pas de mot de passe : connecte-toi avec Google, tu reviendras ici.</p>
+<a class="btn btn-ghost g-btn" id="googleLogin" href="/login?next=%2Fvip%2Fdeja-membre%3Fsuite%3D1"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="#4285F4" d="M21.805 10.023h-9.63v3.955h5.54c-.238 1.273-.952 2.35-2.03 3.069v2.55h3.287c1.924-1.77 3.033-4.38 3.033-7.487 0-.73-.066-1.43-.2-2.087Z"/><path fill="#34A853" d="M12.175 22c2.75 0 5.06-.91 6.747-2.47l-3.287-2.55c-.91.61-2.078.97-3.46.97-2.656 0-4.905-1.794-5.71-4.205H3.07v2.64A10.197 10.197 0 0 0 12.175 22Z"/><path fill="#FBBC05" d="M6.465 13.745a6.157 6.157 0 0 1-.322-1.945c0-.675.116-1.33.322-1.945v-2.64H3.07A10.198 10.198 0 0 0 2 11.8c0 1.647.394 3.205 1.07 4.585l3.395-2.64Z"/><path fill="#EA4335" d="M12.175 5.65c1.493 0 2.83.513 3.885 1.52l2.91-2.91C17.23 2.64 14.92 1.6 12.175 1.6A10.197 10.197 0 0 0 3.07 7.215l3.395 2.64c.805-2.41 3.054-4.205 5.71-4.205Z"/></svg>Continuer avec Google</a>
 </div>
 <div class="safe"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#91D6D0" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Privé : visible seulement par toi et l’équipe.</div>
 <div class="err" id="f1Err" role="alert" hidden></div>
@@ -877,6 +882,8 @@ function finish(animate){
     signedIn(d.email);
     $('pre').value=d.firstName||'';$('nom').value=d.lastName||'';names(d.firstName,d.lastName);
     S.memberNumber=d.memberNumber||null;S.since=d.since||null;
+    // Retour de « Continuer avec Google » (compte sans mot de passe) : le formulaire s'ouvre directement.
+    if(d.state==='none'&&new URLSearchParams(location.search).get('suite')==='1'){show(1);return}
     route(d,false);
   }catch(e){show(0)}
 })();

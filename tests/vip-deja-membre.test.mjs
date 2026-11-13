@@ -229,6 +229,17 @@ test("names and e-mail are required before any account or request is created", a
   }
 });
 
+test("back from Google, an account with only its Google name gets the form prefilled with it", async () => {
+  const api = fixture({ session: { id: userId, email: "member@example.org", user_metadata: { full_name: "Charly Jean Breton", name: "Charly Jean Breton" } } });
+  const response = await api.get();
+  assert.equal(response.status, 200);
+  assert.equal(response.body.signedIn, true);
+  assert.equal(response.body.state, "none");
+  assert.equal(response.body.firstName, "Charly");
+  assert.equal(response.body.lastName, "Jean Breton");
+  assert.equal(api.calls.created.length + api.calls.inserts.length, 0);
+});
+
 test("an address that already has an account never receives a code or a password change", async () => {
   const api = fixture({ existingEmail: true });
   const response = await api.post(member);

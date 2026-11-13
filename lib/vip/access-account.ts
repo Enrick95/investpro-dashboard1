@@ -93,15 +93,15 @@ async function sendAccessEmail(app: VipApplicationAccess, firstName: string, cod
   const hello = firstName ? `Bonjour ${escapeHtml(firstName)},` : "Bonjour,";
   const intro = code
     ? `<p>L’équipe a vérifié ton dossier. Voici tes identifiants pour ouvrir ton accès VIP :</p><p style="margin:18px 0;padding:16px 18px;border:1px solid #3b3526;border-radius:12px;background:#111310;line-height:1.9">Identifiant : <strong>${email}</strong><br>Code (majuscules et minuscules comptent) : <strong style="letter-spacing:.08em">${escapeHtml(code)}</strong></p>`
-    : "<p>L’équipe a vérifié ton dossier. Tu as déjà un compte InvestPro avec cette adresse : connecte-toi avec ton mot de passe habituel.</p>";
+    : "<p>L’équipe a vérifié ton dossier. Tu as déjà un compte InvestPro avec cette adresse : connecte-toi comme d’habitude, avec ton mot de passe ou avec « Continuer avec Google » si tu t’es inscrit avec Google. Tu n’as pas de nouveau code.</p>";
   const help = code
     ? "Tu peux changer ce code à tout moment avec « Mot de passe oublié » sur la page de connexion. Ne transfère pas cet e-mail."
-    : "Tu ne te souviens plus de ton mot de passe ? Utilise « Mot de passe oublié » sur la page de connexion.";
+    : "Tu ne te souviens plus de ton mot de passe ? Utilise « Mot de passe oublié » sur la page de connexion, ou écris à @EquipeInvestPro sur Telegram.";
   const html = `<div style="font-family:Arial,sans-serif;background:#0b0d0b;color:#f3efe6;padding:32px;border-radius:16px"><h1 style="color:#f0c575">Ta demande VIP est validée</h1><p>${hello}</p>${intro}<p><a href="${href}" style="display:inline-block;background:#f0c575;color:#111;padding:14px 20px;border-radius:10px;text-decoration:none;font-weight:bold">${code ? "Me connecter et ouvrir mon accès VIP" : "Me connecter"}</a></p><p style="color:#b7bcb6;font-size:13px;line-height:1.6">${help}</p></div>`;
   const text = [
     firstName ? `Bonjour ${firstName},` : "Bonjour,",
     "Ta demande VIP est validée.",
-    code ? `Identifiant : ${app.email}\nCode (majuscules et minuscules comptent) : ${code}` : `Tu as déjà un compte InvestPro avec ${app.email} : connecte-toi avec ton mot de passe habituel.`,
+    code ? `Identifiant : ${app.email}\nCode (majuscules et minuscules comptent) : ${code}` : `Tu as déjà un compte InvestPro avec ${app.email} : connecte-toi comme d’habitude, avec ton mot de passe ou avec « Continuer avec Google » si tu t’es inscrit avec Google.`,
     `Connexion : ${href}`,
   ].join("\n");
   try {

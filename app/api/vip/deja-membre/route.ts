@@ -51,11 +51,13 @@ async function readMemberState(db: SupabaseClient, user: User) {
       : request?.status === "pending" ? (request.completion_fields?.length ? "completion" : "pending")
         : request?.status === "denied" ? "denied" : "none";
   const meta = (user.user_metadata || {}) as Record<string, unknown>;
+  // Un compte créé avec Google n'a que son nom complet : il pré-remplit le formulaire, le membre peut le corriger.
+  const [googleFirst = "", ...googleRest] = (str(meta.full_name) || str(meta.name)).split(/\s+/).filter(Boolean);
   return {
     state,
     email: user.email || "",
-    firstName: membership?.first_name || request?.first_name || str(meta.first_name),
-    lastName: membership?.last_name || request?.last_name || str(meta.last_name),
+    firstName: membership?.first_name || request?.first_name || str(meta.first_name) || googleFirst,
+    lastName: membership?.last_name || request?.last_name || str(meta.last_name) || googleRest.join(" "),
     memberNumber: active && membership?.member_number ? membership.member_number : null,
     since: active ? membership?.started_at || null : null,
     completionNote: state === "completion" ? request?.completion_note || null : null,

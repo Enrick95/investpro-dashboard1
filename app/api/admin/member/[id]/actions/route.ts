@@ -1,6 +1,7 @@
 import { canAdmin } from "@/lib/admin/permissions";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { generateAccessCode } from "@/lib/vip/access-account";
 
 function getAdminIds() {
   return String(process.env.INVESTPRO_ADMIN_USER_IDS || "")
@@ -151,6 +152,31 @@ export async function POST(
         ok: true,
         message: "Membre réactivé.",
       });
+    }
+
+    if (action === "new_access_code") {
+      // Membre qui a perdu son code d'accès (ou compte Google sans mot de passe) : un nouveau code devient le mot de
+      // passe du compte. Il n'est renvoyé qu'une fois, à l'administrateur, et n'est ni stocké ni journalisé.
+      const accessCode = generateAccessCode();
+      const { error } = await admin.auth.admin.updateUserById(id, { password: accessCode });
+      if (error) throw error;
+
+      let logged = true;
+      try {
+        await writeLog(admin, requester.id, id, "access_code_reset", { email: target.email || null });
+      } catch {
+        logged = false; // Le code est déjà actif : l'administrateur doit le recevoir quand même.
+      }
+
+      return NextResponse.json(
+        {
+          ok: true,
+          accessCode,
+          email: target.email || null,
+          message: logged ? "Nouveau code créé." : "Nouveau code créé (journal admin indisponible).",
+        },
+        { headers: { "Cache-Control": "no-store" } }
+      );
     }
 
     if (action === "change_plan") {
