@@ -33,8 +33,11 @@ trades nouveaux sont envoyes. Un compte dont le terminal a perdu le broker (expo
 ancien, delai IPC MT5) est retente sans limite : MT4 toutes les 1 a 5 min, MT5 toutes les 5 puis
 10 min. Un mot de passe refuse n'est jamais retente.
 
+D14.3 : un compte n'est signale en erreur au site qu'apres trois echecs de suite (une lecture
+manquee pendant une reconnexion au broker n'affiche plus « Echec de synchronisation »).
+
 Retour arriere (dans le dossier WINDOWS du PC) : arreter la tache InvestProHostedCollector, remettre
-host-D14_1-avant-D14_2.py, host-D14-avant-D14_1.py, host-D13b-avant-D14.py (ou host-D13-avant-D13b.py) en host.py et run_host_background-avant-D14.py en
+host-D14_2-avant-D14_3.py, host-D14_1-avant-D14_2.py, host-D14-avant-D14_1.py, host-D13b-avant-D14.py (ou host-D13-avant-D13b.py) en host.py et run_host_background-avant-D14.py en
 run_host_background.py, relancer la tache.
 
 Les serveurs MetaQuotes-Demo ne sont plus proposes : ils recoivent les versions beta de MT5 et
