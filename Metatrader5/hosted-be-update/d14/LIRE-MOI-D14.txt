@@ -22,8 +22,13 @@ D14 (patch_d14.py applique a host.py, nouveau run_host_background.py) :
   recopiee dans tous les modeles MT5 en 10 minutes : les autres comptes n'ont plus de mise a jour
   a valider. Le journal signale une fenetre administrateur en attente.
 
+D14.1 (patch_d14_1.py) : Vercel refuse a son entree une part des requetes du PC (HTTP 403,
+X-Vercel-Mitigated: deny, environ 1 sur 7 le 13/11). Ces refus (et 429/5xx) sont rejoues apres
+quelques secondes (2 essais pour l'interrogation, 3 pour un envoi) au lieu d'arreter le compte ;
+un compte arrete apres trois plantages est retente toutes les 30 minutes.
+
 Retour arriere (dans le dossier WINDOWS du PC) : arreter la tache InvestProHostedCollector, remettre
-host-D13b-avant-D14.py (ou host-D13-avant-D13b.py) en host.py et run_host_background-avant-D14.py en
+host-D14-avant-D14_1.py, host-D13b-avant-D14.py (ou host-D13-avant-D13b.py) en host.py et run_host_background-avant-D14.py en
 run_host_background.py, relancer la tache.
 
 Les serveurs MetaQuotes-Demo ne sont plus proposes : ils recoivent les versions beta de MT5 et
