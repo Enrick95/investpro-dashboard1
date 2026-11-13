@@ -11,6 +11,7 @@ import s from "./VipAdmin.module.css";
 import r from "./RequestsRedesign.module.css";
 import VipApplicationReview, { type VipMemberApplication } from "./VipApplicationReview";
 import { allowedCompletionFields, completionFieldLabel, needsVipCompletion, requestRevision, type CompletionField } from "@/lib/vip/request-completions";
+import { HOSTED_SYNC_STALE_MS } from "@/lib/metasync/hosted-freshness";
 
 const initials = (person: { first_name: string; last_name: string }) => `${(person.first_name || "?").charAt(0)}${(person.last_name || "").charAt(0)}`.toUpperCase();
 function ago(value: string | null | undefined, locale: string) {
@@ -50,7 +51,7 @@ function RequestReview({ request, onRefresh }: { request: VipAccessRequest; onRe
     if (account.status === null) return text("connecteur local", "local connector");
     if (account.status === "error") return text("en erreur", "error");
     const syncing = account.status === "syncing" || account.status === "ready";
-    if (syncing && account.last_sync && Date.now() - Date.parse(account.last_sync) <= 180000) return text("synchro active", "syncing");
+    if (syncing && account.last_sync && Date.now() - Date.parse(account.last_sync) <= HOSTED_SYNC_STALE_MS) return text("synchro active", "syncing");
     if (syncing && account.last_sync) return text("synchro interrompue", "sync interrupted");
     return text("connexion en cours", "connecting");
   };

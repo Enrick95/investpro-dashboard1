@@ -164,6 +164,7 @@ test("the real form offers the fixed official-site link only after an explicit o
       // The « my server is missing » request block renders on its own; it is not part of this form's submission.
       "@/components/metasync/ServerRequests": { __esModule: true, default: function ServerRequests() { return null; } },
       "@/lib/metasync/hosted-request-client": { HostedRequestError, async sendHostedMutation() { throw new HostedRequestError("Connexion refusée", code); } },
+      "@/lib/metasync/hosted-freshness": { HOSTED_SYNC_STALE_MS: 15 * 60 * 1000 },
     };
     vm.runInNewContext(output, {
       module: cjs, exports: cjs.exports, Error, Date,

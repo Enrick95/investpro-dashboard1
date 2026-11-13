@@ -4,6 +4,7 @@ import { useLocale } from "@/components/i18n/LocaleProvider";
 import ServerRequests from "@/components/metasync/ServerRequests";
 import { HostedRequestError, sendHostedMutation } from "@/lib/metasync/hosted-request-client";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { HOSTED_SYNC_STALE_MS } from "@/lib/metasync/hosted-freshness";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -139,7 +140,7 @@ export default function HostedSyncPanel({ initialPlatform = "MT5" }: { initialPl
   const needsReconnect = connections.some((connection) => {
     const mt = connection.investpro_mt_connections;
     const stale =
-      !mt.last_sync || Date.now() - Date.parse(mt.last_sync) > 180000;
+      !mt.last_sync || Date.now() - Date.parse(mt.last_sync) > HOSTED_SYNC_STALE_MS;
 
     return (
       connection.active &&
@@ -193,8 +194,8 @@ export default function HostedSyncPanel({ initialPlatform = "MT5" }: { initialPl
             </p>
             <p className="mt-1 text-amber-100/80">
               {locale === "en"
-                ? "In the form below, submit the same platform, broker/server and account number with your current MetaTrader investor password, then choose “Connect my account”. This reactivates the existing link; do not disconnect it or create a duplicate journal account. Trades already imported stay in your journal. If it is still failing after a few minutes, contact support with the platform, server and error time—never send your password."
-                : "Dans le formulaire ci-dessous, renvoyez la même plateforme, le même broker/serveur et le même numéro de compte avec votre mot de passe investisseur MetaTrader actuel, puis cliquez sur « Connecter mon compte ». Cela réactive la liaison existante : ne la déconnectez pas et ne créez pas de compte journal en double. Les trades déjà importés restent dans votre journal. Si l’échec persiste après quelques minutes, contactez le support avec la plateforme, le serveur et l’heure de l’erreur — jamais avec votre mot de passe."}
+                ? "In the form below, submit the same platform, broker/server and account number with your current MetaTrader password, then choose “Connect my account”. This reactivates the existing link; do not disconnect it or create a duplicate journal account. Trades already imported stay in your journal. If it is still failing after a few minutes, contact support with the platform, server and error time—never send your password."
+                : "Dans le formulaire ci-dessous, renvoyez la même plateforme, le même broker/serveur et le même numéro de compte avec votre mot de passe MetaTrader actuel, puis cliquez sur « Connecter mon compte ». Cela réactive la liaison existante : ne la déconnectez pas et ne créez pas de compte journal en double. Les trades déjà importés restent dans votre journal. Si l’échec persiste après quelques minutes, contactez le support avec la plateforme, le serveur et l’heure de l’erreur — jamais avec votre mot de passe."}
             </p>
           </div>
         </div>
@@ -380,7 +381,7 @@ export default function HostedSyncPanel({ initialPlatform = "MT5" }: { initialPl
                 const mt = connection.investpro_mt_connections;
                 const old =
                   !mt.last_sync ||
-                  Date.now() - Date.parse(mt.last_sync) > 180000;
+                  Date.now() - Date.parse(mt.last_sync) > HOSTED_SYNC_STALE_MS;
 
                 const statusText =
                   connection.active &&

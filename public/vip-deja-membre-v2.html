@@ -581,7 +581,9 @@ function activeConnections(){return MT.connections.filter(function(c){return c.a
 // Serveur pas encore installé sur le PC : le site le signale (« pending ») ; sans catalogue, l'ID de secours suffit.
 function installing(c){var e=MT.catalog.filter(function(b){return b.id===c.broker_id})[0];return e?e.pending===true:String(c.broker_id||'').indexOf('fallback-')===0}
 function mtStatus(c){
-  var m=c.investpro_mt_connections,fresh=!!m.last_sync&&Date.now()-Date.parse(m.last_sync)<=180000;
+  // Le PC d'hébergement lit les comptes MT5 à tour de rôle : un compte suivi peut rester plusieurs minutes sans nouvelles
+  // (même seuil que lib/metasync/hosted-freshness.ts).
+  var m=c.investpro_mt_connections,fresh=!!m.last_sync&&Date.now()-Date.parse(m.last_sync)<=900000;
   // Serveur pas encore installé sur le PC d'hébergement : l'équipe l'ajoute, la connexion démarre ensuite.
   if(installing(c)&&!(c.status==='syncing'&&m.last_sync))return ['Serveur en ajout','wait'];
   if(c.status==='error')return ['Échec','bad'];
