@@ -1,0 +1,30 @@
+CONNECTEUR INVESTPRO D14 - INSTALLE SUR LE PC D'HEBERGEMENT LE 13 NOVEMBRE 2026
+
+Le PC fait tourner la version D13 ecrite par Codex (host.py et modules investpro_mt5_pool.py,
+mt5_ticket_queue.py, investpro_mt5_native.py, terminal_windows.py), modifiee en deux temps :
+
+D13b (13/11, correctif d'urgence) : le site a ete coupe par Vercel du 12/11 22h54 au 13/11 12h48
+(heure de Paris) pour depassement des limites du plan : le connecteur interrogeait le site toutes
+les 5 secondes et renvoyait tout l'historique de chaque compte toutes les 90 secondes.
+- interrogation du site toutes les 60 s (5 s seulement le temps de demarrer les comptes) ;
+- un compte sans changement ne renvoie qu'un signe de vie toutes les 15 minutes ;
+- un compte bloque (modele absent, trois echecs) n'est plus signale au site a chaque tour ;
+- le connecteur garde ses comptes 15 minutes (et non 1) si le site ne repond plus.
+
+D14 (patch_d14.py applique a host.py, nouveau run_host_background.py) :
+- relance automatique : run_host_background.py relance host.py s'il s'arrete (1, 2, 4 puis 10 min
+  au plus) apres avoir ferme les comptes et terminaux restes ouverts dans ses dossiers d'instance ;
+- un dossier d'instance encore verrouille n'arrete plus le connecteur (PermissionError 32) ;
+- seuls les trades nouveaux ou modifies sont envoyes au site (tout l'historique une fois au
+  demarrage de chaque compte) ;
+- version de MetaTrader 5 : quand un terminal s'est mis a jour (fenetre administrateur
+  « Client Terminal » validee une fois sur le PC), la nouvelle version, signee MetaQuotes, est
+  recopiee dans tous les modeles MT5 en 10 minutes : les autres comptes n'ont plus de mise a jour
+  a valider. Le journal signale une fenetre administrateur en attente.
+
+Retour arriere (dans le dossier WINDOWS du PC) : arreter la tache InvestProHostedCollector, remettre
+host-D13b-avant-D14.py (ou host-D13-avant-D13b.py) en host.py et run_host_background-avant-D14.py en
+run_host_background.py, relancer la tache.
+
+Les serveurs MetaQuotes-Demo ne sont plus proposes : ils recoivent les versions beta de MT5 et
+leur mise a jour avait bloque tous les comptes MT5 le 12/11 (modeles passes en build 6316).
