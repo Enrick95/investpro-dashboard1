@@ -10,9 +10,9 @@ import c from "./VipCopie.module.css";
 type CopieState = { status: "soon"; notify: boolean };
 
 /**
- * Copie : bientôt, les membres VIP pourront copier le compte personnel d'Enrick (MT4 · Fusion Markets) sur leur compte,
- * en lots fixes, un autre réglage se demandant à l'équipe. En attendant, l'onglet présente la solution et propose
- * d'être prévenu de l'ouverture.
+ * Copie : bientôt, les membres VIP pourront copier le compte personnel d'Enrick sur leur compte, en lots fixes, un autre
+ * réglage se demandant à l'équipe. En attendant, l'onglet présente la solution et propose d'être prévenu de l'ouverture.
+ * Le compte d'Enrick est présenté comme « Enrick · compte perso », sans plateforme ni broker.
  */
 export default function VipCopie({ banner }: { banner?: ReactNode }) {
   const { t } = useLocale();
@@ -52,7 +52,6 @@ export default function VipCopie({ banner }: { banner?: ReactNode }) {
         <div className={c.source}>
           <span className={c.flowLabel}>{t("Compte source")}</span>
           <b>{t("Enrick · compte perso")}</b>
-          <span className={s.gold}>MT4 · Fusion Markets</span>
         </div>
         <div className={c.arrow} aria-hidden="true">
           <svg width="16" height="22" viewBox="0 0 16 22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M8 2v17" /><path d="m2 13 6 6 6-6" /></svg>

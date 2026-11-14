@@ -103,11 +103,13 @@ test("a failed save says so and records nothing as done", async () => {
   assert.match(result.body.error, /n’a pas pu être enregistrée/);
 });
 
-test("the Copie tab tells members it is coming, from Enrick's MT4 Fusion account, in fixed lots with other settings on request", () => {
+test("the Copie tab tells members it is coming, from Enrick's personal account, in fixed lots with other settings on request", () => {
   const tab = fs.readFileSync(path.join(project, "components/vip/VipCopie.tsx"), "utf8");
-  for (const text of ["Bientôt", "MT4 · Fusion Markets", "Me prévenir à l’ouverture", "en lots fixes", "Un autre réglage se demande à l’équipe.", "La copie reproduit aussi les pertes."]) {
+  for (const text of ["Bientôt", "Enrick · compte perso", "Me prévenir à l’ouverture", "en lots fixes", "Un autre réglage se demande à l’équipe.", "La copie reproduit aussi les pertes."]) {
     assert.ok(tab.includes(text), text);
   }
+  // Enrick's account is shown by its owner only: no platform or broker on the member's screen.
+  assert.ok(!/Fusion|MT4 ·/.test(tab), "The tab never names Enrick's broker or platform");
   assert.ok(!/password|motdepasse|login/i.test(tab.replace(/mot de passe principal/g, "")), "The soon tab collects no account details");
   const space = fs.readFileSync(path.join(project, "components/vip/VipEspace.tsx"), "utf8");
   assert.match(space, /\{ key: "copie", label: "Copie" \}/);
