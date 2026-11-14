@@ -27,6 +27,8 @@ import {
   cycleFor,
   daysUntil,
   engagementRate,
+  engagementSuspicion,
+  TIKTOK_USUAL_RATE,
   formatEuro,
   formatInt,
   num,
@@ -999,12 +1001,15 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
     const pending = queueClips.filter((clip) => !decided[clip.id] && clip.status === "review");
     const current = queueClips.find((clip) => clip.id === reviewSel) ?? pending[0] ?? queueClips[0] ?? null;
     const flagOf = (clip: ClipRow): string | null => {
+      const reasons: string[] = [];
+      const suspicion = engagementSuspicion(clip);
+      if (suspicion?.kind === "low") reasons.push(`${formatInt(suspicion.views)} vues pour seulement ${percent(suspicion.rate)} d'engagement (un TikTok normal tourne autour de ${TIKTOK_USUAL_RATE} %). Ça peut venir de vues achetées ou d'une pub payée : regarde ses captures (provenance des vues, pays des spectateurs) avant de valider.`);
+      if (suspicion?.kind === "high") reasons.push(`${percent(suspicion.rate)} d'engagement sur ${formatInt(suspicion.views)} vues : beaucoup trop d'interactions pour les vues, possibles j'aime achetés. Regarde ses captures avant de valider.`);
       const stat = clip.clipper_id ? statById.get(clip.clipper_id) : undefined;
-      if (!stat) return null;
-      if (stat.refused30.length >= 2) return `${stat.refused30.length} clips refusés sur 30 jours pour ce clippeur.`;
-      if (stat.c.status === "test") return "Clippeur en période de test : regarde le montage de près.";
-      if (stat.c.status === "paused") return "Ce clippeur est en pause.";
-      return null;
+      if (stat?.refused30.length && stat.refused30.length >= 2) reasons.push(`${stat.refused30.length} clips refusés sur 30 jours pour ce clippeur.`);
+      else if (stat?.c.status === "test") reasons.push("Clippeur en période de test : regarde le montage de près.");
+      else if (stat?.c.status === "paused") reasons.push("Ce clippeur est en pause.");
+      return reasons.length ? reasons.join(" ") : null;
     };
     let cur: ReviewCurrent | null = null;
     if (current) {

@@ -35,7 +35,7 @@ export function ClipperCharter({ v }: { v: CharterVals }) {
       </section>
       <section style={card}>
         <h2 style={{ margin: "0", fontSize: "14px", fontWeight: "800" }}>Interdit</h2>
-        <Lines tone="bad" items={["Promettre des gains ou montrer des montants gagnés en accroche.", "Utiliser le logo ou le contenu d'autres créateurs.", "Acheter des vues ou publier sur des comptes qui ne t'appartiennent pas."]} />
+        <Lines tone="bad" items={["Promettre des gains ou montrer des montants gagnés en accroche.", "Utiliser le logo ou le contenu d'autres créateurs.", "Acheter des vues ou des j'aime, booster le clip avec une pub payée (Promote) ou publier sur des comptes qui ne t'appartiennent pas."]} />
       </section>
       <section style={card}>
         <h2 style={{ margin: "0", fontSize: "14px", fontWeight: "800" }}>Paiement</h2>
@@ -43,7 +43,7 @@ export function ClipperCharter({ v }: { v: CharterVals }) {
       </section>
       <section style={card}>
         <h2 style={{ margin: "0", fontSize: "14px", fontWeight: "800" }}>Si une règle n&apos;est pas respectée</h2>
-        <Lines tone="bad" items={["Le clip est refusé et ne rapporte rien : tu reçois le motif.", "Vues achetées ou compte qui n'est pas à toi : le clip est refusé.", "En cas de récidive, le compte clippeur est mis en pause."]} />
+        <Lines tone="bad" items={["Le clip est refusé et ne rapporte rien : tu reçois le motif.", "Vues ou j'aime achetés, pub payée ou compte qui n'est pas à toi : le clip est refusé.", "En cas de récidive, le compte clippeur est mis en pause."]} />
       </section>
     </>
   );

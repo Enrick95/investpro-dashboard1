@@ -184,6 +184,25 @@ export function engagementRate(clip: ClipEngagementCounts): number | null {
   return ((num(clip.likes) + num(clip.comments) + num(clip.shares) + num(clip.saves)) / views) * 100;
 }
 
+/** Un TikTok normal tourne autour de 4 % d'engagement par vues. */
+export const TIKTOK_USUAL_RATE = 4;
+/** Alerte « à contrôler » : beaucoup de vues pour presque aucune interaction (vues achetées, pub payée)… */
+export const SUSPECT_LOW = { minViews: 1000, maxRate: 1 };
+/** …ou des interactions bien trop nombreuses pour les vues (j'aime achetés). */
+export const SUSPECT_HIGH = { minViews: 500, minRate: 30 };
+
+export type EngagementSuspicion = { kind: "low" | "high"; rate: number; views: number };
+
+/** Engagement anormal pour un clip TikTok relevé, sinon null. */
+export function engagementSuspicion(clip: ClipEngagementCounts): EngagementSuspicion | null {
+  const rate = engagementRate(clip);
+  if (rate === null) return null;
+  const views = num(clip.views);
+  if (views >= SUSPECT_LOW.minViews && rate < SUSPECT_LOW.maxRate) return { kind: "low", rate, views };
+  if (views >= SUSPECT_HIGH.minViews && rate >= SUSPECT_HIGH.minRate) return { kind: "high", rate, views };
+  return null;
+}
+
 export function clipState(clip: Pick<ClipRow, "status" | "payout_id">): ClipState {
   if (clip.status === "review") return "review";
   if (clip.status === "rejected") return "rejected";
