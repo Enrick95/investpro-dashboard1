@@ -4,12 +4,15 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * Vues relevées automatiquement sur la page publique du clip, sans compte ni clé :
- * TikTok (données de la page vidéo) et YouTube (page de la vidéo). Instagram, Facebook,
+ * TikTok (données de la page vidéo, avec j'aime, commentaires, partages et enregistrements)
+ * et YouTube (page de la vidéo). Instagram, Facebook,
  * Snapchat et X ne montrent pas leurs vues sans connexion : Enrick les saisit à la main.
  */
 export const AUTO_VIEW_PLATFORMS = ["tiktok", "youtube"] as const;
 export type ViewError = "unsupported" | "not_found" | "blocked" | "unreadable" | "timeout";
-export type ViewResult = { views: number } | { error: ViewError };
+/** Interactions publiques d'une vidéo TikTok, relevées avec ses vues (enregistrements : parfois absents). */
+export type ClipEngagement = { likes: number; comments: number; shares: number; saves: number | null };
+export type ViewResult = { views: number; engagement: ClipEngagement | null } | { error: ViewError };
 export type ViewClip = { id: string; url: string; platform: string; views: number | string | null; frozen_views: number | string | null };
 
 export function autoViews(platform: string): boolean {
@@ -27,18 +30,38 @@ async function page(url: string, timeoutMs: number, extra: Record<string, string
   return { status: response.status, url: response.url, html: await response.text() };
 }
 
-/** TikTok : compteur de lectures de la vidéo dans les données de la page (jamais celui d'une autre vidéo). */
-function tiktokViews(html: string, videoId: string | null): number | null {
+type TikTokStats = { playCount?: number | string; diggCount?: number | string; commentCount?: number | string; shareCount?: number | string; collectCount?: number | string };
+
+/** Premier compteur lisible (les données de la page donnent des nombres ou des textes). */
+function counter(...values: unknown[]): number | null {
+  for (const value of values) {
+    if (value === undefined || value === null || value === "") continue;
+    const n = Number(value);
+    if (Number.isFinite(n) && n >= 0) return Math.round(n);
+  }
+  return null;
+}
+
+function tiktokEngagement(primary: TikTokStats | undefined, backup: TikTokStats | undefined): ClipEngagement | null {
+  const likes = counter(primary?.diggCount, backup?.diggCount);
+  const comments = counter(primary?.commentCount, backup?.commentCount);
+  const shares = counter(primary?.shareCount, backup?.shareCount);
+  if (likes === null || comments === null || shares === null) return null;
+  return { likes, comments, shares, saves: counter(primary?.collectCount, backup?.collectCount) };
+}
+
+/** TikTok : compteurs de la vidéo dans les données de la page (jamais ceux d'une autre vidéo). */
+function tiktokStats(html: string, videoId: string | null): { views: number; engagement: ClipEngagement | null } | null {
   const marker = html.indexOf('id="__UNIVERSAL_DATA_FOR_REHYDRATION__"');
   if (marker >= 0) {
     const start = html.indexOf(">", marker) + 1;
     const end = html.indexOf("</script>", start);
     try {
-      const data = JSON.parse(html.slice(start, end)) as { __DEFAULT_SCOPE__?: Record<string, { itemInfo?: { itemStruct?: { id?: string; stats?: { playCount?: number }; statsV2?: { playCount?: string } } } }> };
+      const data = JSON.parse(html.slice(start, end)) as { __DEFAULT_SCOPE__?: Record<string, { itemInfo?: { itemStruct?: { id?: string; stats?: TikTokStats; statsV2?: TikTokStats } } }> };
       const item = data.__DEFAULT_SCOPE__?.["webapp.video-detail"]?.itemInfo?.itemStruct;
       if (item && (!videoId || String(item.id) === videoId)) {
-        const value = Number(item.statsV2?.playCount ?? item.stats?.playCount);
-        if (Number.isFinite(value) && value >= 0) return Math.round(value);
+        const views = counter(item.statsV2?.playCount, item.stats?.playCount);
+        if (views !== null) return { views, engagement: tiktokEngagement(item.statsV2, item.stats) };
       }
     } catch {
       // format inattendu : lecture de secours juste après l'identifiant de la vidéo
@@ -47,8 +70,11 @@ function tiktokViews(html: string, videoId: string | null): number | null {
   if (!videoId) return null;
   const at = html.indexOf(`"id":"${videoId}"`);
   if (at < 0) return null;
-  const match = html.slice(at, at + 20_000).match(/"playCount":"?(\d+)/);
-  return match ? Number(match[1]) : null;
+  const chunk = html.slice(at, at + 20_000);
+  const read = (key: string) => chunk.match(new RegExp(`"${key}":"?(\\d+)`))?.[1];
+  const views = counter(read("playCount"));
+  if (views === null) return null;
+  return { views, engagement: tiktokEngagement({ diggCount: read("diggCount"), commentCount: read("commentCount"), shareCount: read("shareCount"), collectCount: read("collectCount") }, undefined) };
 }
 
 export function youtubeId(url: string): string | null {
@@ -71,8 +97,7 @@ export async function readClipViews(url: string, platform: string, timeoutMs = 9
       if (result.status === 404) return { error: "not_found" };
       if (result.status >= 400) return { error: "blocked" };
       const id = result.url.match(/\/(?:video|photo)\/(\d+)/)?.[1] ?? url.match(/\/(?:video|photo)\/(\d+)/)?.[1] ?? null;
-      const views = tiktokViews(result.html, id);
-      return views === null ? { error: "unreadable" } : { views };
+      return tiktokStats(result.html, id) ?? { error: "unreadable" };
     }
     if (platform === "youtube") {
       const id = youtubeId(url);
@@ -80,7 +105,7 @@ export async function readClipViews(url: string, platform: string, timeoutMs = 9
       const result = await page(`https://www.youtube.com/watch?v=${id}&hl=en`, timeoutMs, { Cookie: "CONSENT=YES+cb; SOCS=CAI" });
       if (result.status >= 400) return { error: result.status === 404 ? "not_found" : "blocked" };
       const views = youtubeViews(result.html, id);
-      return views === null ? { error: "unreadable" } : { views };
+      return views === null ? { error: "unreadable" } : { views, engagement: null };
     }
     return { error: "unsupported" };
   } catch (error) {
@@ -115,6 +140,8 @@ export async function refreshClipViews(db: SupabaseClient, clips: ViewClip[], bu
           const update: Record<string, number | string | null> = { views: result.views, views_updated_at: now, views_auto_at: now, views_auto_error: null };
           // Comme la saisie admin : les vues restent à jour même sur un clip figé ou payé.
           if (clip.frozen_views !== null && clip.frozen_views !== undefined) update.frozen_views = result.views;
+          // TikTok : j'aime, commentaires, partages et enregistrements relevés avec les vues.
+          if (result.engagement) Object.assign(update, { ...result.engagement, engagement_at: now });
           const { error } = await db.from("clip_clips").update(update).eq("id", clip.id).neq("status", "rejected");
           if (error) throw error;
           if (result.views !== previous) {

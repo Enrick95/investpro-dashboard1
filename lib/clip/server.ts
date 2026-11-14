@@ -12,7 +12,7 @@ export const ACCOUNT_COLUMNS = "id,clipper_id,platform,handle,followers,verified
 export const CAMPAIGN_COLUMNS = "id,title,platforms,brief,forbidden,rushes_url,starts_on,ends_on,quota_per_clipper,amount_per_clip,status,created_at";
 /** Campagnes vues par les clippeurs : sans aucun montant. */
 export const CLIPPER_CAMPAIGN_COLUMNS = "id,title,platforms,brief,forbidden,rushes_url,starts_on,ends_on,quota_per_clipper,status,created_at";
-export const CLIP_COLUMNS = "id,ref,clipper_id,campaign_id,platform,url,title,published_at,status,reject_reason,views,views_updated_at,frozen_views,frozen_at,payout_id,reviewed_at,amount,bonus,created_at";
+export const CLIP_COLUMNS = "id,ref,clipper_id,campaign_id,platform,url,title,published_at,status,reject_reason,views,views_updated_at,frozen_views,frozen_at,payout_id,reviewed_at,amount,bonus,likes,comments,shares,saves,engagement_at,created_at";
 export const PAYOUT_COLUMNS = "id,ref,clipper_id,cycle_start,cycle_end,clips_count,views_total,base_amount,bonus_amount,deduction_amount,referral_amount,total,method,proof,paid_at";
 export const CANDIDATE_COLUMNS = "id,user_id,email,display_name,whatsapp,telegram,accounts,availability,sample_url,message,source,status,referred_by,reviewed_at,created_at";
 export const VIDEO_COLUMNS = "id,title,note,url,campaign_id,created_at";

@@ -122,6 +122,12 @@ export type ClipRow = {
   amount?: number | string | null;
   /** Bonus ajouté ensuite (clip qui cartonne). */
   bonus?: number | string | null;
+  /** TikTok : interactions relevées avec les vues (vides pour les autres réseaux). */
+  likes?: number | string | null;
+  comments?: number | string | null;
+  shares?: number | string | null;
+  saves?: number | string | null;
+  engagement_at?: string | null;
   created_at: string;
 };
 
@@ -162,6 +168,20 @@ export function clipValue(clip: Pick<ClipRow, "amount" | "bonus">): number {
 /** Vues connues d'un clip (figées à J+7 si c'est passé), pour les statistiques. */
 export function clipViewsOf(clip: Pick<ClipRow, "views" | "frozen_views">): number {
   return clip.frozen_views !== null && clip.frozen_views !== undefined ? num(clip.frozen_views) : num(clip.views);
+}
+
+export type ClipEngagementCounts = Pick<ClipRow, "views" | "likes" | "comments" | "shares" | "saves">;
+
+/**
+ * Taux d'engagement par vues, en % : (j'aime + commentaires + partages + enregistrements) ÷ vues × 100.
+ * null tant que rien n'est relevé (TikTok seulement) ou sans vues.
+ */
+export function engagementRate(clip: ClipEngagementCounts): number | null {
+  const known = (value: unknown) => value !== null && value !== undefined && value !== "";
+  if (!known(clip.likes) || !known(clip.comments) || !known(clip.shares)) return null;
+  const views = num(clip.views);
+  if (views <= 0) return null;
+  return ((num(clip.likes) + num(clip.comments) + num(clip.shares) + num(clip.saves)) / views) * 100;
 }
 
 export function clipState(clip: Pick<ClipRow, "status" | "payout_id">): ClipState {

@@ -28,6 +28,7 @@ import {
   daysUntil,
   candidateWhatsAppText,
   enrickWhatsApp,
+  engagementRate,
   formatEuro,
   formatInt,
   num,
@@ -46,7 +47,7 @@ import {
 import { clipPathNow, useClipPath } from "./views/clipPath";
 import { ClipperRanking, type RankingRow } from "./views/clipper/Ranking";
 import { dayIso, dayNumber, viewGains, type ViewSnapshot } from "@/lib/clip/stats";
-import { ago, compact, dateRange, dayMonth, firstNameOf, initialsOf, longDay, maskDetails, monthName, ordinal, pct, plural, rankLabel, shortDay } from "@/lib/clip/format";
+import { ago, compact, dateRange, dayMonth, firstNameOf, initialsOf, longDay, maskDetails, monthName, ordinal, pct, percent, plural, rankLabel, shortDay } from "@/lib/clip/format";
 import { ClipperShell, type ClipperTab } from "./views/clipper/Shell";
 import { ClipTicker } from "./views/clipper/Ticker";
 import { clipPushForget, useClipPush } from "./views/clipPush";
@@ -139,6 +140,20 @@ function Brand() {
       <span className={styles.brandPill}>CLIP</span>
     </span>
   );
+}
+
+/** « 4,1 % d'engagement » une fois les j'aime, commentaires et partages relevés (TikTok). */
+function engagementLabel(clip: ClipRow): string | null {
+  const rate = engagementRate(clip);
+  return rate === null ? null : `${percent(rate)} d'engagement`;
+}
+
+/** Ce que le site relève tout seul sur la page du clip, pour la feuille « Stats de ton clip ». */
+function autoCounts(clip: ClipRow): string | null {
+  const rate = engagementRate(clip);
+  if (rate === null) return null;
+  const saves = clip.saves !== null && clip.saves !== undefined ? ` · ${formatInt(num(clip.saves))} enregistrements` : "";
+  return `${formatInt(num(clip.views))} vues · ${formatInt(num(clip.likes))} j'aime · ${formatInt(num(clip.comments))} commentaires · ${formatInt(num(clip.shares))} partages${saves} : ${percent(rate)} d'engagement.`;
 }
 
 /** Où trouver les statistiques d'une vidéo, réseau par réseau (feuille « Stats de ton clip »). */
@@ -736,6 +751,7 @@ export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; 
         state: itemState,
         note,
         views: views > 0 ? `${compact(views)} vues` : "—",
+        engagement: itemState === "rejected" ? null : engagementLabel(clip),
         money: itemState === "review" ? "en revue" : itemState === "rejected" ? "0 €" : formatEuro(value),
         url: clip.url,
         stats: itemState === "rejected" ? null : { count: capturesByClip.get(clip.id)?.length ?? 0, open: () => { setStatsError(null); setStatsClip(clip.id); } },
@@ -903,6 +919,7 @@ export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; 
           <ClipStatsSheet v={{
             title: target.title,
             hint: STATS_HINT[target.platform] ?? "Ouvre les statistiques de ta vidéo, puis fais une capture d'écran.",
+            auto: autoCounts(target),
             meta: clipViewsOf(target) > 0 ? `${dayMonth(target.published_at)} · ${compact(clipViewsOf(target))} vues` : dayMonth(target.published_at),
             captures: (capturesByClip.get(target.id) ?? []).map((capture) => ({ id: capture.id, url: capture.url, when: ago(capture.created_at, now) })),
             max: 6,
