@@ -28,10 +28,10 @@ export function startSlides(where: "join" | "space"): StartSlide[] {
     {
       key: "submit",
       icon: "check",
-      title: "Colle ton lien, je valide",
+      title: "Colle ton lien, tes vues comptent",
       text: space
-        ? "Ton clip est en ligne ? Colle son lien dans « Soumettre ». Je le regarde, je le valide, et il entre dans ton prochain versement."
-        : "Une fois accepté, tu colles le lien de chaque clip dans ton espace. Je le valide, et il entre dans ton prochain versement.",
+        ? "Ton clip est en ligne ? Colle son lien dans « Soumettre » : ses vues se relèvent toutes seules et il entre au classement. Je le valide quand il a fait assez de vues et d'engagement, et il entre dans ton prochain versement."
+        : "Une fois accepté, tu colles le lien de chaque clip dans ton espace : ses vues se relèvent toutes seules. Je le valide quand il a fait assez de vues et d'engagement, et il entre dans ton prochain versement.",
     },
     {
       key: "referral",
