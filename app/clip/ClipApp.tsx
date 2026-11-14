@@ -158,7 +158,7 @@ function autoCounts(clip: ClipRow): string | null {
 
 /** Où trouver les statistiques d'une vidéo, réseau par réseau (feuille « Stats de ton clip »). */
 const STATS_HINT: Partial<Record<ClipRow["platform"], string>> = {
-  tiktok: "Sur TikTok : ouvre ta vidéo → ••• → Analyses, puis fais une capture d'écran.",
+  tiktok: "Sur TikTok : ouvre ta vidéo → ••• → Analyses. Fais une capture de tes vues, une de la provenance des vues et une des pays des spectateurs.",
   youtube: "Sur YouTube Studio : Contenu → ta vidéo → Statistiques, puis fais une capture d'écran.",
   instagram: "Sur Instagram : ouvre ta vidéo → Voir les statistiques, puis fais une capture d'écran.",
   facebook: "Sur Facebook : ouvre ta vidéo → Statistiques, puis fais une capture d'écran.",
