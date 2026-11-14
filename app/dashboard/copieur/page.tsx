@@ -1636,11 +1636,12 @@ export default function CopieurPage() {
               {attentionCount > 0 ? ` · ${translate(attentionCount > 1 ? "{count} comptes à vérifier" : "{count} compte à vérifier").replace("{count}", String(attentionCount))}` : ""}
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          {/* Pendant le premier chargement, l'accès pilote n'est pas encore connu : pas d'actions avant la réponse. */}
+          {!initialLoading ? <div className="flex flex-wrap items-center gap-2">
             <button type="button" onClick={() => void refresh()} disabled={busy} aria-label={translate("Actualiser")} title={translate("Actualiser")} className="cp-btn cp-btn-icon"><RefreshCw size={16} className={busy ? "animate-spin" : ""} aria-hidden="true" /></button>
             <button type="button" onClick={openSourceRequest} className="cp-btn"><Send size={15} aria-hidden="true" />{translate("Ajouter un compte source")}</button>
             <button type="button" onClick={startAddReceiver} className="cp-btn cp-btn-gold"><Plus size={16} aria-hidden="true" />{translate("Ajouter un compte copieur")}</button>
-          </div>
+          </div> : null}
         </header>
 
         {requestSuccess ? <div role="status" className="cp-banner cp-tone-green"><span className="flex min-w-0 items-start gap-2"><CheckCircle2 size={17} className="mt-0.5 shrink-0" aria-hidden="true" />{translate(requestSuccess)}</span><button type="button" onClick={() => setRequestSuccess("")} className="cp-link shrink-0">{translate("Fermer")}</button></div> : null}
