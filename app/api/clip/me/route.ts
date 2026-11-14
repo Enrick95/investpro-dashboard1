@@ -16,6 +16,8 @@ import {
 } from "@/lib/clip/server";
 import { CLIP_PLATFORMS, PAYOUT_METHODS, normalizeHandle, normalizePhone, normalizeTelegram, type ClipPlatform, type PayoutMethod } from "@/lib/clip/rules";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { after } from "next/server";
+import { dueViewClips, refreshClipViews } from "@/lib/clip/views";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,6 +28,18 @@ async function findClipper(db: SupabaseClient, userId: string): Promise<ClipperR
   const { data, error } = await db.from("clip_clippers").select("id,status,display_name").eq("user_id", userId).maybeSingle();
   if (error) throw error;
   return (data as unknown as ClipperRecord | null) ?? null;
+}
+
+/** Après la réponse : relève les vues de ses clips pas relevés depuis 3 h (au plus 4 à chaque ouverture). */
+function refreshAfter(db: Parameters<typeof dueViewClips>[0], clipperId: string) {
+  after(async () => {
+    try {
+      const clips = await dueViewClips(db, 4, { clipperId, staleMs: 3 * 3_600_000 });
+      if (clips.length) await refreshClipViews(db, clips, 25_000, 2);
+    } catch {
+      // le relevé toutes les 3 h prendra le relais
+    }
+  });
 }
 
 export async function GET(request: Request) {
@@ -41,6 +55,7 @@ export async function GET(request: Request) {
       if (candidate.error) throw candidate.error;
       return clipJson({ email: user.email ?? null, owner: ctx.owner, clipper: null, candidate: candidate.data ?? null });
     }
+    refreshAfter(db, clipper.id);
     return clipJson({ email: user.email ?? null, owner: ctx.owner, ...(await clipperSpacePayload(db, clipper)) });
   } catch (error) {
     return clipErrorResponse(error);

@@ -21,6 +21,7 @@ import {
   trackingCodeFrom,
 } from "@/lib/clip/server";
 import { notifyNewVideo, type NotifyResult } from "@/lib/clip/notify";
+import { dueViewClips, refreshClipViews } from "@/lib/clip/views";
 import { clipValue, cycleFor, DEFAULT_CLIP_AMOUNT, num, PAYOUT_LABEL, REFERRAL_BONUS, REFERRAL_CLIPS, round2, type PayoutMethod } from "@/lib/clip/rules";
 
 export const runtime = "nodejs";
@@ -304,6 +305,13 @@ async function deleteVideo(db: SupabaseClient, body: Body) {
   return { ok: true };
 }
 
+/** Bouton « Actualiser les vues » : relève tout de suite les vues TikTok et YouTube des clips récents. */
+async function refreshAllViews(db: SupabaseClient) {
+  const clips = await dueViewClips(db, 60);
+  const result = await refreshClipViews(db, clips, 45_000);
+  return { clips: clips.length, ...result };
+}
+
 async function setViews(db: SupabaseClient, body: Body) {
   const id = uuid(body, "id");
   const views = numberField(body, "views", 0, 10_000_000_000, "Nombre de vues", true);
@@ -425,6 +433,8 @@ export async function POST(request: Request) {
         return clipJson(await saveCampaign(ctx.db, body));
       case "review_clip":
         return clipJson(await reviewClip(ctx.db, body));
+      case "refresh_views":
+        return clipJson(await refreshAllViews(ctx.db));
       case "set_views":
         return clipJson(await setViews(ctx.db, body));
       case "clip_bonus":

@@ -8,6 +8,10 @@
     {
       "path": "/api/telegram/daily",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/clip/cron/views",
+      "schedule": "35 */3 * * *"
     }
   ]
 }
