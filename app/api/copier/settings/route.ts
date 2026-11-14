@@ -47,6 +47,21 @@ function cleanSettings(raw: any) {
   };
 }
 
+// Le moteur de copie n'applique automatiquement que les lots fixes. Les protections (SL/TP, ordres en attente,
+// limite de perte du jour, volume maximum, symboles…) sont appliquées par l'équipe : modifiées, elles partent en
+// demande, même en lots fixes, au lieu d'être enregistrées comme si elles étaient actives.
+const PROTECTION_KEYS = ["copy_sl", "copy_tp", "copy_pending", "copy_modifications", "slippage_pips", "max_lots", "drawdown_enabled", "max_drawdown_percent", "symbol_mapping"] as const;
+type CleanSettings = ReturnType<typeof cleanSettings>;
+
+function protectionsChanged(saved: CleanSettings, next: CleanSettings) {
+  return PROTECTION_KEYS.some((key) => {
+    if (key === "max_lots" && next.mode === "fixed") return false;
+    if (key === "max_drawdown_percent" && !saved.drawdown_enabled && !next.drawdown_enabled) return false;
+    if (key === "symbol_mapping") return saved.symbol_mapping.trim() !== next.symbol_mapping.trim();
+    return saved[key] !== next[key];
+  });
+}
+
 export async function PATCH(request: Request) {
   try {
     const supabase = await createClient();
@@ -89,15 +104,17 @@ export async function PATCH(request: Request) {
         : {};
 
     const riskEngine = cleanSettings(body?.settings || {});
+    const savedEngine = cleanSettings((currentConfig as Record<string, unknown>).risk_engine || {});
+    const needsRequest = riskEngine.mode !== "fixed" || protectionsChanged(savedEngine, riskEngine);
 
-    if (riskEngine.mode !== "fixed") {
+    if (needsRequest) {
       const masters = Array.isArray(body?.masters) ? body.masters : [];
-      if (!masters.length) return NextResponse.json({ error: "Active au moins un Master pour demander ce mode." }, { status: 400 });
+      if (!masters.length) return NextResponse.json({ error: "Coche au moins un compte source pour envoyer cette demande." }, { status: 400 });
     }
 
     let requestStatus = "not_required";
     let requestId = "";
-    if (riskEngine.mode !== "fixed") {
+    if (needsRequest) {
       const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
       const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
       if (!url || !service) return NextResponse.json({ error: "Configuration serveur incomplète." }, { status: 503 });
@@ -109,10 +126,10 @@ export async function PATCH(request: Request) {
         lots: numberIn(m?.lots, 0.001, 1000, 0.01),
       }));
       if (!masters.length || masters.some((m: any) => !m.id || m.id.length > 200)) {
-        return NextResponse.json({ error: "Active au moins un Master avant de demander ce mode de risque." }, { status: 400 });
+        return NextResponse.json({ error: "Coche au moins un compte source pour envoyer cette demande." }, { status: 400 });
       }
       try { await assertOwnedMasters(admin, user.id, masters.map((m: any) => m.id)); }
-      catch { return NextResponse.json({ error: "Master non autorisé." }, { status: 403 }); }
+      catch { return NextResponse.json({ error: "Ce compte source n’appartient pas à ton espace." }, { status: 403 }); }
       const requestedConfig = {
         masters,
         risk: Object.fromEntries(Object.entries(riskEngine).filter(([key]) => !["updated_at", "provider_sync"].includes(key))),
@@ -125,7 +142,7 @@ export async function PATCH(request: Request) {
         ? admin.from("copier_configuration_requests").update({ requested_config: requestedConfig, status: "pending", admin_note: null, updated_at: new Date().toISOString() }).eq("id", existing.id).select("id").single()
         : admin.from("copier_configuration_requests").insert({ user_id: user.id, receiver_id: receiverId, requested_config: requestedConfig, status: "pending" }).select("id").single();
       const { data: requestRow, error: requestError } = await action;
-      if (requestError) return NextResponse.json({ error: "La demande de réglage n’a pas pu être transmise. Réessayez." }, { status: 503 });
+      if (requestError) return NextResponse.json({ error: "La demande de réglage n’a pas pu être transmise. Réessaie dans un instant." }, { status: 503 });
 
       requestId = String(requestRow.id);
       const { error: receiverUpdateError } = await admin.from("copier_receivers").update({
@@ -137,15 +154,17 @@ export async function PATCH(request: Request) {
         },
         updated_at: new Date().toISOString(),
       }).eq("id", receiverId).eq("user_id", user.id);
-      if (receiverUpdateError) return NextResponse.json({ error: "La demande a été créée, mais son état n’a pas pu être actualisé. Contactez l’équipe InvestPro." }, { status: 503 });
+      if (receiverUpdateError) return NextResponse.json({ error: "La demande a été créée, mais son état n’a pas pu être actualisé. Écris à l’équipe InvestPro." }, { status: 503 });
 
       const title = "Réglage de copie reçu";
-      const message = "Votre demande de réglage a bien été transmise à l’équipe InvestPro. Le réglage actuellement actif reste en place pendant son traitement. Vous recevrez une notification dès que le résultat sera confirmé.";
+      const message = riskEngine.mode === "fixed"
+        ? "Ta demande de protections est transmise à l’équipe InvestPro. Tes lots fixes sont déjà appliqués ; tu reçois une notification dès que les protections sont actives."
+        : "Ta demande de réglage est transmise à l’équipe InvestPro. Le réglage actuel reste en place pendant son traitement ; tu reçois une notification dès qu’il est appliqué.";
       const eventKey = `copier-config-request-${requestId}`;
       try { await createCopierNotice(admin, { eventKey, userId: user.id, title, message }); }
       catch (noticeError) { console.error("[copier-settings] notification client non enregistrée", noticeError); }
       for (const adminId of await copierAdminUserIds(admin)) {
-        try { await createCopierNotice(admin, { eventKey: `copier-config-request-admin-${requestId}-${adminId}`, userId: adminId, title: "Nouveau réglage Copier à traiter", message: `Une demande de réglage attend un traitement · compte receveur ${receiverId}.`, href: "/dashboard/admin/copieur" }); }
+        try { await createCopierNotice(admin, { eventKey: `copier-config-request-admin-${requestId}-${adminId}`, userId: adminId, title: "Nouveau réglage Copier à traiter", message: `Une demande de réglage attend un traitement · compte copieur ${receiverId}.`, href: "/dashboard/admin/copieur" }); }
         catch (noticeError) { console.error("[copier-settings] notification admin non enregistrée", noticeError); }
       }
       const emailResult = await sendCopierEmail(admin, eventKey, user.id, title, message);

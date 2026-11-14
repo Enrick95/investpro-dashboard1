@@ -14,6 +14,7 @@ import { vipInlineMessages } from "./vip-inline";
 import { vipEspaceMessages } from "./vip-espace";
 import { journalOutcomeMessages } from "./journal-outcomes";
 import { journalWithdrawalMessages } from "./journal-withdrawals";
+import { copierDashboardMessages } from "./copier-dashboard";
 
 /** Static application copy only. Member posts, names and trading data are never sent for translation. */
 export const messages: Readonly<Record<string, string>> = {
@@ -33,4 +34,5 @@ export const messages: Readonly<Record<string, string>> = {
   ...vipEspaceMessages,
   ...journalOutcomeMessages,
   ...journalWithdrawalMessages,
+  ...copierDashboardMessages,
 };

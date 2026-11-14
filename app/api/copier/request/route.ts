@@ -263,8 +263,8 @@ export async function POST(request: Request) {
 
     if (error) throw error;
 
-    const confirmation = "Votre demande d’activation de compte Master a bien été envoyée ! Notre équipe va procéder à sa vérification. Vous recevrez une notification dès que votre compte sera activé.";
-    const title = "Demande de compte Master reçue";
+    const confirmation = "Ta demande de compte source est envoyée. L’équipe la vérifie et tu reçois une notification dès que le compte est activé.";
+    const title = "Demande de compte source reçue";
     try {
       await createCopierNotice(admin, {
         eventKey: `copier-master-request-${data.id}`,

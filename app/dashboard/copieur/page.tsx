@@ -4,38 +4,28 @@ import { useLocale } from "@/components/i18n/LocaleProvider";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
-  Activity,
   AlertTriangle,
   Check,
   CheckCircle2,
-  ChevronDown,
-  Clock3,
   Copy,
-  Gauge,
-  Layers3,
-  Link2,
   Loader2,
   LockKeyhole,
   Pause,
+  Play,
   Plus,
   Send,
   RefreshCw,
   Settings2,
-  ShieldCheck,
-  SlidersHorizontal,
-  Target,
   Unplug,
   X,
   Zap,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { SthStatus } from "@/lib/sth/client";
-import CopierConnectionNetwork from "@/components/copier/CopierConnectionNetwork";
-import CopierPnlSummary from "@/components/copier/CopierPnlSummary";
 import CopierIntro from "@/components/copier/CopierIntro";
 import { buildCopierAccountMetrics, aggregateCopierPnl, type HostedCopierAccountSync } from "@/lib/copier/account-metrics";
 import { loadCopierDaySnapshot } from "@/lib/copier/day-result-loader";
-import type { CopierDaySnapshot } from "@/lib/copier/day-result";
+import { aggregateCopierDayResult, type CopierDaySnapshot } from "@/lib/copier/day-result";
 import { sendHostedMutation } from "@/lib/metasync/hosted-request-client";
 import { connectionStateLabel, type ConnectionState } from "@/lib/copier/connection-network";
 
@@ -92,10 +82,10 @@ const DEFAULT_RISK_SETTINGS: RiskSettings = {
 };
 
 function riskModeLabel(mode: RiskMode) {
-  if (mode === "mirror") return "Copier lots envoyeur";
-  if (mode === "balance") return "Risque par solde";
-  if (mode === "equity") return "Risque par equity";
-  if (mode === "percent") return "Risque en %";
+  if (mode === "mirror") return "Multiplicateur";
+  if (mode === "balance") return "Proportionnel au solde";
+  if (mode === "equity") return "Proportionnel à l’equity";
+  if (mode === "percent") return "% de risque par trade";
   return "Lots fixes";
 }
 type LooseAccount = Record<string, unknown>;
@@ -124,7 +114,43 @@ type CopierConfigRequest = {
   status: "pending" | "processing" | "applied" | "rejected";
   admin_note?: string | null;
   updated_at: string;
+  created_at?: string;
+  requested_config?: { risk?: Partial<RiskSettings> } | null;
 };
+
+type Tone = "green" | "amber" | "red" | "neutral" | "gold";
+
+const RISK_MODES: RiskMode[] = ["fixed", "mirror", "balance", "equity", "percent"];
+
+// Panneau « Régler la copie » : seuls les lots fixes sont appliqués directement par le moteur de copie,
+// les autres modes partent en demande à l'équipe.
+const COPY_MODES: Array<{ mode: RiskMode; label: string; description: string; input: string }> = [
+  { mode: "fixed", label: "Lots fixes", description: "Le même volume sur chaque trade copié.", input: "Lots par trade" },
+  { mode: "mirror", label: "Multiplicateur", description: "Le volume du compte source multiplié par ton coefficient : × 1 copie le même volume.", input: "Coefficient" },
+  { mode: "balance", label: "Proportionnel au solde", description: "Le volume suit la taille de ton compte par rapport au compte source.", input: "Coefficient" },
+  { mode: "equity", label: "Proportionnel à l’equity", description: "Comme le solde, mais calculé sur l’equity, positions ouvertes comprises.", input: "Coefficient" },
+  { mode: "percent", label: "% de risque par trade", description: "Une part de ton solde risquée à chaque trade. Le trade du compte source doit avoir un stop loss.", input: "% du solde par trade" },
+];
+
+const CONFIG_REQUEST_STATUS: Record<CopierConfigRequest["status"], { label: string; tone: Tone }> = {
+  pending: { label: "En attente", tone: "amber" },
+  processing: { label: "En traitement", tone: "amber" },
+  applied: { label: "Appliqué", tone: "green" },
+  rejected: { label: "Refusé", tone: "red" },
+};
+
+// Les protections ne passent pas par le moteur de copie automatiquement : une protection modifiée part en demande
+// à l'équipe, même en lots fixes. Même règle que la route /api/copier/settings.
+const PROTECTION_KEYS = ["copy_sl", "copy_tp", "copy_pending", "copy_modifications", "slippage_pips", "max_lots", "drawdown_enabled", "max_drawdown_percent", "symbol_mapping"] as const;
+
+function protectionsDiffer(saved: RiskSettings, next: RiskSettings) {
+  return PROTECTION_KEYS.some((key) => {
+    if (key === "max_lots" && next.mode === "fixed") return false;
+    if (key === "max_drawdown_percent" && !saved.drawdown_enabled && !next.drawdown_enabled) return false;
+    if (key === "symbol_mapping") return String(saved.symbol_mapping || "").trim() !== String(next.symbol_mapping || "").trim();
+    return Number(saved[key]) !== Number(next[key]);
+  });
+}
 
 type BrokerServerPreset = {
   broker: string;
@@ -353,7 +379,7 @@ function formatMoney(v: unknown, c = "USD", locale: "fr" | "en" = "fr") {
 }
 
 function localizeCopierMessage(message: string, translate: (message: string) => string): string {
-  for (const prefix of ["Compte receveur déjà connecté.", "Compte receveur reconnecté.", "Nouveau compte receveur connecté."]) {
+  for (const prefix of ["Compte copieur déjà relié.", "Compte copieur relié à nouveau. Vérifie son réglage avec « Régler ».", "Compte copieur relié. Règle maintenant son volume avec « Régler »."]) {
     if (message.startsWith(prefix + " ")) return translate(prefix) + " " + localizeCopierMessage(message.slice(prefix.length + 1), translate);
   }
   for (const prefix of ["Le receveur est connecté, mais MetaSync n’a pas pu être relancé :", "Le receveur est connecté, mais MetaSync n’a pas pu démarrer :"]) {
@@ -391,7 +417,7 @@ export default function CopieurPage() {
   const [pilotDenied, setPilotDenied] = useState(false);
   const [message, setMessage] = useState("Chargement d’InvestPro Copier…");
   const [checked, setChecked] = useState("");
-  const [, setMaxLots] = useState(0.1);
+  const [maxLots, setMaxLots] = useState(0.1);
 
   const [receivers, setReceivers] = useState<Receiver[]>([]);
   const [accounts, setAccounts] = useState<LooseAccount[]>([]);
@@ -480,6 +506,7 @@ export default function CopieurPage() {
   const [showStats, setShowStats] = useState(false);
   const [riskModalOpen, setRiskModalOpen] = useState(false);
   const [masterQuickValue, setMasterQuickValue] = useState("0.01");
+  const [settingsLoading, setSettingsLoading] = useState(false);
   const [requestForm, setRequestForm] = useState({
     alias: "",
     broker: "",
@@ -552,7 +579,7 @@ export default function CopieurPage() {
 
   async function requestMasterRemoval() {
     if (!selectedRemovalId || removalBusy) return;
-    if (!window.confirm(translate("Demander le retrait de ce compte Master ? Il restera actif jusqu’à la vérification de l’équipe InvestPro."))) return;
+    if (!window.confirm(translate("Demander le retrait de ce compte source ? Il reste actif jusqu’à la vérification de l’équipe InvestPro."))) return;
     setRemovalBusy(true);
     setRemovalMessage("");
     try {
@@ -622,7 +649,7 @@ export default function CopieurPage() {
       !form.password
     ) {
       setError(true);
-      setMessage("Complète les informations du compte à activer.");
+      setMessage("Complète les informations du compte source : nom, numéro, serveur et mot de passe principal.");
       return;
     }
     if (form.syncConsent && !/^[A-Z]{3}$/.test(form.syncCurrency.trim().toUpperCase())) {
@@ -668,10 +695,10 @@ export default function CopieurPage() {
       });
       setRequestServerChoice("");
       setRequestOpen(false);
-      setRequestSuccess(data.message || "Votre demande d’activation de compte Master a bien été envoyée ! Notre équipe va procéder à sa vérification. Vous recevrez une notification dès que votre compte sera activé.");
+      setRequestSuccess(data.message || "Ta demande de compte source est envoyée. L’équipe la vérifie et tu es prévenu dès que le compte est activé.");
       setMessage(
         data.message ||
-          "Votre demande a été envoyée. Son statut sera actualisé dans votre espace InvestPro."
+          "Ta demande de compte source est envoyée. L’équipe la vérifie et tu es prévenu dès que le compte est activé."
       );
       await loadActivationRequests();
     } catch (cause) {
@@ -952,7 +979,7 @@ export default function CopieurPage() {
 
     if (!alias.trim() || !/^\d{1,15}$/.test(login) || !effectiveServer || !password || !consent) {
       setError(true);
-      setMessage("Complète les informations du compte et confirme l’autorisation.");
+      setMessage("Complète les informations du compte copieur et coche l’autorisation.");
       return;
     }
     if (syncConsent && !["EUR", "USD"].includes(accountCurrency.trim().toUpperCase())) {
@@ -974,7 +1001,10 @@ export default function CopieurPage() {
         receiver.platform.toUpperCase() === platform &&
         receiver.server.trim().toLowerCase() === normalizedServer
       );
-      const connectResult = existingReceiver?.status === "connected"
+      // « Reprendre » : un compte noté relié mais que le moteur voit déconnecté est bien reconnecté avec le mot de passe saisi.
+      const liveConnected = existingReceiver ? connectionStatesRef.current[existingReceiver.id]?.snapshot?.status.isTradingAccountConnected : undefined;
+      const alreadyConnected = existingReceiver?.status === "connected" && liveConnected !== false;
+      const connectResult = existingReceiver && alreadyConnected
         ? { receiverId: existingReceiver.id, reusedReceiver: true }
         : await post({
             action: "connect",
@@ -1012,7 +1042,7 @@ export default function CopieurPage() {
               await sendHostedMutation({ broker: hostedBroker.id, login, password, currency: accountCurrency.trim().toUpperCase(), type: accountType, syncConsent: true });
               syncNotice = "La synchronisation MetaSync en échec a été relancée avec les identifiants saisis. Le solde s’affichera après une première réponse valide du serveur.";
             } catch {
-              syncNotice = "Le receveur est connecté, mais la relance MetaSync n’a pas été confirmée. Vérifie le statut dans InvestPro Copier.";
+              syncNotice = "Le compte copieur est relié, mais la relance MetaSync n’a pas été confirmée. Vérifie son état dans Mes comptes.";
             }
           }
         } else if (existingHosted || existingAccount) {
@@ -1022,7 +1052,7 @@ export default function CopieurPage() {
         } else {
           const hostedBroker = hostedBrokers.find((item) => item.platform.toUpperCase() === platform && item.server.trim().toLowerCase() === normalizedServer);
           if (!hostedBroker) {
-            syncNotice = "Ce serveur n’est pas encore pris en charge par MetaSync ; le receveur est connecté, mais son solde ne pourra pas être synchronisé automatiquement.";
+            syncNotice = "Ce serveur n’est pas encore pris en charge par MetaSync : le compte copieur est relié, mais son solde ne sera pas synchronisé automatiquement.";
           } else {
             try {
               await sendHostedMutation({
@@ -1035,7 +1065,7 @@ export default function CopieurPage() {
                 });
               syncNotice = "MetaSync est lancé ; le solde et l’equity apparaîtront après la première synchronisation.";
             } catch {
-              syncNotice = "Le receveur est connecté, mais la demande MetaSync n’a pas été confirmée. Vérifie Mes comptes avant de réessayer.";
+              syncNotice = "Le compte copieur est relié, mais la demande MetaSync n’a pas été confirmée. Vérifie Mes comptes avant de réessayer.";
             }
           }
         }
@@ -1057,11 +1087,11 @@ export default function CopieurPage() {
         else await fetchStatus(data.receiverId);
       }
       if (!syncConsent) {
-        syncNotice = "Connexion Copier active. Pour afficher aussi ce compte dans Mes comptes avec son solde, reconnecte ce même compte en cochant l’autorisation MetaSync.";
+        syncNotice = "Pour afficher aussi son solde dans Mes comptes, relie ce même compte en cochant l’autorisation MetaSync.";
       }
       const receiverMessage = data.reusedReceiver
-        ? existingReceiver?.status === "connected" ? "Compte receveur déjà connecté." : "Compte receveur reconnecté."
-        : "Nouveau compte receveur connecté.";
+        ? alreadyConnected ? "Compte copieur déjà relié." : "Compte copieur relié à nouveau. Vérifie son réglage avec « Régler »."
+        : "Compte copieur relié. Règle maintenant son volume avec « Régler ».";
       setMessage(syncNotice ? `${receiverMessage} ${syncNotice}` : receiverMessage);
     } catch (cause) {
       setError(true);
@@ -1172,7 +1202,7 @@ export default function CopieurPage() {
         cache: "no-store",
       });
       const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result.error || "Impossible de supprimer le receveur.");
+      if (!response.ok) throw new Error(result.error || "Impossible de retirer ce compte copieur.");
       setReceivers((list) => list.filter((r) => r.id !== id));
       if (selectedReceiverRef.current === id) {
         setActiveReceiver(null);
@@ -1182,7 +1212,7 @@ export default function CopieurPage() {
       setRemoveReceiverId(null);
       setDisconnectConsent(false);
       await loadRows();
-      setMessage("Receveur déconnecté et retiré de ton espace InvestPro.");
+      setMessage("Compte copieur retiré : la copie est arrêtée sur ce compte.");
     } catch (e) {
       setRemoveError(e instanceof Error ? e.message : "Suppression impossible.");
     } finally {
@@ -1199,7 +1229,7 @@ export default function CopieurPage() {
       if (data.status) applyStatus(data.status, selectedReceiverId);
       setDisconnectConsent(false);
       await loadRows();
-      setMessage("Compte receveur déconnecté.");
+      setMessage("Copie en pause sur ce compte. Pour la relancer, clique sur « Reprendre ».");
     } catch (cause) {
       setError(true);
       setMessage(cause instanceof Error ? cause.message : "Déconnexion impossible.");
@@ -1210,25 +1240,8 @@ export default function CopieurPage() {
 
   const activeMasters = selectedStatus?.masterAccountsList.filter((m) => selectedMasters[m.id]?.on) || [];
   const confirmedMasters = (selectedReceiverId ? connectionStates[selectedReceiverId]?.snapshot?.status.masterAccountsList : [])?.filter((master) => master.userIsSubscribed) || [];
-  const selectedConnection = connectionStateLabel(selectedReceiverId ? connectionStates[selectedReceiverId] : undefined, connectionNow);
-  const confirmedCopyLink = selectedConnection.kind === "connected" && confirmedMasters.length > 0;
-  const totalLots = activeMasters.reduce((sum, m) => sum + Number(selectedMasters[m.id]?.lots || 0), 0);
   const selectedReceiver = virtualReceivers.find((r) => r.id === selectedReceiverId) || null;
   const savedRiskEngine = (selectedReceiver?.config?.risk_engine || {}) as Partial<RiskSettings>;
-  const hasSavedRiskSettings = Boolean(
-    savedRiskEngine.mode &&
-    ["fixed", "mirror", "balance", "equity", "percent"].includes(savedRiskEngine.mode)
-  );
-  const riskModeDisplayLabel =
-    riskSaveState === "pending"
-      ? "En attente de validation"
-      : riskSaveState === "saving"
-        ? "Enregistrement…"
-        : riskSaveState === "failed"
-          ? "À vérifier"
-          : riskSaveState === "saved" || hasSavedRiskSettings
-            ? riskModeLabel(riskSettings.mode)
-            : "À configurer";
 
   useEffect(() => {
     if (!selectedReceiver || selectedReceiver.id === "legacy") {
@@ -1297,9 +1310,6 @@ export default function CopieurPage() {
   const masterPnl = masterMetric?.isFresh && masterMetric.currency ? masterMetric.floatingPnl : null;
   const masterCurrency = masterMetric?.currency || "USD";
 
-  const selectedStats = selectedReceiver && selectedReceiver.id !== "legacy"
-    ? statsFor(selectedReceiver)
-    : { balance: null, equity: null, pnl: null, open: null, currency: "USD" };
 
   const connectedCount = virtualReceivers.filter((receiver) => connectionStateLabel(connectionStates[receiver.id], connectionNow).kind === "connected").length;
   const errorCount = virtualReceivers.filter((receiver) => ["error", "disconnected", "stale"].includes(connectionStateLabel(connectionStates[receiver.id], connectionNow).kind)).length;
@@ -1321,9 +1331,11 @@ export default function CopieurPage() {
     setError(false);
     try {
       const masters = (Object.entries(selectedMasters) as Array<[string, { on: boolean; lots: string }]>).filter(([, v]) => v.on).map(([id, v]) => ({ id, lots: Number(v.lots || 0.01) }));
+      // En lots fixes, une protection modifiée part aussi en demande : la réponse du serveur fait foi.
+      let requestPending = riskSettings.mode !== "fixed";
       if (riskSettings.mode === "fixed") {
         const data = await post({ action: "masters", receiverId: selectedReceiverId, consent: true, masters });
-        if (data.ok === false) throw new Error(data.error || "La liaison Master n’a pas été confirmée.");
+        if (data.ok === false) throw new Error(data.error || "Le moteur de copie n’a pas confirmé le compte source.");
         if (data.status) applyStatus(data.status, selectedReceiverId);
       }
       if (selectedReceiverId !== "legacy") {
@@ -1339,13 +1351,17 @@ export default function CopieurPage() {
         const result = await response.json();
         if (!response.ok || result.ok === false) throw new Error(result.error || "Impossible d’enregistrer les réglages de copie.");
         setRiskSavedAt(new Date().toLocaleTimeString(locale === "en" ? "en-US" : "fr-FR", { hour: "2-digit", minute: "2-digit" }));
-        setRiskSaveState(result.requestStatus === "pending" ? "pending" : "saved");
+        requestPending = result.requestStatus === "pending";
+        setRiskSaveState(requestPending ? "pending" : "saved");
       }
       setSaveBarState("saved");
       setRiskModalOpen(false);
-      const pending = riskSettings.mode !== "fixed";
-      setSaveBarMessage(pending ? "Demande enregistrée · traitement InvestPro en attente" : "Configuration confirmée pour le mode lots fixes");
-      setMessage(pending ? "Votre demande de réglage est en attente de traitement par l’équipe InvestPro. Le réglage actuellement actif reste en place jusqu’à confirmation." : "Configuration des lots fixes envoyée au moteur de copie.");
+      setSaveBarMessage(requestPending ? "Demande envoyée à l’équipe" : "Lots fixes enregistrés");
+      setMessage(!requestPending
+        ? "Lots fixes enregistrés : le moteur de copie les applique aux prochains trades copiés."
+        : riskSettings.mode === "fixed"
+          ? "Lots fixes appliqués. Tes protections sont envoyées à l’équipe : tu es prévenu dès qu’elles sont actives."
+          : "Demande envoyée à l’équipe. Ton réglage actuel reste actif jusqu’à ce qu’elle soit appliquée.");
       await loadRows();
     } catch (cause) {
       setSaveBarState("failed");
@@ -1377,309 +1393,644 @@ export default function CopieurPage() {
     return on !== saved ? "Modification à enregistrer" : saved ? "Liaison enregistrée" : "Non relié";
   }
 
-  const pnlSummary = <div className="space-y-2">
-    <CopierPnlSummary metrics={receiverMetrics} now={connectionNow} translate={translate} locale={locale} refreshing={financialRefreshing} dailySnapshot={dailySnapshot} dailyReadFailed={dailyReadFailed} />
-    {financialRefreshError ? <p role="status" className="px-2 text-[10px] text-amber-200/80">{translate("Actualisation temporairement indisponible · dernières données conservées.")}</p> : null}
-  </div>;
-  const connectionNetwork = <CopierConnectionNetwork
-    receivers={virtualReceivers}
-    masters={latestMasterRequests.filter((request) => request.status === "activated" && Boolean(request.provider_master_id) && request.removal_status !== "completed").map((request) => ({ id: request.provider_master_id, name: request.alias, login: request.login, platform: request.platform, server: request.server, approved: true }))}
-    states={Object.fromEntries(virtualReceivers.map((receiver) => [receiver.id, connectionStates[receiver.id] || {}]))}
-    selectedReceiverId={selectedReceiverId}
-    now={connectionNow}
-    checkingAll={networkChecking}
-    onVerify={() => void verifyNetwork()}
-    onSelectReceiver={async (id) => {
-      if (selectedReceiverRef.current !== id) await selectReceiver(id);
+  // ---- Rendu InvestPro Copy : compte source, comptes copieurs, panneau « Régler la copie » ----
+  const decimal = (value: number, digits = 2) => (Number.isFinite(value) ? value : 0).toLocaleString(locale === "en" ? "en-US" : "fr-FR", { maximumFractionDigits: digits });
+  const lotsText = (value: number) => `${decimal(value)} ${translate(Math.abs(value) >= 2 ? "lots" : "lot")}`;
+  const signedMoney = (value: number, currency: string) => `${value > 0 ? "+" : ""}${money(value, currency)}`;
+  const shortDate = (value: string) => {
+    const date = new Date(value);
+    return Number.isFinite(date.getTime()) ? date.toLocaleString(locale === "en" ? "en-US" : "fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
+  };
+  function modeValue(mode: RiskMode, settings: Partial<RiskSettings>) {
+    if (mode === "mirror") return `× ${decimal(Number(settings.mirror_multiplier ?? 1))}`;
+    if (mode === "balance") return `× ${decimal(Number(settings.balance_multiplier ?? 1))}`;
+    if (mode === "equity") return `× ${decimal(Number(settings.equity_multiplier ?? 1))}`;
+    if (mode === "percent") return `${decimal(Number(settings.risk_percent ?? 1))} %`;
+    return "";
+  }
+  function requestedModeText(risk: Partial<RiskSettings> | undefined) {
+    const mode = risk?.mode && RISK_MODES.includes(risk.mode) ? risk.mode : null;
+    if (!mode) return translate("Réglage particulier");
+    if (mode === "fixed") return translate("Protections");
+    return `${translate(riskModeLabel(mode))} ${modeValue(mode, risk || {})}`.trim();
+  }
+
+  const copyRows = virtualReceivers.map((receiver) => {
+    const state = connectionStates[receiver.id];
+    const checking = Boolean(state?.checking);
+    // Pendant une relecture, on garde l'état confirmé précédent au lieu de faire clignoter le statut.
+    const connection = connectionStateLabel(checking && state?.snapshot ? { ...state, checking: false } : state, connectionNow);
+    const subscribed = state?.snapshot?.status.masterAccountsList.filter((master) => master.userIsSubscribed) || [];
+    const saved = (receiver.config?.risk_engine || {}) as Partial<RiskSettings>;
+    const mode: RiskMode = saved.mode && RISK_MODES.includes(saved.mode) ? saved.mode : "fixed";
+    const request = configurationRequests.find((item) => item.receiver_id === receiver.id) || null;
+    const requestPending = Boolean(request && ["pending", "processing"].includes(request.status));
+    const stats = receiver.id === "legacy" ? null : statsFor(receiver);
+    return { receiver, checking, connection, subscribed, saved, mode, request, requestPending, stats };
+  });
+  type CopyRow = (typeof copyRows)[number];
+
+  function copyStatus(row: CopyRow): { tone: Tone; text: string } {
+    switch (row.connection.kind) {
+      case "checking": return { tone: "neutral", text: "Vérification…" };
+      case "error": return { tone: "amber", text: "Vérification indisponible" };
+      case "unknown": return { tone: "neutral", text: "À vérifier" };
+      case "stale": return { tone: "amber", text: "À revérifier" };
+      case "disconnected": return row.receiver.status === "paused" ? { tone: "amber", text: "En pause" } : { tone: "red", text: "Déconnecté" };
+      default: return row.subscribed.length ? { tone: "green", text: "Copie active" } : { tone: "amber", text: "Aucune source copiée" };
+    }
+  }
+
+  function copySetting(row: CopyRow): { main: string; note: string; tone?: Tone } {
+    if (row.requestPending) {
+      return { main: translate("Demande en cours"), note: `${requestedModeText(row.request?.requested_config?.risk)} · ${translate("réglage actuel conservé")}`, tone: "amber" };
+    }
+    if (row.subscribed.length) {
+      if (row.mode === "fixed") {
+        return {
+          main: `${translate("Lots fixes")} · ${lotsText(row.subscribed[0].lots)}`,
+          note: row.subscribed.length > 1 ? translate("{count} comptes sources").replace("{count}", String(row.subscribed.length)) : translate("Appliqué par le moteur de copie"),
+        };
+      }
+      return { main: `${translate(riskModeLabel(row.mode))} ${modeValue(row.mode, row.saved)}`.trim(), note: translate("Appliqué par l’équipe") };
+    }
+    if (row.connection.kind === "connected") return { main: translate("À régler"), note: translate("Choisis le compte source et le volume"), tone: "gold" };
+    return { main: "—", note: "" };
+  }
+
+  const activeSources = latestMasterRequests.filter((request) => request.status === "activated" && Boolean(request.provider_master_id) && !["pending", "processing", "completed"].includes(request.removal_status));
+  const otherSources = activeSources.filter((request) => request.id !== approvedMaster?.id);
+  const sourceFor = (masterId: string) => latestMasterRequests.find((request) => request.provider_master_id === masterId);
+  const pendingSourceRequest = latestMasterRequests.find((request) => request.status === "pending" || request.status === "processing") || null;
+  const rejectedSourceRequest = !approvedMaster && !pendingSourceRequest ? latestMasterRequests.find((request) => request.status === "rejected") || null : null;
+  const activeCopyCount = copyRows.filter((row) => row.connection.kind === "connected" && row.subscribed.length > 0).length;
+  const daily = aggregateCopierDayResult(receiverMetrics, dailySnapshot, connectionNow);
+  const floating = aggregateCopierPnl(receiverMetrics);
+  const initialLoading = !engineChecked && receivers.length === 0 && activationRequests.length === 0;
+  const needsSetup = !initialLoading && (!approvedMaster || virtualReceivers.length === 0);
+  const pageStatus: { tone: Tone; text: string } = !engineChecked
+    ? { tone: "neutral", text: "Vérification…" }
+    : error ? { tone: "amber", text: "Statut indisponible" }
+    : !enabled ? { tone: "amber", text: "Moteur de copie indisponible" }
+    : activeCopyCount > 0 ? { tone: "green", text: "Copie active" }
+    : needsSetup ? { tone: "gold", text: "À configurer" }
+    : { tone: "amber", text: "Copie à régler" };
+  const quietMessages = ["Chargement d’InvestPro Copier…", "InvestPro Copier actualisé.", "Compte receveur chargé."];
+  const notice = !error && message && !quietMessages.includes(message) && message !== requestSuccess ? message : "";
+  const anyModalOpen = addOpen || requestOpen || riskModalOpen || disconnectOpen || Boolean(removeReceiverId);
+
+  const setupSteps: Array<{ title: string; detail: string; state: "done" | "current" | "todo" }> = [
+    {
+      title: "Compte source",
+      detail: approvedMaster ? `${approvedMaster.platform} · #${approvedMaster.login}` : pendingSourceRequest ? translate("En vérification par l’équipe") : translate("Le compte avec lequel tu trades"),
+      state: approvedMaster ? "done" : "current",
+    },
+    {
+      title: "Comptes copieurs",
+      detail: virtualReceivers.length ? translate(virtualReceivers.length > 1 ? "{count} comptes reliés" : "{count} compte relié").replace("{count}", String(virtualReceivers.length)) : translate("Les comptes qui reçoivent les trades"),
+      state: virtualReceivers.length ? "done" : approvedMaster || pendingSourceRequest ? "current" : "todo",
+    },
+    {
+      title: "Risque",
+      detail: translate("Le volume de chaque compte"),
+      state: copyRows.some((row) => row.subscribed.length > 0) ? "done" : approvedMaster && virtualReceivers.length ? "current" : "todo",
+    },
+    {
+      title: "Lancement",
+      detail: translate("Vérification et départ"),
+      state: activeCopyCount > 0 ? "done" : copyRows.some((row) => row.subscribed.length > 0) ? "current" : "todo",
+    },
+  ];
+  const currentStepIndex = setupSteps.findIndex((step) => step.state === "current");
+
+  // Panneau « Régler la copie » du compte copieur sélectionné.
+  const savedRisk: RiskSettings = { ...DEFAULT_RISK_SETTINGS, ...savedRiskEngine };
+  const protectionsChanged = protectionsDiffer(savedRisk, riskSettings);
+  const settingsIsRequest = riskSettings.mode !== "fixed" || protectionsChanged;
+  const lotsNumber = Number(masterQuickValue);
+  const lotsValid = masterQuickValue.trim() !== "" && Number.isFinite(lotsNumber) && lotsNumber > 0 && lotsNumber <= maxLots + 1e-9;
+  const modeNumber = riskSettings.mode === "mirror" ? riskSettings.mirror_multiplier : riskSettings.mode === "balance" ? riskSettings.balance_multiplier : riskSettings.mode === "equity" ? riskSettings.equity_multiplier : riskSettings.risk_percent;
+  const modeValid = riskSettings.mode === "fixed" ? lotsValid : Number.isFinite(modeNumber) && modeNumber >= 0.1 && modeNumber <= 20;
+  const maxLotsValid = riskSettings.mode === "fixed" || (Number.isFinite(riskSettings.max_lots) && riskSettings.max_lots >= 0.01 && riskSettings.max_lots <= 1000);
+  const drawdownValid = !riskSettings.drawdown_enabled || (Number.isFinite(riskSettings.max_drawdown_percent) && riskSettings.max_drawdown_percent >= 0.1 && riskSettings.max_drawdown_percent <= 100);
+  const settingsRow = copyRows.find((row) => row.receiver.id === selectedReceiverId) || null;
+  const settingsBlockReason = settingsLoading || !selectedStatus
+    ? translate("Lecture du compte en cours…")
+    : activeMasters.length === 0 ? translate("Coche le compte source à copier.")
+    : !modeValid ? (riskSettings.mode === "fixed" ? translate("Indique un volume entre 0,01 et {max}.").replace("{max}", lotsText(maxLots)) : translate("Indique une valeur entre 0,1 et 20."))
+    : !maxLotsValid ? translate("Indique un volume maximum entre 0,01 et 1 000 lots.")
+    : !drawdownValid ? translate("Indique un seuil de perte entre 0,1 et 100 %.")
+    : !masterConsent ? translate("Coche la confirmation pour continuer.")
+    : "";
+  const settingsCanSave = !settingsBlockReason && !busy && !riskBusy;
+  const settingsPrimaryLabel = riskSettings.mode !== "fixed" ? "Envoyer la demande" : protectionsChanged ? "Enregistrer et envoyer la demande" : "Enregistrer";
+  const settingsNote = riskSettings.mode !== "fixed"
+    ? "Ce réglage est appliqué par l’équipe. Ton réglage actuel reste actif en attendant, et tu es prévenu dès que c’est fait."
+    : protectionsChanged
+      ? "Tes lots fixes s’appliquent tout de suite. Les protections modifiées sont envoyées à l’équipe, qui te prévient dès qu’elles sont actives."
+      : "Les lots fixes s’appliquent dès l’enregistrement, sur les prochains trades copiés.";
+
+  function openSettings(id: string) {
+    const target = virtualReceivers.find((receiver) => receiver.id === id);
+    if (!target || id === "legacy") return;
+    const saved = (target.config?.risk_engine || {}) as Partial<RiskSettings>;
+    setRiskSettings({ ...DEFAULT_RISK_SETTINGS, ...saved, mode: saved.mode && RISK_MODES.includes(saved.mode) ? saved.mode : "fixed" });
+    setError(false);
+    setSaveBarState("idle");
+    setMasterConsent(false);
+    setSettingsLoading(true);
+    // Relecture fraîche du compte auprès du moteur, pour afficher les lots réellement appliqués.
+    const loading = selectedReceiverRef.current === id
+      ? fetchStatus(id).then(() => undefined, (cause) => {
+          if (selectedReceiverRef.current !== id) return;
+          setError(true);
+          setMessage(cause instanceof Error ? cause.message : "Impossible de charger ce compte.");
+        })
+      : selectReceiver(id);
+    setRiskModalOpen(true);
+    void loading.finally(() => {
       if (selectedReceiverRef.current !== id) return;
-      const target = window.matchMedia("(min-width: 768px)").matches ? "copier-masters" : "copier-mobile-settings";
-      document.getElementById(target)?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
-    }}
-    translate={translate}
-    locale={locale}
-  />;
+      const current = connectionStatesRef.current[id]?.snapshot?.status.masterAccountsList.find((master) => master.userIsSubscribed);
+      setMasterQuickValue(current ? String(current.lots) : "0.01");
+      setSettingsLoading(false);
+    });
+  }
+
+  function closeSettings() {
+    setRiskModalOpen(false);
+    setMasterConsent(false);
+    setSettingsLoading(false);
+  }
+
+  function toggleSource(id: string) {
+    toggleMaster(id);
+    const lots = masterQuickValue;
+    setSelectedMasters((current) => ({ ...current, [id]: { ...(current[id] || { on: false }), lots } }));
+  }
+
+  function openPause(id: string) {
+    if (selectedReceiverRef.current !== id) void selectReceiver(id);
+    setError(false);
+    setDisconnectConsent(false);
+    setDisconnectOpen(true);
+  }
+
+  async function confirmPause() {
+    await disconnect();
+    setDisconnectOpen(false);
+  }
+
+  function startAddReceiver() {
+    setAlias("");
+    setLogin("");
+    setServer("");
+    setServerChoice("");
+    setCustomServer("");
+    setError(false);
+    openAddReceiver();
+  }
+
+  // Reprendre une copie mise en pause : le compte est reconnecté avec son mot de passe principal, saisi à nouveau.
+  function resumeReceiver(receiver: Receiver) {
+    const preset = BROKER_SERVER_PRESETS[receiver.platform].some((group) => group.servers.includes(receiver.server));
+    setAlias(receiver.alias);
+    setPlatform(receiver.platform);
+    setLogin(receiver.login);
+    setServerChoice(preset ? receiver.server : "__OTHER__");
+    setServer(preset ? receiver.server : "");
+    setCustomServer(preset ? "" : receiver.server);
+    setError(false);
+    openAddReceiver();
+  }
+
+  function openSourceRequest() {
+    setError(false);
+    setRequestOpen(true);
+  }
+
+  const resumeTarget = addOpen
+    ? receivers.find((receiver) =>
+        receiver.status !== "connected" &&
+        receiver.login.trim() === login.trim() &&
+        receiver.platform === platform &&
+        receiver.server.trim().toLowerCase() === (serverChoice === "__OTHER__" ? customServer : serverChoice).trim().toLowerCase())
+    : undefined;
 
   if (pilotDenied) return <CopierIntro />;
 
   return (
     <>
-      <main className="mx-auto max-w-[1600px] space-y-5 pb-32">
-        <section className="space-y-4 md:hidden">
-          <section className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4">
-            <div className="inline-flex rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1.5 text-[9px] font-semibold text-[color:var(--gold)]">{translate("Gestion des comptes MetaTrader")}</div>
-            <div className="mt-3 flex items-start justify-between gap-3"><div><h1 className="text-2xl font-semibold tracking-tight text-white">{translate("InvestPro Copy CFD")}</h1><p className="mt-1 text-[11px] leading-5 text-white/45">{translate("Configure ta copie en trois étapes simples.")}</p></div><button type="button" onClick={() => void refresh()} disabled={busy} aria-label={translate("Actualiser les comptes")} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.025] text-white/65 disabled:opacity-50"><RefreshCw size={15} className={busy ? "animate-spin" : ""} /></button></div>
-            <div className={cn("mt-3 flex items-center gap-2 rounded-xl border px-3 py-2", enabled ? "border-emerald-500/15 bg-emerald-500/[0.04]" : "border-amber-500/15 bg-amber-500/[0.035]")}><span className={cn("h-2 w-2 shrink-0 rounded-full", enabled ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,.6)]" : "bg-amber-400")} /><span className={cn("min-w-0 flex-1 truncate text-[10px] font-semibold", enabled ? "text-emerald-200" : "text-amber-200")}>{!engineChecked ? translate("Vérification du moteur…") : error ? translate("Statut temporairement indisponible") : enabled ? translate("Moteur de copie disponible") : translate("Moteur de copie indisponible")}</span><span className="shrink-0 text-[8px] text-white/35">{checked ? (translate("Vérifié ") + (checked) + "") : translate("Vérification en cours")}</span></div>
-            {error ? <div role="alert" className="mt-3 rounded-xl border border-red-500/20 bg-red-500/[0.055] px-3 py-2 text-[10px] leading-5 text-red-300">{localizeCopierMessage(message, translate)}</div> : null}
-            {requestSuccess ? <div role="status" className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-2 text-[10px] leading-5 text-emerald-300">{translate(requestSuccess)}</div> : null}
-          </section>
-        {pnlSummary}
-        {connectionNetwork}
+      <main className="cp-root mx-auto flex max-w-[1320px] flex-col gap-5 pb-32 text-[color:var(--text)]">
+        <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-[28px] font-semibold leading-tight tracking-tight md:text-[32px]">InvestPro Copy</h1>
+              <span className={cn("cp-pill", `cp-tone-${pageStatus.tone}`)}><span className="cp-dot" aria-hidden="true" />{translate(pageStatus.text)}</span>
+            </div>
+            <p className="mt-1.5 text-[13px] leading-5 text-[color:var(--muted)]">
+              {checked ? `${translate("Dernière vérification du moteur de copie :")} ${checked}` : translate("Vérification du moteur de copie…")}
+              {errorCount > 0 ? ` · ${translate(errorCount > 1 ? "{count} comptes à vérifier" : "{count} compte à vérifier").replace("{count}", String(errorCount))}` : ""}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={() => void refresh()} disabled={busy} aria-label={translate("Actualiser")} title={translate("Actualiser")} className="cp-btn cp-btn-icon"><RefreshCw size={16} className={busy ? "animate-spin" : ""} aria-hidden="true" /></button>
+            <button type="button" onClick={openSourceRequest} className="cp-btn"><Send size={15} aria-hidden="true" />{translate("Ajouter un compte source")}</button>
+            <button type="button" onClick={startAddReceiver} className="cp-btn cp-btn-gold"><Plus size={16} aria-hidden="true" />{translate("Ajouter un compte copieur")}</button>
+          </div>
+        </header>
 
+        {requestSuccess ? <div role="status" className="cp-banner cp-tone-green"><span className="flex min-w-0 items-start gap-2"><CheckCircle2 size={17} className="mt-0.5 shrink-0" aria-hidden="true" />{translate(requestSuccess)}</span><button type="button" onClick={() => setRequestSuccess("")} className="cp-link shrink-0">{translate("Fermer")}</button></div> : null}
+        {notice ? <div role="status" className="cp-banner"><span className="min-w-0">{localizeCopierMessage(notice, translate)}</span><button type="button" onClick={() => setMessage("")} aria-label={translate("Fermer")} className="cp-link shrink-0"><X size={16} aria-hidden="true" /></button></div> : null}
+        {error && !anyModalOpen ? <div role="alert" className="cp-banner cp-tone-red"><span className="flex min-w-0 items-start gap-2"><AlertTriangle size={17} className="mt-0.5 shrink-0" aria-hidden="true" />{localizeCopierMessage(message, translate)}</span></div> : null}
 
-          <section className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4">
-            <div className="inline-flex rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1.5 text-[9px] font-semibold text-[color:var(--gold)]">{translate("Parcours mobile simplifié")}</div><h2 className="mt-3 text-xl font-semibold text-white">{translate("Configuration guidée")}</h2><p className="mt-1 text-[11px] leading-5 text-white/45">{translate("Vérifie ton Master, choisis le receveur, puis règle le risque.")}</p>
-            <div className="mt-4 grid grid-cols-3 gap-2">{[{ number: "1", label: translate("Master"), done: Boolean(approvedMaster), active: !approvedMaster }, { number: "2", label: translate("Receveur"), done: Boolean(selectedReceiver), active: Boolean(approvedMaster && !selectedReceiver) }, { number: "3", label: translate("Risque"), done: riskSaveState === "saved", active: Boolean(approvedMaster && selectedReceiver && riskSaveState !== "saved") }].map((step) => <div key={step.number} className={cn("min-w-0 rounded-xl border p-2.5", step.done ? "border-emerald-500/20 bg-emerald-500/[0.045]" : step.active ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]" : "border-white/[0.07] bg-black/15")}><span className={cn("flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold", step.done ? "bg-emerald-400/15 text-emerald-300" : step.active ? "bg-[color:var(--gold)] text-black" : "bg-white/[0.06] text-white/40")}>{step.done ? <Check size={14} /> : step.number}</span><div className="mt-2 truncate text-[10px] font-semibold text-white">{step.label}</div><div className={cn("mt-0.5 text-[8px]", step.done ? "text-emerald-300/70" : step.active ? "text-[color:var(--gold)]" : "text-white/35")}>{step.done ? translate("Prêt") : step.active ? translate("En cours") : translate("À faire")}</div></div>)}</div>
-          </section>
+        {initialLoading ? <section role="status" className="cp-card flex items-center gap-3 p-6 text-[14px] text-[color:var(--muted)]"><Loader2 size={18} className="animate-spin" aria-hidden="true" />{translate("Chargement de tes comptes…")}</section> : null}
 
-          <section className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4">
-            <div className="flex items-start justify-between gap-3"><div><div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[color:var(--gold)]">{translate("1. Compte Master")}</div><p className="mt-1 text-[10px] text-white/40">{translate("Compte source à copier.")}</p></div><State active={Boolean(approvedMaster)} label={approvedMaster ? translate("Approuvé") : translate("À valider")} /></div>
-            {approvedMaster ? <div className="mt-3 rounded-[17px] border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-3"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><div className="break-words text-base font-semibold leading-tight text-white">{approvedMaster.alias}</div><div className="mt-1 text-[9px] leading-4 text-white/45">#{approvedMaster.login} · {approvedMaster.platform} · {approvedMaster.server}</div></div></div><div className="mt-3 grid grid-cols-3 gap-2">{[["Solde", masterBalance == null ? "—" : money(masterBalance, masterCurrency)], ["Equity", masterEquity == null ? "—" : money(masterEquity, masterCurrency)], ["P&L en cours", masterPnl == null ? "—" : money(masterPnl, masterCurrency)]].map(([label, value]) => <div key={label} className="min-w-0 rounded-lg border border-white/[0.06] bg-black/20 p-2"><div className="text-[7px] uppercase tracking-wide text-white/35">{translate(label)}</div><div className="mt-1 break-words text-[9px] font-semibold leading-snug text-white">{value}</div></div>)}</div><div className="mt-3 flex items-center gap-2 border-t border-white/[0.07] pt-2 text-[9px] text-white/50"><ShieldCheck size={12} className="text-[color:var(--gold)]" />{translate("Master validé par l’équipe")}</div></div> : <div className="mt-3 rounded-xl border border-white/[0.07] bg-black/15 p-3"><p className="text-[10px] leading-5 text-white/50">{translate("Ajoute ton compte source. Il apparaîtra ici après validation par l’équipe InvestPro.")}</p><button type="button" onClick={() => setRequestOpen(true)} className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 text-[10px] font-semibold text-[color:var(--gold)]"><Plus size={14} /> {" "}{translate("Ajouter un compte Master")}</button></div>}
-          </section>
+        {needsSetup ? <section aria-labelledby="copy-demarrage" className="cp-card p-5 md:p-6">
+          <h2 id="copy-demarrage" className="text-[18px] font-semibold">{translate("Mise en place de la copie")}</h2>
+          <p className="mt-1 max-w-[70ch] text-[14px] leading-relaxed text-[color:var(--muted)]">{translate("Copie automatiquement les trades d’un compte vers tes autres comptes, avec un volume réglé pour chacun.")}</p>
+          <ol className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {setupSteps.map((step, index) => <li key={step.title} aria-current={index === currentStepIndex ? "step" : undefined} className={cn("flex items-start gap-3 rounded-2xl border p-4", step.state === "current" ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]" : "border-[color:var(--border)]")}>
+              <span aria-hidden="true" className={cn("grid h-8 w-8 shrink-0 place-items-center rounded-full text-[13px] font-bold", step.state === "done" ? "cp-step-done" : step.state === "current" ? "bg-[color:var(--gold)] text-[#16120a]" : "border border-[color:var(--border)] text-[color:var(--muted)]")}>{step.state === "done" ? <Check size={15} /> : index + 1}</span>
+              <span className="min-w-0">
+                <b className="block text-[14px] font-semibold">{translate(step.title)}</b>
+                <span className="mt-0.5 block text-[12px] leading-snug text-[color:var(--muted)]">{step.detail}</span>
+                <span className="sr-only">{translate(step.state === "done" ? "Terminé" : step.state === "current" ? "Étape en cours" : "À venir")}</span>
+              </span>
+            </li>)}
+          </ol>
 
-          <section className="scroll-mt-4 rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4">
-            <div className="flex items-start justify-between gap-3"><div><div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[color:var(--gold)]">{translate("2. Compte receveur")}</div><p className="mt-1 text-[10px] leading-5 text-white/40">{translate("Le compte qui recevra les trades copiés.")}</p></div><span className="shrink-0 rounded-full border border-white/[0.08] px-2.5 py-1 text-[8px] font-semibold text-white/45">{selectedReceiver ? translate("Sélectionné") : translate("À choisir")}</span></div>
-            {selectedReceiver ? <div className="mt-3 rounded-[17px] border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-3"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><div className="break-words text-base font-semibold text-white">{selectedReceiver.alias}</div><div className="mt-1 text-[9px] text-white/45">#{selectedReceiver.login} · {selectedReceiver.platform}</div></div><ReceiverStatusBadge state={connectionStates[selectedReceiver.id]} now={connectionNow} /></div><div className="mt-2 flex items-center justify-between gap-2 text-[9px] text-white/45"><span className="truncate">{selectedReceiver.server}</span><span>{selectedStats.balance == null ? translate("Solde —") : money(selectedStats.balance, selectedStats.currency)}</span></div></div> : <div className="mt-3 rounded-xl border border-dashed border-white/[0.12] bg-black/15 p-3 text-[10px] text-white/45">{translate("Aucun receveur sélectionné.")}</div>}
-            {virtualReceivers.length > 0 ? <div className="mt-3 space-y-2"><div className="text-[9px] font-semibold text-white/50">{virtualReceivers.length === 1 ? translate("Compte receveur relié") : translate("Choisir un compte receveur")}</div>{virtualReceivers.map((receiver) => { const active = receiver.id === selectedReceiverId; return <button type="button" key={receiver.id} aria-pressed={active} onClick={() => { if (!active) void selectReceiver(receiver.id); }} className={cn("flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border px-3 text-left transition", active ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]" : "border-white/[0.07] bg-black/15")}><span className="min-w-0"><span className="block truncate text-[10px] font-semibold text-white/85">{receiver.alias}{active ? translate(" · sélectionné") : ""}</span><span className="mt-0.5 block truncate text-[8px] text-white/45">#{receiver.login} · {receiver.platform} · {receiver.server}</span></span><ReceiverStatusBadge state={connectionStates[receiver.id]} now={connectionNow} /></button>; })}</div> : null}
-            <div className="mt-3 flex gap-2"><button type="button" onClick={openAddReceiver} className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[color:var(--gold)] px-3 text-[10px] font-semibold text-black"><Plus size={14} /> {" "}{translate("Ajouter un compte receveur")}</button>{selectedReceiver && selectedReceiver.id !== "legacy" ? <button type="button" aria-label={translate("Retirer ce receveur")} onClick={() => { setRemoveReceiverId(selectedReceiver.id); setDisconnectConsent(false); setRemoveError(""); }} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-red-500/20 text-red-300"><Unplug size={15} /></button> : null}</div>
-          </section>
-
-          {selectedReceiver ? <section id="copier-mobile-settings" className="scroll-mt-24 rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4">
-            <div className="flex items-start justify-between gap-3"><div><div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[color:var(--gold)]">{translate("3. Configurer le risque")}</div><p className="mt-1 text-[10px] leading-5 text-white/40">{translate("Les lots fixes s’activent à l’enregistrement. Les autres méthodes nécessitent une validation InvestPro.")}</p></div><span className={cn("shrink-0 rounded-full border px-2.5 py-1 text-[8px] font-semibold", riskSaveState === "saved" ? "border-emerald-500/20 bg-emerald-500/[0.05] text-emerald-300" : riskSaveState === "pending" ? "border-amber-500/20 bg-amber-500/[0.05] text-amber-200" : "border-white/[0.08] text-white/40")}>{riskSaveState === "saved" ? translate("Enregistré") : riskSaveState === "pending" ? translate("En attente") : translate("À faire")}</span></div>
-            <div className="mt-3 flex items-center justify-between gap-3 rounded-[17px] border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-3"><div className="min-w-0"><div className="text-[13px] font-semibold text-white">{translate(riskModeLabel(riskSettings.mode))}</div><div className="mt-1 text-[9px] leading-4 text-white/45">{riskSettings.mode === "fixed" ? translate("Activation directe après enregistrement") : translate("Demande de validation nécessaire avant activation")}</div></div></div>
-            {selectedStatus?.masterAccountsList.length ? <div className="mt-3"><div className="mb-2 text-[9px] font-semibold text-white/55">{translate("Sources disponibles")}</div><div className="space-y-2">{selectedStatus.masterAccountsList.map((master, index) => { const current = selectedMasters[master.id] || { on: false, lots: masterQuickValue || "0.01" }; return <div key={master.id} className={cn("flex items-center gap-2 rounded-xl border p-2.5", current.on ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]/60" : "border-white/[0.07] bg-black/15")}><button type="button" aria-label={("" + (current.on ? translate("Désactiver") : translate("Activer")) + " " + (master.name) + "")} onClick={() => toggleMaster(master.id)} className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border", current.on ? "border-[color:var(--gold-border)] bg-[color:var(--gold)] text-black" : "border-white/10 text-white/45")}>{current.on ? <Check size={14} /> : null}</button><div className="min-w-0 flex-1"><div className="truncate text-[10px] font-semibold text-white">{master.name}</div><div className="mt-0.5 text-[8px] text-white/40">{translate("Master")}{" "}{String(index + 1).padStart(2, "0")} · {current.on ? translate("Sélectionné") : translate("Non sélectionné")}</div></div></div>; })}</div></div> : <div className="mt-3 rounded-xl border border-white/[0.07] bg-black/15 p-3 text-[9px] leading-4 text-white/45">{error ? translate("Les sources ne sont pas disponibles pour le moment.") : translate("Les sources apparaîtront après la vérification du compte.")}</div>}
-            <label className="mt-3 flex items-start gap-2 rounded-xl border border-white/[0.07] bg-black/15 p-3 text-[9px] leading-4 text-white/55"><input type="checkbox" checked={masterConsent} onChange={(e) => { setMasterConsent(e.target.checked); setSaveBarState("idle"); setSaveBarMessage("Configuration non enregistrée"); }} className="mt-0.5 h-4 w-4 shrink-0 accent-[#d4a934]" />{translate("Je confirme le compte Master sélectionné ainsi que la configuration choisie.")}</label>
-            <button type="button" disabled={!selectedReceiver || activeMasters.length === 0 || !masterConsent || !selectedStatus || error} onClick={() => setRiskModalOpen(true)} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[color:var(--gold)] px-3 text-[10px] font-semibold text-black disabled:opacity-40"><Settings2 size={14} /> {" "}{translate("Continuer : choisir les réglages")}</button><p className="mt-2 text-center text-[9px] text-white/35">{translate(saveBarMessage)}</p>
-          </section> : <section className="rounded-[22px] border border-white/[0.07] bg-[color:var(--panel)] p-4"><div className="text-[10px] font-semibold text-white/75">{translate("3. Configurer le risque")}</div><p className="mt-1 text-[9px] text-white/40">{translate("Sélectionne d’abord un compte receveur.")}</p></section>}
-
-          <section className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4"><div className="text-[10px] font-semibold text-white/75">{translate("État du parcours")}</div><div className="mt-2 grid grid-cols-2 gap-2"><div className="rounded-xl border border-white/[0.06] bg-black/15 p-3"><div className="text-[8px] uppercase text-white/35">{translate("Connexion receveur")}</div><div className="mt-1 text-[9px] font-semibold text-white/70">{selectedReceiver ? translate(selectedConnection.labelFrench) : translate("À configurer")}</div></div><div className="rounded-xl border border-white/[0.06] bg-black/15 p-3"><div className="text-[8px] uppercase text-white/35">{translate("Dernière vérification")}</div><div className="mt-1 truncate text-[9px] font-semibold text-white/70">{checked || "En attente"}</div></div></div></section>
-        </section>
-        {latestMasterRequests.length > 0 ? <section className="rounded-[22px] border border-white/[0.07] bg-[color:var(--panel)] p-4 md:hidden">
-          <div className="flex items-center justify-between"><h2 className="text-xs font-semibold text-white">{translate("Suivi des demandes Master")}</h2><button type="button" onClick={() => void loadActivationRequests()} className="text-[9px] font-semibold text-[color:var(--gold)]">{translate("Actualiser")}</button></div>
-          <div className="mt-3 space-y-2">{latestMasterRequests.map((request) => { const removalPending = ["pending", "processing"].includes(request.removal_status); const removed = request.removal_status === "completed"; const canRemove = request.status === "activated" && Boolean(request.provider_master_id) && !removalPending && !removed; const label = removed ? translate("Retiré") : removalPending ? translate("Retrait en cours") : request.status === "activated" ? translate("Activé") : request.status === "rejected" ? translate("Refusé") : request.status === "processing" ? translate("Vérification") : translate("En attente"); return <div key={request.id} className="rounded-xl border border-white/[0.06] bg-black/15 p-3"><div className="flex items-center justify-between gap-2"><div className="min-w-0"><div className="truncate text-[10px] font-semibold text-white">{request.alias} · {request.platform} {request.login}</div><div className="mt-1 truncate text-[8px] text-white/40">{request.server}</div></div><div className="flex shrink-0 items-center gap-2">{canRemove ? <input type="checkbox" aria-label={(translate("Sélectionner ") + (request.alias) + translate(" pour demander son retrait"))} checked={selectedRemovalId === request.id} onChange={(event) => setSelectedRemovalId(event.target.checked ? request.id : "")} className="h-4 w-4 accent-[#d4a934]" /> : null}<span className={cn("rounded-full border px-2 py-1 text-[8px] font-semibold", removed || removalPending ? "border-amber-500/20 bg-amber-500/[0.05] text-amber-200" : request.status === "activated" ? "border-emerald-500/20 bg-emerald-500/[0.05] text-emerald-300" : request.status === "rejected" ? "border-red-500/20 bg-red-500/[0.05] text-red-300" : "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]")}>{translate(label)}</span></div></div></div>; })}</div>
-          {selectedRemovalId ? <button type="button" disabled={removalBusy} onClick={() => void requestMasterRemoval()} className="mt-3 min-h-10 w-full rounded-xl border border-red-500/20 bg-red-500/[0.05] px-3 text-[9px] font-semibold text-red-200 disabled:opacity-50">{removalBusy ? translate("Envoi…") : translate("Demander le retrait du compte sélectionné")}</button> : null}{removalMessage ? <p role="status" className="mt-2 text-[9px] leading-4 text-white/60">{translate(removalMessage)}</p> : null}
-        </section> : null}
-        <div className="hidden space-y-5 md:block">
-        <section id="copier-overview" className="scroll-mt-24 overflow-hidden rounded-[26px] border border-[color:var(--border)] bg-[color:var(--panel)]">
-          <div className="relative p-4 md:p-6">
-            <div className="pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full bg-cyan-300/[0.035] blur-3xl" />
-            <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="mt-5 flex flex-col gap-4 rounded-2xl border border-[color:var(--border)] bg-[color:var(--panel-2)] p-5 md:flex-row md:items-center md:justify-between">
+            {!approvedMaster && !pendingSourceRequest ? <>
               <div className="min-w-0">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--gold)]">{translate("Pilotage des comptes")}</div>
-                <h1 className="mt-1 text-3xl font-semibold tracking-tight text-white md:text-[38px]">{translate("InvestPro Copy CFD")}</h1>
-                <p className="mt-2 max-w-3xl text-xs leading-5 text-white/50 md:text-sm">{translate("Surveille tes receveurs, vérifie les liaisons Master et accède rapidement aux réglages de risque.")}</p>
+                <h3 className="text-[15px] font-semibold">{translate(rejectedSourceRequest ? "Ta demande de compte source n’a pas été validée" : "Ajoute le compte avec lequel tu trades")}</h3>
+                <p className="mt-1 max-w-[65ch] text-[13px] leading-relaxed text-[color:var(--muted)]">{rejectedSourceRequest?.admin_note ? `${translate("Motif :")} ${rejectedSourceRequest.admin_note}` : translate("L’équipe le vérifie puis l’active dans le moteur de copie. Il apparaît ensuite ici comme compte source.")}</p>
               </div>
-              <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
-                <button type="button" onClick={() => void refresh()} disabled={busy} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-white/[0.09] bg-white/[0.025] px-4 text-xs font-semibold text-white/75 transition hover:bg-white/[0.05] disabled:opacity-50"><RefreshCw size={14} className={busy ? "animate-spin" : ""} /> {" "}{translate("Actualiser")}</button>
-                <button type="button" onClick={() => setRequestOpen(true)} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 text-xs font-semibold text-[color:var(--gold)] transition hover:bg-[color:var(--gold-soft)]/80"><Send size={14} /> {" "}{translate("Ajouter un compte Master")}</button>
+              <button type="button" onClick={openSourceRequest} className="cp-btn cp-btn-gold shrink-0"><Send size={15} aria-hidden="true" />{translate(rejectedSourceRequest ? "Refaire une demande" : "Ajouter un compte source")}</button>
+            </> : !approvedMaster && pendingSourceRequest ? <>
+              <div className="min-w-0">
+                <h3 className="text-[15px] font-semibold">{translate("Ton compte source est en vérification")}</h3>
+                <p className="mt-1 max-w-[65ch] text-[13px] leading-relaxed text-[color:var(--muted)]">{pendingSourceRequest.alias} · {pendingSourceRequest.platform} #{pendingSourceRequest.login}. {translate("Tu es prévenu dès qu’il est activé. En attendant, tu peux déjà ajouter tes comptes copieurs.")}</p>
+              </div>
+              {!virtualReceivers.length ? <button type="button" onClick={startAddReceiver} className="cp-btn cp-btn-gold shrink-0"><Plus size={16} aria-hidden="true" />{translate("Ajouter un compte copieur")}</button> : null}
+            </> : <>
+              <div className="min-w-0">
+                <h3 className="text-[15px] font-semibold">{translate("Ajoute les comptes qui vont copier")}</h3>
+                <p className="mt-1 max-w-[65ch] text-[13px] leading-relaxed text-[color:var(--muted)]">{translate("Chaque compte copieur reçoit les trades du compte source. Tu régleras son volume juste après.")}</p>
+              </div>
+              <button type="button" onClick={startAddReceiver} className="cp-btn cp-btn-gold shrink-0"><Plus size={16} aria-hidden="true" />{translate("Ajouter un compte copieur")}</button>
+            </>}
+          </div>
+
+          <ul className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+            <li className="cp-inset p-4"><b className="block text-[14px] font-semibold">{translate("Rien à installer")}</b><span className="mt-1 block text-[13px] leading-relaxed text-[color:var(--muted)]">{translate("La copie tourne sur nos serveurs, 24 h/24 : ton ordinateur peut rester éteint.")}</span></li>
+            <li className="cp-inset p-4"><b className="block text-[14px] font-semibold">{translate("Un volume par compte")}</b><span className="mt-1 block text-[13px] leading-relaxed text-[color:var(--muted)]">{translate("Les lots fixes s’appliquent tout de suite ; les autres réglages se demandent à l’équipe.")}</span></li>
+            <li className="cp-inset p-4"><b className="block text-[14px] font-semibold">{translate("Pause à tout moment")}</b><span className="mt-1 block text-[13px] leading-relaxed text-[color:var(--muted)]">{translate("Tu arrêtes la copie sur un compte sans toucher aux autres.")}</span></li>
+          </ul>
+        </section> : null}
+
+        {virtualReceivers.length > 0 ? <section aria-label={translate("Vue d’ensemble")} className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <CopyTile label="Comptes copieurs actifs" value={String(activeCopyCount)} sub={translate("sur {count}").replace("{count}", String(virtualReceivers.length))} />
+          <CopyTile
+            label="Résultat du jour"
+            value={daily.currencies.length ? signedMoney(daily.currencies[0].pnl, daily.currencies[0].currency) : "—"}
+            tone={daily.currencies.length ? (daily.currencies[0].pnl > 0 ? "gain" : daily.currencies[0].pnl < 0 ? "loss" : undefined) : undefined}
+            sub={daily.currencies.length > 1
+              ? translate("Autres devises : {list}").replace("{list}", daily.currencies.slice(1).map((entry) => signedMoney(entry.pnl, entry.currency)).join(", "))
+              : daily.currencies.length
+                ? translate("{trades} trade(s) clôturé(s) · {covered}/{total} comptes").replace("{trades}", String(daily.tradeCount)).replace("{covered}", String(daily.coveredCount)).replace("{total}", String(daily.totalCount))
+                : dailyReadFailed ? translate("Lecture du jour indisponible pour le moment") : translate("En attente de l’historique du jour")}
+          />
+          <CopyTile
+            label="Positions ouvertes"
+            value={totalOpenPositions == null ? "—" : String(totalOpenPositions)}
+            sub={floating.currencies.length ? `${translate("P&L en cours")} : ${floating.currencies.map((entry) => signedMoney(entry.pnl, entry.currency)).join(", ")}` : translate("Sur tous les comptes copieurs")}
+          />
+          <CopyTile
+            label="Compte source"
+            value={approvedMaster && masterEquity != null ? money(masterEquity, masterCurrency) : approvedMaster && masterBalance != null ? money(masterBalance, masterCurrency) : "—"}
+            sub={approvedMaster ? (masterEquity != null ? translate("Equity · {name}").replace("{name}", approvedMaster.alias) : masterBalance != null ? translate("Solde · {name}").replace("{name}", approvedMaster.alias) : translate("Solde non synchronisé")) : pendingSourceRequest ? translate("En vérification par l’équipe") : translate("Aucun compte source actif")}
+          />
+        </section> : null}
+        {virtualReceivers.length > 0 && (financialRefreshError || (daily.missingAliases.length > 0 && daily.currencies.length > 0)) ? <p role="status" className="-mt-2 text-[12px] leading-relaxed text-[color:var(--cp-amber)]">
+          {financialRefreshError ? translate("Actualisation temporairement indisponible · dernières données conservées.") : `${translate("Résultat du jour partiel · données à actualiser pour")} ${daily.missingAliases.join(", ")}`}
+        </p> : null}
+
+        {virtualReceivers.length > 0 || approvedMaster ? <section aria-labelledby="copy-mes-copies" className="cp-card overflow-hidden">
+          <div className="flex flex-col gap-4 border-b border-[color:var(--border)] p-5 md:flex-row md:items-center md:justify-between">
+            <div className="flex min-w-0 items-start gap-3">
+              <span aria-hidden="true" className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]"><Copy size={19} /></span>
+              <div className="min-w-0">
+                <p className="text-[12px] font-medium text-[color:var(--muted)]">{translate("Compte source")}</p>
+                <h2 id="copy-mes-copies" className="break-words text-[18px] font-semibold leading-snug">{approvedMaster ? approvedMaster.alias : translate("Aucun compte source actif")}</h2>
+                <p className="mt-0.5 break-words text-[13px] text-[color:var(--muted)]">{approvedMaster ? [approvedMaster.broker, approvedMaster.platform, `#${approvedMaster.login}`].filter(Boolean).join(" · ") : pendingSourceRequest ? translate("Demande en vérification par l’équipe") : translate("Ajoute ton compte source pour lancer la copie.")}</p>
+                {otherSources.length ? <p className="mt-1 break-words text-[12px] text-[color:var(--muted)]">{translate("Autres comptes sources :")} {otherSources.map((source) => `${source.alias} (${source.platform} #${source.login})`).join(", ")}</p> : null}
               </div>
             </div>
-
-            <div className={cn("relative mt-5 flex flex-col gap-3 rounded-2xl border px-4 py-3 sm:flex-row sm:items-center sm:justify-between", enabled ? "border-emerald-500/15 bg-emerald-500/[0.045]" : "border-amber-500/15 bg-amber-500/[0.035]")}>
-              <div className="flex min-w-0 items-center gap-3">
-                <span className="relative flex h-3 w-3 shrink-0 items-center justify-center">
-                  {enabled ? <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/50 motion-reduce:animate-none" /> : null}
-                  <span className={cn("relative h-2 w-2 rounded-full", enabled ? "bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,.65)]" : "bg-amber-400")} />
-                </span>
-                <div className="min-w-0">
-                  <div className={cn("text-xs font-semibold", enabled ? "text-emerald-200" : "text-amber-200")}>{!engineChecked ? translate("Vérification du moteur…") : error ? translate("Statut temporairement indisponible") : enabled ? translate("Moteur de copie disponible") : translate("Moteur de copie indisponible")}</div>
-                  <div className="mt-0.5 truncate text-[10px] text-white/45">{error ? translate("Synchronisation à vérifier") : errorCount > 0 ? ("" + (errorCount) + translate(" connexion") + (errorCount > 1 ? translate("s") : "") + translate(" à vérifier")) : (translate(connectedCount > 1 ? "{count} receveurs connectés" : "{count} receveur connecté").replace("{count}", String(connectedCount)) + " · " + translate(activeMasters.length > 1 ? "{count} liaisons Master actives" : "{count} liaison Master active").replace("{count}", String(activeMasters.length)))}</div>
-                </div>
-              </div>
-              <div className="shrink-0 text-[10px] text-white/40">{checked ? (translate("Vérifié ") + (checked) + "") : translate("En attente de la première vérification")}</div>
-            </div>
-
-            {requestSuccess ? <div role="status" className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-2.5 text-xs text-emerald-300"><CheckCircle2 className="mr-2 inline-block h-4 w-4" />{translate(requestSuccess)}<button className="ml-3 underline underline-offset-2" onClick={() => setRequestSuccess("")}>{translate("Fermer")}</button></div> : null}
-            {error ? <div role="alert" className="mt-3 rounded-xl border border-red-500/20 bg-red-500/[0.055] px-3 py-2.5 text-xs text-red-300">{localizeCopierMessage(message, translate)}</div> : null}
-
-            <div className="relative mt-4 grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-3">
-              <HeroStatCard icon={<Layers3 size={17} />} label={translate("Comptes receveurs")} value={String(virtualReceivers.length)} sub={translate("{count} en pause").replace("{count}", String(virtualReceivers.length - connectedCount - errorCount))} />
-              <HeroStatCard icon={<Link2 size={17} />} label={translate("Connectés")} value={String(connectedCount)} sub={errorCount > 0 ? ("" + (errorCount) + translate(" à vérifier")) : translate("État des connexions")} accent={errorCount > 0 ? translate(errorCount > 1 ? "{count} alertes" : "{count} alerte").replace("{count}", String(errorCount)) : undefined} accentPositive={false} />
-              <HeroStatCard icon={<Activity size={17} />} label={translate("Positions ouvertes")} value={totalOpenPositions == null ? "—" : String(totalOpenPositions)} sub={translate("Tous les receveurs")} />
-              <HeroStatCard icon={<ShieldCheck size={17} />} label={translate("Masters actifs")} value={String(confirmedMasters.length)} sub={selectedReceiver ? translate("Pour {name}").replace("{name}", selectedReceiver.alias) : translate("Sélectionne un receveur")} />
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="cp-pill">{translate(virtualReceivers.length > 1 ? "{count} comptes copieurs" : "{count} compte copieur").replace("{count}", String(virtualReceivers.length))}</span>
+              {virtualReceivers.length > 0 ? <button type="button" onClick={() => void verifyNetwork()} disabled={networkChecking} className="cp-btn cp-btn-sm"><RefreshCw size={14} className={networkChecking ? "animate-spin" : ""} aria-hidden="true" />{translate(networkChecking ? "Vérification…" : "Vérifier les connexions")}</button> : null}
             </div>
           </div>
-        </section>
-        {pnlSummary}
-        {connectionNetwork}
 
-
-        {latestMasterRequests.length > 0 ? (
-          <section className="rounded-[22px] border border-white/[0.07] bg-[color:var(--panel)] p-4 md:p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-sm font-semibold text-white">{translate("Suivi des demandes Master")}</h2>
-                <p className="mt-1 text-[10px] text-white/40">{translate("Retrouve ici leur état et les informations utiles.")}</p>
+          {approvedMaster && masterBalance == null ? <details className="border-b border-[color:var(--border)] px-5 py-3">
+            <summary className="cursor-pointer text-[13px] font-semibold text-[color:var(--cp-amber)]">{translate(masterSyncFailed ? "Solde du compte source : synchronisation en échec" : "Afficher le solde du compte source")}</summary>
+            <div className="mt-3 flex max-w-[760px] flex-col gap-3 pb-2">
+              <p className="text-[13px] leading-relaxed text-[color:var(--muted)]">{translate(masterSyncFailed ? "Aucun solde n’a été confirmé par le connecteur. Relance la synchronisation : InvestPro reprend les identifiants déjà chiffrés du compte source, sans jamais les afficher." : "Autorise MetaSync à lire le solde et l’equity de ce compte. Les identifiants déjà chiffrés sont transmis côté serveur ; ils ne sont jamais affichés ni journalisés.")}</p>
+              <label className="flex items-start gap-3 text-[13px] leading-relaxed"><input type="checkbox" className="cp-check" checked={masterSyncConsent} onChange={(event) => setMasterSyncConsent(event.target.checked)} /><span>{translate("J’autorise InvestPro à créer une connexion MetaSync pour ce compte et à conserver ses identifiants chiffrés afin de synchroniser le solde et l’equity.")}</span></label>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-[140px_200px_auto] sm:items-end">
+                <label className="flex flex-col gap-1.5"><span className="text-[12px] font-medium text-[color:var(--muted)]">{translate("Devise exacte")}</span><input className="ip-field" maxLength={3} value={masterSyncCurrency} onChange={(event) => setMasterSyncCurrency(event.target.value.toUpperCase())} placeholder={translate("USD, EUR…")} /></label>
+                <label className="flex flex-col gap-1.5"><span className="text-[12px] font-medium text-[color:var(--muted)]">{translate("Type de compte")}</span><select className="ip-field" value={masterSyncType} onChange={(event) => setMasterSyncType(event.target.value as typeof masterSyncType)}><option value="">{translate("Choisir")}</option><option value="real">{translate("Réel")}</option><option value="demo">{translate("Démo")}</option><option value="prop">{translate("Prop firm")}</option></select></label>
+                <button type="button" disabled={masterSyncBusy || !masterSyncConsent || !/^[A-Z]{3}$/.test(masterSyncCurrency.trim()) || !masterSyncType} onClick={() => void startMasterSync()} className="cp-btn">{masterSyncBusy ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <RefreshCw size={15} aria-hidden="true" />}{translate("Synchroniser ce compte source")}</button>
               </div>
-              <button type="button" onClick={() => void loadActivationRequests()} className="text-[10px] font-semibold text-[color:var(--gold)]">{translate("Actualiser")}</button>
+              {masterSyncMessage ? <p role="status" className="text-[13px] leading-relaxed text-[color:var(--muted)]">{translate(masterSyncMessage)}</p> : null}
             </div>
-            <div className="mt-3 space-y-2">
+          </details> : null}
+
+          {virtualReceivers.length === 0 ? <div className="flex flex-col items-start gap-3 p-5">
+            <p className="text-[14px] leading-relaxed text-[color:var(--muted)]">{translate("Aucun compte copieur pour l’instant. Ajoute les comptes qui vont recevoir les trades du compte source.")}</p>
+            <button type="button" onClick={startAddReceiver} className="cp-btn cp-btn-gold"><Plus size={16} aria-hidden="true" />{translate("Ajouter un compte copieur")}</button>
+          </div> : <>
+            <div aria-hidden="true" className="cp-copy-grid hidden border-b border-[color:var(--border)] bg-[color:var(--panel-2)] px-5 py-2.5 text-[12px] font-medium text-[color:var(--muted)] lg:grid">
+              <span>{translate("Compte copieur")}</span><span>{translate("Réglage")}</span><span>{translate("Statut")}</span><span>{translate("Solde")}</span><span>{translate("P&L en cours")}</span><span className="text-right">{translate("Actions")}</span>
+            </div>
+            <ul className="divide-y divide-[color:var(--border)]">
+              {copyRows.map((row) => {
+                const status = copyStatus(row);
+                const setting = copySetting(row);
+                const stats = row.stats;
+                const legacy = row.receiver.id === "legacy";
+                const firstSnapshotPending = Boolean(stats && stats.hasSync && !stats.lastSync && stats.balance == null && stats.equity == null);
+                return <li key={row.receiver.id} className={cn("cp-copy-grid grid grid-cols-1 gap-3 px-5 py-4 lg:items-center", riskModalOpen && row.receiver.id === selectedReceiverId ? "bg-[color:var(--gold-soft)]" : "")}>
+                  <div className="min-w-0">
+                    <p className="break-words text-[15px] font-semibold">{row.receiver.alias}</p>
+                    <p className="mt-0.5 break-words text-[12px] text-[color:var(--muted)]">{legacy ? translate("Compte relié directement au moteur de copie") : `${row.receiver.platform} · #${row.receiver.login} · ${row.receiver.server}`}</p>
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[12px] text-[color:var(--muted)] lg:sr-only">{translate("Réglage")}</span>
+                    <p className={cn("text-[14px] font-medium", setting.tone === "amber" ? "text-[color:var(--cp-amber)]" : setting.tone === "gold" ? "text-[color:var(--gold)]" : "")}>{setting.main}</p>
+                    {setting.note ? <p className="text-[12px] leading-snug text-[color:var(--muted)]">{setting.note}</p> : null}
+                  </div>
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <span className="text-[12px] text-[color:var(--muted)] lg:sr-only">{translate("Statut")}</span>
+                    <span className={cn("cp-pill", `cp-tone-${status.tone}`)}><span className="cp-dot" aria-hidden="true" />{translate(status.text)}</span>
+                    {row.checking ? <Loader2 size={13} className="animate-spin text-[color:var(--muted)]" aria-label={translate("Vérification en cours")} /> : null}
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[12px] text-[color:var(--muted)] lg:sr-only">{translate("Solde")}</span>
+                    {stats && stats.balance != null ? <p className="text-[14px] tabular-nums">{money(stats.balance, stats.currency)}</p>
+                      : stats && !legacy && !stats.hasSync ? <a href="/dashboard/connexions/metatrader" className="cp-link text-[12px]">{translate("Relier MetaSync pour afficher le solde")}</a>
+                      : stats && firstSnapshotPending && stats.syncStatus === "error" ? <p className="text-[12px] text-[color:var(--cp-red)]">{translate("MetaSync en échec.")} <a href="/dashboard/connexions/metatrader" className="cp-link">{translate("Vérifier MetaSync")}</a></p>
+                      : stats && firstSnapshotPending ? <p className="text-[12px] text-[color:var(--muted)]">{translate("Premier relevé en attente")}</p>
+                      : <p className="text-[14px] text-[color:var(--muted)]">—</p>}
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[12px] text-[color:var(--muted)] lg:sr-only">{translate("P&L en cours")}</span>
+                    {stats && stats.pnl != null ? <p className={cn("text-[14px] font-medium tabular-nums", Number(stats.pnl) > 0 ? "cp-gain" : Number(stats.pnl) < 0 ? "cp-loss" : "")}>{signedMoney(Number(stats.pnl), stats.currency)}</p> : <p className="text-[14px] text-[color:var(--muted)]">—</p>}
+                    {stats && stats.open != null ? <p className="text-[12px] text-[color:var(--muted)]">{translate(Number(stats.open) > 1 ? "{count} positions ouvertes" : "{count} position ouverte").replace("{count}", String(stats.open))}</p> : null}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                    {legacy ? <span className="text-[12px] leading-snug text-[color:var(--muted)]">{translate("Ajoute-le comme compte copieur pour le régler")}</span> : <>
+                      <button type="button" onClick={() => openSettings(row.receiver.id)} aria-label={`${translate("Régler")} · ${row.receiver.alias}`} className="cp-btn cp-btn-sm cp-btn-outline"><Settings2 size={14} aria-hidden="true" />{translate("Régler")}</button>
+                      {row.connection.kind === "connected" ? <button type="button" onClick={() => openPause(row.receiver.id)} aria-label={`${translate("Pause")} · ${row.receiver.alias}`} className="cp-btn cp-btn-sm"><Pause size={14} aria-hidden="true" />{translate("Pause")}</button>
+                        : row.connection.kind === "disconnected" ? <button type="button" onClick={() => resumeReceiver(row.receiver)} aria-label={`${translate("Reprendre")} · ${row.receiver.alias}`} className="cp-btn cp-btn-sm"><Play size={14} aria-hidden="true" />{translate("Reprendre")}</button>
+                        : null}
+                      <button type="button" onClick={() => { setRemoveReceiverId(row.receiver.id); setDisconnectConsent(false); setRemoveError(""); }} aria-label={translate("Retirer {name}").replace("{name}", row.receiver.alias)} title={translate("Retirer")} className="cp-btn cp-btn-sm cp-btn-icon-sm cp-btn-danger"><Unplug size={14} aria-hidden="true" /></button>
+                    </>}
+                  </div>
+                </li>;
+              })}
+            </ul>
+          </>}
+        </section> : null}
+
+        {configurationRequests.length > 0 || latestMasterRequests.length > 0 ? <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          {configurationRequests.length > 0 ? <section aria-labelledby="copy-demandes-reglage" className="cp-card p-5">
+            <h2 id="copy-demandes-reglage" className="text-[16px] font-semibold">{translate("Demandes de réglage")}</h2>
+            <ul className="mt-3 flex flex-col gap-2">
+              {configurationRequests.slice(0, 6).map((request) => {
+                const target = receivers.find((receiver) => receiver.id === request.receiver_id);
+                const status = CONFIG_REQUEST_STATUS[request.status] || CONFIG_REQUEST_STATUS.pending;
+                return <li key={request.id} className="cp-inset flex flex-col gap-1.5 p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="min-w-0 break-words text-[14px] font-semibold">{requestedModeText(request.requested_config?.risk)}</p>
+                    <span className={cn("cp-pill", `cp-tone-${status.tone}`)}>{translate(status.label)}</span>
+                  </div>
+                  <p className="break-words text-[12px] text-[color:var(--muted)]">{target ? `${target.alias} · ${target.platform} #${target.login}` : translate("Compte copieur retiré")}{shortDate(request.updated_at) ? ` · ${shortDate(request.updated_at)}` : ""}</p>
+                  {request.status === "pending" || request.status === "processing" ? <p className="text-[12px] leading-relaxed text-[color:var(--muted)]">{translate("En cours de traitement par l’équipe. Ton réglage actuel reste actif en attendant.")}</p>
+                    : request.status === "rejected" && request.admin_note ? <p className="text-[12px] leading-relaxed text-[color:var(--cp-red)]">{translate("Motif :")} {request.admin_note}</p>
+                    : null}
+                </li>;
+              })}
+            </ul>
+          </section> : null}
+
+          {latestMasterRequests.length > 0 ? <section aria-labelledby="copy-comptes-sources" className="cp-card p-5">
+            <div className="flex items-center justify-between gap-3">
+              <h2 id="copy-comptes-sources" className="text-[16px] font-semibold">{translate("Comptes sources")}</h2>
+              <button type="button" onClick={() => void loadActivationRequests()} className="cp-link text-[13px]">{translate("Actualiser")}</button>
+            </div>
+            <ul className="mt-3 flex flex-col gap-2">
               {latestMasterRequests.map((request) => {
                 const removalPending = ["pending", "processing"].includes(request.removal_status);
-                const removed = request.removal_status === "completed";
-                const label = removed ? translate("Retiré") : removalPending ? translate("Retrait en cours") : request.status === "activated" ? translate("Activé") : request.status === "rejected" ? translate("Refusé") : request.status === "processing" ? translate("En cours de vérification") : translate("En attente");
-                const style = removed || removalPending ? "border-amber-500/20 bg-amber-500/[0.05] text-amber-200" : request.status === "activated" ? "border-emerald-500/20 bg-emerald-500/[0.05] text-emerald-300" : request.status === "rejected" ? "border-red-500/20 bg-red-500/[0.05] text-red-300" : "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]";
-                const canRequestRemoval = request.status === "activated" && Boolean(request.provider_master_id) && !removalPending && !removed;
-                return <div key={request.id} className="rounded-xl border border-white/[0.06] bg-black/15 p-3">
+                const canRemove = request.status === "activated" && Boolean(request.provider_master_id) && !removalPending;
+                const status: { tone: Tone; label: string } = removalPending ? { tone: "amber", label: "Retrait en cours" }
+                  : request.status === "activated" ? { tone: "green", label: "Activé" }
+                  : request.status === "rejected" ? { tone: "red", label: "Refusé" }
+                  : request.status === "processing" ? { tone: "amber", label: "En vérification" }
+                  : { tone: "amber", label: "En attente" };
+                return <li key={request.id} className="cp-inset flex flex-col gap-1.5 p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex min-w-0 flex-1 items-center gap-3"><div className="min-w-0"><div className="truncate text-xs font-semibold text-white">{request.alias} · {request.platform} {request.login}</div><div className="mt-1 text-[9px] text-white/40">{request.server} {" "}{translate("· demande du")}{" "}{new Date(request.created_at).toLocaleDateString("fr-FR")}</div></div>{canRequestRemoval ? <input type="checkbox" aria-label={(translate("Sélectionner ") + (request.alias) + translate(" pour demander son retrait"))} checked={selectedRemovalId === request.id} onChange={(event) => setSelectedRemovalId(event.target.checked ? request.id : "")} className="h-4 w-4 shrink-0 accent-[#d4a934]" /> : null}</div>
-                    <span className={`rounded-full border px-2.5 py-1 text-[9px] font-semibold ${style}`}>{translate(label)}</span>
+                    <p className="min-w-0 break-words text-[14px] font-semibold">{request.alias}</p>
+                    <span className={cn("cp-pill", `cp-tone-${status.tone}`)}>{translate(status.label)}</span>
                   </div>
-                  {request.status === "rejected" && request.admin_note ? <p className="mt-2 text-[10px] leading-5 text-red-200/75">{translate("Motif :")}{" "}{request.admin_note}</p> : null}
-                </div>;
+                  <p className="break-words text-[12px] text-[color:var(--muted)]">{[request.broker, request.platform, `#${request.login}`, request.server].filter(Boolean).join(" · ")}{shortDate(request.created_at) ? ` · ${translate("demande du")} ${shortDate(request.created_at)}` : ""}</p>
+                  {request.status === "rejected" && request.admin_note ? <p className="text-[12px] leading-relaxed text-[color:var(--cp-red)]">{translate("Motif :")} {request.admin_note}</p> : null}
+                  {canRemove ? <label className="mt-1 flex items-center gap-2 text-[12px] text-[color:var(--muted)]"><input type="checkbox" className="cp-check" checked={selectedRemovalId === request.id} onChange={(event) => setSelectedRemovalId(event.target.checked ? request.id : "")} />{translate("Sélectionner pour demander son retrait")}</label> : null}
+                </li>;
               })}
-            </div>
-            {selectedRemovalId ? <button type="button" disabled={removalBusy} onClick={() => void requestMasterRemoval()} className="mt-3 min-h-10 w-full rounded-xl border border-red-500/20 bg-red-500/[0.05] px-3 text-[10px] font-semibold text-red-200 disabled:opacity-50">{removalBusy ? translate("Envoi…") : translate("Demander le retrait du compte sélectionné")}</button> : null}
-            {removalMessage ? <p role="status" className="mt-2 text-[10px] leading-5 text-white/60">{translate(removalMessage)}</p> : null}
-          </section>
-        ) : null}
+            </ul>
+            {selectedRemovalId ? <button type="button" disabled={removalBusy} onClick={() => void requestMasterRemoval()} className="cp-btn cp-btn-danger mt-3 w-full">{removalBusy ? translate("Envoi…") : translate("Demander le retrait du compte sélectionné")}</button> : null}
+            {removalMessage ? <p role="status" className="mt-2 text-[12px] leading-relaxed text-[color:var(--muted)]">{translate(removalMessage)}</p> : null}
+          </section> : null}
+        </div> : null}
 
-        <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1.65fr_.9fr]">
-          <section className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4 md:p-5">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div><div className="text-[9px] font-semibold uppercase tracking-[0.13em] text-white/40">{translate("P&L en cours · compte sélectionné")}</div><h2 className={cn("mt-2 text-2xl font-semibold tracking-tight", Number(selectedStats.pnl) > 0 ? "text-emerald-300" : Number(selectedStats.pnl) < 0 ? "text-red-300" : "text-white")}>{selectedStats.pnl == null ? "—" : money(selectedStats.pnl, selectedStats.currency)}</h2><p className="mt-1 text-[10px] text-white/40">{translate("Résultat du receveur sélectionné ·")}{" "}{selectedReceiver?.alias || translate("aucun compte sélectionné")}</p></div>
-              <div className="grid grid-cols-2 gap-2 sm:min-w-[230px]"><MiniMetric label={translate("Solde")} value={selectedStats.balance == null ? "—" : money(selectedStats.balance, selectedStats.currency)} /><MiniMetric label={translate("Equity")} value={selectedStats.equity == null ? "—" : money(selectedStats.equity, selectedStats.currency)} /></div>
-            </div>
-            <div className="mt-4 border-t border-white/[0.06] pt-3"><div className="mb-2 text-[9px] uppercase tracking-[0.1em] text-white/35">{translate("P&L en cours par receveur")}</div>{virtualReceivers.length === 0 ? <div className="py-3 text-[10px] text-white/40">{translate("Aucun compte receveur.")}</div> : <div className="space-y-2">{virtualReceivers.map((receiver) => { const item = receiver.id === "legacy" ? { pnl: null, currency: "USD" } : statsFor(receiver); const amount = item.pnl == null ? null : Number(item.pnl); const maxAbs = Math.max(1, ...virtualReceivers.map((entry) => { const value = entry.id === "legacy" ? null : statsFor(entry).pnl; return value == null ? 0 : Math.abs(Number(value)); })); const width = amount == null || !Number.isFinite(amount) ? 0 : Math.max(3, Math.abs(amount) / maxAbs * 100); return <div key={receiver.id} className="grid grid-cols-[minmax(90px,.75fr)_1.6fr_auto] items-center gap-3"><span className="truncate text-[10px] text-white/60">{receiver.alias}</span><span className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]"><span className={cn("block h-full rounded-full", amount == null ? "bg-white/15" : amount >= 0 ? "bg-emerald-400/75" : "bg-red-400/75")} style={{ width: `${width}%` }} /></span><span className={cn("min-w-[80px] text-right text-[10px] tabular-nums", amount == null ? "text-white/40" : amount > 0 ? "text-emerald-300" : amount < 0 ? "text-red-300" : "text-white/60")}>{amount == null ? "—" : money(amount, item.currency)}</span></div>; })}</div>}</div>
-          </section>
-          <section className="relative overflow-hidden rounded-[22px] border border-emerald-500/15 bg-[color:var(--panel)] p-4 md:p-5">
-            <div className="pointer-events-none absolute -right-12 -top-14 h-36 w-36 rounded-full bg-cyan-300/[0.06] blur-2xl" />
-            <div className="relative flex items-start justify-between gap-3"><div><div className="text-sm font-semibold text-white">{translate("Protection & risque")}</div><div className="mt-1 text-[10px] text-white/40">{translate("Réglages du receveur sélectionné")}</div></div><span className={cn("rounded-full border px-2.5 py-1 text-[8px] font-semibold", riskSaveState === "saved" ? "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-300" : riskSaveState === "failed" ? "border-red-500/20 bg-red-500/[0.05] text-red-300" : "border-white/[0.08] bg-white/[0.03] text-white/45")}>{riskSaveState === "saved" ? translate("Confirmé") : riskSaveState === "pending" ? translate("En attente") : riskSaveState === "failed" ? translate("Refusé / échec") : translate("À vérifier")}</span></div>
-            <div className={cn("mt-4 flex items-center gap-3 rounded-xl border p-3", riskSaveState === "pending" ? "border-amber-500/15 bg-amber-500/[0.045]" : riskSaveState === "saved" ? "border-emerald-500/15 bg-emerald-500/[0.045]" : "border-white/[0.07] bg-black/15")}>
-              <span className={cn("flex h-9 w-9 items-center justify-center rounded-lg", riskSaveState === "pending" ? "bg-amber-500/[0.08] text-amber-300" : riskSaveState === "saved" ? "bg-emerald-500/10 text-emerald-300" : riskSaveState === "failed" ? "bg-red-500/10 text-red-300" : "bg-white/[0.04] text-white/45")}>{riskSaveState === "pending" ? <Clock3 size={16} /> : riskSaveState === "saved" ? <ShieldCheck size={16} /> : riskSaveState === "failed" ? <AlertTriangle size={16} /> : <Activity size={16} />}</span>
-              <div><div className={cn("text-[11px] font-semibold", riskSaveState === "pending" ? "text-amber-200" : riskSaveState === "saved" ? "text-emerald-200" : riskSaveState === "failed" ? "text-red-200" : "text-white/70")}>{riskSaveState === "pending" ? translate("Demande en cours de traitement") : riskSaveState === "saved" ? translate("Réglage actif confirmé") : riskSaveState === "failed" ? translate("Demande refusée ou échec") : translate("État du réglage")}</div><div className="mt-0.5 text-[9px] text-white/45">{riskSaveState === "pending" ? translate("Le réglage confirmé précédemment reste actif.") : riskSaveState === "saved" ? (translate("Dernière confirmation") + (riskSavedAt ? ` · ${riskSavedAt}` : "") + ".") : riskSaveState === "failed" ? configurationRequestNote || "Consulte la notification InvestPro ou contacte l’équipe pour connaître la suite." : translate("Les réglages seront indiqués ici après leur enregistrement.")}</div></div>
-            </div>
-            <div className="mt-3 space-y-0.5"><div className="flex justify-between gap-3 border-t border-white/[0.06] py-2 text-[10px]"><span className="text-white/45">{translate("Mode de calcul")}</span><strong className="text-white/75">{translate(riskModeLabel(riskSettings.mode))}</strong></div><div className="flex justify-between gap-3 border-t border-white/[0.06] py-2 text-[10px]"><span className="text-white/45">{translate("Volume maximum")}</span><strong className="text-white/75">{riskSettings.max_lots} {" "}{translate("lots")}</strong></div></div>
-            <button type="button" disabled={!selectedReceiver || selectedReceiver.id === "legacy"} onClick={() => setRiskModalOpen(true)} className="mt-2 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 text-[10px] font-semibold text-[color:var(--gold)] transition hover:bg-[color:var(--gold-soft)]/80 disabled:cursor-not-allowed disabled:opacity-40"><Settings2 size={13} /> {" "}{translate("Régler le risque")}</button>
-          </section>
-        </section>
-
-        <section className="grid grid-cols-1 gap-5 xl:grid-cols-[0.9fr_1.7fr]">
-          <section className="rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4 md:p-6">
-            <div className="flex items-start justify-between gap-3"><div><div className="text-[12px] font-semibold text-white">{translate("Compte Master (source)")}</div><div className="mt-1 text-[10px] text-white/35">{translate("Compte sélectionné pour piloter la copie")}</div></div><State active={Boolean(approvedMaster)} label={approvedMaster ? translate("Approuvé") : translate("À approuver")} /></div>
-            <div className="mt-4 rounded-[18px] border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-3 md:mt-5 md:rounded-[22px] md:p-4">
-              <div className="flex items-center justify-between gap-3"><div className="min-w-0"><div className="break-words text-lg font-semibold leading-tight text-white md:text-2xl">{approvedMaster?.alias || "Aucun Master approuvé"}</div><div className="mt-1 text-[10px] text-white/40 md:text-[11px]">{approvedMaster ? `#${approvedMaster.login} • ${approvedMaster.server}` : translate("La demande de Master doit être approuvée par un administrateur.")}</div></div><button className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/20 text-white/70 md:h-10 md:w-10"><Settings2 size={15} /></button></div>
-              <div className="mt-3 grid grid-cols-3 gap-2 md:mt-5 md:gap-3">{[["Equity", masterEquity == null ? "—" : money(masterEquity, masterCurrency)], ["Solde", masterBalance == null ? translate("En attente de sync") : money(masterBalance, masterCurrency)], ["P&L en cours", masterPnl == null ? "—" : money(masterPnl, masterCurrency)]].map(([label, value], index) => <div key={label} className="min-w-0 rounded-lg border border-white/[0.06] bg-black/20 p-2 md:rounded-xl md:p-3"><div className="text-[7px] uppercase tracking-[0.06em] text-white/30 md:text-[9px] md:tracking-[0.08em]">{translate(label)}</div><div className={cn("mt-1 break-words text-[10px] font-semibold leading-snug md:mt-2 md:text-lg", index === 2 && Number(masterPnl) > 0 ? "text-emerald-400" : index === 2 && Number(masterPnl) < 0 ? "text-red-400" : "text-white")}>{value}</div></div>)}</div>
-              {approvedMaster && masterBalance == null ? <div className="mt-3 rounded-xl border border-amber-500/15 bg-amber-500/[0.04] p-3 text-[10px] leading-5 text-white/55">
-                <div className={cn("font-semibold", masterSyncFailed ? "text-red-300" : "text-amber-200")}>{masterSyncFailed ? translate("Échec de la synchronisation MetaSync") : translate("Solde non synchronisé")}</div>
-                <p className="mt-1">{masterSyncFailed ? translate("Aucun solde n’a été confirmé par le connecteur. Relance MetaSync ici ; le système reprendra les identifiants chiffrés du Master et n’affichera pas un zéro trompeur.") : translate("Autorise MetaSync pour relier ce Master approuvé à la synchronisation des soldes. Tes identifiants déjà chiffrés seront transmis côté serveur ; ils ne seront jamais affichés ni journalisés.")}</p>
-                <label className="mt-3 flex cursor-pointer items-start gap-2"><input type="checkbox" checked={masterSyncConsent} onChange={(event) => setMasterSyncConsent(event.target.checked)} className="mt-0.5 h-4 w-4 accent-emerald-500" /><span>{translate("J’autorise InvestPro à créer une connexion MetaSync pour ce compte et à conserver ses identifiants chiffrés afin de synchroniser le solde et l’equity.")}</span></label>
-                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <label className="block"><span className="mb-1 block text-[9px] text-white/45">{translate("Devise exacte")}</span><input className="ip-field" maxLength={3} value={masterSyncCurrency} onChange={(event) => setMasterSyncCurrency(event.target.value.toUpperCase())} placeholder={translate("USD, EUR…")} /></label>
-                  <label className="block"><span className="mb-1 block text-[9px] text-white/45">{translate("Type de compte")}</span><select className="ip-field" value={masterSyncType} onChange={(event) => setMasterSyncType(event.target.value as typeof masterSyncType)}><option value="">{translate("Choisir")}</option><option value="real">{translate("Réel")}</option><option value="demo">{translate("Démo")}</option><option value="prop">{translate("Prop firm")}</option></select></label>
-                </div>
-                {masterSyncMessage ? <p role="status" className="mt-2 text-[9px] leading-4 text-white/70">{translate(masterSyncMessage)}</p> : null}
-                <div className="mt-3 flex flex-wrap items-center gap-2"><button type="button" disabled={masterSyncBusy || !masterSyncConsent || !/^[A-Z]{3}$/.test(masterSyncCurrency.trim()) || !masterSyncType} onClick={() => void startMasterSync()} className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.08] px-3 font-semibold text-emerald-200 disabled:opacity-40">{masterSyncBusy ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />} {" "}{translate("Synchroniser ce Master")}</button><a href="/dashboard/comptes" className="inline-flex min-h-9 items-center rounded-lg border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 font-semibold text-[color:var(--gold)]">{translate("Ouvrir Mes comptes")}</a></div>
-              </div> : null}
-            </div>
-
-          </section>
-
-          <section className="rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"><div><div id="copier-receivers" className="scroll-mt-24 text-lg font-semibold text-white">{translate("Comptes receveurs (")}{virtualReceivers.length})</div><div className="mt-1 text-[11px] text-white/40">{translate("Sélectionnez un compte pour configurer ses paramètres de copie.")}</div></div><button onClick={openAddReceiver} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-xs font-semibold text-black"><Plus size={15} /> {" "}{translate("Ajouter un compte receveur")}</button></div>
-            <div className="mt-5 overflow-hidden rounded-[20px] border border-white/[0.07]">
-              <div className="hidden grid-cols-[56px_1.7fr_.7fr_.8fr_.9fr_.9fr_.8fr_.75fr_.9fr] gap-3 border-b border-white/[0.06] bg-black/25 px-4 py-3 text-[9px] font-bold uppercase tracking-[0.08em] text-white/30 xl:grid"><div></div><div>{translate("Nom du compte")}</div><div>{translate("Plateforme")}</div><div>{translate("Statut")}</div><div>{translate("Solde")}</div><div>{translate("Equity")}</div><div>{translate("P&L en cours")}</div><div>{translate("Ouverts")}</div><div>{translate("Actions")}</div></div>
-              {virtualReceivers.length === 0 ? <div className="p-10 text-center text-white/40">{translate("Aucun receveur pour le moment.")}</div> : virtualReceivers.map((receiver) => {
-                const s = receiver.id === "legacy" ? { balance: null, equity: null, pnl: null, open: null, currency: "USD", lastSync: null, hasSync: false, syncStatus: "missing" } : statsFor(receiver);
-                const noFirstSnapshot = s.hasSync && !s.lastSync && s.balance == null && s.equity == null;
-                const hostedSyncError = noFirstSnapshot && s.syncStatus === "error";
-                const hostedSyncPending = noFirstSnapshot && s.syncStatus !== "error" && s.syncStatus !== "paused";
-                const selected = selectedReceiverId === receiver.id;
-                return <div key={receiver.id} className={cn("grid grid-cols-1 gap-3 border-b border-white/[0.05] px-4 py-4 last:border-0 xl:grid-cols-[56px_1.7fr_.7fr_.8fr_.9fr_.9fr_.8fr_.75fr_.9fr] xl:items-center", selected ? "bg-[color:var(--gold-soft)]" : "bg-black/10 hover:bg-white/[0.02]") }><div className="flex items-center"><button onClick={() => void selectReceiver(receiver.id)} className={cn("flex h-6 w-6 items-center justify-center rounded-md border text-[10px]", selected ? "border-[color:var(--gold-border)] bg-[color:var(--gold)] text-black" : "border-white/10 text-white/50")}>{selected ? <Check size={13} /> : null}</button></div><div className="min-w-0 text-left"><button type="button" onClick={() => void selectReceiver(receiver.id)} className="block w-full text-left"><div className="text-sm font-semibold text-white">{receiver.alias}</div><div className="mt-1 text-[10px] text-white/35">#{receiver.login}{s.lastSync ? ` · MetaSync ${new Date(s.lastSync).toLocaleTimeString(locale === "en" ? "en-US" : "fr-FR", { hour: "2-digit", minute: "2-digit" })}` : ""}</div></button>{receiver.id !== "legacy" && !s.hasSync ? <a href="/dashboard/connexions/metatrader" className="mt-1 inline-flex text-[9px] font-semibold text-[color:var(--gold)] underline underline-offset-2">{translate("Relier MetaSync pour afficher le solde")}</a> : null}{hostedSyncPending ? <div role="status" className="mt-1 text-[9px] leading-4 text-amber-200/80">{translate("MetaSync relié · premier relevé en attente")}</div> : null}{hostedSyncError ? <div role="status" className="mt-1 text-[9px] leading-4 text-red-300">{translate("MetaSync en échec · aucun solde confirmé.")} <a href="/dashboard/connexions/metatrader" className="font-semibold underline underline-offset-2">{translate("Vérifier MetaSync")}</a></div> : null}</div><div className="text-[11px] font-semibold text-[color:var(--gold)]">{receiver.platform}</div><div><ReceiverStatusBadge state={connectionStates[receiver.id]} now={connectionNow} /></div><div className="text-[11px] text-white/70">{money(s.balance, s.currency)}</div><div className="text-[11px] text-white/70">{money(s.equity, s.currency)}</div><div className={cn("text-[11px] font-medium", Number(s.pnl) > 0 ? "text-emerald-400" : Number(s.pnl) < 0 ? "text-red-400" : "text-white/60")}>{s.pnl == null ? "—" : money(s.pnl, s.currency)}</div><div className="text-[11px] text-white/70">{s.open == null ? "—" : String(s.open)}</div><div className="flex items-center gap-2"><button onClick={() => { setShowStats(true); void selectReceiver(receiver.id); }} aria-label={(translate("Statistiques de ") + (receiver.alias) + "")} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 text-white/60 hover:text-white xl:h-8 xl:w-8 xl:rounded-lg"><Activity size={14} /></button><button onClick={() => void selectReceiver(receiver.id)} aria-label={(translate("Configurer ") + (receiver.alias) + "")} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 text-white/60 hover:text-white xl:h-8 xl:w-8 xl:rounded-lg"><Settings2 size={14} /></button>{receiver.id !== "legacy" ? <button onClick={() => { setRemoveReceiverId(receiver.id); setDisconnectConsent(false); setRemoveError(""); }} aria-label={(translate("Retirer ") + (receiver.alias) + "")} className="flex h-11 w-11 items-center justify-center rounded-xl border border-red-500/20 text-red-400 hover:bg-red-500/10 xl:h-8 xl:w-8 xl:rounded-lg"><Unplug size={14} /></button> : null}</div></div>;
-              })}
-            </div>
-            {virtualReceivers.some((receiver) => receiver.id !== "legacy" && (() => { const stats = statsFor(receiver); return stats.balance == null || stats.equity == null; })()) ? <div className="mt-3 flex flex-col gap-2 rounded-xl border border-amber-500/15 bg-amber-500/[0.04] p-3 text-[10px] leading-5 text-white/55 sm:flex-row sm:items-center sm:justify-between"><span>{translate("Les soldes s’affichent après un relevé MetaSync valide. Suis la synchronisation dans Mes comptes.")}</span><a href="/dashboard/comptes" className="inline-flex min-h-9 shrink-0 items-center rounded-lg border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 font-semibold text-[color:var(--gold)]">{translate("Ouvrir Mes comptes")}</a></div> : null}
-          </section>
-        </section>
-
-        {selectedReceiver ? (
-          <section className="rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4 md:p-6">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div id="copier-masters" className="scroll-mt-24 text-lg font-semibold text-white">{translate("Configuration du receveur")}</div>
-                <div className="mt-1 text-[11px] text-white/40">{translate("Choisis le Master à copier, puis passe aux réglages.")}</div>
-              </div>
-              {selectedReceiver.id !== "legacy" ? <button type="button" onClick={() => { setRemoveReceiverId(selectedReceiver.id); setDisconnectConsent(false); setRemoveError(""); }} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-red-500/20 bg-red-500/[0.04] px-4 text-[11px] font-semibold text-red-300"><Unplug size={13} /> {" "}{translate("Retirer ce receveur")}</button> : null}
-            </div>
-
-            <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-stretch">
-              <div className="rounded-[18px] border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2"><div className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gold)]">{translate("Compte Master · source")}</div><div className="flex items-center gap-2"><State active={Boolean(approvedMaster)} label={approvedMaster ? translate("Validé") : translate("À configurer")} /></div></div>
-                <div className="mt-3 text-lg font-semibold text-white">{approvedMaster?.alias || translate("Aucun Master validé")}</div>
-                <div className="mt-1 text-[10px] text-white/50">{approvedMaster ? `#${approvedMaster.login} · ${approvedMaster.platform} · ${approvedMaster.server}` : translate("Demande de Master à faire approuver.")}</div>
-                <div className="mt-4 flex items-center gap-2 border-t border-white/[0.07] pt-3 text-[10px] text-white/50"><ShieldCheck size={14} className="text-[color:var(--gold)]" />{approvedMaster ? translate("Master validé par l’équipe") : translate("Aucune source approuvée")}</div>
-              </div>
-
-              <div className="flex min-h-16 flex-col items-center justify-center gap-1.5 px-3 text-center md:min-w-[145px]">
-                <span className={cn("flex h-10 w-10 items-center justify-center rounded-full border", error ? "border-amber-500/20 bg-amber-500/[0.06] text-amber-300" : enabled && confirmedCopyLink ? "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-300" : "border-white/[0.08] bg-white/[0.03] text-white/40")}><ChevronDown size={18} className="md:-rotate-90" /></span>
-                <span className={cn("text-[9px] font-semibold", error ? "text-amber-300" : enabled && confirmedCopyLink ? "text-emerald-300" : "text-white/55")}>{error ? translate("Statut indisponible") : enabled && confirmedCopyLink ? translate("Relié au Master") : confirmedMasters.length > 0 ? translate("Liaison enregistrée · à vérifier") : selectedStatus ? translate("Liaison à configurer") : translate("En attente de vérification")}</span>
-                <span className="text-[8px] leading-4 text-white/35">{error ? localizeCopierMessage(message, translate) : selectedStatus ? translate(confirmedMasters.length > 1 ? "{count} Masters associés" : "{count} Master associé").replace("{count}", String(confirmedMasters.length)) : translate("Connexion non vérifiable sur cet environnement")}</span>
-              </div>
-
-              <div className="rounded-[18px] border border-white/[0.08] bg-black/20 p-4">
-                <div className="flex items-center justify-between gap-3"><div className="text-[9px] font-semibold uppercase tracking-[0.12em] text-white/45">{translate("Compte receveur")}</div><ReceiverStatusBadge state={connectionStates[selectedReceiver.id]} now={connectionNow} /></div>
-                <div className="mt-3 text-lg font-semibold text-white">{selectedReceiver.alias}</div>
-                <div className="mt-1 text-[10px] text-white/50">#{selectedReceiver.login} · {selectedReceiver.platform} · {selectedReceiver.server}</div>
-        <div className="mt-4 flex items-center gap-2 border-t border-white/[0.07] pt-3 text-[10px] text-white/50"><Activity size={14} className={selectedConnection.kind === "connected" ? "text-emerald-300" : "text-white/35"} />{translate(selectedConnection.labelFrench)}</div>
-              </div>
-            </div>
-
-            <div className="mt-5 border-t border-white/[0.06] pt-4">
-              <div className="flex items-center justify-between gap-3"><div><div className="text-sm font-semibold text-white">{translate("Choisir les Masters à copier")}</div><div className="mt-1 text-[10px] text-white/40">{translate("Coche le compte source à copier. Tu choisiras ensuite les lots et tu verras si une validation est nécessaire.")}</div></div>{!selectedStatus || error ? <button type="button" onClick={() => void refresh()} disabled={busy} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/[0.09] px-3 text-[10px] font-semibold text-white/65 disabled:opacity-50"><RefreshCw size={13} className={busy ? "animate-spin" : ""} /> {" "}{translate("Vérifier")}</button> : null}</div>
-              <div className="mt-3 space-y-3">
-                {!selectedStatus || error ? (
-                  <div className="rounded-2xl border border-amber-500/15 bg-amber-500/[0.035] p-4 text-[10px] leading-5 text-amber-100/70">{error ? translate("Impossible de confirmer les liaisons : {message}").replace("{message}", localizeCopierMessage(message, translate)) : translate("Les liaisons seront affichées dès que le statut du moteur sera disponible.")}</div>
-                ) : selectedStatus.masterAccountsList.length === 0 ? (
-                  <div className="rounded-2xl border border-white/[0.07] bg-black/20 p-4 text-[10px] leading-5 text-white/45">{translate("Aucune liaison Master n’est disponible pour ce receveur.")}</div>
-                ) : selectedStatus.masterAccountsList.map((master, index) => {
-                  const current = selectedMasters[master.id] || { on: false, lots: masterQuickValue || "0.01" };
-                  return <div key={master.id} className={cn("rounded-[18px] border p-4 transition", current.on ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]" : "border-white/[0.07] bg-black/20")}>
-                    <div className="grid grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3 md:grid-cols-[44px_minmax(0,1fr)_auto]">
-                      <button type="button" aria-label={("" + (current.on ? translate("Désactiver") : translate("Activer")) + " " + (master.name) + "")} onClick={() => toggleMaster(master.id)} className={cn("flex h-11 w-11 items-center justify-center rounded-xl border", current.on ? "border-[color:var(--gold-border)] bg-[color:var(--gold)] text-black" : "border-white/10 text-white/50")}>{current.on ? <Check size={15} /> : null}</button>
-                      <div><div className="text-sm font-semibold text-white">{master.name}</div><div className="mt-1 text-[10px] text-white/40">{translate("MASTER")}{" "}{String(index + 1).padStart(2, "0")} · {translate(masterSelectionLabel(master.id, current.on))}</div></div>
-                      <div className="text-right md:text-left"><div className="text-[9px] text-white/40">{translate("Mode")}</div><div className="mt-1 text-[10px] font-semibold text-[color:var(--gold)]">{translate(riskModeDisplayLabel)}</div></div>
-                      
-                    </div>
-                  </div>;
-                })}
-              </div>
-              <label className="mt-4 flex items-start gap-3 rounded-2xl border border-white/[0.06] bg-black/20 p-4 text-[11px] leading-5 text-white/55"><input type="checkbox" checked={masterConsent} onChange={(e) => { setMasterConsent(e.target.checked); setSaveBarState("idle"); setSaveBarMessage("Configuration non enregistrée"); }} className="mt-0.5 h-4 w-4 accent-[#d4a934]" /> {" "}{translate("Je confirme le Master choisi pour ce receveur.")}</label>
-              <div className="mt-4 flex justify-end"><button type="button" disabled={!selectedReceiver || activeMasters.length === 0 || !masterConsent || !selectedStatus || error} onClick={() => setRiskModalOpen(true)} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 py-3 text-xs font-semibold text-black disabled:opacity-40"><Settings2 size={15} /> {" "}{translate("Continuer : choisir les réglages")}</button></div>
-            </div>
-          </section>
-        ) : <section className="rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 text-sm text-white/50">{translate("Ajoute un compte receveur pour commencer.")}</section>}
-
-        {selectedReceiver && riskModalOpen && typeof document !== "undefined" ? createPortal(<div className="fixed inset-0 z-[10000] flex min-h-full items-start justify-center overflow-y-auto bg-black/80 px-3 py-6 backdrop-blur-sm md:px-8 md:py-8"><div className="my-auto w-full max-w-[1120px]">
-          <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl border border-[color:var(--gold-border)] bg-[#101310] p-4"><div><div className="font-semibold text-white">{translate("Réglages de copie")}</div><div className="mt-1 text-xs text-white/50">{approvedMaster?.alias || "Master"} → {selectedReceiver.alias} {" "}{translate("· Choisis les lots puis confirme une seule fois")}</div></div><button onClick={() => setRiskModalOpen(false)} className="rounded-xl border border-white/10 p-2 text-white" aria-label={translate("Fermer")}><X size={18}/></button></div>
-          <section className="rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6"><div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><div className="text-xl font-semibold text-white">{translate("Paramètres de copie —")}{" "}{selectedReceiver.alias}</div><p className="mt-1 text-[11px] text-white/40">{translate("Choisis comment calculer les lots et règle les paramètres de copie de ce receveur.")}</p></div><div className="flex flex-wrap gap-2"><span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-1.5 text-[10px] font-semibold text-emerald-400"><CheckCircle2 size={12} /> {" "}{translate("Compte sélectionné")}</span><button onClick={() => setShowStats((v) => !v)} className="inline-flex h-9 items-center gap-2 rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-4 text-[10px] font-semibold text-[color:var(--gold)]"><Activity size={13} /> {showStats ? translate("Masquer les statistiques") : translate("Voir les statistiques")}</button></div></div><div className={cn("mt-4 rounded-xl border px-4 py-3 text-[11px] leading-5", riskSettings.mode === "fixed" ? "border-emerald-500/20 bg-emerald-500/[0.05] text-emerald-200" : "border-amber-500/20 bg-amber-500/[0.05] text-amber-100")}>{riskSettings.mode === "fixed" ? translate("Lots fixes : tu peux enregistrer ce réglage tout de suite, sans demande de validation.") : translate("Demande de validation requise : l’équipe InvestPro traitera ce réglage. Le réglage actuellement actif reste en place jusqu’à sa confirmation.")}</div><div className="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-2"><section className="hidden rounded-[22px] border border-white/[0.07] bg-black/20 p-4"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--gold)] text-sm font-bold text-black">1</span><div><div className="text-base font-semibold text-white">{translate("Choisir le receveur")}</div><div className="mt-1 text-[10px] text-white/35">{translate("Compte qui recevra les trades")}</div></div></div><div className="mt-4 rounded-[18px] border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4"><div className="flex items-center justify-between gap-3"><div><div className="text-sm font-semibold text-white">{selectedReceiver.alias}</div><div className="mt-1 text-[10px] text-white/35">#{selectedReceiver.login} · {selectedReceiver.platform} · {selectedReceiver.server}</div></div><State active={selectedReceiver.status === "connected"} label={selectedReceiver.status === "connected" ? translate("Connecté") : selectedReceiver.status === "paused" ? translate("Pause") : translate("Erreur")} /></div><select value={selectedReceiverId || ""} onChange={(e) => void selectReceiver(e.target.value)} className="ip-field mt-4">{virtualReceivers.map((receiver) => <option key={receiver.id} value={receiver.id}>{receiver.alias} — {receiver.login}</option>)}</select><div className="mt-3 text-[10px] text-white/35">{translate("Tu peux changer de receveur ici pour configurer un autre compte sans quitter la page.")}</div></div></section><section className="rounded-[22px] border border-white/[0.07] bg-black/20 p-4"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--gold)] text-sm font-bold text-black">2</span><div><div className="text-base font-semibold text-white">{translate("Régler le risque")}</div><div className="mt-1 text-[10px] text-white/35">{translate("Lots fixes : enregistrement direct. Les autres modes : demande à valider.")}</div></div></div><div className="mt-4 space-y-3"><InlineRiskOption active={riskSettings.mode === "fixed"} label={translate("Lots fixes")} desc={translate("Volume identique · disponible immédiatement")} onClick={() => setRiskSettings((v) => ({ ...v, mode: "fixed" }))}><input type="number" min="0.001" step="0.001" value={masterQuickValue} onChange={(e) => applyQuickModeToSelectedMasters(e.target.value)} className="ip-field h-10 w-full text-center" /></InlineRiskOption><InlineRiskOption active={riskSettings.mode === "mirror"} label={translate("Copier les lots du Master")} desc={translate("Même lot que le Master · validation InvestPro requise")} onClick={() => setRiskSettings((v) => ({ ...v, mode: "mirror" }))}><input type="number" min="0.1" step="0.1" value={riskSettings.mirror_multiplier} onChange={(e) => setRiskSettings((v) => ({ ...v, mode: "mirror", mirror_multiplier: Number(e.target.value || 1) }))} className="ip-field h-10 w-full text-center" /></InlineRiskOption><InlineRiskOption active={riskSettings.mode === "balance"} label={translate("Risque par solde")} desc={translate("Calcul selon le solde · validation InvestPro requise")} onClick={() => setRiskSettings((v) => ({ ...v, mode: "balance" }))}><input type="number" min="0.1" step="0.1" value={riskSettings.balance_multiplier} onChange={(e) => setRiskSettings((v) => ({ ...v, mode: "balance", balance_multiplier: Number(e.target.value || 1) }))} className="ip-field h-10 w-full text-center" /></InlineRiskOption><InlineRiskOption active={riskSettings.mode === "equity"} label={translate("Risque par equity")} desc={translate("Calcul selon l’equity · validation InvestPro requise")} onClick={() => setRiskSettings((v) => ({ ...v, mode: "equity" }))}><input type="number" min="0.1" step="0.1" value={riskSettings.equity_multiplier} onChange={(e) => setRiskSettings((v) => ({ ...v, mode: "equity", equity_multiplier: Number(e.target.value || 1) }))} className="ip-field h-10 w-full text-center" /></InlineRiskOption><InlineRiskOption active={riskSettings.mode === "percent"} label={translate("Risque en %")} desc={translate("Pourcentage du capital · validation InvestPro requise")} onClick={() => setRiskSettings((v) => ({ ...v, mode: "percent" }))}><input type="number" min="0.1" step="0.1" value={riskSettings.risk_percent} onChange={(e) => setRiskSettings((v) => ({ ...v, mode: "percent", risk_percent: Number(e.target.value || 1) }))} className="ip-field h-10 w-full text-center" /></InlineRiskOption></div></section><section className="rounded-[22px] border border-white/[0.07] bg-black/20 p-4"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--gold)] text-sm font-bold text-black">3</span><div><div className="text-base font-semibold text-white">{translate("Paramètres avancés")}</div><div className="mt-1 text-[10px] text-white/35">{translate("Protection, exécution et filtres.")}</div></div></div><div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2"><RiskNumber label={translate("Slippage max")} value={riskSettings.slippage_pips} min={0} max={1000} step={1} suffix="pips" onChange={(value) => setRiskSettings((v) => ({ ...v, slippage_pips: value }))} /><RiskNumber label={translate("Lots maximum")} value={riskSettings.max_lots} min={0.01} max={1000} step={0.01} suffix="lots" onChange={(value) => setRiskSettings((v) => ({ ...v, max_lots: value }))} /><RiskNumber label={translate("Multiplicateur des lots")} value={riskSettings.mirror_multiplier} min={0.1} max={20} step={0.1} suffix="x" onChange={(value) => setRiskSettings((v) => ({ ...v, mirror_multiplier: value }))} /><RiskNumber label={translate("Risque en %")} value={riskSettings.risk_percent} min={0.1} max={20} step={0.1} suffix="%" onChange={(value) => setRiskSettings((v) => ({ ...v, risk_percent: value }))} /></div><div className="mt-4 space-y-3"><ToggleSetting label={translate("Copier uniquement certains symboles")} description={translate("Préparez un filtrage personnalisé par symboles.")} checked={Boolean(riskSettings.symbol_mapping)} onChange={(checked) => setRiskSettings((v) => ({ ...v, symbol_mapping: checked ? v.symbol_mapping || "XAUUSD=GOLD" : "" }))} /><ToggleSetting label={translate("Heures de trading autorisées")} description={translate("Option avancée de filtrage horaire.")} checked={riskSettings.drawdown_enabled} onChange={(checked) => setRiskSettings((v) => ({ ...v, drawdown_enabled: checked }))} /></div><Field label={translate("Configuration / notes avancées")}><textarea value={riskSettings.symbol_mapping} onChange={(e) => setRiskSettings((v) => ({ ...v, symbol_mapping: e.target.value }))} className="min-h-24 w-full rounded-xl border border-white/[0.08] bg-black/25 p-3 text-[11px] leading-5 text-white outline-none focus:border-[color:var(--gold-border)]" placeholder={`Ex. XAUUSD=GOLD\nUS30=DJ30`} /></Field></section></div></section><div className="mt-4 flex flex-col gap-2 rounded-2xl border border-[color:var(--gold-border)] bg-[#101310] p-4 sm:flex-row sm:items-center sm:justify-between"><label className="flex items-center gap-2 text-xs text-white/70"><input type="checkbox" checked={masterConsent} onChange={(e) => setMasterConsent(e.target.checked)} />{riskSettings.mode === "fixed" ? translate("Je confirme le réglage en lots fixes.") : translate("Je confirme ma demande de réglage et son envoi à l’équipe InvestPro.")}</label><button disabled={busy || riskBusy || !masterConsent} onClick={() => void saveAll()} className="rounded-xl bg-[color:var(--gold)] px-5 py-3 text-sm font-bold text-black disabled:opacity-40">{saveBarState === "saving" ? translate("Enregistrement…") : riskSettings.mode === "fixed" ? translate("Enregistrer les lots fixes") : translate("Envoyer la demande à InvestPro")}</button></div></div></div>, document.body) : null}
-
-        <section className="grid grid-cols-1 gap-5 xl:grid-cols-1"><section className="hidden rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><div className="text-lg font-semibold text-white">{translate("Liaisons Master")}</div><div className="mt-1 text-[11px] text-white/35">{translate("Active les masters que ce receveur doit copier.")}</div></div>{selectedReceiver && selectedReceiver.id !== "legacy" ? <button onClick={() => { setRemoveReceiverId(selectedReceiver.id); setDisconnectConsent(false); setRemoveError(""); }} className="inline-flex h-10 items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/[0.04] px-4 text-[11px] font-semibold text-red-300"><Unplug size={13} /> {" "}{translate("Retirer ce receveur")}</button> : null}</div><div className="mt-5 space-y-3">{(selectedStatus?.masterAccountsList || []).length === 0 ? <div className="rounded-2xl border border-white/[0.07] bg-black/20 p-6 text-[11px] text-white/40">{translate("Aucune liaison master disponible pour le moment.")}</div> : (selectedStatus?.masterAccountsList || []).map((master, index) => { const current = selectedMasters[master.id] || { on: false, lots: masterQuickValue || "0.01" }; return <div key={master.id} className={cn("rounded-[18px] border p-4 transition", current.on ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]" : "border-white/[0.07] bg-black/20")}><div className="grid grid-cols-1 gap-3 md:grid-cols-[auto_1fr_auto_auto] md:items-center"><button onClick={() => toggleMaster(master.id)} className={cn("flex h-7 w-7 items-center justify-center rounded-md border", current.on ? "border-[color:var(--gold-border)] bg-[color:var(--gold)] text-black" : "border-white/10 text-white/50")}>{current.on ? <Check size={14} /> : null}</button><div><div className="text-sm font-semibold text-white">{master.name}</div><div className="mt-1 text-[10px] text-white/35">{translate("MASTER")}{" "}{String(index + 1).padStart(2, "0")} · {current.on ? translate("Activé") : translate("Pause")}</div></div><div className="text-[10px] text-white/50">{translate("Mode")}</div><div className="text-[11px] font-semibold text-[color:var(--gold)]">{translate(riskModeLabel(riskSettings.mode))}</div></div><div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-[1fr_160px_110px] md:items-end"><div className="rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2 text-[10px] text-white/40">{translate("Cette liaison utilisera les paramètres du bloc “Régler le risque”.")}</div><State active={current.on} label={current.on ? translate("Activé") : translate("Pause")} /></div></div>; })}</div><label className="mt-5 flex items-start gap-3 rounded-2xl border border-white/[0.06] bg-black/20 p-4 text-[11px] leading-5 text-white/55"><input type="checkbox" checked={masterConsent} onChange={(e) => { setMasterConsent(e.target.checked); setSaveBarState("idle"); setSaveBarMessage("Configuration non enregistrée"); }} className="mt-0.5 h-4 w-4 accent-[#d4a934]" /> {" "}{translate("Je confirme les stratégies et volumes sélectionnés.")}</label></section><section className="space-y-5"><section className="rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-4 md:p-5"><div className="text-sm font-semibold text-white">{translate("Activité & état du système")}</div><div className="mt-1 text-[10px] text-white/40">{translate("Derniers états connus, sans inventer d’évènements de trading.")}</div><div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3"><div className="flex items-start gap-3 rounded-xl border border-white/[0.06] bg-black/20 p-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-300/[0.08] text-cyan-200"><RefreshCw size={14} /></span><div><div className="text-[10px] font-semibold text-white/80">{translate("Vérification des comptes")}</div><div className="mt-1 text-[9px] text-white/40">{checked || translate("En attente de synchronisation")}</div></div></div><div className="flex items-start gap-3 rounded-xl border border-white/[0.06] bg-black/20 p-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-400/[0.08] text-emerald-300"><ShieldCheck size={14} /></span><div><div className="text-[10px] font-semibold text-white/80">{translate("Réglages de risque")}</div><div className="mt-1 text-[9px] text-white/40">{riskSaveState === "saved" ? (translate("Enregistrés") + (riskSavedAt ? ` · ${riskSavedAt}` : "") + "") : riskSaveState === "pending" ? translate("Validation en attente") : translate("État non confirmé")}</div></div></div><div className="flex items-start gap-3 rounded-xl border border-white/[0.06] bg-black/20 p-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[color:var(--gold-soft)] text-[color:var(--gold)]"><Link2 size={14} /></span><div><div className="text-[10px] font-semibold text-white/80">{translate("Liaisons Master")}</div><div className="mt-1 text-[9px] text-white/40">{translate(confirmedMasters.length > 1 ? "{count} liaisons actives" : "{count} liaison active").replace("{count}", String(confirmedMasters.length))}</div></div></div></div></section>{showStats ? <section className="rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6"><div className="text-lg font-semibold text-white">{translate("Statistiques du compte sélectionné")}</div><div className="mt-4 grid grid-cols-2 gap-3"><Summary label={translate("Solde")} value={selectedStats.balance == null ? "—" : money(selectedStats.balance, selectedStats.currency)} /><Summary label={translate("Equity")} value={selectedStats.equity == null ? "—" : money(selectedStats.equity, selectedStats.currency)} /><Summary label={translate("P&L en cours")} value={selectedStats.pnl == null ? "—" : money(selectedStats.pnl, selectedStats.currency)} green={Number(selectedStats.pnl) > 0} /><Summary label={translate("Positions ouvertes")} value={selectedStats.open == null ? "—" : String(selectedStats.open)} /></div></section> : null}</section></section>
-
-        </div>
+        <p className="text-[12px] leading-relaxed text-[color:var(--muted)]">{translate("La copie reproduit aussi les pertes. Les résultats passés ne garantissent pas les résultats futurs : ne copie qu’avec un capital que tu peux te permettre de perdre.")}</p>
       </main>
+
+      {selectedReceiver && riskModalOpen && typeof document !== "undefined" ? createPortal(
+        <div className="cp-root fixed inset-0 z-[10000] flex justify-end bg-black/60 backdrop-blur-[2px]" onMouseDown={(event) => { if (event.target === event.currentTarget && !riskBusy) closeSettings(); }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="copy-reglage-titre" onKeyDown={(event) => { if (event.key === "Escape" && !riskBusy) closeSettings(); }} className="flex h-full w-full max-w-[560px] flex-col border-l border-[color:var(--gold-border)] bg-[color:var(--panel)] text-[color:var(--text)] shadow-2xl">
+            <header className="flex items-start justify-between gap-3 border-b border-[color:var(--border)] px-5 pb-4 pt-[max(16px,env(safe-area-inset-top))]">
+              <div className="min-w-0">
+                <h2 id="copy-reglage-titre" className="text-[19px] font-semibold">{translate("Régler la copie")}</h2>
+                <p className="mt-0.5 break-words text-[13px] text-[color:var(--muted)]">{selectedReceiver.alias} · {selectedReceiver.platform} · #{selectedReceiver.login}</p>
+              </div>
+              <button type="button" autoFocus onClick={closeSettings} disabled={riskBusy} aria-label={translate("Fermer")} className="cp-btn cp-btn-icon shrink-0"><X size={18} aria-hidden="true" /></button>
+            </header>
+
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5">
+              <div className="flex flex-col gap-6">
+                {settingsLoading && !selectedStatus ? <p role="status" className="cp-inset flex items-center gap-2 p-3 text-[13px] text-[color:var(--muted)]"><Loader2 size={15} className="animate-spin" aria-hidden="true" />{translate("Lecture du compte auprès du moteur de copie…")}</p> : null}
+                {error ? <div role="alert" className="cp-banner cp-tone-red"><span className="min-w-0">{localizeCopierMessage(message, translate)}</span><button type="button" onClick={() => openSettings(selectedReceiver.id)} className="cp-link shrink-0">{translate("Réessayer")}</button></div> : null}
+                {settingsRow?.requestPending ? <div className="cp-banner cp-tone-amber"><span className="min-w-0">{translate("Une demande est déjà en cours pour ce compte :")} {requestedModeText(settingsRow.request?.requested_config?.risk)}. {translate("Envoyer une nouvelle demande la remplace.")}</span></div> : null}
+
+                <section aria-labelledby="copy-reglage-source" className="flex flex-col gap-3">
+                  <div>
+                    <h3 id="copy-reglage-source" className="text-[15px] font-semibold">{translate("Compte source copié")}</h3>
+                    <p className="mt-0.5 text-[12px] leading-snug text-[color:var(--muted)]">{translate("Le compte dont ce compte copieur reproduit les trades.")}</p>
+                  </div>
+                  {!selectedStatus ? null : selectedStatus.masterAccountsList.length === 0 ? <div className="cp-inset flex flex-col items-start gap-3 p-4 text-[13px] leading-relaxed text-[color:var(--muted)]">
+                    <p>{translate(approvedMaster ? "Ton compte source n’est pas encore disponible pour ce compte copieur. Réessaie dans quelques minutes ou écris à l’équipe." : "Aucun compte source n’est actif pour l’instant. Il apparaît ici une fois validé par l’équipe.")}</p>
+                    {!approvedMaster && !pendingSourceRequest ? <button type="button" onClick={() => { closeSettings(); openSourceRequest(); }} className="cp-btn cp-btn-sm"><Send size={14} aria-hidden="true" />{translate("Ajouter un compte source")}</button> : null}
+                  </div> : <ul className="flex flex-col gap-2">
+                    {selectedStatus.masterAccountsList.map((master) => {
+                      const current = selectedMasters[master.id] || { on: false, lots: masterQuickValue };
+                      const saved = confirmedMasters.some((item) => item.id === master.id);
+                      const source = sourceFor(master.id);
+                      const note = current.on ? (saved ? "Copié actuellement" : "Sera copié après enregistrement") : (saved ? "Ne sera plus copié après enregistrement" : "Non copié");
+                      return <li key={master.id}>
+                        <label className={cn("flex cursor-pointer items-start gap-3 rounded-2xl border p-3.5", current.on ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]" : "border-[color:var(--border)]")}>
+                          <input type="checkbox" className="cp-check" checked={current.on} disabled={settingsLoading || riskBusy} onChange={() => toggleSource(master.id)} />
+                          <span className="min-w-0">
+                            <span className="block break-words text-[14px] font-semibold">{source?.alias || master.name}</span>
+                            <span className="block break-words text-[12px] text-[color:var(--muted)]">{source ? `${source.platform} · #${source.login} · ` : ""}{translate(note)}</span>
+                          </span>
+                        </label>
+                      </li>;
+                    })}
+                  </ul>}
+                </section>
+
+                <fieldset className="flex min-w-0 flex-col gap-2" disabled={settingsLoading || riskBusy}>
+                  <legend className="mb-1 text-[15px] font-semibold">{translate("Volume des trades")}</legend>
+                  {COPY_MODES.map((item) => {
+                    const active = riskSettings.mode === item.mode;
+                    const instant = item.mode === "fixed";
+                    return <div key={item.mode} className={cn("rounded-2xl border p-4", active ? "border-[color:var(--gold)] bg-[color:var(--gold-soft)]" : "border-[color:var(--border)]")}>
+                      <label className="flex cursor-pointer items-start gap-3">
+                        <input type="radio" name="copy-mode" value={item.mode} checked={active} onChange={() => setRiskSettings((value) => ({ ...value, mode: item.mode }))} className="cp-check" />
+                        <span className="min-w-0 flex-1">
+                          <span className="flex flex-wrap items-center gap-2"><b className="text-[14px] font-semibold">{translate(item.label)}</b><span className={cn("cp-pill cp-pill-xs", instant ? "cp-tone-green" : "cp-tone-gold")}>{translate(instant ? "Immédiat" : "Sur demande")}</span></span>
+                          <span className="mt-1 block text-[13px] leading-snug text-[color:var(--muted)]">{translate(item.description)}</span>
+                        </span>
+                      </label>
+                      {active ? <div className="mt-3 flex flex-col gap-1.5 pl-[30px]">
+                        <label htmlFor={`copy-mode-${item.mode}`} className="text-[12px] font-medium text-[color:var(--muted)]">{translate(item.input)}</label>
+                        {item.mode === "fixed"
+                          ? <input id="copy-mode-fixed" type="number" inputMode="decimal" min="0.01" max={maxLots} step="0.01" className="ip-field max-w-[180px]" value={masterQuickValue} onChange={(event) => applyQuickModeToSelectedMasters(event.target.value)} />
+                          : <input
+                              id={`copy-mode-${item.mode}`}
+                              type="number"
+                              inputMode="decimal"
+                              min="0.1"
+                              max="20"
+                              step="0.1"
+                              className="ip-field max-w-[180px]"
+                              value={(item.mode === "mirror" ? riskSettings.mirror_multiplier : item.mode === "balance" ? riskSettings.balance_multiplier : item.mode === "equity" ? riskSettings.equity_multiplier : riskSettings.risk_percent) || ""}
+                              onChange={(event) => {
+                                const value = Number(event.target.value);
+                                setRiskSettings((current) => item.mode === "mirror" ? { ...current, mirror_multiplier: value } : item.mode === "balance" ? { ...current, balance_multiplier: value } : item.mode === "equity" ? { ...current, equity_multiplier: value } : { ...current, risk_percent: value });
+                              }}
+                            />}
+                        <p className={cn("text-[12px] leading-snug", modeValid ? "text-[color:var(--muted)]" : "text-[color:var(--cp-red)]")}>
+                          {item.mode === "fixed" ? translate("Maximum {max} par trade pendant la phase pilote.").replace("{max}", lotsText(maxLots)) : item.mode === "percent" ? translate("Entre 0,1 et 20 % du solde par trade.") : translate("Entre 0,1 et 20.")}
+                        </p>
+                      </div> : null}
+                    </div>;
+                  })}
+                </fieldset>
+
+                <section aria-labelledby="copy-reglage-protections" className="flex flex-col gap-3">
+                  <div>
+                    <h3 id="copy-reglage-protections" className="text-[15px] font-semibold">{translate("Protections")}</h3>
+                    <p className="mt-0.5 text-[12px] leading-snug text-[color:var(--muted)]">{translate("Appliquées par l’équipe : une protection modifiée est envoyée avec ta demande.")}</p>
+                  </div>
+                  <div className="flex flex-col divide-y divide-[color:var(--border)] rounded-2xl border border-[color:var(--border)]">
+                    {riskSettings.mode !== "fixed" ? <div className="flex flex-wrap items-center justify-between gap-3 p-4">
+                      <label htmlFor="copy-max-lots" className="text-[14px]">{translate("Volume maximum par trade")}</label>
+                      <span className="flex items-center gap-2"><input id="copy-max-lots" type="number" inputMode="decimal" min="0.01" max="1000" step="0.01" disabled={settingsLoading || riskBusy} className="ip-field w-[110px]" value={riskSettings.max_lots || ""} onChange={(event) => setRiskSettings((current) => ({ ...current, max_lots: Number(event.target.value) }))} /><span className="text-[13px] text-[color:var(--muted)]">{translate("lots")}</span></span>
+                    </div> : null}
+                    <div className="flex flex-col gap-3 p-4">
+                      <label className="flex items-center justify-between gap-3"><span className="text-[14px]">{translate("Arrêter la copie si la perte du jour dépasse un seuil")}</span><input type="checkbox" role="switch" className="cp-switch" disabled={settingsLoading || riskBusy} checked={riskSettings.drawdown_enabled} onChange={(event) => setRiskSettings((current) => ({ ...current, drawdown_enabled: event.target.checked }))} /></label>
+                      {riskSettings.drawdown_enabled ? <span className="flex items-center gap-2"><label htmlFor="copy-drawdown" className="text-[13px] text-[color:var(--muted)]">{translate("Seuil de perte du jour")}</label><input id="copy-drawdown" type="number" inputMode="decimal" min="0.1" max="100" step="0.1" disabled={settingsLoading || riskBusy} className="ip-field w-[100px]" value={riskSettings.max_drawdown_percent || ""} onChange={(event) => setRiskSettings((current) => ({ ...current, max_drawdown_percent: Number(event.target.value) }))} /><span className="text-[13px] text-[color:var(--muted)]">%</span></span> : null}
+                    </div>
+                    <label className="flex items-center justify-between gap-3 p-4"><span className="text-[14px]">{translate("Copier le stop loss et le take profit")}</span><input type="checkbox" role="switch" className="cp-switch" disabled={settingsLoading || riskBusy} checked={riskSettings.copy_sl && riskSettings.copy_tp} onChange={(event) => setRiskSettings((current) => ({ ...current, copy_sl: event.target.checked, copy_tp: event.target.checked }))} /></label>
+                    <label className="flex items-center justify-between gap-3 p-4"><span className="text-[14px]">{translate("Copier les ordres en attente")}</span><input type="checkbox" role="switch" className="cp-switch" disabled={settingsLoading || riskBusy} checked={riskSettings.copy_pending} onChange={(event) => setRiskSettings((current) => ({ ...current, copy_pending: event.target.checked }))} /></label>
+                  </div>
+                  <details className="rounded-2xl border border-[color:var(--border)] p-4">
+                    <summary className="cursor-pointer text-[14px] font-medium">{translate("Avancé : noms des symboles chez ton broker")}</summary>
+                    <div className="mt-3 flex flex-col gap-1.5">
+                      <label htmlFor="copy-symbols" className="text-[12px] leading-snug text-[color:var(--muted)]">{translate("Un symbole par ligne : nom chez le compte source = nom chez toi.")}</label>
+                      <textarea id="copy-symbols" rows={3} disabled={settingsLoading || riskBusy} className="ip-field" value={riskSettings.symbol_mapping} onChange={(event) => setRiskSettings((current) => ({ ...current, symbol_mapping: event.target.value }))} placeholder={"XAUUSD = GOLD\nUS30 = DJ30"} />
+                    </div>
+                  </details>
+                </section>
+              </div>
+            </div>
+
+            <footer className="border-t border-[color:var(--border)] px-5 pt-4 pb-[max(16px,env(safe-area-inset-bottom))]">
+              <p className="text-[13px] leading-relaxed text-[color:var(--muted)]">{translate(settingsNote)}</p>
+              <label className="mt-3 flex items-start gap-3 text-[13px] leading-relaxed"><input type="checkbox" className="cp-check" checked={masterConsent} disabled={riskBusy} onChange={(event) => setMasterConsent(event.target.checked)} /><span>{translate(settingsIsRequest ? "Je confirme ma demande pour ce compte copieur." : "Je confirme ce réglage pour ce compte copieur.")}</span></label>
+              <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+                <button type="button" onClick={closeSettings} disabled={riskBusy} className="cp-btn">{translate("Annuler")}</button>
+                <button type="button" disabled={!settingsCanSave} onClick={() => void saveAll()} className="cp-btn cp-btn-gold">{saveBarState === "saving" ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : null}{translate(saveBarState === "saving" ? "Enregistrement…" : settingsPrimaryLabel)}</button>
+              </div>
+              {settingsBlockReason && !riskBusy ? <p className="mt-2 text-right text-[12px] text-[color:var(--muted)]">{settingsBlockReason}</p> : null}
+            </footer>
+          </div>
+        </div>,
+        document.body
+      ) : null}
+
+      {disconnectOpen && selectedReceiver && typeof document !== "undefined" ? createPortal(
+        <div className="cp-root fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-[2px]">
+          <div role="dialog" aria-modal="true" aria-labelledby="copy-pause-titre" className="w-full max-w-md rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-6 text-[color:var(--text)] shadow-2xl">
+            <h2 id="copy-pause-titre" className="text-[18px] font-semibold">{translate("Mettre la copie en pause ?")}</h2>
+            <p className="mt-2 text-[14px] leading-relaxed text-[color:var(--muted)]"><b className="font-semibold text-[color:var(--text)]">{selectedReceiver.alias}</b> {translate("ne recevra plus de nouveaux trades. Vérifie ensuite les positions encore ouvertes sur ce compte dans MetaTrader.")}</p>
+            <p className="mt-2 text-[14px] leading-relaxed text-[color:var(--muted)]">{translate("Pour reprendre, il faudra saisir à nouveau le mot de passe principal de ce compte.")}</p>
+            <label className="mt-4 flex items-start gap-3 text-[14px] leading-relaxed"><input type="checkbox" className="cp-check" checked={disconnectConsent} disabled={busy} onChange={(event) => setDisconnectConsent(event.target.checked)} /><span>{translate("Je mets la copie en pause sur ce compte.")}</span></label>
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <button type="button" autoFocus onClick={() => { setDisconnectOpen(false); setDisconnectConsent(false); }} className="cp-btn">{translate("Annuler")}</button>
+              <button type="button" disabled={!disconnectConsent || busy} onClick={() => void confirmPause()} className="cp-btn cp-btn-gold">{busy ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <Pause size={15} aria-hidden="true" />}{translate("Mettre en pause")}</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      ) : null}
 
       {removeReceiverId && (() => {
         const target = receivers.find((r) => r.id === removeReceiverId);
         return (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={translate("Supprimer un receveur")}>
-            <div className="w-full max-w-lg rounded-[24px] border border-red-500/30 bg-[#0b0d0b] p-6 shadow-2xl">
-              <div className="flex items-center justify-between gap-3"><h2 className="text-xl font-semibold text-white">{translate("Supprimer ce receveur ?")}</h2><button disabled={removeBusy} onClick={() => { setRemoveReceiverId(null); setDisconnectConsent(false); }} aria-label={translate("Fermer")} className="rounded-lg p-2 text-white/60"><X size={18}/></button></div>
-              <div className="mt-4 rounded-xl border border-white/10 bg-black/30 p-4 text-sm text-white/80"><strong>{target?.alias || "Compte receveur"}</strong><div className="mt-1 text-xs text-white/45">{target?.platform} · {target?.login} · {target?.server}</div></div>
-              <p className="mt-4 text-sm leading-6 text-white/60">{translate("La copie sera d’abord déconnectée du moteur. Ce receveur sera ensuite retiré de la liste InvestPro. Tu pourras le rajouter plus tard via « Ajouter un compte receveur ».")}</p>
-              <label className="mt-4 flex cursor-pointer items-start gap-3 text-sm text-white/80"><input type="checkbox" className="mt-1 accent-red-500" checked={disconnectConsent} disabled={removeBusy} onChange={(e) => setDisconnectConsent(e.target.checked)} />{translate("Je confirme la déconnexion et la suppression de ce compte receveur.")}</label>
-              {removeError ? <p className="mt-3 rounded-xl border border-red-500/25 bg-red-500/10 p-3 text-sm text-red-300" role="alert">{translate(removeError)}<span className="mt-1 block text-xs">{translate("Aucun compte n’est retiré de la liste tant que l’opération n’est pas entièrement confirmée.")}</span></p> : null}
-              <div className="mt-6 flex justify-end gap-3"><button disabled={removeBusy} onClick={() => { setRemoveReceiverId(null); setDisconnectConsent(false); }} className="rounded-xl border border-white/10 px-4 py-3 text-sm text-white/70">{translate("Annuler")}</button><button disabled={!disconnectConsent || removeBusy} onClick={() => void removeReceiver()} className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">{removeBusy ? <Loader2 size={15} className="animate-spin"/> : <Unplug size={15}/>}{translate("Déconnecter et supprimer")}</button></div>
+          <div className="cp-root fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-[2px]">
+            <div role="dialog" aria-modal="true" aria-labelledby="copy-retrait-titre" className="w-full max-w-lg rounded-[22px] border border-[color:var(--border)] bg-[color:var(--panel)] p-6 text-[color:var(--text)] shadow-2xl">
+              <div className="flex items-center justify-between gap-3"><h2 id="copy-retrait-titre" className="text-[18px] font-semibold">{translate("Retirer ce compte copieur ?")}</h2><button type="button" disabled={removeBusy} onClick={() => { setRemoveReceiverId(null); setDisconnectConsent(false); }} aria-label={translate("Fermer")} className="cp-btn cp-btn-icon"><X size={18} aria-hidden="true" /></button></div>
+              <div className="cp-inset mt-4 p-4 text-[14px]"><strong className="font-semibold">{target?.alias || translate("Compte copieur")}</strong><div className="mt-1 text-[12px] text-[color:var(--muted)]">{target?.platform} · #{target?.login} · {target?.server}</div></div>
+              <p className="mt-4 text-[14px] leading-relaxed text-[color:var(--muted)]">{translate("La copie est d’abord arrêtée sur ce compte, puis il est retiré de ta liste. Tu pourras le rajouter plus tard avec « Ajouter un compte copieur ».")}</p>
+              <label className="mt-4 flex cursor-pointer items-start gap-3 text-[14px] leading-relaxed"><input type="checkbox" className="cp-check" checked={disconnectConsent} disabled={removeBusy} onChange={(e) => setDisconnectConsent(e.target.checked)} /><span>{translate("Je confirme l’arrêt de la copie et le retrait de ce compte.")}</span></label>
+              {removeError ? <p className="cp-banner cp-tone-red mt-3" role="alert"><span>{translate(removeError)}<span className="mt-1 block text-[12px] text-[color:var(--muted)]">{translate("Aucun compte n’est retiré de la liste tant que l’opération n’est pas entièrement confirmée.")}</span></span></p> : null}
+              <div className="mt-6 flex flex-wrap justify-end gap-2"><button type="button" autoFocus disabled={removeBusy} onClick={() => { setRemoveReceiverId(null); setDisconnectConsent(false); }} className="cp-btn">{translate("Annuler")}</button><button type="button" disabled={!disconnectConsent || removeBusy} onClick={() => void removeReceiver()} className="cp-btn cp-btn-danger-solid">{removeBusy ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <Unplug size={15} aria-hidden="true" />}{translate("Arrêter et retirer")}</button></div>
             </div>
           </div>
         );
       })()}
 
       {requestOpen ? (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
-          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[26px] border border-[color:var(--gold-border)] bg-[#0b0d0b] shadow-2xl">
-            <div className="flex items-start justify-between border-b border-white/[0.06] p-5 md:p-6">
-              <div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1 text-[8px] font-bold uppercase text-[color:var(--gold)]">
-                  <Send size={11} /> {" "}{translate("Ajout à InvestPro Copier")}</div>
-                <h2 className="mt-3 text-xl font-semibold text-white">
-                  {translate("Ajouter mon compte à InvestPro Copier")}</h2>
-                <p className="mt-1 max-w-xl text-[10px] leading-5 text-white/35">
-                  {translate("Envoie les informations MT4/MT5 à l’équipe InvestPro. Nous activons le compte dans notre infrastructure de copie, puis il apparaîtra automatiquement dans InvestPro Copier.")}</p>
+        <div className="cp-root fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4 backdrop-blur-[2px]">
+          <div role="dialog" aria-modal="true" aria-labelledby="copy-source-titre" className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[24px] border border-[color:var(--gold-border)] bg-[color:var(--panel)] text-[color:var(--text)] shadow-2xl">
+            <div className="flex items-start justify-between gap-3 border-b border-[color:var(--border)] p-5 md:p-6">
+              <div className="min-w-0">
+                <h2 id="copy-source-titre" className="text-xl font-semibold text-[color:var(--text)]">
+                  {translate("Ajouter un compte source")}</h2>
+                <p className="mt-1 max-w-xl text-[13px] leading-relaxed text-[color:var(--muted)]">
+                  {translate("Le compte avec lequel tu trades. L’équipe le vérifie et l’active dans le moteur de copie, puis il apparaît ici comme compte source.")}</p>
               </div>
               <button
+                type="button"
                 onClick={() => setRequestOpen(false)}
-                className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] text-white/45"
+                aria-label={translate("Fermer")}
+                className="cp-btn cp-btn-icon shrink-0"
               >
-                <X size={17} />
+                <X size={17} aria-hidden="true" />
               </button>
             </div>
 
@@ -1757,7 +2108,7 @@ export default function CopieurPage() {
                     onChange={(e) =>
                       setRequestForm((v) => ({ ...v, login: e.target.value }))
                     }
-                    placeholder={translate("Ex. 16597794")}
+                    placeholder={translate("Ex. 12345678")}
                   />
                 </Field>
                 {requestServerChoice === "__OTHER__" ? (
@@ -1790,7 +2141,7 @@ export default function CopieurPage() {
                     </Field>
                   </>
                 ) : null}
-                <Field label={translate("Mot de passe MetaTrader")}>
+                <Field label={translate("Mot de passe principal")}>
                   <input
                     className="ip-field"
                     type="password"
@@ -1803,6 +2154,7 @@ export default function CopieurPage() {
                       }))
                     }
                   />
+                  <span className="mt-1.5 block text-[12px] leading-snug text-[color:var(--muted)]">{translate("Le mot de passe principal du compte, pas le mot de passe investisseur.")}</span>
                 </Field>
                 <div className="md:col-span-2">
                   <Field label={translate("Message / précision (facultatif)")}>
@@ -1811,8 +2163,8 @@ export default function CopieurPage() {
                       onChange={(e) =>
                         setRequestForm((v) => ({ ...v, note: e.target.value }))
                       }
-                      placeholder={translate("Ex. Compte principal à utiliser pour COPY INVESTPRO…")}
-                      className="min-h-24 w-full rounded-xl border border-white/[0.08] bg-black/30 p-3 text-xs text-white outline-none focus:border-[color:var(--gold-border)]"
+                      placeholder={translate("Ex. Compte principal avec lequel je trade")}
+                      className="min-h-24 w-full rounded-xl border border-[color:var(--border)] bg-[color:var(--panel-2)] p-3 text-xs text-[color:var(--text)] outline-none focus:border-[color:var(--gold-border)]"
                     />
                   </Field>
                 </div>
@@ -1825,26 +2177,28 @@ export default function CopieurPage() {
                     className="mt-0.5 shrink-0 text-[color:var(--gold)]"
                   />
                   <div>
-                    <div className="text-[10px] font-semibold text-white">
+                    <div className="text-[13px] font-semibold text-[color:var(--text)]">
                       {translate("Transmission sécurisée")}</div>
-                    <p className="mt-1 text-[9px] leading-5 text-white/35">
+                    <p className="mt-1 text-[12px] leading-5 text-[color:var(--muted)]">
                       {translate("Le mot de passe est chiffré côté serveur. Seul l’administrateur InvestPro autorisé peut l’afficher pour effectuer l’activation technique du compte.")}</p>
                   </div>
                 </div>
               </div>
 
-              <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.035] p-4 text-[10px] leading-5 text-white/60">
+              <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.035] p-4 text-[13px] leading-5 text-[color:var(--muted)]">
                 <input type="checkbox" checked={requestForm.syncConsent} onChange={(e) => setRequestForm((v) => ({ ...v, syncConsent: e.target.checked }))} className="mt-0.5 h-4 w-4 accent-emerald-500" />
                 <span>{translate("Pour afficher automatiquement le solde après approbation, j’autorise aussi InvestPro à créer la connexion MetaSync et à conserver mes identifiants chiffrés si le serveur est pris en charge. Cette autorisation est facultative.")}</span>
               </label>
-              {requestForm.syncConsent ? <div className="mt-3 grid grid-cols-1 gap-3 rounded-2xl border border-white/[0.06] bg-black/20 p-4 sm:grid-cols-2">
+              {requestForm.syncConsent ? <div className="mt-3 grid grid-cols-1 gap-3 rounded-2xl border border-[color:var(--border)] bg-[color:var(--panel-2)] p-4 sm:grid-cols-2">
                 <Field label={translate("Devise du compte")}><input className="ip-field" required maxLength={3} value={requestForm.syncCurrency} onChange={(e) => setRequestForm((v) => ({ ...v, syncCurrency: e.target.value.toUpperCase() }))} placeholder={translate("USD")} /></Field>
                 <Field label={translate("Type de compte")}><select className="ip-field" required value={requestForm.syncType} onChange={(e) => setRequestForm((v) => ({ ...v, syncType: e.target.value as "real" | "demo" | "prop" }))}><option value="real">{translate("Réel")}</option><option value="demo">{translate("Démo")}</option><option value="prop">{translate("Prop firm")}</option></select></Field>
-                {(() => { const selectedServer = (requestServerChoice === "__OTHER__" ? requestForm.server : requestServerChoice).trim().toLowerCase(); const supported = hostedBrokers.some((item) => item.platform.toUpperCase() === requestForm.platform && item.server.trim().toLowerCase() === selectedServer); return <p className={cn("sm:col-span-2 text-[9px] leading-5", supported ? "text-emerald-300/70" : "text-amber-200/70")}>{supported ? translate("Serveur compatible : MetaSync démarrera lorsque l’équipe aura approuvé le Master.") : translate("Ce serveur n’est pas dans le catalogue MetaSync. La demande Master pourra être envoyée, mais son solde ne sera pas synchronisé automatiquement.")}</p>; })()}
+                {(() => { const selectedServer = (requestServerChoice === "__OTHER__" ? requestForm.server : requestServerChoice).trim().toLowerCase(); const supported = hostedBrokers.some((item) => item.platform.toUpperCase() === requestForm.platform && item.server.trim().toLowerCase() === selectedServer); return <p className={cn("sm:col-span-2 text-[12px] leading-5", supported ? "text-[color:var(--cp-green)]" : "text-[color:var(--cp-amber)]")}>{supported ? translate("Serveur compatible : MetaSync démarrera une fois le compte source validé par l’équipe.") : translate("Ce serveur n’est pas dans le catalogue MetaSync : la demande peut être envoyée, mais le solde ne sera pas synchronisé automatiquement.")}</p>; })()}
               </div> : null}
 
+              {error ? <p role="alert" className="cp-banner cp-tone-red mt-4"><span>{localizeCopierMessage(message, translate)}</span></p> : null}
               <div className="mt-5 flex justify-end">
                 <button
+                  type="button"
                   disabled={requestBusy}
                   onClick={() => void submitActivationRequest()}
                   className="inline-flex h-11 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-xs font-semibold text-black disabled:opacity-40"
@@ -1862,9 +2216,9 @@ export default function CopieurPage() {
       ) : null}
 
       {addOpen && typeof document !== "undefined" ? createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-start justify-center overflow-y-auto bg-black/75 px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-[max(12px,env(safe-area-inset-top))] backdrop-blur-sm md:items-center md:overflow-hidden md:p-4">
-          <div role="dialog" aria-modal="true" aria-labelledby="add-receiver-title" className="my-auto flex max-h-[calc(100dvh_-_env(safe-area-inset-top)_-_env(safe-area-inset-bottom)_-_24px)] w-full max-w-3xl flex-col overflow-hidden rounded-[22px] border border-[color:var(--gold-border)] bg-[#0b0d0b] shadow-2xl md:max-h-[90vh] md:rounded-[26px]">
-            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-white/[0.06] bg-[#0b0d0b] p-4 md:p-6"><div className="min-w-0"><div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] px-3 py-1 text-[8px] font-bold uppercase text-[color:var(--gold)]"><Plus size={11} /> {" "}{translate("Nouveau receveur")}</div><h2 id="add-receiver-title" className="mt-3 text-xl font-semibold text-white">{translate("Ajouter un compte")}</h2><p className="mt-1 text-[10px] leading-5 text-white/35">{translate("Connexion uniquement. Aucun lot ni risque à régler ici.")}</p></div><button onClick={closeAddReceiver} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/[0.08] text-white/45" aria-label={translate("Fermer")}><X size={17} /></button></div>
+        <div className="cp-root fixed inset-0 z-[9999] flex items-start justify-center overflow-y-auto bg-black/60 px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-[max(12px,env(safe-area-inset-top))] backdrop-blur-sm md:items-center md:overflow-hidden md:p-4">
+          <div role="dialog" aria-modal="true" aria-labelledby="add-receiver-title" className="my-auto flex max-h-[calc(100dvh_-_env(safe-area-inset-top)_-_env(safe-area-inset-bottom)_-_24px)] w-full max-w-3xl flex-col overflow-hidden rounded-[22px] border border-[color:var(--gold-border)] bg-[color:var(--panel)] shadow-2xl md:max-h-[90vh] md:rounded-[26px]">
+            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[color:var(--border)] bg-[color:var(--panel)] p-4 md:p-6"><div className="min-w-0"><h2 id="add-receiver-title" className="text-xl font-semibold text-[color:var(--text)]">{translate(resumeTarget ? "Reprendre la copie" : "Ajouter un compte copieur")}</h2><p className="mt-1 text-[13px] leading-relaxed text-[color:var(--muted)]">{translate(resumeTarget ? "Saisis à nouveau le mot de passe principal de ce compte pour relancer la copie." : "Il recevra les trades de ton compte source. Tu régleras son volume juste après.")}</p></div><button type="button" onClick={closeAddReceiver} className="cp-btn cp-btn-icon shrink-0" aria-label={translate("Fermer")}><X size={17} aria-hidden="true" /></button></div>
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 pb-[calc(20px+env(safe-area-inset-bottom))] md:p-6">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <Field label={translate("Nom / alias")}><input className="ip-field" value={alias} onChange={(e) => setAlias(e.target.value)} placeholder={translate("Ex. Prop 100K")} /></Field>
@@ -1883,7 +2237,7 @@ export default function CopieurPage() {
                     <option value="MT4">{translate("MetaTrader 4")}</option>
                   </select>
                 </Field>
-                <Field label={translate("Numéro de compte")}><input className="ip-field" inputMode="numeric" value={login} onChange={(e) => setLogin(e.target.value)} placeholder={translate("Ex. 3002159")} /></Field>
+                <Field label={translate("Numéro de compte")}><input className="ip-field" inputMode="numeric" value={login} onChange={(e) => setLogin(e.target.value)} placeholder={translate("Ex. 12345678")} /></Field>
                 <Field label={translate("Broker / serveur")}>
                   <select
                     className="ip-field"
@@ -1920,220 +2274,38 @@ export default function CopieurPage() {
                     </Field>
                   </div>
                 ) : null}
-                <div className="md:col-span-2"><Field label={translate("Mot de passe MetaTrader")}><input className="ip-field" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} /></Field></div>
+                <div className="md:col-span-2"><Field label={translate("Mot de passe principal")}><input className="ip-field" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} /><span className="mt-1.5 block text-[12px] leading-snug text-[color:var(--muted)]">{translate("Le mot de passe principal, pas le mot de passe investisseur : c’est lui qui permet d’ouvrir les trades sur ce compte. Il est transmis chiffré au moteur de copie et n’est jamais affiché.")}</span></Field></div>
               </div>
-              <div className="mt-4 rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4"><div className="flex gap-3"><LockKeyhole size={16} className="mt-0.5 text-[color:var(--gold)]" /><div><div className="text-[10px] font-semibold text-white">{translate("Le risque se règle après")}</div><p className="mt-1 text-[9px] leading-5 text-white/35">{translate("Lots, risque %, SL/TP, protections et mapping sont séparés de la connexion.")}</p></div></div></div>
-              <label className="mt-4 flex items-start gap-3 rounded-2xl border border-white/[0.06] bg-black/20 p-4 text-[10px] leading-5 text-white/50"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[#d4a934]" />{translate("J’autorise InvestPro à transmettre ces identifiants au moteur de copie pour établir et maintenir la connexion.")}</label>
-              <label className="mt-3 flex items-start gap-3 rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.035] p-4 text-[10px] leading-5 text-white/55"><input type="checkbox" checked={syncConsent} onChange={(e) => { setSyncConsent(e.target.checked); setAccountCurrency(""); setAccountType(""); }} className="mt-0.5 h-4 w-4 accent-emerald-500" /><span><strong className="text-emerald-200">{translate("Pour afficher ce compte dans Mes comptes et synchroniser le solde/equity :")}</strong> {" "}{translate("j’autorise InvestPro à créer la connexion MetaSync et à conserver mes identifiants chiffrés, si le serveur est pris en charge. Sans cette autorisation, le compte sera relié uniquement au Copier.")}</span></label>
-              {syncConsent ? <div className="mt-3 grid grid-cols-1 gap-3 rounded-2xl border border-white/[0.06] bg-black/20 p-4 sm:grid-cols-2">
+              <div className="mt-4 rounded-2xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] p-4"><div className="flex gap-3"><LockKeyhole size={16} className="mt-0.5 text-[color:var(--gold)]" /><div><div className="text-[13px] font-semibold text-[color:var(--text)]">{translate("Le volume se règle juste après")}</div><p className="mt-1 text-[12px] leading-relaxed text-[color:var(--muted)]">{translate("Une fois le compte relié, choisis ses lots avec « Régler » dans la liste des comptes copieurs.")}</p></div></div></div>
+              <label className="mt-4 flex items-start gap-3 rounded-2xl border border-[color:var(--border)] bg-[color:var(--panel-2)] p-4 text-[13px] leading-5 text-[color:var(--muted)]"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[color:var(--gold)]" />{translate("J’autorise InvestPro à transmettre ces identifiants au moteur de copie pour établir et maintenir la connexion.")}</label>
+              <label className="mt-3 flex items-start gap-3 rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.035] p-4 text-[13px] leading-5 text-[color:var(--muted)]"><input type="checkbox" checked={syncConsent} onChange={(e) => { setSyncConsent(e.target.checked); setAccountCurrency(""); setAccountType(""); }} className="mt-0.5 h-4 w-4 accent-emerald-500" /><span><strong className="text-[color:var(--cp-green)]">{translate("Pour afficher ce compte dans Mes comptes et synchroniser le solde/equity :")}</strong> {" "}{translate("j’autorise InvestPro à créer la connexion MetaSync et à conserver mes identifiants chiffrés, si le serveur est pris en charge. Sans cette autorisation, le compte sera relié uniquement au Copier.")}</span></label>
+              {syncConsent ? <div className="mt-3 grid grid-cols-1 gap-3 rounded-2xl border border-[color:var(--border)] bg-[color:var(--panel-2)] p-4 sm:grid-cols-2">
                 <Field label={translate("Devise du compte")}><select className="ip-field" required value={accountCurrency} onChange={(e) => setAccountCurrency(e.target.value)}><option value="" disabled>{translate("Choisir la devise")}</option><option value="EUR">{translate("EUR — Euro")}</option><option value="USD">{translate("USD — Dollar américain")}</option></select></Field>
                 <Field label={translate("Type de compte")}><select className="ip-field" required value={accountType} onChange={(e) => setAccountType(e.target.value as "real" | "demo" | "prop" | "")}><option value="" disabled>{translate("Choisir le type de compte")}</option><option value="real">{translate("Compte réel")}</option><option value="demo">{translate("Compte démo")}</option><option value="prop">{translate("Compte prop firm")}</option></select></Field>
-                {(() => { const selectedServer = (serverChoice === "__OTHER__" ? customServer : serverChoice).trim().toLowerCase(); const supported = hostedBrokers.some((item) => item.platform.toUpperCase() === platform && item.server.trim().toLowerCase() === selectedServer); return <p className={cn("sm:col-span-2 text-[9px] leading-5", supported ? "text-emerald-300/70" : "text-amber-200/70")}>{supported ? translate("Serveur compatible : la synchronisation démarrera après l’ajout.") : translate("Ce serveur n’apparaît pas encore dans le catalogue MetaSync. Le compte pourra être ajouté au Copier, mais son solde ne sera pas synchronisé automatiquement.")}</p>; })()}
+                {(() => { const selectedServer = (serverChoice === "__OTHER__" ? customServer : serverChoice).trim().toLowerCase(); const supported = hostedBrokers.some((item) => item.platform.toUpperCase() === platform && item.server.trim().toLowerCase() === selectedServer); return <p className={cn("sm:col-span-2 text-[12px] leading-5", supported ? "text-[color:var(--cp-green)]" : "text-[color:var(--cp-amber)]")}>{supported ? translate("Serveur compatible : la synchronisation démarrera après l’ajout.") : translate("Ce serveur n’apparaît pas encore dans le catalogue MetaSync. Le compte pourra être ajouté au Copier, mais son solde ne sera pas synchronisé automatiquement.")}</p>; })()}
               </div> : null}
-              <div className="mt-5 flex items-center justify-between gap-3"><div className="max-w-md text-[8px] leading-4 text-white/30">{translate("Le mot de passe n’est pas écrit dans copier_receivers. MetaSync ne le reçoit que si tu coches l’autorisation ci-dessus et que le serveur est compatible.")}</div><button disabled={busy || !consent || (syncConsent && (!accountCurrency || !accountType))} onClick={() => void addReceiver()} className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-xs font-semibold text-black disabled:opacity-40">{busy ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />} {" "}{translate("Connecter ce compte")}</button></div>
+              {error ? <p role="alert" className="cp-banner cp-tone-red mt-4"><span>{localizeCopierMessage(message, translate)}</span></p> : null}
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-3"><div className="max-w-md text-[12px] leading-snug text-[color:var(--muted)]">{translate("Le mot de passe n’est pas conservé avec ce compte copieur. MetaSync ne le reçoit que si tu coches l’autorisation ci-dessus et que le serveur est compatible.")}</div><button type="button" disabled={busy || !consent || (syncConsent && (!accountCurrency || !accountType))} onClick={() => void addReceiver()} className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl bg-[color:var(--gold)] px-5 text-xs font-semibold text-black disabled:opacity-40">{busy ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />} {" "}{translate("Connecter ce compte")}</button></div>
             </div>
           </div>
         </div>,
         document.body
       ) : null}
 
-      <style jsx global>{`.ip-field{height:42px;width:100%;min-width:0;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:rgba(0,0,0,.28);padding:0 12px;color:white;font-size:12px;outline:none}.ip-field:focus{border-color:var(--gold-border)}.ip-field::placeholder{color:rgba(255,255,255,.22)}.ip-field option{background:#0b0d0b;color:white}`}</style>
+      <style jsx global>{`.cp-root{--cp-green:#1d7f4c;--cp-amber:#8f5d0b;--cp-red:#bd3242}.dark .cp-root{--cp-green:#6fd3a0;--cp-amber:#f0c674;--cp-red:#f4a39a}.cp-root :is(button,a,input,select,textarea,summary):focus-visible{outline:2px solid var(--gold);outline-offset:2px}.cp-card{border:1px solid var(--border);background:var(--panel);border-radius:20px}.cp-inset{border:1px solid var(--border);background:var(--panel-2);border-radius:14px}.cp-pill{display:inline-flex;align-items:center;gap:6px;min-height:26px;border-radius:999px;border:1px solid var(--border);padding:2px 10px;font-size:12px;font-weight:600;line-height:1.3;white-space:nowrap;color:var(--muted)}.cp-pill-xs{min-height:20px;padding:1px 8px;font-size:11px}.cp-dot{width:7px;height:7px;border-radius:999px;background:currentColor;flex:none}.cp-tone-green{color:var(--cp-green);border-color:color-mix(in srgb,var(--cp-green) 38%,transparent);background:color-mix(in srgb,var(--cp-green) 10%,transparent)}.cp-tone-amber{color:var(--cp-amber);border-color:color-mix(in srgb,var(--cp-amber) 38%,transparent);background:color-mix(in srgb,var(--cp-amber) 10%,transparent)}.cp-tone-red{color:var(--cp-red);border-color:color-mix(in srgb,var(--cp-red) 38%,transparent);background:color-mix(in srgb,var(--cp-red) 10%,transparent)}.cp-tone-gold{color:var(--gold-2);border-color:var(--gold-border);background:var(--gold-soft)}.dark .cp-tone-gold{color:var(--gold)}.cp-tone-neutral{color:var(--muted)}.cp-root .cp-banner{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;border-radius:14px;border:1px solid var(--border);background:var(--panel);padding:12px 14px;font-size:13px;line-height:1.55;color:var(--text)}.cp-root .cp-banner.cp-tone-green{border-color:color-mix(in srgb,var(--cp-green) 38%,transparent);background:color-mix(in srgb,var(--cp-green) 9%,var(--panel))}.cp-root .cp-banner.cp-tone-amber{border-color:color-mix(in srgb,var(--cp-amber) 38%,transparent);background:color-mix(in srgb,var(--cp-amber) 9%,var(--panel))}.cp-root .cp-banner.cp-tone-red{border-color:color-mix(in srgb,var(--cp-red) 38%,transparent);background:color-mix(in srgb,var(--cp-red) 9%,var(--panel))}.cp-gain{color:var(--cp-green)}.cp-loss{color:var(--cp-red)}.cp-step-done{color:var(--cp-green);background:color-mix(in srgb,var(--cp-green) 14%,transparent)}.cp-link{color:var(--gold-2);font-weight:600;text-decoration:underline;text-underline-offset:3px}.dark .cp-link{color:var(--gold)}.cp-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:42px;padding:0 16px;border-radius:12px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-size:13px;font-weight:600;line-height:1.2;white-space:nowrap;transition:border-color .15s,background-color .15s}.cp-btn:hover:not(:disabled){border-color:var(--gold-border)}.cp-btn:disabled{opacity:.45;cursor:not-allowed}.cp-btn-gold{background:var(--gold);border-color:var(--gold);color:#17130a}.cp-btn-gold:hover:not(:disabled){background:var(--gold-2);border-color:var(--gold-2)}.cp-btn-outline{border-color:var(--gold-border);color:var(--gold-2)}.dark .cp-btn-outline{color:var(--gold)}.cp-btn-danger{color:var(--cp-red);border-color:color-mix(in srgb,var(--cp-red) 35%,transparent)}.cp-btn-danger-solid{background:#c2323f;border-color:#c2323f;color:#fff}.cp-btn-danger-solid:hover:not(:disabled){background:#a72734;border-color:#a72734}.cp-btn-icon{width:42px;padding:0}.cp-btn-sm{min-height:36px;padding:0 12px;font-size:12px;border-radius:10px}.cp-btn-icon-sm{width:36px;padding:0}.cp-check{width:18px;height:18px;flex:none;margin-top:2px;accent-color:var(--gold)}.cp-switch{-webkit-appearance:none;appearance:none;position:relative;flex:none;width:42px;height:24px;margin:0;border-radius:999px;border:1px solid var(--border);background:var(--panel-2);cursor:pointer;transition:background-color .15s,border-color .15s}.cp-switch::before{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:999px;background:var(--muted);transition:transform .15s,background-color .15s}.cp-switch:checked{background:var(--gold);border-color:var(--gold)}.cp-switch:checked::before{transform:translateX(18px);background:#17130a}.cp-switch:disabled{opacity:.5;cursor:not-allowed}@media (min-width:1024px){.cp-root .cp-copy-grid{grid-template-columns:minmax(0,1.45fr) minmax(0,1.3fr) minmax(0,1fr) minmax(0,.85fr) minmax(0,.9fr) auto;column-gap:16px}}@media (prefers-reduced-motion:reduce){.cp-btn,.cp-switch,.cp-switch::before{transition:none}}.ip-field{height:44px;width:100%;min-width:0;border-radius:12px;border:1px solid var(--border);background:var(--panel-2);padding:0 12px;color:var(--text);font-size:14px;outline:none}textarea.ip-field{height:auto;min-height:92px;padding:10px 12px;line-height:1.5}.ip-field:focus{border-color:var(--gold-border)}.ip-field::placeholder{color:color-mix(in srgb,var(--muted) 70%,transparent)}.ip-field option{background:var(--panel);color:var(--text)}@media (max-width:640px){.ip-field{font-size:16px}}`}</style>
     </>
   );
 }
 
-function Panel({ children, className = "" }: { children: React.ReactNode; className?: string }) { return <section className={cn("rounded-[24px] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 md:p-6", className)}>{children}</section>; }
-function Badge({ icon, label }: { icon: React.ReactNode; label: string }) {
-  const { t: translate } = useLocale();
- return <span className="inline-flex items-center gap-2 rounded-full border border-white/[0.07] bg-black/25 px-3 py-1.5 text-[9px] text-white/45"><span className="text-[color:var(--gold)]">{icon}</span>{translate(label)}</span>; }
-function Metric({ label, value, green }: { label: string; value: string; green?: boolean }) {
-  const { t: translate } = useLocale();
- return <div className="rounded-[20px] border border-white/[0.07] bg-black/25 p-4"><div className="text-[8px] uppercase tracking-[0.1em] text-white/25">{translate(label)}</div><div className={cn("mt-2 text-lg font-semibold", green ? "text-emerald-400" : "text-white")}>{value}</div></div>; }
-function InfoRow({ label, value }: { label: string; value: string }) {
-  const { t: translate } = useLocale();
- return <div className="flex items-center justify-between rounded-xl border border-white/[0.06] bg-black/20 px-3 py-3"><span className="text-[9px] text-white/35">{translate(label)}</span><span className="text-[9px] font-semibold text-white/65">{value}</span></div>; }
-function Heading({ eyebrow, title, text, icon }: { eyebrow: string; title: string; text: string; icon: React.ReactNode }) {
-  const { t: translate } = useLocale();
- return <div className="flex items-start gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]">{icon}</div><div><div className="text-[8px] font-bold uppercase tracking-[0.14em] text-[color:var(--gold)]">{eyebrow}</div><h2 className="mt-1 text-base font-semibold text-white">{translate(title)}</h2><p className="mt-1 text-[10px] leading-5 text-white/35">{translate(text)}</p></div></div>; }
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   const { t: translate } = useLocale();
- return <label className="block min-w-0"><span className="mb-1.5 block text-[9px] font-medium text-white/40">{translate(label)}</span>{children}</label>; }
-function Cell({ label, value, positive, negative }: { label: string; value: string; positive?: boolean; negative?: boolean }) {
-  const { t: translate } = useLocale();
- return <div><div className="text-[7px] uppercase text-white/20 lg:hidden">{translate(label)}</div><div className={cn("mt-1 text-[10px] font-medium lg:mt-0", positive ? "text-emerald-400" : negative ? "text-red-400" : "text-white/60")}>{value}</div></div>; }
-function State({ active, label }: { active: boolean; label: string }) {
-  const { t: translate } = useLocale();
- return <span className={cn("rounded-full border px-2 py-0.5 text-[7px] font-bold uppercase", active ? "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-400" : "border-white/[0.08] text-white/35")}>{translate(label)}</span>; }
-function Risk({
-  active = false,
-  label,
-  desc,
-  onClick,
-}: {
-  active?: boolean;
-  label: string;
-  desc: string;
-  onClick: () => void;
-}) {
-  const { t: translate } = useLocale();
+ return <label className="block min-w-0"><span className="mb-1.5 block text-[12px] font-medium text-[color:var(--muted)]">{translate(label)}</span>{children}</label>; }
 
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "flex w-full items-center gap-3 rounded-xl border p-3 text-left transition",
-        active
-          ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]"
-          : "border-white/[0.06] bg-black/20 hover:bg-white/[0.02]"
-      )}
-    >
-      <div
-        className={cn(
-          "flex h-8 w-8 items-center justify-center rounded-lg border",
-          active
-            ? "border-[color:var(--gold-border)] text-[color:var(--gold)]"
-            : "border-white/[0.07] text-white/30"
-        )}
-      >
-        <Target size={13} />
-      </div>
-      <div className="flex-1">
-        <div className="text-[10px] font-semibold text-white">{translate(label)}</div>
-        <div className="mt-0.5 text-[8px] text-white/30">{translate(desc)}</div>
-      </div>
-      {active ? (
-        <CheckCircle2 size={14} className="text-emerald-400" />
-      ) : null}
-    </button>
-  );
+function CopyTile({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: "gain" | "loss" }) {
+  const { t: translate } = useLocale();
+  return <div className="cp-card flex min-w-0 flex-col gap-1 p-4">
+    <span className="text-[12px] font-medium text-[color:var(--muted)]">{translate(label)}</span>
+    <span className={cn("break-words text-[19px] font-semibold leading-tight tabular-nums sm:text-[22px]", tone === "gain" ? "cp-gain" : tone === "loss" ? "cp-loss" : "")}>{value}</span>
+    {sub ? <span className="break-words text-[12px] leading-snug text-[color:var(--muted)]">{sub}</span> : null}
+  </div>;
 }
-
-function RiskNumber({
-  label,
-  value,
-  min,
-  max,
-  step,
-  suffix,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  suffix: string;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <Field label={label}>
-      <div className="relative">
-        <input
-          type="number"
-          min={min}
-          max={max}
-          step={step}
-          value={Number.isFinite(value) ? value : 0}
-          onChange={(event) => {
-            const n = Number(event.target.value);
-            onChange(Number.isFinite(n) ? n : min);
-          }}
-          className="ip-field pr-14"
-        />
-        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[9px] text-white/30">
-          {suffix}
-        </span>
-      </div>
-    </Field>
-  );
-}
-
-function ToggleSetting({
-  label,
-  description,
-  checked,
-  onChange,
-}: {
-  label: string;
-  description: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-}) {
-  const { t: translate } = useLocale();
-
-  return (
-    <button
-      type="button"
-      onClick={() => onChange(!checked)}
-      className="flex w-full items-center justify-between gap-4 rounded-xl border border-white/[0.06] bg-black/20 p-3 text-left"
-    >
-      <div>
-        <div className="text-[9px] font-semibold text-white/70">{translate(label)}</div>
-        <div className="mt-1 text-[8px] leading-4 text-white/30">
-          {translate(description)}
-        </div>
-      </div>
-      <span
-        className={cn(
-          "relative h-6 w-11 shrink-0 rounded-full border transition",
-          checked
-            ? "border-emerald-500/30 bg-emerald-500/20"
-            : "border-white/[0.08] bg-white/[0.03]"
-        )}
-      >
-        <span
-          className={cn(
-            "absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full transition",
-            checked
-              ? "left-[22px] bg-emerald-400"
-              : "left-[4px] bg-white/35"
-          )}
-        />
-      </span>
-    </button>
-  );
-}
-function RequestStatus({ status }: { status: ActivationRequest["status"] }) {
-  const { t: translate } = useLocale();
-
-  const labels = {
-    pending: "En attente",
-    processing: "Activation en cours",
-    activated: "Activé",
-    rejected: "Refusé",
-  } as const;
-
-  return (
-    <span
-      className={cn(
-        "rounded-full border px-2.5 py-1 text-[8px] font-bold uppercase",
-        status === "activated"
-          ? "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-400"
-          : status === "rejected"
-          ? "border-red-500/20 bg-red-500/[0.05] text-red-300"
-          : "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)]"
-      )}
-    >
-      {translate(labels[status])}
-    </span>
-  );
-}
-
-function Summary({ label, value, green }: { label: string; value: string; green?: boolean }) {
-  const { t: translate } = useLocale();
- return <div className="rounded-2xl border border-white/[0.06] bg-black/20 p-4"><div className="text-[8px] uppercase tracking-[0.1em] text-white/25">{translate(label)}</div><div className={cn("mt-2 text-sm font-semibold", green ? "text-emerald-400" : "text-white")}>{value}</div></div>; }
-function HeroStatCard({ icon, label, value, sub, accent, accentPositive }: { icon: React.ReactNode; label: string; value: string; sub: string; accent?: string; accentPositive?: boolean }) {
-  const { t: translate } = useLocale();
- return <div className="rounded-[16px] border border-white/[0.07] bg-black/25 p-3 sm:rounded-[20px] sm:p-4"><div className="flex items-start gap-2 sm:gap-3"><div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[color:var(--gold-border)] bg-[color:var(--gold-soft)] text-[color:var(--gold)] sm:h-12 sm:w-12 sm:rounded-2xl">{icon}</div><div className="min-w-0 flex-1"><div className="text-[9px] leading-tight text-white/40 sm:text-[10px]">{translate(label)}</div><div className="mt-1 text-xl font-semibold leading-tight text-white sm:text-3xl">{value}</div><div className="mt-1 flex flex-wrap items-center gap-1 sm:gap-2"><span className="text-[9px] leading-tight text-white/35 sm:text-[10px]">{sub}</span>{accent ? <span className={cn("text-[9px] font-semibold sm:text-[10px]", accentPositive ? "text-emerald-400" : "text-[color:var(--gold)]")}>{accent}</span> : null}</div></div></div></div>; }
-function MiniMetric({ label, value, positive, negative }: { label: string; value: string; positive?: boolean; negative?: boolean }) {
-  const { t: translate } = useLocale();
- return <div className="rounded-xl border border-white/[0.06] bg-black/20 p-3"><div className="text-[9px] uppercase tracking-[0.08em] text-white/30">{translate(label)}</div><div className={cn("mt-2 text-lg font-semibold", positive ? "text-emerald-400" : negative ? "text-red-400" : "text-white")}>{value}</div></div>; }
-function ReceiverStatusBadge({ state, now }: { state?: ConnectionState; now: number }) {
-  const { t: translate } = useLocale();
-  const status = connectionStateLabel(state, now);
-  const styles = status.tone === "green" ? "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-400" : status.tone === "amber" ? "border-amber-500/20 bg-amber-500/[0.05] text-amber-200" : "border-white/[0.08] bg-white/[0.03] text-white/55";
-  return <span className={cn("inline-flex max-w-full rounded-full border px-2.5 py-1 text-[10px] font-semibold", styles)}>{translate(status.labelFrench)}</span>;
-}
-function InlineRiskOption({ active, label, desc, onClick, children }: { active: boolean; label: string; desc: string; onClick: () => void; children: React.ReactNode }) {
-  const { t: translate } = useLocale();
- return <button type="button" onClick={onClick} className={cn("grid w-full grid-cols-[auto_1fr_132px] items-center gap-3 rounded-xl border p-3 text-left transition", active ? "border-[color:var(--gold-border)] bg-[color:var(--gold-soft)]" : "border-white/[0.06] bg-black/20 hover:bg-white/[0.02]")}><span className={cn("flex h-5 w-5 items-center justify-center rounded-full border", active ? "border-[color:var(--gold-border)] bg-[color:var(--gold)] text-black" : "border-white/15 text-transparent")}>{active ? <Check size={12} /> : '•'}</span><span className="min-w-0"><span className="block text-[11px] font-semibold text-white">{translate(label)}</span><span className="mt-0.5 block text-[9px] text-white/35">{translate(desc)}</span></span><span onClick={(e) => e.stopPropagation()}>{children}</span></button>; }
