@@ -42,7 +42,7 @@ export function ClipperSubmit({ v }: { v: SubmitVals }) {
           <span style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: "800", color: "#91D6D0" }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M5 12.5l4.5 4.5L19 7.5" />
             </svg>Clip envoyé</span>
-          <span style={{ fontSize: "13px", color: "#C4C8BD" }}>Il compte déjà dans le classement : ses vues se mettent à jour toutes seules. Enrick le valide quand il a fait assez de vues et d&apos;engagement.</span>
+          <span style={{ fontSize: "13px", color: "#C4C8BD" }}>Il compte déjà dans le classement : ses vues se mettent à jour toutes seules. Enrick le valide quand il a fait assez de vues et d&apos;engagement. Dans quelques jours, ajoute une capture de tes stats depuis « Mes clips ».</span>
           <span style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
             <a href="#clips" onClick={go(v.onClips)} style={{ display: "flex", alignItems: "center", minHeight: "44px", fontSize: "13px", fontWeight: "800", textDecoration: "none" }}>Voir mes clips</a>
             <a href="#soumettre" onClick={go(v.again)} style={{ display: "flex", alignItems: "center", minHeight: "44px", fontSize: "13px", fontWeight: "800", textDecoration: "none" }}>Soumettre un autre clip</a>

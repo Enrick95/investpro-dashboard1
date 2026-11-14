@@ -17,6 +17,8 @@ export type ReviewCurrent = {
   firstName: string;
   info: { label: string; value: string }[];
   flagText: string | null;
+  /** Captures des stats envoyées par le clippeur. */
+  captures: { id: string; url: string; when: string }[];
   checks: { ok: boolean; label: string }[];
   decision: Decision;
   reason: string | null;
@@ -201,6 +203,24 @@ export function AdminReview({ v }: { v: ReviewVals }) {
                         <span style={{ fontWeight: "700", textAlign: "right", minWidth: "0", overflowWrap: "anywhere" }}>{line.value}</span>
                       </div>
                     ))}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <h3 style={{ margin: "0", fontSize: "13px", fontWeight: "800" }}>Stats envoyées par le clippeur{cur.captures.length ? ` · ${cur.captures.length}` : ""}</h3>
+                    {cur.captures.length ? (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                        {cur.captures.map((capture, index) => (
+                          <a key={capture.id} href={capture.url} target="_blank" rel="noopener noreferrer" aria-label={`Ouvrir la capture ${index + 1} (${capture.when})`} style={{ display: "flex", flexDirection: "column", gap: "4px", width: "86px", textDecoration: "none" }}>
+                            <span style={{ display: "block", width: "86px", height: "153px", borderRadius: "10px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.12)", background: "#181c16" }}>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={capture.url} alt={`Capture des stats ${index + 1}`} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                            </span>
+                            <span style={{ fontSize: "11px", color: "#A8ADA3" }}>{capture.when}</span>
+                          </a>
+                        ))}
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: "12.5px", color: "#A8ADA3" }}>Pas encore de capture : le clippeur peut ajouter ses stats depuis « Mes clips ».</span>
+                    )}
                   </div>
                   {cur.flagText ? (
                     <div style={{ display: "flex", gap: "10px", padding: "12px 14px", borderRadius: "14px", background: "rgba(242,180,90,0.08)", border: "1px solid rgba(242,180,90,0.3)", fontSize: "13px", color: "#C4C8BD" }}>

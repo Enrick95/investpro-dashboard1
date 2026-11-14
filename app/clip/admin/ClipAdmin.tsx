@@ -96,7 +96,9 @@ type ClickStat = { clipper_id: string; total: number | string; last30: number | 
 type Video = { id: string; title: string; note: string | null; url: string; campaign_id: string | null; created_at: string; notified_at?: string | null; notified_push?: number | null; notified_email?: number | null };
 /** Bilan renvoyé par le serveur après l'envoi des notifications d'une nouvelle vidéo. */
 type NotifyOutcome = { clippers: number; reached: number; push: number; email: number; failed: number; emailReady: boolean } | { error: true };
-type Data = { campaigns: CampaignRow[]; clippers: Clipper[]; accounts: Account[]; clips: ClipRow[]; candidates: Candidate[]; payouts: PayoutRow[]; snapshots: Snapshot[]; clicks: ClickStat[]; videos: Video[] };
+/** Capture des stats envoyée par un clippeur (lien signé valable 1 h). */
+type Capture = { id: string; clip_id: string; url: string; created_at: string };
+type Data = { campaigns: CampaignRow[]; clippers: Clipper[]; accounts: Account[]; clips: ClipRow[]; candidates: Candidate[]; payouts: PayoutRow[]; snapshots: Snapshot[]; clicks: ClickStat[]; videos: Video[]; captures?: Capture[] };
 type LoadState = { phase: "loading" } | { phase: "denied"; message: string; login: boolean } | { phase: "error"; message: string } | { phase: "ready"; data: Data };
 type FlashState = { kind: "ok" | "error"; text: string } | null;
 type Phase = "live" | "soon" | "ended" | "draft";
@@ -1023,6 +1025,7 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
           { label: "Réseau", value: PLATFORM_LABEL[current.platform] },
         ],
         flagText: flagOf(current),
+        captures: (data.captures ?? []).filter((capture) => capture.clip_id === current.id).sort((a, b) => a.created_at.localeCompare(b.created_at)).map((capture) => ({ id: capture.id, url: capture.url, when: ago(capture.created_at, now) })),
         checks: [
           urlHandle
             ? { ok: matched.length > 0, label: matched.length ? `Publié par @${urlHandle}, un de ses comptes` : `Publié par @${urlHandle}, pas dans ses comptes` }

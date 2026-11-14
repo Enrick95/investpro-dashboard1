@@ -22,6 +22,7 @@ import {
 } from "@/lib/clip/server";
 import { notifyNewVideo, type NotifyResult } from "@/lib/clip/notify";
 import { dueViewClips, refreshClipViews } from "@/lib/clip/views";
+import { captureLinks, type CaptureRow } from "@/lib/clip/captures";
 import { clipValue, cycleFor, DEFAULT_CLIP_AMOUNT, num, PAYOUT_LABEL, REFERRAL_BONUS, REFERRAL_CLIPS, round2, type PayoutMethod } from "@/lib/clip/rules";
 
 export const runtime = "nodejs";
@@ -70,7 +71,12 @@ export async function GET(request: Request) {
       db.from("clip_videos").select(ADMIN_VIDEO_COLUMNS).order("created_at", { ascending: false }).limit(200),
     ]);
     for (const result of [campaigns, clippers, accounts, clips, candidates, payouts, snapshots, clicks, videos]) if (result.error) throw result.error;
+    // Captures des stats envoyées par les clippeurs (les plus récentes) : bonus, l'admin s'ouvre même sans elles.
+    const captureRows = await db.from("clip_captures").select("id,clip_id,clipper_id,path,created_at").not("confirmed_at", "is", null).order("created_at", { ascending: false }).limit(600);
+    if (captureRows.error) console.error("Captures des stats illisibles :", captureRows.error.message);
+    const captures = captureRows.error ? [] : await captureLinks(db, (captureRows.data ?? []) as unknown as CaptureRow[]);
     return clipJson({
+      captures,
       campaigns: campaigns.data ?? [],
       clippers: clippers.data ?? [],
       accounts: accounts.data ?? [],
