@@ -413,5 +413,85 @@ clean();try{new MutationObserver(clean).observe(d.body,{childList:true,subtree:t
 function rng(){var m=d.body.innerText.match(/\d{2} \S+ \d{4} → \d{2} \S+ \d{4}/);return m?m[0]:"";}var start=null,n=0,t=setInterval(function(){n++;var b=[].slice.call(d.querySelectorAll("button")).find(function(x){return x.textContent.trim()==="3 mois";});var r=rng();if(start===null&&r)start=r;if(start!==null&&r&&r!==start){clearInterval(t);return;}if(b&&r)b.click();if(n>25)clearInterval(t);},800);
 d.addEventListener("click",function(e){var a=e.target.closest&&e.target.closest("a");if(a){e.preventDefault();e.stopPropagation();window.location.href=JOIN;}},true);
 });})();</script>
+<!-- Conférence d'Enrick (mercredi 18 nov, 20h heure de France) : bandeau, carte et fenêtre. S'efface tout seul après la conf. -->
+<style>
+@keyframes confPulse{0%{box-shadow:0 0 0 0 rgba(145,214,208,.55)}70%{box-shadow:0 0 0 14px rgba(145,214,208,0)}100%{box-shadow:0 0 0 0 rgba(145,214,208,0)}}
+@keyframes confIn{from{opacity:0;transform:translateY(24px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes confFade{from{opacity:0}to{opacity:1}}
+@keyframes confDot{50%{opacity:.25}}
+.conf-btn{animation:confPulse 2.2s infinite;transition:transform .2s}
+.conf-btn:hover{transform:translateY(-2px)}
+.conf-cd b{font-family:'Unbounded',sans-serif;font-weight:800;font-variant-numeric:tabular-nums}
+@media (prefers-reduced-motion: reduce){.conf-btn,.conf-pop,.conf-pop>div{animation:none!important}}
+</style>
+<script>(function(){
+var LINK="https://lekacademy.com/enrick";
+var START=new Date("2026-11-18T20:00:00+01:00").getTime();
+var END=new Date("2026-11-18T21:30:00+01:00").getTime();
+if(Date.now()>END)return;
+
+function parisDay(t){return new Intl.DateTimeFormat("fr-FR",{timeZone:"Europe/Paris",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(t)).split("/").reverse().join("-");}
+function label(){
+  var now=Date.now();
+  if(now>=START)return "c'est maintenant";
+  var d=Math.round((new Date(parisDay(START))-new Date(parisDay(now)))/864e5);
+  if(d<=0)return "ce soir 20h";
+  if(d===1)return "demain 20h";
+  return "J-"+d;
+}
+function left(){var s=Math.max(0,Math.floor((START-Date.now())/1000));return {j:Math.floor(s/86400),h:Math.floor(s%86400/3600),m:Math.floor(s%3600/60)};}
+
+// Bandeau du haut
+var bar=document.querySelector("a.offer-bar");
+if(bar){
+  bar.href=LINK;bar.setAttribute("aria-label","Conférence gratuite d'Enrick, mercredi 20h : je réserve ma place");
+  bar.innerHTML='<span style="background:#181a13;color:#F0C575;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:4px 10px;border-radius:999px;display:inline-flex;align-items:center;gap:6px"><span style="width:7px;height:7px;border-radius:50%;background:#e5484d;animation:confDot 1.2s infinite"></span>Conférence gratuite</span><span>Mercredi 20h · en ligne · <b class="conf-when">'+label()+'</b></span><span style="font-weight:800">Je réserve ma place →</span>';
+}
+
+// Carte au-dessus du titre
+var h1=document.querySelector("#top h1");
+if(h1){
+  var c=document.createElement("a");
+  c.className="conf-btn";c.href=LINK;
+  c.style.cssText="display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin:0 0 26px;max-width:560px;background:linear-gradient(115deg,rgba(145,214,208,.16),rgba(145,214,208,.06));border:1.5px solid #91D6D0;border-radius:18px;padding:14px 18px;color:#f6f2e8";
+  c.innerHTML='<span style="flex-shrink:0;width:46px;height:46px;border-radius:14px;background:#91D6D0;color:#181a13;display:flex;align-items:center;justify-content:center;font-size:22px" aria-hidden="true">🎙️</span><span style="flex:1 1 180px;min-width:0;line-height:1.3"><span style="display:block;font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#91D6D0">Ma conférence · mercredi 20h</span><span style="display:block;font-size:17px;font-weight:700">Mon parcours, de A à Z. Gratuit, en ligne.</span></span><span style="flex:1 1 100%;text-align:center;background:#91D6D0;color:#181a13;font-weight:800;font-size:15px;padding:12px 14px;border-radius:12px">Je m\'inscris →</span>';
+  h1.parentElement.insertBefore(c,h1);
+}
+
+// Fenêtre à l'arrivée (une fois par visite)
+var seen=false;try{seen=sessionStorage.getItem("confPopSeen")==="1";}catch(e){}
+function openPop(){
+  try{sessionStorage.setItem("confPopSeen","1");}catch(e){}
+  var img=document.querySelector("#top img");var photo=img?img.getAttribute("src"):"";
+  var t=left();var live=Date.now()>=START;
+  var ov=document.createElement("div");
+  ov.className="conf-pop";ov.setAttribute("role","dialog");ov.setAttribute("aria-modal","true");ov.setAttribute("aria-label","Conférence d'Enrick");
+  ov.style.cssText="position:fixed;inset:0;z-index:9999;background:rgba(5,7,7,.78);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:18px;animation:confFade .3s ease";
+  var cd=live?'<div style="text-align:center;background:#090c0c;border:1px solid #29312c;border-radius:14px;padding:14px;margin-bottom:18px;font-weight:800;color:#F0C575">🔴 La conférence a commencé</div>'
+    :'<div class="conf-cd" style="display:flex;gap:8px;margin-bottom:18px">'+[["j","jours"],["h","heures"],["m","min"]].map(function(x){return '<div style="flex:1;text-align:center;background:#090c0c;border:1px solid #29312c;border-radius:14px;padding:10px 4px"><b data-k="'+x[0]+'" style="display:block;font-size:24px;color:#F0C575">'+t[x[0]]+'</b><span style="font-size:12px;color:#8f9d93">'+x[1]+'</span></div>';}).join("")+'</div>';
+  ov.innerHTML='<div style="position:relative;width:100%;max-width:440px;max-height:92vh;overflow:auto;background:#111615;border:1px solid #29312c;border-radius:26px;box-shadow:0 30px 80px rgba(0,0,0,.6);animation:confIn .45s cubic-bezier(.2,.8,.2,1);color:#f6f2e8">'
+   +'<button type="button" class="conf-close" aria-label="Fermer" style="position:absolute;top:12px;right:12px;z-index:2;width:36px;height:36px;border-radius:50%;border:0;background:rgba(9,12,12,.7);color:#f6f2e8;font-size:20px;cursor:pointer">×</button>'
+   +'<div style="position:relative;height:230px;overflow:hidden;border-radius:26px 26px 0 0"><img src="'+photo+'" alt="" style="width:100%;height:100%;object-fit:cover;object-position:center 25%"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(17,22,21,0) 35%,#111615 100%)"></div>'
+   +'<span style="position:absolute;left:18px;top:16px;display:inline-flex;align-items:center;gap:7px;background:#181a13;color:#F0C575;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;padding:6px 12px;border-radius:999px"><span style="width:7px;height:7px;border-radius:50%;background:#e5484d;animation:confDot 1.2s infinite"></span>Conférence en ligne · gratuite</span></div>'
+   +'<div style="padding:4px 24px 24px"><div style="font-size:13px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#91D6D0;margin-bottom:8px">Mercredi 18 novembre · 20h (heure de France)</div>'
+   +'<h2 style="font-family:\'Unbounded\',sans-serif;font-weight:800;font-size:26px;line-height:1.08;letter-spacing:-.02em;margin:0 0 12px">Le trading commence <span style="color:#F0C575">par tes décisions.</span></h2>'
+   +'<p style="margin:0 0 18px;color:#a9b4ae;font-size:16px;line-height:1.5">Je te raconte mon parcours de A à Z et les principes qui ont changé ma façon d\'aborder les marchés.</p>'
+   +cd
+   +'<a href="'+LINK+'" style="display:flex;justify-content:center;align-items:center;gap:10px;background:linear-gradient(115deg,#F4CD86,#E5B45E);color:#181a13;font-weight:800;font-size:17px;padding:17px 20px;border-radius:14px">'+(live?"Rejoindre la conférence →":"Je réserve ma place →")+'</a>'
+   +'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:13px;color:#8f9d93"><span>⚡ Limitée à 100 places</span><button type="button" class="conf-close" style="background:none;border:0;color:#8f9d93;font-size:13px;text-decoration:underline;cursor:pointer">Plus tard</button></div></div></div>';
+  function close(){ov.remove();document.removeEventListener("keydown",esc);}
+  function esc(e){if(e.key==="Escape")close();}
+  ov.addEventListener("click",function(e){if(e.target===ov||e.target.classList.contains("conf-close"))close();});
+  document.addEventListener("keydown",esc);
+  document.body.appendChild(ov);
+}
+if(!seen)setTimeout(openPop,1200);
+
+setInterval(function(){
+  if(Date.now()>END)return;
+  document.querySelectorAll(".conf-when").forEach(function(e){e.textContent=label();});
+  var t=left();document.querySelectorAll(".conf-cd b").forEach(function(e){e.textContent=t[e.getAttribute("data-k")];});
+},30000);
+})();</script>
 </body>
 </html>
