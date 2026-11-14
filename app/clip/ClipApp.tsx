@@ -361,14 +361,14 @@ export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; 
   const viewsBefore = gainsBefore.daily.reduce((sum, value) => sum + value, 0);
   const rankRows = (limit: number): RankingRow[] => {
     const top = me.ranking?.top ?? [];
-    const rows = top.slice(0, limit).map((entry): RankingRow => ({ key: `${entry.position}-${entry.name}`, position: entry.position, initials: initialsOf(entry.name), name: entry.me ? `Toi · ${entry.name}` : entry.name, detail: plural(entry.clips, "clip validé", "clips validés"), views: compact(entry.views), me: entry.me }));
+    const rows = top.slice(0, limit).map((entry): RankingRow => ({ key: `${entry.position}-${entry.name}`, position: entry.position, initials: initialsOf(entry.name), name: entry.me ? `Toi · ${entry.name}` : entry.name, detail: plural(entry.clips, "clip"), views: compact(entry.views), me: entry.me }));
     const rankNow = me.rank;
     if (rankNow && rankNow.views > 0 && !rows.some((row) => row.me)) {
-      rows.push({ key: "moi", position: rankNow.position, initials: initialsOf(clipper.display_name), name: "Toi", detail: plural(me.ranking?.clips ?? 0, "clip validé", "clips validés"), views: compact(rankNow.views), me: true });
+      rows.push({ key: "moi", position: rankNow.position, initials: initialsOf(clipper.display_name), name: "Toi", detail: plural(me.ranking?.clips ?? 0, "clip"), views: compact(rankNow.views), me: true });
     }
     return rows;
   };
-  const rankEmpty = "Le classement démarre avec les premières vues relevées ce mois-ci. Publie tes clips et colle tes liens : tu peux être en tête dès cette semaine.";
+  const rankEmpty = "Le classement démarre avec les premières vues relevées ce mois-ci. Envoie tes clips : leurs vues TikTok et YouTube sont relevées toutes seules et tu peux être en tête dès cette semaine.";
   const viewsLine = views30 > 0 ? `Tes vues sur 30 jours : ${compact(views30)}${viewsBefore > 0 ? ` (${views30 >= viewsBefore ? "+" : "−"}${Math.abs(Math.round((views30 / viewsBefore - 1) * 100))} %)` : ""}` : "Tes vues apparaîtront ici dès qu'elles seront relevées.";
   const acquiredTotal = summary.acquired + referral.amount;
   const received = payouts.reduce((sum, payout) => sum + num(payout.total), 0);
@@ -680,7 +680,7 @@ export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; 
     };
     screen = (
       <ClipperClips v={{
-        subline: `${plural(inCycle, "clip")} ce cycle · ${latest ? `vues mises à jour ${ago(latest, now)}` : "vues mises à jour par Enrick"}`,
+        subline: `${plural(inCycle, "clip")} ce cycle · ${latest ? `vues mises à jour ${ago(latest, now)}` : "vues TikTok et YouTube relevées toutes les 3 h"}`,
         chips: chipDefs.filter((chip) => chip.key === "all" || counts.get(chip.key)).map((chip) => ({ key: chip.key, label: `${chip.label} · ${chip.key === "all" ? items.length : counts.get(chip.key) ?? 0}`, on: clipFilter === chip.key, pick: () => { setClipFilter(chip.key); setShowAll(false); } })),
         clips: shown.map(toItem),
         more: rest.length ? { label: `+ ${plural(rest.length, "autre clip", "autres clips")}`, show: () => setShowAll(true) } : null,
@@ -711,7 +711,7 @@ export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; 
           ahead: ahead ? { text: `Pour dépasser ${ahead.name}`, gap: `encore ${compact(ahead.gap)} vues`, pct: Math.max(4, Math.min(100, Math.round((rankNow.views / (rankNow.views + ahead.gap)) * 100))) } : null,
           leader: rankNow.position === 1,
         } : null,
-        noPlace: "Pas encore classé ce mois-ci : tes clips validés comptent dès que leurs vues sont relevées.",
+        noPlace: "Pas encore classé ce mois-ci : tes clips comptent dès l'envoi, avec leurs vues relevées automatiquement.",
         rows,
         others: rankNow && rankNow.total - shown - (rows.some((row) => row.me) ? 0 : 1) > 0 ? `+ ${plural(rankNow.total - shown - (rows.some((row) => row.me) ? 0 : 1), "autre clippeur", "autres clippeurs")}` : null,
         empty: rankEmpty,

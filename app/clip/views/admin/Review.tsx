@@ -48,6 +48,8 @@ export type ReviewVals = {
   viewsFilters: { key: ViewsFilter; label: string }[];
   setViewsFilter: (key: ViewsFilter) => void;
   saveViews: (id: string, views: number) => Promise<boolean>;
+  /** Relève tout de suite les vues TikTok et YouTube (sinon toutes les 3 h). */
+  refreshViews: () => void;
   saveBonus: (id: string, bonus: number) => Promise<boolean>;
   euro: (value: number) => string;
 };
@@ -280,9 +282,12 @@ export function AdminReview({ v }: { v: ReviewVals }) {
           <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: "4px", maxWidth: "640px" }}>
               <h2 id="t-vues-saisir" style={S.h2}>Vues et bonus</h2>
-              <span style={S.sub}>Les vues servent à tes statistiques (courbe, classement) : relève-les quand tu veux. Pour un clip qui cartonne, ajoute un bonus : il s&apos;ajoute au prochain versement du clippeur.</span>
+              <span style={S.sub}>Les vues TikTok et YouTube se relèvent toutes seules toutes les 3 h, dès l&apos;envoi du clip. Instagram et les autres réseaux : saisis-les ici. Pour un clip qui cartonne, ajoute un bonus : il s&apos;ajoute au prochain versement du clippeur.</span>
             </div>
-            <Pills label="Filtrer" items={v.viewsFilters} value={v.viewsFilter} onPick={v.setViewsFilter} />
+            <span style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px" }}>
+              <button type="button" disabled={v.busy} onClick={v.refreshViews} style={{ ...S.ghost, minHeight: "40px", padding: "0 12px" }}>Actualiser les vues</button>
+              <Pills label="Filtrer" items={v.viewsFilters} value={v.viewsFilter} onPick={v.setViewsFilter} />
+            </span>
           </div>
           <div style={{ position: "relative", overflowX: "auto" }}>
             <div role="table" aria-label="Vues et bonus des clips validés" style={{ minWidth: "980px", display: "flex", flexDirection: "column" }}>

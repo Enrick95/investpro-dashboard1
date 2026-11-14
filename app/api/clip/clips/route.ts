@@ -1,5 +1,6 @@
 import { CLIP_COLUMNS, assertSameOrigin, authenticateClip, ClipError, clipErrorResponse, clipJson, httpsUrl, readJson, text } from "@/lib/clip/server";
 import { NETWORKS_TEXT, PLATFORM_LABEL, platformFromUrl, tiktokHandleFromUrl } from "@/lib/clip/rules";
+import { autoViews, refreshClipViews, type ViewClip } from "@/lib/clip/views";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -59,7 +60,20 @@ export async function POST(request: Request) {
       if (error.code === "23505") throw new ClipError("Ce clip a déjà été soumis.", 409);
       throw error;
     }
-    return clipJson({ clip: data }, 201);
+    // TikTok et YouTube : les vues sont relevées tout de suite, le clip entre au classement dès l'envoi.
+    let clip = data as unknown as ViewClip & Record<string, unknown>;
+    if (autoViews(platform)) {
+      try {
+        const read = await refreshClipViews(db, [clip], 9000, 1);
+        if (read.updated) {
+          const fresh = await db.from("clip_clips").select(CLIP_COLUMNS).eq("id", clip.id).maybeSingle();
+          if (!fresh.error && fresh.data) clip = fresh.data as unknown as ViewClip & Record<string, unknown>;
+        }
+      } catch {
+        // le relevé suivant (toutes les 3 h) prendra le relais
+      }
+    }
+    return clipJson({ clip }, 201);
   } catch (error) {
     return clipErrorResponse(error);
   }

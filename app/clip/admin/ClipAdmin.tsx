@@ -1019,7 +1019,7 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
           { label: "Compte", value: accountText },
           { label: "Campagne", value: campaign ? `${campaign.title} · ${position}${position === 1 ? "er" : "e"} clip sur ${campaign.quota_per_clipper}` : "campagne supprimée" },
           { label: "Publié", value: dayLabel(current.published_at, now) },
-          { label: "Vues", value: current.views_updated_at ? `${formatInt(clipViews(current))} · maj ${ago(current.views_updated_at, now)}` : "pas encore saisies" },
+          { label: "Vues", value: current.views_updated_at ? `${formatInt(clipViews(current))} · maj ${ago(current.views_updated_at, now)}` : current.platform === "tiktok" || current.platform === "youtube" ? "relevé automatique en cours" : "à saisir dans « Vues et bonus »" },
           { label: "Réseau", value: PLATFORM_LABEL[current.platform] },
         ],
         flagText: flagOf(current),
@@ -1102,6 +1102,13 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
       ],
       setViewsFilter,
       saveViews: (id, views) => act({ action: "set_views", id, views }, "Vues enregistrées."),
+      refreshViews: () => {
+        void act({ action: "refresh_views" }, (result) => {
+          const read = result as { clips?: number; updated?: number; failed?: number } | null;
+          if (!read?.clips) return "Aucun clip TikTok ou YouTube récent à relever.";
+          return `Vues actualisées : ${plural(read.updated ?? 0, "clip")} à jour${read.failed ? `, ${plural(read.failed, "illisible pour l'instant", "illisibles pour l'instant")}` : ""}.`;
+        });
+      },
       saveBonus: (id, bonus) => act({ action: "clip_bonus", id, bonus }, bonus ? `Bonus de ${euro(bonus)} ajouté : il part avec le prochain versement.` : "Bonus retiré."),
       euro,
     };
@@ -1414,7 +1421,7 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
         { label: "Paiement des clips", value: `Au clip validé · ${euroShort(defaultAmount)} proposé par défaut`, note: "Tu choisis le montant à chaque validation ; les clippeurs ne voient aucun tarif" },
         { label: "Parrainage", value: `${euroShort(REFERRAL_BONUS)} quand un filleul a ${REFERRAL_CLIPS} clips validés`, note: "Ajouté tout seul au versement suivant du parrain" },
         { label: "Seuil de versement", value: euroRound(MIN_PAYOUT), note: "En dessous, le montant passe au cycle suivant" },
-        { label: "Vues des clips", value: "Saisie à la main, pour tes statistiques", note: "TikTok, Instagram et YouTube reliés automatiquement : bientôt", soon: true },
+        { label: "Vues des clips", value: "TikTok et YouTube : relevées toutes seules toutes les 3 h", note: "Instagram, Facebook, Snapchat et X : à saisir à la main dans « Vues et bonus »" },
         { label: "VIP ramenés par les clips", value: "Pas encore suivis", soon: true },
         { label: "WhatsApp", value: `${ENRICK_WHATSAPP_LABEL} · pas encore relié au site`, note: "Les messages partent déjà de ton WhatsApp en un clic ; le tri automatique viendra quand il sera relié", soon: true },
         { label: "Accès admin", value: "Toi seul (propriétaire du site)" },

@@ -285,7 +285,8 @@ export async function clipperSpacePayload(db: SupabaseClient, clipper: Record<st
     db.from("clip_campaigns").select(CLIPPER_CAMPAIGN_COLUMNS).in("status", ["active", "ended"]).order("starts_on", { ascending: false }).limit(30),
     db.from("clip_clips").select(CLIP_COLUMNS).eq("clipper_id", clipper.id).order("created_at", { ascending: false }).limit(300),
     db.from("clip_payouts").select(PAYOUT_COLUMNS).eq("clipper_id", clipper.id).order("paid_at", { ascending: false }).limit(36),
-    db.from("clip_clips").select("clipper_id,views,frozen_views").eq("status", "approved").gte("published_at", monthStart).limit(5000),
+    // Classement : tous les clips envoyés comptent dès l'envoi (en revue ou validés) ; seuls les refusés sortent.
+    db.from("clip_clips").select("clipper_id,views,frozen_views").in("status", ["review", "approved"]).gte("published_at", monthStart).limit(5000),
     db.from("clip_clippers").select("id,display_name").neq("status", "paused").limit(1000),
     db.from("clip_click_stats").select("total,last30").eq("clipper_id", clipper.id).maybeSingle(),
     db.from("clip_videos").select(VIDEO_COLUMNS).order("created_at", { ascending: false }).limit(60),
@@ -296,7 +297,7 @@ export async function clipperSpacePayload(db: SupabaseClient, clipper: Record<st
   // La courbe est un bonus : si les relevés ne se lisent pas, l'espace s'ouvre quand même (courbe vide).
   if (snapshots.error) console.error("Relevés de vues du clippeur illisibles :", snapshots.error.message);
 
-  // Classement du mois : vues des clips validés publiés ce mois-ci, parmi les clippeurs non suspendus.
+  // Classement du mois : vues des clips envoyés (en revue ou validés) publiés ce mois-ci, parmi les clippeurs non suspendus.
   const totals = new Map<string, number>();
   const monthCount = new Map<string, number>();
   const rosterRows = (roster.data ?? []) as unknown as { id: string; display_name: string | null }[];
@@ -308,7 +309,7 @@ export async function clipperSpacePayload(db: SupabaseClient, clipper: Record<st
   }
   const mine = totals.get(clipper.id) ?? 0;
   const rank = { position: [...totals.values()].filter((value) => value > mine).length + 1, total: totals.size, views: mine };
-  // Le top du mois que voient les clippeurs : prénom et initiale, vues et clips validés. Jamais de montant.
+  // Le top du mois que voient les clippeurs : prénom et initiale, vues et clips envoyés. Jamais de montant.
   const board = rosterRows
     .map((row) => ({ id: row.id, name: publicName(row.display_name ?? ""), views: totals.get(row.id) ?? 0, clips: monthCount.get(row.id) ?? 0 }))
     .sort((a, b) => b.views - a.views || b.clips - a.clips || a.name.localeCompare(b.name, "fr"));
