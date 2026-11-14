@@ -4,7 +4,18 @@ import type { ReactNode } from "react";
 import { go } from "./Shell";
 
 export type ClipChipState = "review" | "validated" | "paid" | "rejected";
-export type ClipItem = { id: string; title: string; meta: string; state: ClipChipState; note: string; views: string; money: string; url: string };
+export type ClipItem = {
+  id: string;
+  title: string;
+  meta: string;
+  state: ClipChipState;
+  note: string;
+  views: string;
+  money: string;
+  url: string;
+  /** Captures de ses statistiques (absent pour un clip refusé). */
+  stats: { count: number; open: () => void } | null;
+};
 export type ClipsVals = {
   subline: string;
   chips: { key: string; label: string; on: boolean; pick: () => void }[];
@@ -51,6 +62,12 @@ export function ClipperClips({ v }: { v: ClipsVals }) {
                   <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "3px 8px", borderRadius: "999px", background: chip.bg, color: chip.color, fontSize: "11.5px", fontWeight: "700" }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={chip.stroke} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{chip.icon}</svg>{chip.label}</span>
                   {clip.note ? <span style={{ fontSize: "12px", color: clip.state === "rejected" ? "#FF6F91" : "#A8ADA3" }}>{clip.note}</span> : null}
                 </span>
+                {clip.stats ? (
+                  <button type="button" onClick={clip.stats.open} style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: "6px", minHeight: "36px", marginTop: "2px", padding: "0 11px", borderRadius: "10px", border: clip.stats.count ? "1px solid rgba(145,214,208,0.35)" : "1px solid rgba(240,197,117,0.4)", background: clip.stats.count ? "rgba(145,214,208,0.08)" : "rgba(240,197,117,0.08)", color: clip.stats.count ? "#91D6D0" : "#F0C575", fontSize: "12.5px", fontWeight: "800", cursor: "pointer" }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 20V11M12 20V5M19 20v-6" /></svg>
+                    {clip.stats.count ? `Mes stats · ${clip.stats.count}` : "Ajouter mes stats"}
+                  </button>
+                ) : null}
               </span>
               <span style={{ flexShrink: "0", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "2px", textAlign: "right" }}>
                 <span style={{ fontSize: "13px", fontWeight: "800" }}>{clip.views}</span>

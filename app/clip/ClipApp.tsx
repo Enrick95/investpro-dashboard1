@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { Loader2 } from "lucide-react";
 import styles from "./clip.module.css";
 import ClipLogin from "./ClipLogin";
-import { ClipApiError, clipApi, clipSignOut } from "@/lib/clip/client";
+import { ClipApiError, clipApi, clipAuth, clipSignOut } from "@/lib/clip/client";
 import {
   ENRICK_TIKTOK_HANDLE,
   ENRICK_TIKTOK_URL,
@@ -55,6 +55,8 @@ import { ClipperHome, type HomeTodo } from "./views/clipper/Home";
 import { ClipperCampaigns, type CampaignCard, type CampaignFilter } from "./views/clipper/Campaigns";
 import { ClipperSubmit } from "./views/clipper/Submit";
 import { ClipperClips, type ClipChipState, type ClipItem } from "./views/clipper/Clips";
+import { ClipStatsSheet } from "./views/clipper/ClipStats";
+import { ScreenshotError, screenshotBlob } from "./views/screenshot";
 import { ClipperPayments, type PayStep } from "./views/clipper/Payments";
 import { ClipperProfile } from "./views/clipper/Profile";
 import { ClipperCharter } from "./views/clipper/Charter";
@@ -91,6 +93,8 @@ export type Me = {
   viewSnapshots?: ViewSnapshot[];
   clicks?: { total: number; last30: number };
   videos?: { id: string; title: string; note: string | null; url: string; campaign_id: string | null; created_at: string }[];
+  /** Captures des stats de ses clips (liens signés valables 1 h). */
+  captures?: { id: string; clip_id: string; url: string; created_at: string }[];
   referrals?: { name: string; approved: number; paid: boolean; joined: string }[];
 };
 type LoadState = { phase: "loading" } | { phase: "guest" } | { phase: "error"; message: string } | { phase: "ready"; me: Me };
@@ -136,6 +140,14 @@ function Brand() {
     </span>
   );
 }
+
+/** Où trouver les statistiques d'une vidéo, réseau par réseau (feuille « Stats de ton clip »). */
+const STATS_HINT: Partial<Record<ClipRow["platform"], string>> = {
+  tiktok: "Sur TikTok : ouvre ta vidéo → ••• → Analyses, puis fais une capture d'écran.",
+  youtube: "Sur YouTube Studio : Contenu → ta vidéo → Statistiques, puis fais une capture d'écran.",
+  instagram: "Sur Instagram : ouvre ta vidéo → Voir les statistiques, puis fais une capture d'écran.",
+  facebook: "Sur Facebook : ouvre ta vidéo → Statistiques, puis fais une capture d'écran.",
+};
 
 export default function ClipApp() {
   const to = useClipPath();
@@ -287,6 +299,10 @@ export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; 
   const [startOpen, setStartOpen] = useState(false);
   const startKey = `ipc-start-${clipper.id}`;
   // Bandeau « nouvelle vidéo » : affiché jusqu'à ce que le clippeur ouvre l'onglet Campagnes.
+  // Feuille « Stats de ton clip » : captures de ses statistiques.
+  const [statsClip, setStatsClip] = useState<string | null>(null);
+  const [statsBusy, setStatsBusy] = useState(false);
+  const [statsError, setStatsError] = useState<string | null>(null);
   const tickerKey = `ipc-ticker-${clipper.id}`;
   const [tickerSeen, setTickerSeen] = useState<number | null>(null);
   const [tickerReady, setTickerReady] = useState(false);
@@ -353,6 +369,52 @@ export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; 
   const summary = useMemo(() => summarize(clips, now), [clips, now]);
   const referrals = useMemo(() => me.referrals ?? [], [me.referrals]);
   const referral = referralDue(referrals);
+  const capturesByClip = useMemo(() => {
+    const grouped = new Map<string, { id: string; url: string; created_at: string }[]>();
+    for (const capture of me.captures ?? []) grouped.set(capture.clip_id, [...(grouped.get(capture.clip_id) ?? []), capture]);
+    return grouped;
+  }, [me.captures]);
+
+  /** Envoi direct vers le stockage (lien signé), puis vérification par le site. */
+  const addCapture = async (clipId: string, file: File) => {
+    if (preview) return;
+    setStatsBusy(true);
+    setStatsError(null);
+    try {
+      const image = await screenshotBlob(file);
+      const prepared = await clipApi<{ path: string; token: string }>("/api/clip/captures", { method: "POST", body: { action: "prepare", clip_id: clipId, mime_type: image.type, size_bytes: image.size } });
+      const { error } = await clipAuth().storage.from("clip-analytics").uploadToSignedUrl(prepared.path, prepared.token, image, { contentType: image.type });
+      if (error) throw new ScreenshotError("Envoi interrompu : vérifie ta connexion et réessaie.");
+      const complete = () => clipApi("/api/clip/captures", { method: "POST", body: { action: "complete", clip_id: clipId, path: prepared.path } });
+      try {
+        await complete();
+      } catch (cause) {
+        // L'image est déjà envoyée : une coupure réseau ou une image pas encore visible se rattrape en réessayant une fois.
+        if (cause instanceof ClipApiError && cause.status !== 409 && cause.status < 500) throw cause;
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        await complete();
+      }
+      await reload();
+    } catch (cause) {
+      setStatsError(cause instanceof ClipApiError || cause instanceof ScreenshotError ? cause.message : "Envoi impossible pour le moment, réessaie.");
+    } finally {
+      setStatsBusy(false);
+    }
+  };
+
+  const removeCapture = async (id: string) => {
+    if (preview) return;
+    setStatsBusy(true);
+    setStatsError(null);
+    try {
+      await clipApi("/api/clip/captures", { method: "DELETE", body: { id } });
+      await reload();
+    } catch (cause) {
+      setStatsError(cause instanceof ClipApiError ? cause.message : "Suppression impossible pour le moment, réessaie.");
+    } finally {
+      setStatsBusy(false);
+    }
+  };
   // Vues gagnées par jour (même calcul que la courbe de l'admin) : les 30 derniers jours et les 30 d'avant.
   const statDay = dayNumber(now.getTime());
   const gains30 = useMemo(() => viewGains(clips, me.viewSnapshots ?? [], statDay - 29, 30), [clips, me.viewSnapshots, statDay]);
@@ -676,6 +738,7 @@ export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; 
         views: views > 0 ? `${compact(views)} vues` : "—",
         money: itemState === "review" ? "en revue" : itemState === "rejected" ? "0 €" : formatEuro(value),
         url: clip.url,
+        stats: itemState === "rejected" ? null : { count: capturesByClip.get(clip.id)?.length ?? 0, open: () => { setStatsError(null); setStatsClip(clip.id); } },
       };
     };
     screen = (
@@ -833,6 +896,25 @@ export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; 
         </div>
       ) : null}
       {screen}
+      {statsClip ? (() => {
+        const target = clips.find((item) => item.id === statsClip);
+        if (!target) return null;
+        return (
+          <ClipStatsSheet v={{
+            title: target.title,
+            hint: STATS_HINT[target.platform] ?? "Ouvre les statistiques de ta vidéo, puis fais une capture d'écran.",
+            meta: clipViewsOf(target) > 0 ? `${dayMonth(target.published_at)} · ${compact(clipViewsOf(target))} vues` : dayMonth(target.published_at),
+            captures: (capturesByClip.get(target.id) ?? []).map((capture) => ({ id: capture.id, url: capture.url, when: ago(capture.created_at, now) })),
+            max: 6,
+            busy: statsBusy,
+            error: statsError,
+            readOnly: Boolean(preview),
+            onPick: (file) => { void addCapture(target.id, file); },
+            onRemove: (id) => { void removeCapture(id); },
+            onClose: () => setStatsClip(null),
+          }} />
+        );
+      })() : null}
       {startOpen ? <StartPopup slides={startSlides("space")} firstName={firstNameOf(clipper.display_name)} onClose={closeStart} /> : null}
     </ClipperShell>
   );

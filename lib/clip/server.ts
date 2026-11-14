@@ -5,6 +5,7 @@ import { createClient, type SupabaseClient, type User } from "@supabase/supabase
 import { NextResponse } from "next/server";
 import { authenticateAdmin, permissionsFor } from "@/lib/admin/permissions";
 import { FREEZE_DAYS, freezeAt, normalizePhone, normalizeTelegram } from "@/lib/clip/rules";
+import { captureLinks, type CaptureRow } from "@/lib/clip/captures";
 
 export const CLIPPER_COLUMNS = "id,user_id,ref,display_name,whatsapp,telegram,tracking_code,status,payout_method,payout_details,notify_email,admin_note,referred_by,referral_payout_id,created_at";
 export const ACCOUNT_COLUMNS = "id,clipper_id,platform,handle,followers,verified,created_at";
@@ -336,7 +337,12 @@ export async function clipperSpacePayload(db: SupabaseClient, clipper: Record<st
   void _user;
   void _payout;
   void _by;
+  // Captures des stats de ses clips : bonus, l'espace s'ouvre même si elles ne se lisent pas.
+  const captureRows = await db.from("clip_captures").select("id,clip_id,clipper_id,path,created_at").eq("clipper_id", clipper.id).not("confirmed_at", "is", null).order("created_at", { ascending: true }).limit(300);
+  if (captureRows.error) console.error("Captures des stats illisibles :", captureRows.error.message);
+  const captures = captureRows.error ? [] : await captureLinks(db, (captureRows.data ?? []) as unknown as CaptureRow[]);
   return {
+    captures,
     clipper: publicClipper,
     accounts: accounts.data ?? [],
     campaigns: campaigns.data ?? [],
