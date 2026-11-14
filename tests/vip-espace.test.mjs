@@ -174,7 +174,7 @@ const sizing = compile("components/vip/vipMember.ts", {
 function render(overrides = {}, { trades = [], failPerformance = false, member = {} } = {}) {
   const host = hookHost();
   const requests = [], selected = [];
-  const seen = { journal: null, compte: null };
+  const seen = { journal: null, compte: null, copie: null };
   const fetch = async url => {
     requests.push(url);
     if (url !== "/api/vip/performance") throw Error("Unexpected request " + url);
@@ -194,6 +194,7 @@ function render(overrides = {}, { trades = [], failPerformance = false, member =
     "@/lib/vip/signal-risk-preset": { ...riskPreset, riskSignalHref: postId => "/dashboard/simulateur?signal=" + encodeURIComponent(postId) },
     "./VipJournal": VipJournal,
     "./VipCompte": VipCompte,
+    "./VipCopie": function VipCopie(copie) { seen.copie = copie; return element("section", { "data-probe": "copie", children: copie.banner }); },
     "./vipMember": { ...sizing, useVipMember: () => memberFixture(member) },
     "./espaceFont": { espaceFont: "vipFont" },
     "./VipEspace.module.css": css,
@@ -224,7 +225,7 @@ test("the space opens on Signaux with honest empty states, and nothing but the l
   await host.settle();
   assert.deepEqual(requests, ["/api/vip/performance"], "The space reads only public performance figures");
   assert.equal(navButton(host, "Signaux").props["aria-current"], "page");
-  for (const label of ["Canal", "Journal", "Compte"]) assert.equal(navButton(host, label).props["aria-current"], undefined);
+  for (const label of ["Canal", "Journal", "Copie", "Compte"]) assert.equal(navButton(host, label).props["aria-current"], undefined);
   const copy = text(host.tree);
   assert.match(copy, /Aucun trade en cours/);
   assert.match(copy, /Tu seras prévenu dès que l’équipe publie un signal\./);
@@ -254,7 +255,7 @@ test("a trade in progress leads Signaux with its levels at their price and their
   assert.match(rungs, /−1,0 R/);
   assert.match(text(card), /Ajoute ton compte de trading pour voir ton lot sur chaque signal\./, "Without an account, the lot asks for one");
   assert.equal(labelled(host, "1 trade en cours").props.className, "navBadge", "The bottom bar counts the trade");
-  for (const label of ["Canal", "Journal", "Compte"]) {
+  for (const label of ["Canal", "Journal", "Copie", "Compte"]) {
     navButton(host, label).props.onClick(); await host.settle();
     assert.equal(banners(host).length, 1, label + " shows the trade in progress");
     assert.match(text(banners(host)[0]), /1 trade en cours/);

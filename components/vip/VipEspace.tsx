@@ -12,6 +12,7 @@ import type { VipMembership, VipPost, VipPostCategory, VipPostReactions, VipReac
 import type { PublicVipPerformanceTrade } from "@/lib/vip/public-performance";
 import VipJournal from "./VipJournal";
 import VipCompte from "./VipCompte";
+import VipCopie from "./VipCopie";
 import { sizeSignal, useVipMember, type LotBasis, type SignalSize, type VipMember } from "./vipMember";
 import { espaceFont } from "./espaceFont";
 import s from "./VipEspace.module.css";
@@ -19,7 +20,7 @@ import s from "./VipEspace.module.css";
 /** Every place a member can open in the space. `all` is the default feed. */
 export type VipChannel = "all" | "signal" | "analysis" | "followup" | "performance" | "partnership" | "telegram" | "chat" | "favorites" | "risk" | "training";
 /** The four sections of the VIP application, in the order of the bottom bar. */
-export type EspaceSection = "signaux" | "canal" | "journal" | "compte";
+export type EspaceSection = "signaux" | "canal" | "journal" | "copie" | "compte";
 type Lang = "fr" | "en";
 type Translate = (message: string) => string;
 type Perf = { status: "loading" | "ready" | "error"; trades: PublicVipPerformanceTrade[] };
@@ -72,9 +73,11 @@ const sections: { key: EspaceSection; label: string }[] = [
   { key: "signaux", label: "Signaux" },
   { key: "canal", label: "Canal" },
   { key: "journal", label: "Journal" },
+  // La copie du compte d'Enrick ouvre bientôt : l'onglet la présente et propose d'être prévenu.
+  { key: "copie", label: "Copie" },
   { key: "compte", label: "Compte" },
 ];
-const sectionIcons: Record<EspaceSection, typeof TrendingUp> = { signaux: TrendingUp, canal: MessageSquare, journal: CalendarDays, compte: UserRound };
+const sectionIcons: Record<EspaceSection, typeof TrendingUp> = { signaux: TrendingUp, canal: MessageSquare, journal: CalendarDays, copie: Copy, compte: UserRound };
 const emptyTitles: Partial<Record<VipChannel, string>> = {
   all: "Les publications de l’équipe apparaîtront ici.",
   analysis: "Les prochaines analyses apparaîtront ici.",
@@ -642,6 +645,7 @@ export default function VipEspace(props: VipEspaceProps) {
         {section === "signaux" ? (threadPost ? <Thread ctx={ctx} post={threadPost} /> : history ? <History ctx={ctx} /> : <Signaux ctx={ctx} />)
           : section === "canal" ? <Canal ctx={ctx} />
             : section === "journal" ? <VipJournal banner={banner} posts={posts} signalsMonthR={perf.status === "ready" && stats.monthClosed > 0 ? stats.monthTotalR : null} channelRows={perf.status === "ready" ? stats.closed : null} accounts={member.accounts} rates={member.rates} onOpenCompte={() => go("compte")} />
+              : section === "copie" ? <VipCopie banner={banner} />
               : <VipCompte banner={banner} membership={membership} member={member} alertsOn={alertsOn} alertsAvailable={alertsAvailable} onEnableAlerts={onEnableAlerts} busy={busy} onRenew={onRenew} languageControl={languageControl} accountTools={accountTools} onTelegram={() => go("canal", "telegram")} />}
       </div>
       {notice ? <div className={s.toast} role="alert"><span>{t(notice)}</span><button type="button" onClick={() => setNotice("")}>{t("Fermer")}</button></div>
@@ -650,7 +654,7 @@ export default function VipEspace(props: VipEspaceProps) {
         {sections.map(item => {
           const Icon = sectionIcons[item.key];
           return <button key={item.key} type="button" className={section === item.key ? s.navOn : undefined} aria-current={section === item.key ? "page" : undefined} onClick={() => go(item.key, item.key === "canal" && !feedChannels.includes(view) && view !== "chat" ? "all" : undefined)}>
-            <span className={s.navIcon}><Icon size={22} aria-hidden="true" />{item.key === "signaux" && openCount > 0 ? <span className={s.navBadge} aria-label={`${openCount} ${t(openCount > 1 ? "trades en cours" : "trade en cours")}`}>{openCount}</span> : null}</span>
+            <span className={s.navIcon}><Icon size={22} aria-hidden="true" />{item.key === "signaux" && openCount > 0 ? <span className={s.navBadge} aria-label={`${openCount} ${t(openCount > 1 ? "trades en cours" : "trade en cours")}`}>{openCount}</span> : item.key === "copie" ? <span className={s.navSoon} aria-label={t("bientôt")} /> : null}</span>
             {t(item.label)}
           </button>;
         })}

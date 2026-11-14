@@ -188,6 +188,7 @@ function fixture(initialAdminMode = false) {
     // Journal and Compte read the member’s own data; navigation tests only need their entry points.
     "./VipJournal": function VipJournal() { return element("section", { "data-journal": true }); },
     "./VipCompte": function VipCompte(props) { return element("section", { children: element("button", { type: "button", onClick: props.onTelegram, children: "Canal Telegram" }) }); },
+    "./VipCopie": function VipCopie() { return element("section", { "data-copie": true }); },
     "./espaceFont": { espaceFont: "vipFont" },
     "./vipMember": { useVipMember: () => ({ status: "ready", accounts: [], account: null, risk: 1, rates: null, openTrades: [], setRisk() {}, setAccount() {}, reload() {} }), sizeSignal: () => ({ ok: false, reason: "account" }), RISK_CHOICES: [0.5, 1, 2] },
   }, browser);
