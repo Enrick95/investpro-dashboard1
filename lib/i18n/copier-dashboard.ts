@@ -47,6 +47,7 @@ export const copierDashboardMessages: Readonly<Record<string, string>> = {
   "Lecture du jour indisponible pour le moment": "Today’s data is unavailable for now",
   "En attente de l’historique du jour": "Waiting for today’s history",
   "Sur tous les comptes copieurs": "Across all copier accounts",
+  "{covered}/{total} comptes lus": "{covered}/{total} accounts read",
   "Equity · {name}": "Equity · {name}",
   "Solde · {name}": "Balance · {name}",
   "Aucun compte source actif": "No active source account",

@@ -1412,7 +1412,7 @@ export default function CopieurPage() {
     const mode = risk?.mode && RISK_MODES.includes(risk.mode) ? risk.mode : null;
     if (!mode) return translate("Réglage particulier");
     if (mode === "fixed") return translate("Protections");
-    return `${translate(riskModeLabel(mode))} ${modeValue(mode, risk || {})}`.trim();
+    return `${translate(riskModeLabel(mode))} : ${modeValue(mode, risk || {})}`;
   }
 
   const copyRows = virtualReceivers.map((receiver) => {
@@ -1452,7 +1452,7 @@ export default function CopieurPage() {
           note: row.subscribed.length > 1 ? translate("{count} comptes sources").replace("{count}", String(row.subscribed.length)) : translate("Appliqué par le moteur de copie"),
         };
       }
-      return { main: `${translate(riskModeLabel(row.mode))} ${modeValue(row.mode, row.saved)}`.trim(), note: translate("Appliqué par l’équipe") };
+      return { main: `${translate(riskModeLabel(row.mode))} : ${modeValue(row.mode, row.saved)}`, note: translate("Appliqué par l’équipe") };
     }
     if (row.connection.kind === "connected") return { main: translate("À régler"), note: translate("Choisis le compte source et le volume"), tone: "gold" };
     return { main: "—", note: "" };
@@ -1464,6 +1464,10 @@ export default function CopieurPage() {
   const pendingSourceRequest = latestMasterRequests.find((request) => request.status === "pending" || request.status === "processing") || null;
   const rejectedSourceRequest = !approvedMaster && !pendingSourceRequest ? latestMasterRequests.find((request) => request.status === "rejected") || null : null;
   const activeCopyCount = copyRows.filter((row) => row.connection.kind === "connected" && row.subscribed.length > 0).length;
+  const attentionCount = copyRows.filter((row) => ["error", "stale"].includes(row.connection.kind) || (row.connection.kind === "disconnected" && row.receiver.status !== "paused")).length;
+  // Positions : somme des comptes lus récemment, avec leur nombre, plutôt qu'un tiret dès qu'un compte manque.
+  const positionRows = copyRows.filter((row) => row.stats?.open != null);
+  const knownPositions = positionRows.reduce((sum, row) => sum + Number(row.stats?.open || 0), 0);
   const daily = aggregateCopierDayResult(receiverMetrics, dailySnapshot, connectionNow);
   const floating = aggregateCopierPnl(receiverMetrics);
   const initialLoading = !engineChecked && receivers.length === 0 && activationRequests.length === 0;
@@ -1628,8 +1632,8 @@ export default function CopieurPage() {
               <span className={cn("cp-pill", `cp-tone-${pageStatus.tone}`)}><span className="cp-dot" aria-hidden="true" />{translate(pageStatus.text)}</span>
             </div>
             <p className="mt-1.5 text-[13px] leading-5 text-[color:var(--muted)]">
-              {checked ? `${translate("Dernière vérification du moteur de copie :")} ${checked}` : translate("Vérification du moteur de copie…")}
-              {errorCount > 0 ? ` · ${translate(errorCount > 1 ? "{count} comptes à vérifier" : "{count} compte à vérifier").replace("{count}", String(errorCount))}` : ""}
+              {checked ? `${translate("Dernière vérification du moteur de copie :")} ${checked}` : !engineChecked ? translate("Vérification du moteur de copie…") : enabled ? translate("Moteur de copie disponible") : translate("Moteur de copie indisponible")}
+              {attentionCount > 0 ? ` · ${translate(attentionCount > 1 ? "{count} comptes à vérifier" : "{count} compte à vérifier").replace("{count}", String(attentionCount))}` : ""}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -1702,8 +1706,11 @@ export default function CopieurPage() {
           />
           <CopyTile
             label="Positions ouvertes"
-            value={totalOpenPositions == null ? "—" : String(totalOpenPositions)}
-            sub={floating.currencies.length ? `${translate("P&L en cours")} : ${floating.currencies.map((entry) => signedMoney(entry.pnl, entry.currency)).join(", ")}` : translate("Sur tous les comptes copieurs")}
+            value={totalOpenPositions != null ? String(totalOpenPositions) : positionRows.length ? String(knownPositions) : "—"}
+            sub={[
+              floating.currencies.length ? `${translate("P&L en cours")} : ${floating.currencies.map((entry) => signedMoney(entry.pnl, entry.currency)).join(", ")}` : "",
+              totalOpenPositions == null && positionRows.length ? translate("{covered}/{total} comptes lus").replace("{covered}", String(positionRows.length)).replace("{total}", String(virtualReceivers.length)) : "",
+            ].filter(Boolean).join(" · ") || translate("Sur tous les comptes copieurs")}
           />
           <CopyTile
             label="Compte source"
@@ -1760,23 +1767,23 @@ export default function CopieurPage() {
                 const stats = row.stats;
                 const legacy = row.receiver.id === "legacy";
                 const firstSnapshotPending = Boolean(stats && stats.hasSync && !stats.lastSync && stats.balance == null && stats.equity == null);
-                return <li key={row.receiver.id} className={cn("cp-copy-grid grid grid-cols-1 gap-3 px-5 py-4 lg:items-center", riskModalOpen && row.receiver.id === selectedReceiverId ? "bg-[color:var(--gold-soft)]" : "")}>
-                  <div className="min-w-0">
+                return <li key={row.receiver.id} className={cn("cp-copy-grid grid grid-cols-2 gap-x-4 gap-y-3 px-5 py-4 lg:items-center", riskModalOpen && row.receiver.id === selectedReceiverId ? "bg-[color:var(--gold-soft)]" : "")}>
+                  <div className="col-span-2 min-w-0 lg:col-span-1">
                     <p className="break-words text-[15px] font-semibold">{row.receiver.alias}</p>
                     <p className="mt-0.5 break-words text-[12px] text-[color:var(--muted)]">{legacy ? translate("Compte relié directement au moteur de copie") : `${row.receiver.platform} · #${row.receiver.login} · ${row.receiver.server}`}</p>
                   </div>
                   <div className="min-w-0">
-                    <span className="text-[12px] text-[color:var(--muted)] lg:sr-only">{translate("Réglage")}</span>
+                    <span className="block text-[12px] text-[color:var(--muted)] lg:sr-only">{translate("Réglage")}</span>
                     <p className={cn("text-[14px] font-medium", setting.tone === "amber" ? "text-[color:var(--cp-amber)]" : setting.tone === "gold" ? "text-[color:var(--gold)]" : "")}>{setting.main}</p>
                     {setting.note ? <p className="text-[12px] leading-snug text-[color:var(--muted)]">{setting.note}</p> : null}
                   </div>
-                  <div className="flex min-w-0 flex-wrap items-center gap-2">
-                    <span className="text-[12px] text-[color:var(--muted)] lg:sr-only">{translate("Statut")}</span>
+                  <div className="flex min-w-0 flex-wrap content-start items-center gap-x-2 gap-y-1">
+                    <span className="w-full text-[12px] text-[color:var(--muted)] lg:sr-only">{translate("Statut")}</span>
                     <span className={cn("cp-pill", `cp-tone-${status.tone}`)}><span className="cp-dot" aria-hidden="true" />{translate(status.text)}</span>
                     {row.checking ? <Loader2 size={13} className="animate-spin text-[color:var(--muted)]" aria-label={translate("Vérification en cours")} /> : null}
                   </div>
                   <div className="min-w-0">
-                    <span className="text-[12px] text-[color:var(--muted)] lg:sr-only">{translate("Solde")}</span>
+                    <span className="block text-[12px] text-[color:var(--muted)] lg:sr-only">{translate("Solde")}</span>
                     {stats && stats.balance != null ? <p className="text-[14px] tabular-nums">{money(stats.balance, stats.currency)}</p>
                       : stats && !legacy && !stats.hasSync ? <a href="/dashboard/connexions/metatrader" className="cp-link text-[12px]">{translate("Relier MetaSync pour afficher le solde")}</a>
                       : stats && firstSnapshotPending && stats.syncStatus === "error" ? <p className="text-[12px] text-[color:var(--cp-red)]">{translate("MetaSync en échec.")} <a href="/dashboard/connexions/metatrader" className="cp-link">{translate("Vérifier MetaSync")}</a></p>
@@ -1784,11 +1791,11 @@ export default function CopieurPage() {
                       : <p className="text-[14px] text-[color:var(--muted)]">—</p>}
                   </div>
                   <div className="min-w-0">
-                    <span className="text-[12px] text-[color:var(--muted)] lg:sr-only">{translate("P&L en cours")}</span>
+                    <span className="block text-[12px] text-[color:var(--muted)] lg:sr-only">{translate("P&L en cours")}</span>
                     {stats && stats.pnl != null ? <p className={cn("text-[14px] font-medium tabular-nums", Number(stats.pnl) > 0 ? "cp-gain" : Number(stats.pnl) < 0 ? "cp-loss" : "")}>{signedMoney(Number(stats.pnl), stats.currency)}</p> : <p className="text-[14px] text-[color:var(--muted)]">—</p>}
                     {stats && stats.open != null ? <p className="text-[12px] text-[color:var(--muted)]">{translate(Number(stats.open) > 1 ? "{count} positions ouvertes" : "{count} position ouverte").replace("{count}", String(stats.open))}</p> : null}
                   </div>
-                  <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                  <div className="col-span-2 flex flex-wrap items-center gap-2 lg:col-span-1 lg:justify-end">
                     {legacy ? <span className="text-[12px] leading-snug text-[color:var(--muted)]">{translate("Ajoute-le comme compte copieur pour le régler")}</span> : <>
                       <button type="button" onClick={() => openSettings(row.receiver.id)} aria-label={`${translate("Régler")} · ${row.receiver.alias}`} className="cp-btn cp-btn-sm cp-btn-outline"><Settings2 size={14} aria-hidden="true" />{translate("Régler")}</button>
                       {row.connection.kind === "connected" ? <button type="button" onClick={() => openPause(row.receiver.id)} aria-label={`${translate("Pause")} · ${row.receiver.alias}`} className="cp-btn cp-btn-sm"><Pause size={14} aria-hidden="true" />{translate("Pause")}</button>
