@@ -32,6 +32,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { SthStatus } from "@/lib/sth/client";
 import CopierConnectionNetwork from "@/components/copier/CopierConnectionNetwork";
 import CopierPnlSummary from "@/components/copier/CopierPnlSummary";
+import CopierIntro from "@/components/copier/CopierIntro";
 import { buildCopierAccountMetrics, aggregateCopierPnl, type HostedCopierAccountSync } from "@/lib/copier/account-metrics";
 import { loadCopierDaySnapshot } from "@/lib/copier/day-result-loader";
 import type { CopierDaySnapshot } from "@/lib/copier/day-result";
@@ -386,6 +387,8 @@ export default function CopieurPage() {
   const [busy, setBusy] = useState(true);
   const [engineChecked, setEngineChecked] = useState(false);
   const [error, setError] = useState(false);
+  // Hors pilote, le moteur répond 403 : la page présente alors InvestPro Copy au lieu d'un tableau de bord vide.
+  const [pilotDenied, setPilotDenied] = useState(false);
   const [message, setMessage] = useState("Chargement d’InvestPro Copier…");
   const [checked, setChecked] = useState("");
   const [, setMaxLots] = useState(0.1);
@@ -828,6 +831,7 @@ export default function CopieurPage() {
       const [loadedReceivers, loadedRequests] = await Promise.all([loadRows(), loadActivationRequests()]);
       const legacy = await fetch("/api/sth?receiverId=legacy", { cache: "no-store" });
       const legacyData = await legacy.json();
+      setPilotDenied(legacy.status === 403 && !(loadedReceivers || []).length && !(loadedRequests || []).length);
       if (legacy.ok) {
         setEnabled(Boolean(legacyData.enabled));
         setLegacyConnected(Boolean(legacyData.status?.isTradingAccountConnected));
@@ -870,7 +874,8 @@ export default function CopieurPage() {
       setConnectionNow(Date.now());
       void loadFinancialRows();
     };
-    const timer = window.setInterval(refreshFinancials, 15000);
+    // Toutes les 60 s (au lieu de 15) : les comptes hébergés sont relus toutes les quelques minutes de toute façon.
+    const timer = window.setInterval(refreshFinancials, 60000);
     document.addEventListener("visibilitychange", refreshFinancials);
     window.addEventListener("focus", refreshFinancials);
     return () => {
@@ -1393,6 +1398,8 @@ export default function CopieurPage() {
     translate={translate}
     locale={locale}
   />;
+
+  if (pilotDenied) return <CopierIntro />;
 
   return (
     <>
