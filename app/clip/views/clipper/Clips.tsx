@@ -11,6 +11,8 @@ export type ClipItem = {
   state: ClipChipState;
   note: string;
   views: string;
+  /** « 4,1 % d'engagement » (TikTok, une fois relevé). */
+  engagement: string | null;
   money: string;
   url: string;
   /** Captures de ses statistiques (absent pour un clip refusé). */
@@ -60,6 +62,7 @@ export function ClipperClips({ v }: { v: ClipsVals }) {
                 <span style={{ fontSize: "12px", color: "#A8ADA3" }}>{clip.meta}</span>
                 <span style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px 8px" }}>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "3px 8px", borderRadius: "999px", background: chip.bg, color: chip.color, fontSize: "11.5px", fontWeight: "700" }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={chip.stroke} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{chip.icon}</svg>{chip.label}</span>
+                  {clip.engagement ? <span style={{ padding: "3px 8px", borderRadius: "999px", background: "rgba(145,214,208,0.1)", color: "#91D6D0", fontSize: "11.5px", fontWeight: "700" }}>{clip.engagement}</span> : null}
                   {clip.note ? <span style={{ fontSize: "12px", color: clip.state === "rejected" ? "#FF6F91" : "#A8ADA3" }}>{clip.note}</span> : null}
                 </span>
                 {clip.stats ? (

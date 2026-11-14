@@ -29,7 +29,7 @@ export type ReviewCurrent = {
   defaultAmount: number;
   earned: string | null;
 };
-export type ViewRowData = { id: string; title: string; url: string; meta: string; clipper: string; published: string; state: { tone: Tone; label: string }; views: number; amount: string; bonus: number; paid: boolean };
+export type ViewRowData = { id: string; title: string; url: string; meta: string; clipper: string; published: string; state: { tone: Tone; label: string }; views: number; engagement: { rate: string; detail: string } | null; amount: string; bonus: number; paid: boolean };
 export type ReviewVals = {
   tab: ReviewTab;
   setTab: (tab: ReviewTab) => void;
@@ -57,7 +57,7 @@ export type ReviewVals = {
 };
 
 const MANUAL: [string, string][] = [["a", "Aucune promesse de gains ni montant gagné"], ["b", "Sous-titres lisibles, bon montage"], ["c", "Respecte le brief de la campagne"]];
-const VIEW_GRID = "2.1fr 1fr 0.7fr 0.8fr 1.3fr 0.8fr 1.3fr";
+const VIEW_GRID = "2.1fr 1fr 0.7fr 0.8fr 1.3fr 1.4fr 0.8fr 1.3fr";
 
 function parseAmount(raw: string): number {
   const value = Number(raw.replace(/\s/g, "").replace(",", "."));
@@ -119,6 +119,10 @@ function ViewRow({ row, v }: { row: ViewRowData; v: ReviewVals }) {
       <span role="cell">
         <label htmlFor={`views-${row.id}`} style={S.srOnly}>Vues de {row.title}</label>
         <input id={`views-${row.id}`} inputMode="numeric" value={value} onChange={(event) => setValue(event.target.value.replace(/[^0-9]/g, "").slice(0, 11))} style={{ ...S.input, width: "100%" }} />
+      </span>
+      <span role="cell" style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: "0" }}>
+        <span style={{ fontWeight: "800", color: row.engagement ? "#91D6D0" : "#A8ADA3" }}>{row.engagement ? row.engagement.rate : "—"}</span>
+        {row.engagement ? <span style={{ fontSize: "11.5px", lineHeight: "1.35", color: "#A8ADA3" }}>{row.engagement.detail}</span> : null}
       </span>
       <span role="cell" style={{ fontWeight: "800" }}>{row.amount}</span>
       <span role="cell" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -302,7 +306,7 @@ export function AdminReview({ v }: { v: ReviewVals }) {
           <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: "4px", maxWidth: "640px" }}>
               <h2 id="t-vues-saisir" style={S.h2}>Vues et bonus</h2>
-              <span style={S.sub}>Les vues TikTok et YouTube se relèvent toutes seules toutes les 3 h, dès l&apos;envoi du clip. Instagram et les autres réseaux : saisis-les ici. Pour un clip qui cartonne, ajoute un bonus : il s&apos;ajoute au prochain versement du clippeur.</span>
+              <span style={S.sub}>Les vues TikTok et YouTube se relèvent toutes seules toutes les 3 h, dès l&apos;envoi du clip, avec l&apos;engagement TikTok : (j&apos;aime + commentaires + partages + enregistrements) ÷ vues. Instagram et les autres réseaux : saisis les vues ici. Pour un clip qui cartonne, ajoute un bonus : il s&apos;ajoute au prochain versement du clippeur.</span>
             </div>
             <span style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px" }}>
               <button type="button" disabled={v.busy} onClick={v.refreshViews} style={{ ...S.ghost, minHeight: "40px", padding: "0 12px" }}>Actualiser les vues</button>
@@ -310,9 +314,9 @@ export function AdminReview({ v }: { v: ReviewVals }) {
             </span>
           </div>
           <div style={{ position: "relative", overflowX: "auto" }}>
-            <div role="table" aria-label="Vues et bonus des clips validés" style={{ minWidth: "980px", display: "flex", flexDirection: "column" }}>
+            <div role="table" aria-label="Vues et bonus des clips validés" style={{ minWidth: "1100px", display: "flex", flexDirection: "column" }}>
               <div role="row" style={{ display: "grid", gridTemplateColumns: VIEW_GRID, gap: "12px", padding: "0 8px 10px", fontSize: "12px", fontWeight: "600", color: "#A8ADA3" }}>
-                {["Clip", "Clippeur", "Publié", "État", "Vues", "Montant", "Bonus"].map((title) => <span key={title} role="columnheader">{title}</span>)}
+                {["Clip", "Clippeur", "Publié", "État", "Vues", "Engagement", "Montant", "Bonus"].map((title) => <span key={title} role="columnheader">{title}</span>)}
               </div>
               {v.viewRows.map((row) => <ViewRow key={row.id} row={row} v={v} />)}
               {!v.viewRows.length ? <div style={{ padding: "18px 8px", borderTop: "1px solid rgba(255,255,255,0.06)", fontSize: "13px", color: "#A8ADA3" }}>Aucun clip validé pour l&apos;instant.</div> : null}

@@ -50,6 +50,12 @@ export function dateRange(start: string, end: string): string {
   return sameMonth ? `Du ${ordinal(a.getUTCDate())} au ${dayMonth(end)}` : `Du ${dayMonth(start)} au ${dayMonth(end)}`;
 }
 
+/** « 4,1 % », « 0,6 % », « 12 % » */
+export function percent(value: number): string {
+  const rounded = value >= 9.95 ? Math.round(value) : Math.round(value * 10) / 10;
+  return `${String(rounded).replace(".", ",")}\u00a0%`;
+}
+
 /** « 4,82 M », « 312 k », « 12,4 k », « 980 » */
 export function compact(value: number): string {
   const n = Math.max(0, Math.round(value));

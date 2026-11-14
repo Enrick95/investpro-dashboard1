@@ -8,6 +8,8 @@ export type ClipStatsVals = {
   meta: string;
   /** Où trouver ses statistiques sur le réseau du clip. */
   hint: string;
+  /** Vues et interactions relevées toutes seules sur la page du clip (TikTok). */
+  auto: string | null;
   captures: ClipStatsCapture[];
   max: number;
   busy: boolean;
@@ -56,6 +58,12 @@ export function ClipStatsSheet({ v }: { v: ClipStatsVals }) {
         <p style={{ margin: "0", fontSize: "13px", lineHeight: "1.55", color: "#C4C8BD" }}>
           {v.readOnly ? "Les captures des statistiques envoyées par le clippeur." : "Ajoute une capture des statistiques de ta vidéo : vues, temps de visionnage, rétention, partages… Enrick les regarde avant de valider ton clip."}
         </p>
+        {v.auto ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: "3px", padding: "10px 12px", borderRadius: "12px", background: "rgba(145,214,208,0.07)", border: "1px solid rgba(145,214,208,0.25)", fontSize: "12.5px", lineHeight: "1.5" }}>
+            <span style={{ fontWeight: "800", color: "#91D6D0" }}>Relevé tout seul sur TikTok</span>
+            <span style={{ color: "#C4C8BD" }}>{v.auto}</span>
+          </div>
+        ) : null}
         {v.captures.length ? (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "8px" }}>
             {v.captures.map((capture, index) => (

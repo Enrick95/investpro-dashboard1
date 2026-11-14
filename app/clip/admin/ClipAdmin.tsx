@@ -26,6 +26,7 @@ import {
   clipValue,
   cycleFor,
   daysUntil,
+  engagementRate,
   formatEuro,
   formatInt,
   num,
@@ -43,7 +44,7 @@ import {
   type PayoutMethod,
   type PayoutRow,
 } from "@/lib/clip/rules";
-import { ago, compact, dateRange, dayMonth, firstNameOf, initialsOf, longDay, maskDetails, maskPhone, monthName, ordinal, pct, plural, shortDay } from "@/lib/clip/format";
+import { ago, compact, dateRange, dayMonth, firstNameOf, initialsOf, longDay, maskDetails, maskPhone, monthName, ordinal, pct, percent, plural, shortDay } from "@/lib/clip/format";
 import { AdminShell, type AdminSection, type NavCounts } from "../views/admin/Shell";
 import { useClipPath } from "../views/clipPath";
 import { Flash } from "../views/admin/kit";
@@ -141,6 +142,21 @@ function sectionFromHash(): AdminSection {
 
 function clipViews(clip: ClipRow): number {
   return clip.frozen_views !== null && clip.frozen_views !== undefined ? num(clip.frozen_views) : num(clip.views);
+}
+
+/** « 120 j'aime · 8 comm. · 5 partages · 12 enreg. » (TikTok, relevé avec les vues). */
+function engagementDetail(clip: ClipRow): string {
+  const parts = [`${formatInt(num(clip.likes))} j'aime`, `${formatInt(num(clip.comments))} comm.`, `${formatInt(num(clip.shares))} partages`];
+  if (clip.saves !== null && clip.saves !== undefined) parts.push(`${formatInt(num(clip.saves))} enreg.`);
+  return parts.join(" · ");
+}
+
+/** Ligne « Engagement » de la revue d'un clip. */
+function engagementValue(clip: ClipRow): string {
+  const rate = engagementRate(clip);
+  if (rate !== null) return `${percent(rate)} · ${engagementDetail(clip)}`;
+  if (clip.platform !== "tiktok") return `pas relevé sur ${PLATFORM_LABEL[clip.platform]} : regarde ses captures`;
+  return clip.engagement_at ? `pas encore de vues · ${engagementDetail(clip)}` : "relevé avec les vues, toutes les 3 h";
 }
 
 function waLink(phone: string | null | undefined, text?: string): string | null {
@@ -1022,6 +1038,7 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
           { label: "Campagne", value: campaign ? `${campaign.title} · ${position}${position === 1 ? "er" : "e"} clip sur ${campaign.quota_per_clipper}` : "campagne supprimée" },
           { label: "Publié", value: dayLabel(current.published_at, now) },
           { label: "Vues", value: current.views_updated_at ? `${formatInt(clipViews(current))} · maj ${ago(current.views_updated_at, now)}` : current.platform === "tiktok" || current.platform === "youtube" ? "relevé automatique en cours" : "à saisir dans « Vues et bonus »" },
+          { label: "Engagement", value: engagementValue(current) },
           { label: "Réseau", value: PLATFORM_LABEL[current.platform] },
         ],
         flagText: flagOf(current),
@@ -1050,6 +1067,7 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
       .map((clip) => {
         const campaign = base.campaignsById.get(clip.campaign_id);
         const paid = clipState(clip) === "paid";
+        const rate = engagementRate(clip);
         return {
           id: clip.id,
           title: clip.title,
@@ -1059,6 +1077,7 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
           published: dayMonth(clip.published_at),
           state: paid ? { tone: "ok" as const, label: "Payé" } : { tone: "gold" as const, label: "À payer" },
           views: clipViews(clip),
+          engagement: rate === null ? null : { rate: percent(rate), detail: engagementDetail(clip) },
           amount: euro(num(clip.amount)),
           bonus: num(clip.bonus),
           paid,
@@ -1074,12 +1093,14 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
       queue: queueClips.map((clip) => {
         const clipper = clip.clipper_id ? base.clippersById.get(clip.clipper_id) : undefined;
         const campaign = base.campaignsById.get(clip.campaign_id);
+        const views = clipViews(clip);
+        const rate = engagementRate(clip);
         return {
           id: clip.id,
           ini: clipper ? initialsOf(clipper.display_name) : "C",
           who: `${clipper?.display_name ?? "Clippeur"} · ${clip.ref}`,
           title: clip.title,
-          meta: `${PLATFORM_LABEL[clip.platform]} · ${campaign?.title ?? "campagne"}`,
+          meta: views > 0 ? `${PLATFORM_LABEL[clip.platform]} · ${compact(views)} vues${rate !== null ? ` · ${percent(rate)} d'engagement` : ""}` : `${PLATFORM_LABEL[clip.platform]} · ${campaign?.title ?? "campagne"}`,
           age: ageShort(clip.created_at, now),
           flag: Boolean(flagOf(clip)),
           decision: decided[clip.id] ?? null,
@@ -1425,6 +1446,7 @@ export function AdminSpace({ data, reload }: { data: Data; reload: () => Promise
         { label: "Parrainage", value: `${euroShort(REFERRAL_BONUS)} quand un filleul a ${REFERRAL_CLIPS} clips validés`, note: "Ajouté tout seul au versement suivant du parrain" },
         { label: "Seuil de versement", value: euroRound(MIN_PAYOUT), note: "En dessous, le montant passe au cycle suivant" },
         { label: "Vues des clips", value: "TikTok et YouTube : relevées toutes seules toutes les 3 h", note: "Instagram, Facebook, Snapchat et X : à saisir à la main dans « Vues et bonus »" },
+        { label: "Engagement", value: "TikTok : j'aime, commentaires, partages et enregistrements relevés avec les vues", note: "Taux = (j'aime + commentaires + partages + enregistrements) ÷ vues" },
         { label: "VIP ramenés par les clips", value: "Pas encore suivis", soon: true },
         { label: "WhatsApp", value: `${ENRICK_WHATSAPP_LABEL} · pas encore relié au site`, note: "Les messages partent déjà de ton WhatsApp en un clic ; le tri automatique viendra quand il sera relié", soon: true },
         { label: "Accès admin", value: "Toi seul (propriétaire du site)" },
