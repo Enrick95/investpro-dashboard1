@@ -39,7 +39,7 @@ export function ClipperCharter({ v }: { v: CharterVals }) {
       </section>
       <section style={card}>
         <h2 style={{ margin: "0", fontSize: "14px", fontWeight: "800" }}>Paiement</h2>
-        <Lines tone="ok" items={["Chaque clip validé par Enrick te rapporte de l'argent : tu vois le montant sur le clip dès qu'il est validé.", "Un clip qui cartonne peut recevoir un bonus en plus.", v.referral, `Versements le 1er et le 16 du mois, dès ${v.minPayout} acquis.`]} />
+        <Lines tone="ok" items={["Enrick valide un clip quand il a fait assez de vues et d'engagement. En attendant, il compte déjà dans le classement.", "Chaque clip validé par Enrick te rapporte de l'argent : tu vois le montant sur le clip dès qu'il est validé.", "Un clip qui cartonne peut recevoir un bonus en plus.", v.referral, `Versements le 1er et le 16 du mois, dès ${v.minPayout} acquis.`]} />
       </section>
       <section style={card}>
         <h2 style={{ margin: "0", fontSize: "14px", fontWeight: "800" }}>Si une règle n&apos;est pas respectée</h2>

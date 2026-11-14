@@ -504,7 +504,7 @@ export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; 
         received: euroShort(received),
         receivedNote: payouts.length ? plural(payouts.length, "versement") : "aucun versement",
         review: plural(summary.review, "clip"),
-        reviewNote: "réponse sous 24 h",
+        reviewNote: "déjà au classement",
         todos,
         campaigns: live.map((campaign) => {
           const mine = mineIn(campaign.id);
@@ -599,7 +599,7 @@ export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; 
           title: handle ? `@${handle} · ${PLATFORM_LABEL[platform]}` : PLATFORM_LABEL[platform],
           account: ok ? (handle ? "Compte de ton profil" : `Compte ${PLATFORM_LABEL[platform]} de ton profil : ${onPlatform.map((account) => `@${account.handle}`).join(", ")}`) : onPlatform.length ? `@${handle} n'est pas dans ton profil : ajoute-le d'abord` : `Ajoute ton compte ${PLATFORM_LABEL[platform]} dans ton profil`,
           ok,
-          views: "Enrick regarde ton clip et le valide sous 24 h",
+          views: "Il entre au classement dès l'envoi. Enrick le valide quand il a fait assez de vues et d'engagement.",
         } : null,
         linkError: link.trim() && !platform ? `Colle le lien complet de ta vidéo (${NETWORKS_TEXT}), qui commence par https://.` : null,
         campaigns: live.map((campaign) => {
@@ -666,7 +666,7 @@ export function ClipperSpace({ me, clipper, reload, preview = null }: { me: Me; 
       const views = clipViewsOf(clip);
       const value = clipValue(clip);
       const bonus = num(clip.bonus);
-      const note = itemState === "review" ? "réponse sous 24 h" : itemState === "rejected" ? clip.reject_reason ?? "" : itemState === "validated" ? (bonus > 0 ? `acquis, dont ${euroShort(bonus)} de bonus` : "acquis") : bonus > 0 ? `versé, dont ${euroShort(bonus)} de bonus` : "versé";
+      const note = itemState === "review" ? "au classement · validé selon ses vues et son engagement" : itemState === "rejected" ? clip.reject_reason ?? "" : itemState === "validated" ? (bonus > 0 ? `acquis, dont ${euroShort(bonus)} de bonus` : "acquis") : bonus > 0 ? `versé, dont ${euroShort(bonus)} de bonus` : "versé";
       return {
         id: clip.id,
         title: clip.title,

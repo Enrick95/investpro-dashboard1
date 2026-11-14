@@ -42,7 +42,7 @@ export function ClipperSubmit({ v }: { v: SubmitVals }) {
           <span style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: "800", color: "#91D6D0" }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M5 12.5l4.5 4.5L19 7.5" />
             </svg>Clip envoyé</span>
-          <span style={{ fontSize: "13px", color: "#C4C8BD" }}>Enrick te répond sous 24 h, ici et sur WhatsApp.</span>
+          <span style={{ fontSize: "13px", color: "#C4C8BD" }}>Il compte déjà dans le classement : ses vues se mettent à jour toutes seules. Enrick le valide quand il a fait assez de vues et d&apos;engagement.</span>
           <span style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
             <a href="#clips" onClick={go(v.onClips)} style={{ display: "flex", alignItems: "center", minHeight: "44px", fontSize: "13px", fontWeight: "800", textDecoration: "none" }}>Voir mes clips</a>
             <a href="#soumettre" onClick={go(v.again)} style={{ display: "flex", alignItems: "center", minHeight: "44px", fontSize: "13px", fontWeight: "800", textDecoration: "none" }}>Soumettre un autre clip</a>
@@ -145,7 +145,7 @@ export function ClipperSubmit({ v }: { v: SubmitVals }) {
       ) : (
         <button type="button" disabled style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", minHeight: "52px", borderRadius: "15px", border: "0", background: "rgba(255,255,255,0.08)", color: "#A8ADA3", fontSize: "14px", fontWeight: "700" }}>{v.missing}</button>
       )}
-      <span style={{ fontSize: "12.5px", color: "#A8ADA3", textAlign: "center" }}>Réponse sous 24 h, ici et sur WhatsApp.</span>
+      <span style={{ fontSize: "12.5px", color: "#A8ADA3", textAlign: "center" }}>Ton clip entre au classement dès l&apos;envoi. Enrick le valide selon ses vues et son engagement.</span>
     </>
   );
 }
