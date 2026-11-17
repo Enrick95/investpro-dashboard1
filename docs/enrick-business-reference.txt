@@ -27,3 +27,8 @@ Enrick, deux boutons Copier/Revoir uniquement. Animation en deux gestes jouée u
 fois puis rejouable ; les étapes peuvent être sélectionnées manuellement.
 /business/acces : détection indicative du navigateur externe vers /business ;
 /business/acces?guide=1 force l’aperçu du guide. Le lien bio reste /business/acces.
+
+Photos personnelles ajoutées le 18 novembre 2026 : six JPEG fournis par Enrick,
+conservés sans retouche. Galerie animée : les six photos et la photo de trading.
+Le portrait en tenue verte illustre l’accompagnement, le téléphone du guide TikTok
+et les métadonnées de partage. Les cadrages sont appliqués uniquement en CSS.
