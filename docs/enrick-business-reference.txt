@@ -40,7 +40,13 @@ photos fournies et la photo de trading forment onze vues, sans retouche des JPEG
 Vidéo d’ouverture : extrait du fichier personnel « drone piscine .mp4 » (33,77 s).
 Boucle finale de 6,00 s, début à 20,5 s ; raccord fondu de 0,5 s entre la fin
 (26 à 26,5 s) et le début (20 à 20,5 s) pour adoucir la répétition.
-MP4 H.264 sans piste audio : 1280×720 sur ordinateur, 540×960 sur mobile avec
-cadrage de la piscine. Fichier original conservé sur le Bureau, non envoyé au dépôt.
+MP4 H.264 sans piste audio : 1920×1080 natif sur ordinateur, 608×1080 sur mobile
+avec cadrage de la piscine, sans réduction de la hauteur du fichier source. Fichier original conservé sur le Bureau, non envoyé au dépôt.
 Image fixe avant lecture ou si le navigateur bloque la vidéo ; pause accessible,
 pause hors écran/onglet masqué et image fixe par défaut en mouvement réduit.
+
+Qualité améliorée à la demande du propriétaire : nouvel encodage depuis le fichier
+original Full HD / 30 i/s, H.264 CRF 20, débit maximal de 8 Mb/s sur ordinateur
+et de 4 Mb/s sur mobile. La première version
+était limitée à 720p et environ 1,4 Mb/s (mobile 540×960 et 0,9 Mb/s).
+Les URLs vidéo et image portent une nouvelle version pour éviter l’ancien cache.
