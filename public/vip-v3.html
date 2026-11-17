@@ -531,7 +531,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
   var y=document.querySelector('[data-year]');if(y)y.textContent=new Date().getFullYear();
 
   var note=document.querySelector('.note');
-  if(note){requestAnimationFrame(function(){setTimeout(function(){note.classList.add('is-drawn')},120)})}
+  if(note){setTimeout(function(){note.classList.add('is-drawn')},150)}
 
   var box=document.querySelector('[data-results]');
   if(!box)return;
@@ -551,7 +551,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
       var k=String(x.trade_date).slice(0,7);if(!(k in months)){months[k]=0;order.push(k)}months[k]+=v;
     });
     var tot=box.querySelector('[data-total]');tot.textContent=r(total);tot.classList.add(total>0.04?'pos':total<-0.04?'neg':'flat');
-    box.querySelector('[data-since]').textContent='depuis le '+longDate.format(day(t[0].trade_date))+', sur tous les trades clôturés';
+    box.querySelector('[data-since]').textContent='depuis le '+longDate.format(day(t[0].trade_date)).replace(/^1 /,'1er ')+', sur tous les trades clôturés';
     box.querySelector('[data-n]').textContent=t.length;box.querySelector('[data-w]').textContent=w;box.querySelector('[data-l]').textContent=l;
     box.querySelector('[data-be]').textContent=be;if(!be)box.querySelector('[data-be-wrap]').hidden=true;
     var vals=order.map(function(k){return months[k]}),max=Math.max.apply(null,vals.concat([0])),min=Math.min.apply(null,vals.concat([0])),span=(max-min)||1,zero=(-min)/span*100;
