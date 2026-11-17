@@ -50,3 +50,7 @@ original Full HD / 30 i/s, H.264 CRF 20, débit maximal de 8 Mb/s sur ordinateur
 et de 4 Mb/s sur mobile. La première version
 était limitée à 720p et environ 1,4 Mb/s (mobile 540×960 et 0,9 Mb/s).
 Les URLs vidéo et image portent une nouvelle version pour éviter l’ancien cache.
+
+Rangée secondaire « Mes photos » retirée à la demande du propriétaire.
+La galerie animée principale et la grande photo des coulisses restent présentes.
+Les propositions de pictogrammes en verre restent à l’état de maquette.
