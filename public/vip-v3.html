@@ -763,7 +763,8 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
     var step=function(){if(!running)return;push(events[k%events.length],true);k++;timer=setTimeout(step,k%2?2000:2700)};
     wrap.classList.add('ready');
     if(reduce){push(events[1],false);if(window.innerWidth>=900)push(events[0],false);return}
-    var start=function(){if(running)return;running=true;timer=setTimeout(step,k?400:700)};
+    push(events[0],false);k=1;
+    var start=function(){if(running)return;running=true;timer=setTimeout(step,1600)};
     var stop=function(){running=false;clearTimeout(timer)};
     watch(wrap,function(on){if(on&&!document.hidden)start();else stop()});
     document.addEventListener('visibilitychange',function(){if(document.hidden)stop();else if(wrap.classList.contains('is-visible'))start()});
