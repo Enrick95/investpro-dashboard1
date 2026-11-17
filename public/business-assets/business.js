@@ -27,9 +27,30 @@ new IntersectionObserver(entries=>{visible=entries[0].isIntersecting;syncGallery
 document.addEventListener('visibilitychange',syncGallery);reduced.addEventListener('change',()=>{paused=reduced.matches;syncGallery();});galleryIndex();syncGallery();
 // Reveal content once; reduced-motion and unavailable observers keep it visible.
 if(!reduced.matches&&'IntersectionObserver'in window){document.documentElement.classList.add('js');const observer=new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('is-visible');observer.unobserve(e.target);}}),{rootMargin:'40px 0px',threshold:.05});site.querySelectorAll('[data-reveal]').forEach(el=>observer.observe(el));}
-// Same full-screen opening as the reference, using the owner's still photo until a video is supplied.
-const film=site.querySelector('[data-scroll-film]'),filmImage=film.querySelector('img'),progress=document.getElementById('progress');let queued=false;
-function updateScroll(){queued=false;const rect=film.getBoundingClientRect(),stage=film.querySelector('.biz-scroll-film-stage'),range=Math.max(1,film.offsetHeight-stage.offsetHeight);const p=Math.max(0,Math.min(1,(parseFloat(getComputedStyle(stage).top)-rect.top)/range));film.style.setProperty('--film-progress',p);film.style.setProperty('--film-title-opacity',reduced.matches?1:Math.max(0,Math.min(1,(p-.1)*2)));filmImage.style.transform=reduced.matches?'none':'scale('+(1+p*.065)+')';const total=document.documentElement.scrollHeight-innerHeight;progress.style.transform='scaleX('+(total>0?scrollY/total:0)+')';}
+// Six-second opening, with a still image until playback is available.
+const film=site.querySelector('[data-scroll-film]'),filmMedia=film.querySelectorAll('.biz-scroll-film-video'),filmVideo=film.querySelector('video'),filmToggle=film.querySelector('[data-film-pause]'),progress=document.getElementById('progress');let queued=false;
+if(filmVideo&&filmToggle){
+  let filmVisible=false,userPaused=false,manualPlay=false,failed=false;
+  filmVideo.muted=true;filmVideo.defaultMuted=true;filmToggle.hidden=false;
+  function updateFilmButton(){const playing=!filmVideo.paused;filmToggle.textContent=playing?'Pause':'Lire la vidéo';filmToggle.setAttribute('aria-label',playing?'Mettre la vidéo d’ouverture en pause':'Lire la vidéo d’ouverture');}
+  function syncFilmPlayback(){
+    if(failed)return;
+    if(filmVisible&&!document.hidden&&!userPaused&&(!reduced.matches||manualPlay)){
+      if(!filmVideo.getAttribute('src'))filmVideo.src=matchMedia('(max-width:640px)').matches?filmVideo.dataset.mobileSrc:filmVideo.dataset.desktopSrc;
+      filmVideo.play().catch(updateFilmButton);
+    }else filmVideo.pause();
+    updateFilmButton();
+  }
+  filmToggle.addEventListener('click',()=>{userPaused=!filmVideo.paused;manualPlay=!userPaused;syncFilmPlayback();});
+  filmVideo.addEventListener('playing',()=>{film.classList.add('is-film-ready');updateFilmButton();});
+  filmVideo.addEventListener('pause',updateFilmButton);
+  filmVideo.addEventListener('error',()=>{failed=true;film.classList.remove('is-film-ready');filmToggle.hidden=true;});
+  document.addEventListener('visibilitychange',syncFilmPlayback);
+  reduced.addEventListener('change',()=>{manualPlay=false;syncFilmPlayback();});
+  if('IntersectionObserver'in window)new IntersectionObserver(entries=>{filmVisible=entries[0].isIntersecting;syncFilmPlayback();},{threshold:.1}).observe(film.querySelector('.biz-scroll-film-stage'));
+  else{filmVisible=true;syncFilmPlayback();}
+}
+function updateScroll(){queued=false;const rect=film.getBoundingClientRect(),stage=film.querySelector('.biz-scroll-film-stage'),range=Math.max(1,film.offsetHeight-stage.offsetHeight);const p=Math.max(0,Math.min(1,(parseFloat(getComputedStyle(stage).top)-rect.top)/range));film.style.setProperty('--film-progress',p);film.style.setProperty('--film-title-opacity',reduced.matches?1:Math.max(0,Math.min(1,(p-.1)*2)));filmMedia.forEach(media=>{media.style.transform=reduced.matches?'none':'scale('+(1+p*.065)+')';});const total=document.documentElement.scrollHeight-innerHeight;progress.style.transform='scaleX('+(total>0?scrollY/total:0)+')';}
 function queueScroll(){if(!queued){queued=true;requestAnimationFrame(updateScroll);}}
 window.addEventListener('scroll',queueScroll,{passive:true});window.addEventListener('resize',queueScroll,{passive:true});reduced.addEventListener('change',()=>{site.querySelectorAll('[data-reveal]').forEach(el=>el.classList.add('is-visible'));queueScroll();});updateScroll();
 })();

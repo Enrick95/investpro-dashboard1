@@ -1,6 +1,10 @@
 /* Enrick content adjustments; composition and colors remain in reference-layout.css. */
 #site-content .biz-scroll-film-copy{pointer-events:auto}
 #site-content .biz-scroll-film-video{object-position:50% 50%;will-change:transform}
+#site-content .biz-film-player{opacity:0}
+#site-content .is-film-ready .biz-film-player{opacity:1}
+#site-content .biz-film-motion{position:absolute;z-index:4;top:20px;right:24px;min-height:44px;padding:8px 16px;border:1px solid #ddc2a65c;border-radius:999px;background:#080909b8;color:#f4efe6;font:12px Biotif,Arial,sans-serif;cursor:pointer;backdrop-filter:blur(8px)}
+#site-content .biz-film-motion[hidden]{display:none}
 #site-content .biz-scroll-film-headline{max-width:850px}
 #site-content .biz-hero h1{margin-inline:auto}
 #site-content .reel-motion{position:relative;z-index:3;margin:-12px auto 22px;padding:7px 12px;border:0;background:transparent;color:#a6a59f;font:11px Biotif,Arial,sans-serif;text-decoration:underline;text-underline-offset:4px;cursor:pointer}

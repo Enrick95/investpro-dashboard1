@@ -12,9 +12,9 @@ Toutes les photos sont les photos Enrick déjà présentes dans le dépôt ou fo
 par le propriétaire. Aucun résultat, chiffre de clientèle, témoignage ou vidéo de
 Leris n’est attribué à Enrick.
 
-À compléter avec le propriétaire : vidéo personnelle pour l’ouverture et vidéos
-d’archives personnelles. La version actuelle affiche de vraies photos à leur place,
-sans bouton de lecture vidéo fictif. L’offre finale du formulaire reste /vip.
+À compléter avec le propriétaire : vidéos d’archives personnelles. Cette section
+présente des photos sans bouton de lecture fictif. L’offre finale du formulaire
+reste /vip. La vidéo personnelle d’ouverture a été fournie et intégrée.
 
 Formulaire : lead-flow.css et questions/logique de lead-flow.js conservés du ZIP.
 Aucun enregistrement serveur des réponses. WhatsApp reste à envoyer par le visiteur.
@@ -36,3 +36,11 @@ et les métadonnées de partage. Les cadrages sont appliqués uniquement en CSS.
 Seconde série : quatre JPEG personnels ajoutés à la même galerie (ordinateur en
 tenue bleue, portrait en blanc, intérieur en bleu, détail de montre). Les dix
 photos fournies et la photo de trading forment onze vues, sans retouche des JPEG.
+
+Vidéo d’ouverture : extrait du fichier personnel « drone piscine .mp4 » (33,77 s).
+Boucle finale de 6,00 s, début à 20,5 s ; raccord fondu de 0,5 s entre la fin
+(26 à 26,5 s) et le début (20 à 20,5 s) pour adoucir la répétition.
+MP4 H.264 sans piste audio : 1280×720 sur ordinateur, 540×960 sur mobile avec
+cadrage de la piscine. Fichier original conservé sur le Bureau, non envoyé au dépôt.
+Image fixe avant lecture ou si le navigateur bloque la vidéo ; pause accessible,
+pause hors écran/onglet masqué et image fixe par défaut en mouvement réduit.
