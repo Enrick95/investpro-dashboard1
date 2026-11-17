@@ -1,29 +1,8 @@
 (()=>{'use strict';
-  const stage=document.getElementById('phone-stage');
-  const svg=document.getElementById('guide-arrow');
-  const path=document.getElementById('guide-path');
-  const menu=document.getElementById('phone-menu');
-  const dots=document.getElementById('phone-dots');
-  const option=document.getElementById('phone-browser-option');
-  const motion=document.getElementById('motion-control');
-  const reduced=matchMedia('(prefers-reduced-motion:reduce)');
-  let step=1,paused=reduced.matches,timer;
-  function position(){
-    const box=stage.getBoundingClientRect();
-    const target=(step===1?dots:option).getBoundingClientRect();
-    const screen=document.querySelector('.phone-screen');
-    screen.querySelector('iframe').style.transform='scale('+(screen.clientWidth/390)+')';
-    const x=target.left-box.left+target.width/2,y=target.top-box.top+target.height/2;
-    svg.setAttribute('viewBox','0 0 '+box.width+' '+box.height);
-    path.setAttribute('d','M 125 42 C '+(box.width-15)+' 32, '+(box.width-8)+' '+Math.max(60,y-60)+', '+x+' '+y);
-  }
-  function render(){menu.hidden=step!==2;dots.classList.toggle('highlight',step===1);document.querySelectorAll('[data-guide-step]').forEach(button=>button.setAttribute('aria-pressed',String(Number(button.dataset.guideStep)===step)));document.getElementById('pointer-label').textContent=step===1?'CLIQUE ICI':'PUIS CETTE OPTION';requestAnimationFrame(position);}
-  function updateTimer(){clearInterval(timer);const stopped=paused||reduced.matches||document.hidden;motion.textContent=stopped?'Lancer l’animation':'Mettre l’animation en pause';motion.setAttribute('aria-pressed',String(stopped));motion.hidden=reduced.matches;if(!stopped)timer=setInterval(()=>{step=step===1?2:1;render();},4500);}
-  document.querySelectorAll('[data-guide-step]').forEach(button=>button.addEventListener('click',()=>{step=Number(button.dataset.guideStep);paused=true;render();updateTimer();}));
-  motion.addEventListener('click',()=>{paused=!paused;updateTimer();});
-  reduced.addEventListener('change',()=>{paused=reduced.matches;updateTimer();});
-  document.addEventListener('visibilitychange',updateTimer);
-  window.addEventListener('resize',position);window.addEventListener('orientationchange',()=>requestAnimationFrame(position));
-  if('ResizeObserver'in window)new ResizeObserver(position).observe(stage);
-  render();updateTimer();
+const stage=document.getElementById('phone-stage'),svg=document.getElementById('guide-arrow'),path=document.getElementById('guide-path'),menu=document.getElementById('menu-sheet'),dots=document.getElementById('dots-demo'),option=document.getElementById('open-browser-demo'),motion=document.getElementById('motion-control'),reduced=matchMedia('(prefers-reduced-motion:reduce)');
+let step=1,paused=reduced.matches,timer;
+function position(){const box=stage.getBoundingClientRect(),target=(step===1?dots:option).getBoundingClientRect(),label=stage.querySelector('.phone-callout').getBoundingClientRect(),screen=stage.querySelector('.site-iframe');screen.querySelector('iframe').style.transform='scale('+(screen.clientWidth/390)+')';const x=target.left-box.left+target.width/2,y=target.top-box.top+target.height/2,sx=label.left-box.left+label.width*.7,sy=label.bottom-box.top+5;svg.setAttribute('viewBox','0 0 '+box.width+' '+box.height);path.setAttribute('d','M '+sx+' '+sy+' C '+sx+' '+(sy+42)+', '+(x+70)+' '+(y-55)+', '+x+' '+y);}
+function render(){menu.classList.toggle('is-visible',step===2);dots.classList.toggle('highlight',step===1);document.querySelectorAll('[data-guide-step]').forEach(b=>{const active=Number(b.dataset.guideStep)===step;b.setAttribute('aria-pressed',String(active));b.classList.toggle('active',active);});document.getElementById('pointer-label').textContent=step===1?'CLIQUE ICI':'PUIS CETTE OPTION';requestAnimationFrame(position);}
+function sync(){clearInterval(timer);const stopped=paused||reduced.matches||document.hidden;motion.textContent=stopped?'Lancer l’animation':'Mettre l’animation en pause';motion.setAttribute('aria-pressed',String(stopped));motion.hidden=reduced.matches;if(!stopped)timer=setInterval(()=>{step=step===1?2:1;render();},4500);}
+document.querySelectorAll('[data-guide-step]').forEach(b=>b.addEventListener('click',()=>{step=Number(b.dataset.guideStep);paused=true;render();sync();}));motion.addEventListener('click',()=>{paused=!paused;sync();});document.getElementById('replay').addEventListener('click',()=>{step=1;paused=false;render();sync();});document.getElementById('copy-link').addEventListener('click',async()=>{const url='https://investprotrading.fr/business?navigation=externe';try{await navigator.clipboard.writeText(url);document.getElementById('guide-toast').textContent='Lien copié. Colle-le dans Safari ou Chrome.';}catch{document.getElementById('guide-toast').textContent='Copie ce lien : '+url;}});reduced.addEventListener('change',()=>{paused=reduced.matches;sync();});document.addEventListener('visibilitychange',sync);window.addEventListener('resize',position);window.addEventListener('orientationchange',()=>requestAnimationFrame(position));if('ResizeObserver'in window)new ResizeObserver(position).observe(stage);render();sync();
 })();

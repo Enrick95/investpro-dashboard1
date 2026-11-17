@@ -1,0 +1,22 @@
+Enrick 95 /business — référence visuelle, 18 novembre 2026
+
+Modèle demandé par le propriétaire : https://lerisluketo.com/business/
+Le ZIP contient seulement le formulaire et les indications du guide TikTok.
+reference-layout.css reprend le style public du modèle et sa cascade. Les deux
+polices Biotif proviennent des assets publics du même modèle.
+reel.js reprend la galerie photo du modèle, avec ajout de pause accessible.
+
+Sections adaptées à Enrick : ouverture immersive, titre centré, galerie courbe,
+parcours, coulisses/archives, témoignages, accompagnement, CTA final et dock mobile.
+Toutes les photos sont les photos Enrick déjà présentes dans le dépôt ou fournies
+par le propriétaire. Aucun résultat, chiffre de clientèle, témoignage ou vidéo de
+Leris n’est attribué à Enrick.
+
+À compléter avec le propriétaire : vidéo personnelle pour l’ouverture et vidéos
+d’archives personnelles. La version actuelle affiche de vraies photos à leur place,
+sans bouton de lecture vidéo fictif. L’offre finale du formulaire reste /vip.
+
+Formulaire : lead-flow.css et questions/logique de lead-flow.js conservés du ZIP.
+Aucun enregistrement serveur des réponses. WhatsApp reste à envoyer par le visiteur.
+Guide TikTok : /business/acces. Illustrations seulement ; ouverture du navigateur
+à faire dans le menu natif. Détection automatique TikTok indicative sur /business.
