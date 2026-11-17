@@ -1,0 +1,630 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rejoindre le VIP d'Enrick95</title>
+<meta name="description" content="Rejoins le VIP d'Enrick95 étape par étape : broker partenaire, dossier, validation et accès.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#121620">
+<link rel="icon" href="/logo.webp">
+<link rel="preload" href="/vip-assets/fonts/big-shoulders-700.woff" as="font" type="font/woff" crossorigin>
+<link rel="preload" href="/vip-assets/fonts/instrument-sans-400.woff" as="font" type="font/woff" crossorigin>
+<style>
+@font-face{font-family:"Big Shoulders";src:url(/vip-assets/fonts/big-shoulders-700.woff) format("woff");font-weight:700;font-display:swap}
+@font-face{font-family:"Instrument Sans";src:url(/vip-assets/fonts/instrument-sans-400.woff) format("woff");font-weight:400;font-display:swap}
+@font-face{font-family:"Instrument Sans";src:url(/vip-assets/fonts/instrument-sans-700.woff) format("woff");font-weight:700;font-display:swap}
+:root{
+  --pane:#121620;--raised:#181d29;--raised-2:#1f2533;--line:#262c3b;--line-2:#363f54;
+  --ink:#e9ebf1;--mute:#9aa2b5;--dim:#717a91;
+  --gold:#f2b441;--gold-2:#f8c868;--gold-ink:#17130a;--gold-soft:rgba(242,180,65,.09);
+  --up:#26a69a;--down:#ef5350;--down-soft:rgba(239,83,80,.1);--up-soft:rgba(38,166,154,.12);
+  --display:"Big Shoulders","Arial Narrow","Roboto Condensed",sans-serif;
+  --text:"Instrument Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;min-height:100vh;background:var(--pane);color:var(--ink);font:400 17px/1.55 var(--text);font-synthesis:none;-webkit-font-smoothing:antialiased}
+img,svg{display:block;max-width:100%}
+a{color:inherit}
+p{margin:0}
+h1,h2,h3{margin:0;font-family:var(--display);font-weight:700;line-height:.95;letter-spacing:.003em;text-wrap:balance}
+button,input,select,textarea{font:inherit;color:inherit}
+::selection{background:var(--gold);color:var(--gold-ink)}
+:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:4px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--pane);z-index:31}
+
+.top{position:sticky;top:0;z-index:30;background:var(--pane);border-bottom:1px solid var(--line)}
+.top-in{display:flex;align-items:center;gap:16px;height:60px;max-width:1160px;margin-inline:auto;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px))}
+.brand{display:inline-flex;align-items:center;font:700 24px/1 var(--display);text-decoration:none}
+.top-help{margin-left:auto;font-size:15px;color:var(--mute);text-decoration:none}
+.top-help:hover{color:var(--ink)}
+
+.tag{position:relative;display:inline-flex;align-items:center;height:24px;padding:0 8px 0 7px;margin-left:7px;border-radius:0 4px 4px 0;background:var(--gold);color:var(--gold-ink);font:700 13px/1 var(--text);white-space:nowrap;font-variant-numeric:tabular-nums}
+.tag::before{content:"";position:absolute;right:100%;top:0;width:7px;height:100%;background:inherit;clip-path:polygon(100% 0,0 50%,100% 100%)}
+.tag-dim{background:var(--raised-2);color:var(--ink)}
+.brand .tag{height:21px;font-size:12px;margin-left:12px}
+
+.main{max-width:680px;margin-inline:auto;padding:28px max(20px,env(safe-area-inset-right,0px)) calc(72px + env(safe-area-inset-bottom,0px)) max(20px,env(safe-area-inset-left,0px))}
+.notice{display:grid;gap:10px;margin:0 0 24px;padding:14px 16px;border:1px solid var(--line-2);border-radius:12px;background:var(--raised);font-size:15px;color:var(--mute)}
+.notice b{color:var(--ink)}
+.notice .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+
+.progress{display:grid;gap:10px;margin-bottom:26px}
+.progress-top{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:30px}
+.back{display:inline-flex;align-items:center;gap:6px;padding:4px 0;border:0;background:none;color:var(--mute);font-size:15px;cursor:pointer}
+.back:hover{color:var(--ink)}
+.back svg{width:16px;height:16px}
+.count{font-size:14px;color:var(--dim);font-variant-numeric:tabular-nums}
+.bars{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px}
+.bars span{height:4px;border-radius:2px;background:var(--line)}
+.bars span.on{background:var(--gold)}
+
+.step h1{font-size:clamp(42px,8vw,58px);line-height:.94}
+.step:focus{outline:none}
+.intro{margin-top:16px;color:var(--mute);max-width:56ch}
+.voice{display:flex;gap:14px;align-items:center;margin-bottom:20px;color:var(--mute);font-size:16px}
+.voice img{width:48px;height:48px;border-radius:50%;flex:0 0 auto;border:1px solid var(--line-2)}
+.voice b{color:var(--ink)}
+
+.choices{display:grid;gap:12px;margin-top:28px}
+.choice{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 14px;align-items:center;width:100%;text-align:left;padding:18px 18px 18px 20px;border:1px solid var(--line-2);border-radius:12px;background:var(--raised);cursor:pointer;transition:border-color .15s,background-color .15s}
+.choice:hover{border-color:var(--mute)}
+.choice[aria-pressed="true"]{border-color:var(--gold);background:var(--gold-soft)}
+.choice-t{font-weight:700;font-size:18px;line-height:1.3}
+.choice-d{grid-column:1;color:var(--mute);font-size:15px;line-height:1.45}
+.choice .tag{grid-column:2;grid-row:1 / span 2;align-self:center}
+.choice-broker .choice-t{font:700 28px/1 var(--display)}
+@media (max-width:520px){.choice{grid-template-columns:minmax(0,1fr)}.choice .tag{grid-column:1;grid-row:auto;justify-self:start;margin-top:8px}}
+.alt-links{display:grid;gap:12px;margin-top:28px;padding-top:22px;border-top:1px dashed var(--line-2);font-size:15px;color:var(--mute)}
+.alt-links button,.alt-links a{justify-self:start;padding:0;border:0;background:none;color:var(--ink);font-weight:700;text-decoration:underline;text-decoration-color:var(--gold);text-decoration-thickness:2px;text-underline-offset:5px;cursor:pointer}
+
+.todo{list-style:none;margin:28px 0 0;padding:0;display:grid;gap:22px}
+.todo li{display:grid;grid-template-columns:30px minmax(0,1fr);gap:4px 12px}
+.todo .n{font:700 28px/1 var(--display);color:var(--gold);font-variant-numeric:tabular-nums}
+.todo b{display:block;font-size:17px}
+.todo p{color:var(--mute);font-size:15px;margin-top:4px}
+.todo .btn{margin-top:12px}
+.callout{margin-top:24px;padding:14px 16px;border-left:3px solid var(--gold);background:var(--gold-soft);border-radius:0 10px 10px 0;font-size:15px;color:var(--ink)}
+.callout.warn{border-left-color:var(--down);background:var(--down-soft)}
+
+.copybox{display:grid;gap:10px;margin-top:12px;padding:14px 16px;border:1px dashed var(--line-2);border-radius:10px;background:var(--raised)}
+.copybox .k{font-size:13px;color:var(--dim)}
+.copybox .v{font-weight:700;font-size:16px;white-space:pre-wrap;word-break:break-word}
+.copybox .msg{font-weight:400}
+.copybox .code{font:700 30px/1 var(--display);letter-spacing:.04em;color:var(--gold)}
+.copyrow{display:flex;flex-wrap:wrap;gap:10px}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:54px;padding:0 22px;border-radius:10px;font:700 17px/1 var(--text);text-decoration:none;border:1.5px solid transparent;cursor:pointer;transition:background-color .15s,border-color .15s,transform .1s}
+.btn:active{transform:translateY(1px)}
+.btn-gold{background:var(--gold);color:var(--gold-ink)}
+.btn-gold:hover{background:var(--gold-2)}
+.btn-gold:focus-visible{outline-color:var(--ink)}
+.btn-gold[disabled]{opacity:.55;cursor:progress}
+.btn-line{border-color:var(--line-2);background:transparent;color:var(--ink)}
+.btn-line:hover{border-color:var(--mute)}
+.btn-sm{min-height:40px;padding:0 14px;font-size:15px;border-radius:9px}
+.btn svg{width:17px;height:17px}
+.actions{display:flex;flex-wrap:wrap;gap:12px 22px;align-items:center;margin-top:32px}
+.actions .btn-gold{flex:1 1 auto;max-width:420px}
+.saved{font-size:14px;color:var(--dim)}
+
+form{display:grid;gap:22px;margin-top:28px}
+.row2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}
+@media (max-width:520px){.row2{grid-template-columns:1fr}}
+.field{display:grid;gap:8px;min-width:0}
+.field label,.legend{font-weight:700;font-size:15px}
+.field .hint{font-size:14px;color:var(--mute);line-height:1.45}
+.field .err{font-size:14px;color:var(--down);font-weight:700}
+.input{width:100%;height:54px;padding:0 14px;border:1px solid var(--line-2);border-radius:10px;background:var(--raised);font-size:17px;transition:border-color .15s}
+.input::placeholder{color:var(--dim)}
+.input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(242,180,65,.18)}
+.input[aria-invalid="true"]{border-color:var(--down)}
+select.input{appearance:none;-webkit-appearance:none;padding-right:34px;background-image:linear-gradient(45deg,transparent 50%,var(--mute) 50%),linear-gradient(135deg,var(--mute) 50%,transparent 50%);background-position:calc(100% - 18px) 50%,calc(100% - 13px) 50%;background-size:5px 5px;background-repeat:no-repeat}
+.phone{display:grid;grid-template-columns:132px minmax(0,1fr);gap:10px}
+.seg{display:flex;flex-wrap:wrap;gap:10px}
+.seg label{position:relative;flex:1 1 120px}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg span{display:flex;align-items:center;justify-content:center;min-height:52px;padding:0 12px;border:1px solid var(--line-2);border-radius:10px;background:var(--raised);font-weight:700;cursor:pointer;text-align:center}
+.seg input:checked+span{border-color:var(--gold);background:var(--gold-soft);color:var(--ink)}
+.seg input:focus-visible+span{outline:2px solid var(--gold);outline-offset:2px}
+.file{position:relative;display:grid;gap:6px;justify-items:start;padding:18px;border:1.5px dashed var(--line-2);border-radius:12px;background:var(--raised);cursor:pointer}
+.file:hover{border-color:var(--mute)}
+.file input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.file b{font-size:16px}
+.file span{font-size:14px;color:var(--mute)}
+.file.has{border-style:solid;border-color:var(--up);background:var(--up-soft)}
+.file:focus-within{outline:2px solid var(--gold);outline-offset:2px}
+.check{display:grid;grid-template-columns:24px minmax(0,1fr);gap:12px;align-items:start;font-size:15px;cursor:pointer}
+.check input{width:22px;height:22px;margin:1px 0 0;accent-color:var(--gold)}
+.picked{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;border:1px solid var(--line-2);border-radius:12px;background:var(--raised)}
+.picked b{font:700 26px/1 var(--display)}
+.picked button{border:0;background:none;padding:0;color:var(--mute);font-size:15px;text-decoration:underline;cursor:pointer}
+.form-error{padding:14px 16px;border-radius:10px;background:var(--down-soft);border:1px solid rgba(239,83,80,.45);color:var(--ink);font-size:15px}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.privacy{font-size:14px;color:var(--dim)}
+
+.status{display:grid;gap:10px;margin-top:28px;padding:20px;border:1px solid var(--line-2);border-radius:14px;background:var(--raised)}
+.status-head{display:flex;align-items:center;gap:12px}
+.dot{width:12px;height:12px;border-radius:50%;background:var(--gold);flex:0 0 auto;box-shadow:0 0 0 4px var(--gold-soft)}
+.status.ok .dot{background:var(--up);box-shadow:0 0 0 4px var(--up-soft)}
+.status.no .dot{background:var(--down);box-shadow:0 0 0 4px var(--down-soft)}
+.status h2{font-size:30px}
+.status p{color:var(--mute);font-size:15px}
+.status .btn{justify-self:start;margin-top:6px}
+.next{list-style:none;margin:26px 0 0;padding:0;display:grid;gap:16px}
+.next li{display:grid;grid-template-columns:30px minmax(0,1fr);gap:12px;color:var(--mute)}
+.next .n{font:700 26px/1 var(--display);color:var(--gold)}
+.next b{color:var(--ink)}
+.meanwhile{margin-top:36px;padding-top:24px;border-top:1px dashed var(--line-2);display:grid;gap:12px;justify-items:start}
+.meanwhile h2{font-size:30px}
+.meanwhile p{color:var(--mute)}
+.price{font:700 clamp(72px,14vw,104px)/.85 var(--display);color:var(--gold);margin-top:22px}
+.price small{font:700 26px/1 var(--display);color:var(--ink);margin-left:6px}
+.list{margin:22px 0 0;padding:0 0 0 20px;color:var(--mute);display:grid;gap:8px}
+.list li::marker{color:var(--gold)}
+@media (prefers-reduced-motion:reduce){.btn,.choice,.input{transition:none}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="top-in">
+    <a class="brand" href="/vip-test" aria-label="Retour à la page du VIP">Enrick95<span class="tag" aria-hidden="true">VIP</span></a>
+    <a class="top-help" href="https://t.me/EquipeInvestPro" target="_blank" rel="noopener">Une question&#8239;?</a>
+  </div>
+</header>
+<main class="main">
+  <div id="inapp" class="notice" hidden>
+    <p><b>Tu es dans le navigateur d'une appli.</b> Pour ouvrir les liens des brokers et de Telegram sans souci, ouvre cette page dans Safari ou Chrome&#8239;: touche les trois points en haut, puis «&#8239;Ouvrir dans le navigateur&#8239;».</p>
+    <div class="row"><button type="button" class="btn btn-line btn-sm" data-action="copy-page">Copier le lien de la page</button></div>
+  </div>
+  <div id="app"></div>
+  <noscript><p class="intro">Cette page a besoin de JavaScript. Tu peux aussi écrire directement à <a href="https://t.me/EquipeInvestPro">@EquipeInvestPro</a> sur Telegram.</p></noscript>
+</main>
+<script>
+(function(){
+'use strict';
+var TRIAL_END=new Date('2026-11-30T23:59:59+01:00').getTime();
+var CONF_END=new Date('2026-11-18T21:30:00+01:00').getTime();
+var SUIVI_KEY='vip-nouveau-membre-suivi';
+var DRAFT_KEY='vip-rejoindre-v3';
+var TEAM='https://t.me/EquipeInvestPro';
+var BROKERS={
+  bullwaves:{label:'Bullwaves',signup:'https://go.bullwaves.com/visit/?bta=35465&brand=bullwaves&afp=enrick',link:{kind:'team'},essai:'Bullwaves'},
+  raise_fx:{label:'Raise FX',signup:'https://partners.raisefx.com/visit/?bta=153152&brand=raisefx&afp=support',link:{kind:'chat',body:'Bonjour, je souhaiterais être rattaché au compte de Enrick, ID : 153152.'},code:'ENRICK100',essai:'Raise FX'},
+  vtmarkets:{label:'VT Markets',signup:'https://go.vtaffiliates.com/visit/?bta=35905&nci=5942&campaign=843196&afp=enrick',link:{kind:'team'}},
+  puprime:{label:'PU Prime',signup:'https://fr.puprime.partners/forex-trading-account/?affid=90088',link:{kind:'email',to:['louis.coudray@puprime.com','info@puprime.com'],subject:'Demande de transfert de compte',body:'Bonjour,\n\nJe m’appelle [ton prénom et ton nom].\nMon numéro de compte est [ton numéro de compte].\n\nJe souhaite être transféré sous le code 90088.\n\nCordialement,'}},
+  axi:{label:'Axi',signup:'https://www.axi.com/int/live-account?promocode=4740681',link:{kind:'email',to:['milan.cutkovic@axi.com'],subject:'Account linking request',body:'I am requesting an account under 4740681'}}
+};
+var ORDER=['bullwaves','raise_fx','vtmarkets','puprime','axi'];
+var ESSAI=['bullwaves','raise_fx'];
+var PATHS={nouveau:['broker','ouvrir','coordonnees','compte'],rattachement:['broker','rattacher','coordonnees','compte'],essai:['broker','demo','coordonnees','compte-demo'],abonnement:['abonnement']};
+var STEP_NAMES={broker:'ton broker',ouvrir:'ton compte',rattacher:'le rattachement',demo:'ton compte démo',coordonnees:'tes coordonnées',compte:'ton dossier','compte-demo':'ta demande',abonnement:"l'abonnement"};
+var COUNTRIES=[['+33','France'],['+32','Belgique'],['+41','Suisse'],['+352','Luxembourg'],['+1','Canada'],['+262','La Réunion'],['+590','Guadeloupe'],['+596','Martinique'],['+594','Guyane'],['+687','Nouvelle-Calédonie'],['+689','Polynésie'],['+212','Maroc'],['+213','Algérie'],['+216','Tunisie'],['+221','Sénégal'],['+225','Côte d’Ivoire'],['+223','Mali'],['+226','Burkina Faso'],['+228','Togo'],['+229','Bénin'],['+237','Cameroun'],['+241','Gabon'],['+242','Congo'],['+243','RD Congo'],['+261','Madagascar'],['+44','Royaume-Uni'],['+34','Espagne'],['+39','Italie'],['+49','Allemagne'],['+971','Émirats'],['+62','Indonésie'],['autre','Autre pays']];
+var FIELDS=['path','step','broker','firstName','lastName','email','cc','phone','telegram','platform','account','server','deposit','brokerEmail','linkDate'];
+
+function trialOpen(){return Date.now()<TRIAL_END}
+function load(k){try{return localStorage.getItem(k)||''}catch(e){return ''}}
+function store(k,v){try{if(v)localStorage.setItem(k,v);else localStorage.removeItem(k)}catch(e){}}
+function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+
+var S={path:'',step:'depart',broker:'',firstName:'',lastName:'',email:'',cc:'+33',phone:'',telegram:'',platform:'',account:'',server:'',deposit:'',brokerEmail:'',linkDate:''};
+var files={deposit:null,link:null};
+var sent=null; // { kind, firstName, email }
+try{var d=JSON.parse(load(DRAFT_KEY)||'{}');FIELDS.forEach(function(k){if(typeof d[k]==='string')S[k]=d[k]})}catch(e){}
+if(!PATHS[S.path]){S.path='';S.step='depart'}
+if(S.path==='essai'&&!trialOpen()){S.path='';S.step='depart'}
+if(S.path&&PATHS[S.path].indexOf(S.step)<0)S.step=PATHS[S.path][0];
+if(S.broker&&!BROKERS[S.broker])S.broker='';
+
+function save(){var o={};FIELDS.forEach(function(k){o[k]=S[k]});store(DRAFT_KEY,JSON.stringify(o))}
+
+// Entrée directe : ?parcours=essai|rattachement|abonnement|nouveau
+var q=new URLSearchParams(location.search).get('parcours');
+if(q&&PATHS[q]&&!(q==='essai'&&!trialOpen())&&S.path!==q){S.path=q;S.step=PATHS[q][0];if(q==='essai'&&ESSAI.indexOf(S.broker)<0)S.broker=''}
+
+// Navigateur intégré (TikTok, Instagram…)
+if(/TikTok|musical_ly|Bytedance|Instagram|FBAN|FBAV|Snapchat|Line\/|Twitter/i.test(navigator.userAgent))document.getElementById('inapp').hidden=false;
+
+var app=document.getElementById('app');
+var ICON_BACK='<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+var ICON_OUT='<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3h7v7M13 3 5 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+function go(step,replace){
+  S.step=step;save();
+  var url=location.pathname+(step==='depart'?'':'#'+step);
+  try{history[replace?'replaceState':'pushState']({step:step,path:S.path},'',url)}catch(e){}
+  render(true);
+}
+window.addEventListener('popstate',function(e){
+  var st=e.state&&e.state.step;
+  if(st==='envoye'&&!sent)st='depart';
+  if(st&&st!=='depart'&&st!=='envoye'&&st!=='suivi'&&!(S.path&&PATHS[S.path].indexOf(st)>=0))st='depart';
+  S.step=st||'depart';save();render(true);
+});
+
+function progress(){
+  if(!S.path||['depart','envoye','suivi'].indexOf(S.step)>=0)return '';
+  var steps=PATHS[S.path],i=steps.indexOf(S.step);
+  var bars=steps.length>1?'<div class="bars" aria-hidden="true">'+steps.map(function(_,j){return '<span'+(j<=i?' class="on"':'')+'></span>'}).join('')+'</div>':'';
+  return '<div class="progress"><div class="progress-top"><button type="button" class="back" data-action="back">'+ICON_BACK+'Retour</button>'+(steps.length>1?'<span class="count">Étape '+(i+1)+' sur '+steps.length+'&#8239;: '+STEP_NAMES[S.step]+'</span>':'')+'</div>'+bars+'</div>';
+}
+
+function render(focus){
+  var html='';
+  switch(S.step){
+    case 'broker':html=vBroker();break;
+    case 'ouvrir':html=vOpen();break;
+    case 'rattacher':html=vLink();break;
+    case 'demo':html=vDemo();break;
+    case 'coordonnees':html=vContact();break;
+    case 'compte':html=vAccount();break;
+    case 'compte-demo':html=vDemoAccount();break;
+    case 'abonnement':html=vSub();break;
+    case 'envoye':html=vSent();break;
+    case 'suivi':html=vTrack();break;
+    default:S.step='depart';html=vStart();
+  }
+  app.innerHTML=progress()+'<section class="step" tabindex="-1">'+html+'</section>';
+  bind();
+  if(focus){var s=app.querySelector('.step');window.scrollTo(0,0);if(s)s.focus({preventScroll:true})}
+  if(S.step==='envoye'||S.step==='suivi')track();
+}
+
+/* ---------- Écrans ---------- */
+function vStart(){
+  var token=load(SUIVI_KEY);
+  var resume=token?'<div class="notice"><p><b>Tu as déjà envoyé un dossier.</b> Regarde où il en est avant d\'en envoyer un autre.</p><div class="row"><button type="button" class="btn btn-line btn-sm" data-go="suivi">Voir où en est ma demande</button></div></div>':'';
+  var trial=trialOpen()?choice('path','essai','Je veux tester en démo d\'abord','Gratuit et sans dépôt, jusqu\'au 30 novembre.','jusqu\'au 30/11'):'';
+  return resume+
+  '<div class="voice"><img src="/vip-assets/img/avatar-192.jpg" alt="" width="48" height="48"><p><b>Salut, c\'est Enrick.</b> Je te guide jusqu\'à ton accès, une question à la fois.</p></div>'+
+  '<h1>Par où tu commences&#8239;?</h1>'+
+  '<div class="choices">'+
+    choice('path','nouveau','Je n\'ai pas de compte chez tes brokers','J\'en ouvre un avec ton lien. Le dépôt de 300 $ minimum reste sur mon compte.','300 $ min.')+
+    choice('path','rattachement','J\'ai déjà un compte chez l\'un d\'eux','Bullwaves, Raise FX, VT Markets, PU Prime ou Axi&#8239;: on le rattache à ton code.','rattachement')+
+    trial+
+  '</div>'+
+  '<div class="alt-links">'+
+    '<a href="/vip/deja-membre">Je suis déjà dans le canal VIP Telegram</a>'+
+    '<button type="button" data-pick="path" data-value="abonnement">Je préfère l\'abonnement à 80 € par mois</button>'+
+  '</div>';
+}
+function choice(name,value,title,desc,tag){
+  var on=(name==='path'?S.path:S.broker)===value;
+  return '<button type="button" class="choice" data-pick="'+name+'" data-value="'+value+'" aria-pressed="'+on+'"><span class="choice-t">'+title+'</span><span class="choice-d">'+desc+'</span>'+(tag?'<span class="tag tag-dim">'+tag+'</span>':'')+'</button>';
+}
+function vBroker(){
+  var list=S.path==='essai'?ESSAI:ORDER;
+  var title={nouveau:'Choisis ton broker.',rattachement:'Ton compte est chez quel broker&#8239;?',essai:'Choisis ton broker pour l\'essai.'}[S.path];
+  var intro={nouveau:'Les cinq marchent pareil pour le VIP. Si tu hésites, prends celui dont tu as déjà entendu parler.',rattachement:'On va le rattacher à mon code partenaire. Tu gardes ton compte et ton argent.',essai:'Tu ouvres un compte démo chez l\'un des deux&#8239;: aucun dépôt.'}[S.path];
+  return '<h1>'+title+'</h1><p class="intro">'+intro+'</p><div class="choices">'+list.map(function(k){
+    var b=BROKERS[k],d='',tag='';
+    if(S.path==='nouveau'&&b.code)d='Code bonus '+b.code+' à l\'ouverture.';
+    if(S.path==='rattachement')d=b.link.kind==='chat'?'Par le chat du broker, avec un message tout prêt.':b.link.kind==='email'?'Par e-mail au broker, avec le message tout prêt.':'Avec l\'équipe, sur Telegram.';
+    if(S.path==='essai'&&k==='bullwaves'){d='Celui que je conseille pour l\'essai.';tag='mon conseil'}
+    if(S.path==='essai'&&k==='raise_fx')d='Compte démo gratuit, sans dépôt.';
+    return '<button type="button" class="choice choice-broker" data-pick="broker" data-value="'+k+'" aria-pressed="'+(S.broker===k)+'"><span class="choice-t">'+b.label+'</span>'+(d?'<span class="choice-d">'+d+'</span>':'')+(tag?'<span class="tag">'+tag+'</span>':'')+'</button>';
+  }).join('')+'</div>';
+}
+function vOpen(){
+  var b=BROKERS[S.broker];
+  return '<h1>Ouvre ton compte '+esc(b.label)+'.</h1><p class="intro">Garde cette page ouverte&#8239;: tes réponses restent enregistrées sur ce téléphone.</p>'+
+  '<ol class="todo">'+
+    '<li><span class="n">1</span><div><b>Ouvre ton compte avec ce bouton</b><p>C\'est ce lien qui relie ton compte à moi. Un compte ouvert depuis Google ou l\'appli du broker ne compte pas.</p><a class="btn btn-gold btn-sm" href="'+b.signup+'" target="_blank" rel="noopener">Ouvrir mon compte '+esc(b.label)+ICON_OUT+'</a></div></li>'+
+    '<li><span class="n">2</span><div><b>Valide ton identité</b><p>Le broker te demandera une pièce d\'identité et un justificatif de domicile&#8239;: c\'est normal.</p></div></li>'+
+    '<li><span class="n">3</span><div><b>Crée ton compte de trading</b><p>Un compte réel MetaTrader, MT4 ou MT5. Note son numéro et son serveur&#8239;: ils sont dans l\'e-mail du broker.</p></div></li>'+
+    '<li><span class="n">4</span><div><b>Dépose au moins 300 $</b><p>Seul ton dépôt réel compte, pas le bonus. Cet argent reste sur ton compte.</p>'+(b.code?'<div class="copybox"><span class="k">Ton code bonus '+esc(b.label)+'</span><span class="code">'+b.code+'</span><div class="copyrow"><button type="button" class="btn btn-line btn-sm" data-copy="'+b.code+'">Copier le code</button></div></div>':'')+'</div></li>'+
+    '<li><span class="n">5</span><div><b>Fais une capture de ton dépôt</b><p>Tu l\'ajouteras à ton dossier juste après.</p></div></li>'+
+  '</ol>'+
+  '<div class="actions"><button type="button" class="btn btn-gold" data-go="coordonnees">C\'est fait, je remplis mon dossier</button></div>';
+}
+function vLink(){
+  var b=BROKERS[S.broker],l=b.link,how='';
+  if(l.kind==='chat'){
+    how='<li><span class="n">1</span><div><b>Ouvre le chat du support</b><p>Dans ton espace '+esc(b.label)+', ouvre la discussion avec le support.</p></div></li>'+
+        '<li><span class="n">2</span><div><b>Envoie ce message</b><div class="copybox"><span class="v">'+esc(l.body)+'</span><div class="copyrow"><button type="button" class="btn btn-line btn-sm" data-copy="'+esc(l.body)+'">Copier le message</button></div></div></div></li>';
+  }else if(l.kind==='email'){
+    var mail='mailto:'+l.to.join(',')+'?subject='+encodeURIComponent(l.subject)+'&body='+encodeURIComponent(l.body);
+    how='<li><span class="n">1</span><div><b>Envoie cet e-mail depuis l\'adresse de ton compte '+esc(b.label)+'</b>'+
+        '<div class="copybox"><span class="k">À</span><span class="v">'+esc(l.to.join(', '))+'</span><span class="k">Objet</span><span class="v">'+esc(l.subject)+'</span><span class="k">Message</span><span class="v msg">'+esc(l.body)+'</span>'+
+        '<div class="copyrow"><a class="btn btn-gold btn-sm" href="'+esc(mail)+'">Ouvrir ma messagerie</a><button type="button" class="btn btn-line btn-sm" data-copy="'+esc(l.body)+'">Copier le message</button></div></div>'+
+        (l.body.indexOf('[')>=0?'<p>Remplace ce qui est entre crochets par tes infos.</p>':'')+'</div></li>';
+  }else{
+    how='<li><span class="n">1</span><div><b>Écris à l\'équipe sur Telegram</b><p>Pour '+esc(b.label)+', on fait le rattachement avec toi. Envoie ton numéro de compte à @EquipeInvestPro.</p><a class="btn btn-gold btn-sm" href="'+TEAM+'" target="_blank" rel="noopener">Écrire à @EquipeInvestPro'+ICON_OUT+'</a></div></li>';
+  }
+  return '<h1>Rattache ton compte '+esc(b.label)+' à mon code.</h1><p class="intro">Tu gardes ton compte, ton historique et ton argent. Seul le partenaire change.</p>'+
+  '<ol class="todo">'+how+
+    '<li><span class="n">'+(l.kind==='chat'?3:2)+'</span><div><b>Garde une capture de la confirmation</b><p>Quand le broker confirme le rattachement, fais une capture&#8239;: elle va dans ton dossier.</p></div></li>'+
+    '<li><span class="n">'+(l.kind==='chat'?4:3)+'</span><div><b>Vérifie ton dépôt</b><p>Il faut au moins 300 $ de dépôt réel sur ce compte, et une capture qui le montre.</p></div></li>'+
+  '</ol>'+
+  '<div class="callout">Le broker met parfois quelques jours à répondre. Tu peux fermer la page&#8239;: tes réponses restent enregistrées sur ce téléphone.</div>'+
+  '<div class="actions"><button type="button" class="btn btn-gold" data-go="coordonnees">C\'est confirmé, je continue</button></div>';
+}
+function vDemo(){
+  var b=BROKERS[S.broker];
+  return '<h1>Ouvre ton compte démo '+esc(b.label)+'.</h1><p class="intro">Aucun dépôt. Compte trois minutes.</p>'+
+  '<ol class="todo">'+
+    '<li><span class="n">1</span><div><b>Crée ton compte avec ce bouton</b><p>Obligatoire&#8239;: ton essai n\'est validé que si ton compte est ouvert avec ce lien.</p><a class="btn btn-gold btn-sm" href="'+b.signup+'" target="_blank" rel="noopener">Ouvrir mon compte '+esc(b.label)+ICON_OUT+'</a></div></li>'+
+    '<li><span class="n">2</span><div><b>Ouvre un compte démo dans ton espace</b><p>Le broker te crée d\'abord un compte réel&#8239;: c\'est normal, mais ce n\'est pas celui-là qu\'il nous faut. Va dans «&#8239;Comptes&#8239;» puis «&#8239;Ouvrir un compte démo&#8239;».</p></div></li>'+
+    '<li><span class="n">3</span><div><b>Note le numéro, le serveur et le mot de passe de ce compte démo</b><p>Tu en as besoin à l\'étape suivante.</p></div></li>'+
+  '</ol>'+
+  (S.broker==='bullwaves'?'<div class="callout">Chez Bullwaves, ton compte démo apparaît sur un serveur «&#8239;Live&#8239;». C\'est normal&#8239;: c\'est bien lui qu\'il faut nous envoyer.</div>':'')+
+  '<p class="intro" style="margin-top:20px">Déjà un compte chez '+esc(b.label)+'&#8239;? Écris à <a href="'+TEAM+'" target="_blank" rel="noopener">@EquipeInvestPro</a>&#8239;: on te guide.</p>'+
+  '<div class="actions"><button type="button" class="btn btn-gold" data-go="coordonnees">C\'est fait, je remplis ma demande</button></div>';
+}
+function field(id,label,input,hint){
+  return '<div class="field"><label for="'+id+'">'+label+'</label>'+input+(hint?'<p class="hint" id="'+id+'-hint">'+hint+'</p>':'')+'<p class="err" id="'+id+'-err" hidden></p></div>';
+}
+function vContact(){
+  var cc=COUNTRIES.map(function(c){return '<option value="'+c[0]+'"'+(S.cc===c[0]?' selected':'')+'>'+(c[0]==='autre'?'Autre':c[0])+' '+c[1]+'</option>'}).join('');
+  return '<h1>Comment on te joint&#8239;?</h1><p class="intro">L\'équipe te recontacte sur WhatsApp ou Telegram si quelque chose manque.</p>'+
+  '<form id="f-contact" novalidate>'+
+    '<div class="row2">'+field('firstName','Prénom','<input class="input" id="firstName" name="firstName" autocomplete="given-name" maxlength="60" value="'+esc(S.firstName)+'" required>')+field('lastName','Nom','<input class="input" id="lastName" name="lastName" autocomplete="family-name" maxlength="60" value="'+esc(S.lastName)+'" required>')+'</div>'+
+    field('email','E-mail','<input class="input" id="email" name="email" type="email" inputmode="email" autocomplete="email" maxlength="254" value="'+esc(S.email)+'" aria-describedby="email-hint" required>','Ton accès arrivera à cette adresse.')+
+    '<div class="field"><label for="phone">WhatsApp</label><div class="phone"><select class="input" id="cc" name="cc" aria-label="Indicatif du pays">'+cc+'</select><input class="input" id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel-national" maxlength="20" placeholder="6 12 34 56 78" value="'+esc(S.phone)+'" aria-describedby="phone-hint" required></div><p class="hint" id="phone-hint">'+(S.cc==='autre'?'Écris ton numéro complet avec l\'indicatif, par exemple +44 7…':'Choisis ton pays, puis ton numéro.')+'</p><p class="err" id="phone-err" hidden></p></div>'+
+    field('telegram','Nom d\'utilisateur Telegram','<input class="input" id="telegram" name="telegram" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="64" placeholder="@tonpseudo" value="'+esc(S.telegram)+'" aria-describedby="telegram-hint" required>','Pas ton numéro&#8239;: ton @pseudo. Tu n\'en as pas&#8239;? Crée-le en dix secondes dans Telegram, Réglages, puis Nom d\'utilisateur.')+
+    '<div class="actions"><button type="submit" class="btn btn-gold">Continuer</button></div>'+
+  '</form>';
+}
+function fileField(id,label,has,hint){
+  return '<div class="field"><span class="legend" id="'+id+'-label">'+label+'</span><label class="file'+(has?' has':'')+'" id="'+id+'-box"><input type="file" id="'+id+'" accept="image/jpeg,image/png,image/webp,application/pdf" aria-labelledby="'+id+'-label" aria-describedby="'+id+'-name"><b>'+(has?'Capture ajoutée':'Ajouter la capture')+'</b><span id="'+id+'-name">'+(has?esc(has.name)+' ('+size(has.size)+')':hint)+'</span></label><p class="err" id="'+id+'-err" hidden></p></div>';
+}
+function size(n){return n>1048576?(n/1048576).toFixed(1).replace('.',',')+' Mo':Math.max(1,Math.round(n/1024))+' Ko'}
+function picked(){
+  var b=BROKERS[S.broker];
+  return '<div class="picked"><span><span class="hint" style="display:block;font-size:13px;color:var(--dim)">Broker</span><b>'+esc(b?b.label:'')+'</b></span><button type="button" data-go="broker">Changer</button></div>';
+}
+function vAccount(){
+  var link=S.path==='rattachement';
+  var dep=[['300-499','300 à 499 $'],['500-999','500 à 999 $'],['1000-plus','1 000 $ ou plus']];
+  return '<h1>Ton dossier.</h1><p class="intro">Les infos de ton compte de trading et la preuve de ton dépôt. On ne te demande jamais ton mot de passe.</p>'+
+  '<form id="f-account" novalidate>'+
+    picked()+
+    '<div class="field"><span class="legend" id="platform-l">Plateforme</span><div class="seg" role="radiogroup" aria-labelledby="platform-l">'+['MT4','MT5'].map(function(p){return '<label><input type="radio" name="platform" value="'+p+'"'+(S.platform===p?' checked':'')+'><span>'+p+'</span></label>'}).join('')+'</div><p class="err" id="platform-err" hidden></p></div>'+
+    '<div class="row2">'+field('account','Numéro du compte','<input class="input" id="account" name="account" inputmode="numeric" autocomplete="off" maxlength="12" value="'+esc(S.account)+'" aria-describedby="account-hint" required>','Le numéro MetaTrader, pas ton identifiant client.')+
+    field('server','Serveur','<input class="input" id="server" name="server" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="100" value="'+esc(S.server)+'" aria-describedby="server-hint" required>','Écrit dans l\'e-mail du broker et dans MetaTrader.')+'</div>'+
+    '<div class="field"><span class="legend" id="deposit-l">Ton dépôt réel</span><div class="seg" role="radiogroup" aria-labelledby="deposit-l">'+dep.map(function(o){return '<label><input type="radio" name="deposit" value="'+o[0]+'"'+(S.deposit===o[0]?' checked':'')+'><span>'+o[1]+'</span></label>'}).join('')+'</div><p class="err" id="deposit-err" hidden></p></div>'+
+    fileField('capture','Capture de ton dépôt',files.deposit,'JPEG, PNG, WebP ou PDF, 8 Mo maximum.')+
+    (link?field('brokerEmail','E-mail de ton compte chez '+esc(BROKERS[S.broker].label),'<input class="input" id="brokerEmail" name="brokerEmail" type="email" inputmode="email" autocomplete="email" maxlength="254" value="'+esc(S.brokerEmail||S.email)+'" required>')+
+      field('linkDate','Date de ta demande de rattachement <span style="font-weight:400;color:var(--mute)">(si tu l\'as)</span>','<input class="input" id="linkDate" name="linkDate" type="date" value="'+esc(S.linkDate)+'">')+
+      fileField('captureLink','Capture de la confirmation du rattachement',files.link,'La réponse du broker qui confirme le rattachement.'):'')+
+    '<label class="check"><input type="checkbox" id="confirm" required><span>'+(link?'Le broker m\'a confirmé que mon compte est rattaché à Enrick.':'J\'ai ouvert ce compte avec le lien d\'Enrick.')+'</span></label><p class="err" id="confirm-err" hidden style="margin-top:-14px"></p>'+
+    '<div class="hp" aria-hidden="true"><label>Site web<input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>'+
+    '<div class="form-error" id="form-error" role="alert" hidden></div>'+
+    '<div class="actions"><button type="submit" class="btn btn-gold" id="submit">Envoyer mon dossier</button></div>'+
+    '<p class="privacy">Tes captures sont stockées de façon privée et servent uniquement à vérifier ton accès.</p>'+
+  '</form>';
+}
+function vDemoAccount(){
+  return '<h1>Ton compte démo.</h1><p class="intro">On branche la copie dessus pour que tu voies les trades arriver.</p>'+
+  '<form id="f-demo" novalidate>'+
+    picked()+
+    '<div class="row2">'+field('account','Numéro du compte démo','<input class="input" id="account" name="account" autocomplete="off" maxlength="64" value="'+esc(S.account)+'" required>')+
+    field('server','Serveur','<input class="input" id="server" name="server" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="128" value="'+esc(S.server)+'" required>')+'</div>'+
+    field('password','Mot de passe du compte démo','<input class="input" id="password" name="password" type="password" autocomplete="new-password" maxlength="256" aria-describedby="password-hint" required>','Uniquement celui de ton compte démo&#8239;: il sert à brancher la copie et il est chiffré. Ne mets jamais le mot de passe d\'un compte réel.')+
+    '<label class="check"><input type="checkbox" id="confirm" required><span>C\'est bien un compte démo, sans argent réel.</span></label><p class="err" id="confirm-err" hidden style="margin-top:-14px"></p>'+
+    '<div class="hp" aria-hidden="true"><label>Site web<input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>'+
+    '<div class="form-error" id="form-error" role="alert" hidden></div>'+
+    '<div class="actions"><button type="submit" class="btn btn-gold" id="submit">Envoyer ma demande d\'essai</button></div>'+
+  '</form>';
+}
+function vSub(){
+  return '<h1>L\'abonnement, sans broker.</h1><p class="intro">Le même VIP, payé chaque mois par carte.</p>'+
+  '<p class="price">80 €<small>par mois</small></p>'+
+  '<ul class="list"><li>Mes analyses, les signaux et le suivi de chaque trade.</li><li>Ton journal de trading et le calculateur de lot.</li><li>Paiement par carte avec Stripe, renouvelé chaque mois.</li><li>Juste après le paiement, ton lien personnel s\'affiche à l\'écran et arrive par e-mail.</li></ul>'+
+  '<div class="actions"><a class="btn btn-gold" href="https://buy.stripe.com/9B614mdzS0WhfibeCr9R600">Payer 80 € avec Stripe</a></div>'+
+  '<div class="alt-links"><span>Tu préfères la version gratuite&#8239;?</span><button type="button" data-pick="path" data-value="nouveau">Ouvrir un compte chez un broker partenaire</button></div>';
+}
+function confBlock(){
+  if(Date.now()<CONF_END)return '<div class="meanwhile"><h2>En attendant, viens à ma conférence.</h2><p>Gratuite, en ligne, mercredi 18 novembre à 20&nbsp;h (heure de France). Je raconte mon parcours de A à Z.</p><a class="btn btn-line" href="https://lekacademy.com/enrick" target="_blank" rel="noopener">Réserver ma place'+ICON_OUT+'</a></div>';
+  return '<div class="meanwhile"><h2>En attendant, rejoins le canal gratuit.</h2><p>Mes vidéos, mes annonces et les lives sont aussi sur mon canal Telegram ouvert à tous.</p><a class="btn btn-line" href="https://t.me/+mAcBYu895IxiMTdk" target="_blank" rel="noopener">Rejoindre le canal Telegram'+ICON_OUT+'</a></div>';
+}
+function vSent(){
+  var who=sent&&sent.firstName?', '+esc(sent.firstName):'';
+  if(sent&&sent.kind==='essai'){
+    return '<div class="voice"><img src="/vip-assets/img/avatar-192.jpg" alt="" width="48" height="48"><p><b>C\'est envoyé.</b> On s\'occupe de ta démo.</p></div>'+
+    '<h1>Demande d\'essai reçue'+who+'.</h1>'+
+    '<div class="status"><div class="status-head"><span class="dot" aria-hidden="true"></span><h2>Dernière étape, obligatoire</h2></div><p>Rejoins le canal Essai VIP&#8239;: c\'est là que tu vois les trades pendant ton essai.</p><a class="btn btn-gold" href="https://t.me/+hNCn_4xGGKMxZjJk" target="_blank" rel="noopener">Rejoindre le canal Essai VIP'+ICON_OUT+'</a></div>'+
+    '<ol class="next"><li><span class="n">1</span><p><b>On branche la copie sur ton compte démo.</b> Tu vois les trades arriver dessus.</p></li><li><span class="n">2</span><p><b>On te confirme sur WhatsApp ou Telegram</b> dès que c\'est fait.</p></li><li><span class="n">3</span><p><b>Avant le 30 novembre</b>, si tu veux continuer&#8239;: un dépôt de 300 $ minimum sur ton compte, et tu gardes ton accès.</p></li></ol>'+
+    confBlock();
+  }
+  return '<div class="voice"><img src="/vip-assets/img/avatar-192.jpg" alt="" width="48" height="48"><p><b>Bien reçu.</b> À très vite dans le VIP.</p></div>'+
+  '<h1>Dossier reçu'+who+'.</h1>'+statusBox()+
+  '<ol class="next"><li><span class="n">1</span><p><b>L\'équipe vérifie ton compte et ton dépôt.</b> On te contacte sur WhatsApp ou Telegram s\'il manque quelque chose.</p></li><li><span class="n">2</span><p><b>Tu reçois un e-mail'+(sent&&sent.email?' à '+esc(sent.email):'')+'</b> dès que c\'est validé, pour créer ton accès avec cette même adresse.</p></li><li><span class="n">3</span><p><b>Ton lien perso vers le canal Telegram VIP s\'ouvre</b>, avec ton espace VIP sur le site.</p></li></ol>'+
+  '<p class="intro" style="margin-top:22px">Tu peux fermer cette page&#8239;: ta demande t\'attend ici, sur ce téléphone, et l\'e-mail arrive dès qu\'elle est validée.</p>'+
+  confBlock();
+}
+function vTrack(){
+  return '<div class="progress"><div class="progress-top"><button type="button" class="back" data-action="home">'+ICON_BACK+'Retour</button></div></div>'+
+  '<h1>Où en est ta demande.</h1>'+statusBox()+
+  '<p class="intro" style="margin-top:22px">Une question sur ton dossier&#8239;? Écris à <a href="'+TEAM+'" target="_blank" rel="noopener">@EquipeInvestPro</a> sur Telegram.</p>';
+}
+function statusBox(){
+  return '<div class="status" id="status"><div class="status-head"><span class="dot" aria-hidden="true"></span><h2 id="status-t">En cours de vérification</h2></div><p id="status-p">En général sous 24 h. Cette page se met à jour toute seule.</p><div id="status-a"></div></div>';
+}
+
+/* ---------- Suivi en direct ---------- */
+var trackTimer=null;
+function track(){
+  clearTimeout(trackTimer);
+  var token=load(SUIVI_KEY),box=document.getElementById('status');
+  if(!box)return;
+  if(!token){if(S.step==='suivi'){setStatus('','Aucune demande sur ce téléphone','Si tu as envoyé ton dossier depuis un autre appareil, retrouve-le là-bas ou écris à l\'équipe.','<button type="button" class="btn btn-gold" data-action="home">Commencer</button>')}return}
+  fetch('/api/vip/nouveau-membre/suivi',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:token}),credentials:'same-origin'}).then(function(r){
+    if(r.status===404){store(SUIVI_KEY,'');setStatus('','Demande introuvable','Elle a peut-être été envoyée depuis un autre appareil.','<button type="button" class="btn btn-gold" data-action="home">Envoyer un dossier</button>');return null}
+    if(!r.ok)throw 0;return r.json();
+  }).then(function(s){
+    if(!s)return;
+    if(s.status==='submitted'){setStatus('','En cours de vérification','En général sous 24 h. Cette page se met à jour toute seule.','')}
+    else if(s.status==='approved'&&s.claimUrl){setStatus('ok','Dossier validé','Crée ton accès avec la même adresse e-mail que ton dossier&#8239;: ton lien vers le canal VIP s\'ouvre juste après.','<a class="btn btn-gold" href="'+esc(s.claimUrl)+'">Créer mon accès</a>');return}
+    else if(s.status==='approved'){setStatus('no','Ton lien a expiré','Ton dossier est validé, mais le lien de création a expiré. Écris à l\'équipe&#8239;: on te le renvoie.','<a class="btn btn-gold" href="'+TEAM+'" target="_blank" rel="noopener">Écrire à @EquipeInvestPro</a>');return}
+    else if(s.status==='claimed'){store(SUIVI_KEY,'');setStatus('ok','Ton accès est actif','Tu es dans le VIP. Retrouve tes signaux et ton lien Telegram dans ton espace.','<a class="btn btn-gold" href="/dashboard/vip">Ouvrir mon espace VIP</a>');return}
+    else if(s.status==='denied'){setStatus('no','Dossier refusé',(s.rejectionReason?'Motif&#8239;: '+esc(s.rejectionReason)+'. ':'')+'Écris à l\'équipe pour corriger, ou envoie un nouveau dossier.','<div class="copyrow"><a class="btn btn-gold" href="'+TEAM+'" target="_blank" rel="noopener">Écrire à @EquipeInvestPro</a><button type="button" class="btn btn-line" data-action="restart">Nouveau dossier</button></div>');return}
+    if(!document.hidden)trackTimer=setTimeout(track,20000);
+  }).catch(function(){setStatus('','Suivi momentanément indisponible','Ta demande est bien enregistrée. Réessaie dans un instant.','');trackTimer=setTimeout(track,30000)});
+}
+function setStatus(kind,title,text,actions){
+  var box=document.getElementById('status');if(!box)return;
+  box.className='status'+(kind?' '+kind:'');
+  document.getElementById('status-t').innerHTML=title;document.getElementById('status-p').innerHTML=text;document.getElementById('status-a').innerHTML=actions;
+  bindActions(box);
+}
+document.addEventListener('visibilitychange',function(){if(!document.hidden&&(S.step==='envoye'||S.step==='suivi'))track()});
+
+/* ---------- Interactions ---------- */
+function bind(){
+  bindActions(app);
+  var fc=document.getElementById('f-contact');if(fc)fc.addEventListener('submit',submitContact);
+  var fa=document.getElementById('f-account');if(fa){fa.addEventListener('submit',submitAccount);bindFiles();bindRemember(fa)}
+  var fd=document.getElementById('f-demo');if(fd){fd.addEventListener('submit',submitDemo);bindRemember(fd)}
+  if(fc){bindRemember(fc);var cc=document.getElementById('cc');cc.addEventListener('change',function(){S.cc=cc.value;save();document.getElementById('phone-hint').textContent=S.cc==='autre'?'Écris ton numéro complet avec l\'indicatif, par exemple +44 7…':'Choisis ton pays, puis ton numéro.'})}
+}
+function bindActions(root){
+  root.querySelectorAll('[data-pick]').forEach(function(b){b.addEventListener('click',function(){
+    var name=b.getAttribute('data-pick'),v=b.getAttribute('data-value');
+    if(name==='path'){
+      if(S.path!==v){if(v==='essai'&&ESSAI.indexOf(S.broker)<0)S.broker='';S.path=v}
+      go(PATHS[v][0]);
+    }else{S.broker=v;go(PATHS[S.path][1])}
+  })});
+  root.querySelectorAll('[data-go]').forEach(function(b){b.addEventListener('click',function(){go(b.getAttribute('data-go'))})});
+  root.querySelectorAll('[data-copy]').forEach(function(b){b.addEventListener('click',function(){copy(b.getAttribute('data-copy'),b)})});
+  root.querySelectorAll('[data-action]').forEach(function(b){b.addEventListener('click',function(){
+    var a=b.getAttribute('data-action');
+    if(a==='back'){var steps=PATHS[S.path]||[],i=steps.indexOf(S.step);go(i>0?steps[i-1]:'depart')}
+    else if(a==='home'){go('depart')}
+    else if(a==='restart'){store(SUIVI_KEY,'');S.path='';go('depart')}
+    else if(a==='copy-page'){copy(location.href,b)}
+  })});
+}
+function copy(text,btn){
+  var done=function(){var t=btn.textContent;btn.textContent='Copié';setTimeout(function(){btn.textContent=t},1600)};
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(done,function(){fallbackCopy(text);done()})}else{fallbackCopy(text);done()}
+}
+function fallbackCopy(text){var t=document.createElement('textarea');t.value=text;t.setAttribute('readonly','');t.style.position='fixed';t.style.opacity='0';document.body.appendChild(t);t.select();try{document.execCommand('copy')}catch(e){}document.body.removeChild(t)}
+function bindRemember(form){
+  form.addEventListener('input',function(e){var el=e.target;if(!el.name||el.type==='file'||el.type==='password'||el.name==='website')return;
+    var map={firstName:'firstName',lastName:'lastName',email:'email',phone:'phone',telegram:'telegram',account:'account',server:'server',brokerEmail:'brokerEmail',linkDate:'linkDate',platform:'platform',deposit:'deposit'};
+    if(map[el.name]){S[map[el.name]]=el.value;save()}
+    if(el.getAttribute('aria-invalid')==='true')clearErr(el.id);
+  });
+  form.addEventListener('change',function(e){var el=e.target;if(el.type==='radio'){S[el.name]=el.value;save();clearErr(el.name)}if(el.id==='confirm')clearErr('confirm')});
+}
+function bindFiles(){
+  [['capture','deposit'],['captureLink','link']].forEach(function(p){
+    var input=document.getElementById(p[0]);if(!input)return;
+    input.addEventListener('change',function(){
+      var f=input.files&&input.files[0];clearErr(p[0]);
+      if(f&&(!/^(image\/(jpeg|png|webp)|application\/pdf)$/.test(f.type)||f.size>8*1048576||f.size<1)){files[p[1]]=null;showErr(p[0],'Choisis une image JPEG, PNG ou WebP, ou un PDF, de 8 Mo maximum.');input.value='';paint(p[0],null);return}
+      files[p[1]]=f||null;paint(p[0],files[p[1]]);
+    });
+  });
+  function paint(id,f){var box=document.getElementById(id+'-box');box.classList.toggle('has',!!f);box.querySelector('b').textContent=f?'Capture ajoutée':'Ajouter la capture';document.getElementById(id+'-name').textContent=f?f.name+' ('+size(f.size)+')':'JPEG, PNG, WebP ou PDF, 8 Mo maximum.'}
+}
+function showErr(id,msg){var e=document.getElementById(id+'-err'),el=document.getElementById(id);if(e){e.textContent=msg;e.hidden=false}if(el&&el.tagName==='INPUT'&&el.type!=='radio'){el.setAttribute('aria-invalid','true');var d=(el.getAttribute('aria-describedby')||'').split(' ').filter(Boolean);if(d.indexOf(id+'-err')<0)d.push(id+'-err');el.setAttribute('aria-describedby',d.join(' '))}}
+function clearErr(id){var e=document.getElementById(id+'-err'),el=document.getElementById(id);if(e){e.hidden=true;e.textContent=''}if(el)el.removeAttribute('aria-invalid')}
+function firstErr(){var e=app.querySelector('.err:not([hidden])');if(!e)return;var id=e.id.replace(/-err$/,''),el=document.getElementById(id)||app.querySelector('[name="'+id+'"]');if(el&&el.focus)el.focus();else e.scrollIntoView({block:'center'})}
+
+function cleanTelegram(v){return String(v||'').trim().replace(/^https?:\/\//i,'').replace(/^(www\.)?(t|telegram)\.me\//i,'').replace(/^@+/,'').replace(/\/+$/,'')}
+function phoneE164(){
+  var raw=String(S.phone||'').trim().replace(/[()\s.\-]/g,'');
+  if(S.cc==='autre'){raw=raw.replace(/^00/,'+');return /^\+[1-9]\d{7,14}$/.test(raw)?raw:''}
+  raw=raw.replace(/^00/,'+');
+  if(raw.charAt(0)==='+')return /^\+[1-9]\d{7,14}$/.test(raw)?raw:'';
+  raw=raw.replace(/^0+/,'');
+  var full=S.cc+raw;return /^\+[1-9]\d{7,14}$/.test(full)?full:'';
+}
+function submitContact(e){
+  e.preventDefault();var ok=true;
+  ['firstName','lastName','email','phone','telegram'].forEach(clearErr);
+  if(!S.firstName.trim()){showErr('firstName','Écris ton prénom.');ok=false}
+  if(!S.lastName.trim()){showErr('lastName','Écris ton nom.');ok=false}
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(S.email.trim())){showErr('email','Vérifie ton adresse e-mail.');ok=false}
+  if(!phoneE164()){showErr('phone',S.cc==='autre'?'Écris ton numéro avec l\'indicatif, par exemple +44 7911 123456.':'Ce numéro ne semble pas complet. Vérifie-le.');ok=false}
+  if(!/^[A-Za-z][A-Za-z0-9_]{4,31}$/.test(cleanTelegram(S.telegram))){showErr('telegram','Écris ton @pseudo Telegram (5 à 32 caractères, lettres, chiffres ou _).');ok=false}
+  if(!ok){firstErr();return}
+  S.firstName=S.firstName.trim();S.lastName=S.lastName.trim();S.email=S.email.trim().toLowerCase();S.telegram='@'+cleanTelegram(S.telegram);save();
+  go(PATHS[S.path][3]);
+}
+function needContact(){
+  if(!S.firstName.trim()||!S.lastName.trim()||!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(S.email)||!phoneE164()||!/^[A-Za-z][A-Za-z0-9_]{4,31}$/.test(cleanTelegram(S.telegram))){go('coordonnees');return true}
+  if(!BROKERS[S.broker]){go('broker');return true}
+  return false;
+}
+function formError(msg){var b=document.getElementById('form-error');b.innerHTML=msg;b.hidden=false;b.scrollIntoView({block:'center',behavior:'smooth'})}
+function busy(on,label){var b=document.getElementById('submit');if(!b)return;b.disabled=on;if(label)b.textContent=label}
+function submitAccount(e){
+  e.preventDefault();if(needContact())return;
+  var link=S.path==='rattachement',ok=true,form=e.target;
+  document.getElementById('form-error').hidden=true;
+  ['platform','account','server','deposit','capture','captureLink','brokerEmail','confirm'].forEach(clearErr);
+  if(['MT4','MT5'].indexOf(S.platform)<0){showErr('platform','Choisis MT4 ou MT5.');ok=false}
+  if(!/^\d{4,12}$/.test(S.account.trim())){showErr('account','Le numéro de compte contient 4 à 12 chiffres.');ok=false}
+  if(S.server.trim().length<2){showErr('server','Écris le nom du serveur.');ok=false}
+  if(!S.deposit){showErr('deposit','Choisis le montant de ton dépôt.');ok=false}
+  if(!files.deposit){showErr('capture','Ajoute la capture de ton dépôt.');ok=false}
+  if(link){
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test((S.brokerEmail||S.email).trim())){showErr('brokerEmail','Vérifie l\'adresse e-mail de ton compte broker.');ok=false}
+    if(!files.link){showErr('captureLink','Ajoute la capture de la confirmation du rattachement.');ok=false}
+  }
+  if(!document.getElementById('confirm').checked){showErr('confirm',link?'Confirme que le broker a rattaché ton compte.':'Confirme que tu as ouvert le compte avec le lien d\'Enrick.');ok=false}
+  if(!ok){firstErr();return}
+  var fd=new FormData();
+  fd.set('firstName',S.firstName);fd.set('lastName',S.lastName);fd.set('email',S.email);fd.set('telWhatsapp',phoneE164());fd.set('telegram',cleanTelegram(S.telegram));
+  fd.set('broker',S.broker);fd.set('plateforme',S.platform);fd.set('compteMT',S.account.trim());fd.set('serveur',S.server.trim());fd.set('depot',S.deposit);fd.set('viaEnrick','true');
+  fd.set('typeCompte',link?'rattachement':'nouveau');fd.set('capture',files.deposit);fd.set('website',form.elements.website.value||'');
+  if(link){fd.set('emailBroker',(S.brokerEmail||S.email).trim().toLowerCase());if(S.linkDate)fd.set('dateRattachement',S.linkDate);fd.set('captureRattachement',files.link)}
+  busy(true,'Envoi en cours…');
+  fetch('/api/vip/nouveau-membre/demande',{method:'POST',body:fd,credentials:'same-origin'}).then(function(r){return r.json().catch(function(){return {}}).then(function(j){return {status:r.status,body:j}})}).then(function(res){
+    if((res.status===201||res.status===200)&&res.body&&res.body.ok){
+      if(res.body.suiviToken)store(SUIVI_KEY,res.body.suiviToken);
+      sent={kind:S.path,firstName:S.firstName,email:S.email};finish();return;
+    }
+    busy(false,'Envoyer mon dossier');
+    var msg=res.body&&res.body.error?esc(res.body.error):'L\'envoi n\'a pas marché. Réessaie dans un instant.';
+    if(res.status===409&&load(SUIVI_KEY))msg+=' <button type="button" class="btn btn-line btn-sm" data-go="suivi" style="margin-top:10px">Voir où en est ma demande</button>';
+    else if(res.status===409)msg+=' Écris à <a href="'+TEAM+'" target="_blank" rel="noopener">@EquipeInvestPro</a> si tu penses que c\'est une erreur.';
+    formError(msg);bindActions(document.getElementById('form-error'));
+  }).catch(function(){busy(false,'Envoyer mon dossier');formError('La connexion a coupé. Vérifie ton réseau et réessaie&#8239;: rien n\'a été perdu.')});
+}
+function submitDemo(e){
+  e.preventDefault();if(needContact())return;
+  var form=e.target,ok=true,pw=document.getElementById('password').value;
+  document.getElementById('form-error').hidden=true;
+  ['account','server','password','confirm'].forEach(clearErr);
+  if(!S.account.trim()){showErr('account','Écris le numéro de ton compte démo.');ok=false}
+  if(!S.server.trim()){showErr('server','Écris le nom du serveur.');ok=false}
+  if(!pw){showErr('password','Écris le mot de passe de ton compte démo.');ok=false}
+  if(!document.getElementById('confirm').checked){showErr('confirm','Confirme que c\'est un compte démo.');ok=false}
+  if(!ok){firstErr();return}
+  busy(true,'Envoi en cours…');
+  fetch('/api/essai-vip',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({prenom:S.firstName,nomFamille:S.lastName,email:S.email,telephone:phoneE164(),telegram:'@'+cleanTelegram(S.telegram),broker:BROKERS[S.broker].essai,compte:S.account.trim(),serveur:S.server.trim(),motdepasse:pw,confirmeDemo:true,website:form.elements.website.value||''})})
+  .then(function(r){return r.json().catch(function(){return {}}).then(function(j){return {status:r.status,body:j}})}).then(function(res){
+    if(res.status===200&&res.body&&res.body.ok){document.getElementById('password').value='';sent={kind:'essai',firstName:S.firstName,email:S.email};finish();return}
+    busy(false,'Envoyer ma demande d\'essai');
+    if(res.body&&res.body.error==='contact'){formError('Ton WhatsApp ou ton Telegram ne passe pas. <button type="button" class="btn btn-line btn-sm" data-go="coordonnees" style="margin-top:10px">Corriger mes coordonnées</button>');bindActions(document.getElementById('form-error'));return}
+    if(res.status===429){formError('Trop de tentatives d\'un coup. Attends une minute et réessaie.');return}
+    formError('L\'envoi n\'a pas marché. Réessaie dans un instant, ou écris à <a href="'+TEAM+'" target="_blank" rel="noopener">@EquipeInvestPro</a> avec ton prénom et ton broker (jamais ton mot de passe).');
+  }).catch(function(){busy(false,'Envoyer ma demande d\'essai');formError('La connexion a coupé. Vérifie ton réseau et réessaie.')});
+}
+function finish(){
+  var keep={cc:S.cc};
+  ['path','broker','firstName','lastName','email','phone','telegram','platform','account','server','deposit','brokerEmail','linkDate'].forEach(function(k){S[k]=''});
+  S.cc=keep.cc;files={deposit:null,link:null};store(DRAFT_KEY,'');
+  go('envoye',true);
+}
+
+// Premier affichage
+var hash=location.hash.replace('#','');
+if(hash==='suivi')S.step='suivi';
+else if(hash&&S.path&&PATHS[S.path].indexOf(hash)>=0)S.step=hash;
+else if(!q&&!hash&&S.step!=='depart'&&S.path){/* reprise du brouillon à l'étape enregistrée */}
+if(S.step==='envoye')S.step='depart';
+try{history.replaceState({step:S.step,path:S.path},'',location.pathname+(S.step==='depart'?'':'#'+S.step))}catch(e){}
+render(false);
+})();
+</script>
+</body>
+</html>
