@@ -60,7 +60,27 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .count{font-size:14px;color:var(--dim);font-variant-numeric:tabular-nums}
 .bars{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px}
 .bars span{height:4px;border-radius:2px;background:var(--line)}
-.bars span.on{background:var(--gold)}
+.bars span{position:relative;overflow:hidden}
+.bars span::after{content:"";position:absolute;inset:0;background:var(--gold);transform:scaleX(0);transform-origin:left center;transition:transform .6s cubic-bezier(.2,.75,.2,1)}
+.bars span.on::after{transform:none}
+.step.enter-fwd{animation:step-fwd .42s cubic-bezier(.2,.75,.2,1) both}
+.step.enter-back{animation:step-back .42s cubic-bezier(.2,.75,.2,1) both}
+@keyframes step-fwd{from{opacity:0;transform:translateX(22px)}}
+@keyframes step-back{from{opacity:0;transform:translateX(-22px)}}
+.mcard{position:relative;overflow:hidden;display:grid;grid-template-rows:auto 1fr auto auto;gap:8px;width:min(100%,360px);aspect-ratio:1.586;margin-top:26px;padding:20px 22px 18px;border-radius:18px;background:linear-gradient(135deg,#232b3c 0%,#161b26 55%,#1d1b13 100%);border:1px solid rgba(242,180,65,.5);box-shadow:0 24px 50px rgba(4,6,10,.55),inset 0 1px 0 rgba(255,255,255,.07);animation:card-in .75s cubic-bezier(.2,.75,.2,1) both;transform-origin:50% 100%}
+.mcard::after{content:"";position:absolute;inset:-50% -70%;background:linear-gradient(105deg,transparent 44%,rgba(255,232,180,.2) 50%,transparent 56%);transform:translateX(-55%);animation:card-shine 4.2s ease-in-out .6s infinite;pointer-events:none}
+@keyframes card-in{from{opacity:0;transform:perspective(700px) translateY(18px) rotateX(16deg) scale(.96)}}
+@keyframes card-shine{0%{transform:translateX(-55%)}40%,100%{transform:translateX(55%)}}
+.mcard-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.mcard-brand{font:700 22px/1 var(--display)}
+.mcard-line{width:100%;height:auto;align-self:end;overflow:visible}
+.mcard-line path{fill:none;stroke:var(--gold);stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1;animation:card-draw 1.5s cubic-bezier(.45,.05,.2,1) .4s forwards}
+@keyframes card-draw{to{stroke-dashoffset:0}}
+.mcard-name{font:700 clamp(30px,8vw,40px)/1 var(--display);letter-spacing:.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mcard-meta{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;color:var(--mute)}
+.mcard-status{padding:5px 10px;border-radius:999px;background:var(--gold-soft);color:var(--gold);font-weight:700;font-size:12px;white-space:nowrap;transition:background-color .3s,color .3s}
+.mcard-status.ok{background:var(--up-soft);color:var(--up)}
+.mcard-status.no{background:var(--down-soft);color:var(--down)}
 
 .step h1{font-size:clamp(42px,8vw,58px);line-height:.94}
 .step:focus{outline:none}
@@ -70,8 +90,9 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .voice b{color:var(--ink)}
 
 .choices{display:grid;gap:12px;margin-top:28px}
-.choice{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 14px;align-items:center;width:100%;text-align:left;padding:18px 18px 18px 20px;border:1px solid var(--line-2);border-radius:12px;background:var(--raised);cursor:pointer;transition:border-color .15s,background-color .15s}
-.choice:hover{border-color:var(--mute)}
+.choice{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 14px;align-items:center;width:100%;text-align:left;padding:18px 18px 18px 20px;border:1px solid var(--line-2);border-radius:12px;background:var(--raised);cursor:pointer;transition:border-color .15s,background-color .15s,transform .18s ease}
+.choice:hover{border-color:var(--mute);transform:translateY(-2px)}
+.choice:active{transform:none}
 .choice[aria-pressed="true"]{border-color:var(--gold);background:var(--gold-soft)}
 .choice-t{font-weight:700;font-size:18px;line-height:1.3}
 .choice-d{grid-column:1;color:var(--mute);font-size:15px;line-height:1.45}
@@ -165,7 +186,7 @@ select.input{appearance:none;-webkit-appearance:none;padding-right:34px;backgrou
 .price small{font:700 26px/1 var(--display);color:var(--ink);margin-left:6px}
 .list{margin:22px 0 0;padding:0 0 0 20px;color:var(--mute);display:grid;gap:8px}
 .list li::marker{color:var(--gold)}
-@media (prefers-reduced-motion:reduce){.btn,.choice,.input{transition:none}}
+@media (prefers-reduced-motion:reduce){.btn,.choice,.input{transition:none}.choice:hover{transform:none}.step.enter-fwd,.step.enter-back,.mcard,.mcard::after,.mcard-line path{animation:none}.mcard-line path{stroke-dashoffset:0}.bars span::after{transition:none}}
 </style>
 </head>
 <body>
@@ -232,6 +253,7 @@ var app=document.getElementById('app');
 var ICON_BACK='<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 var ICON_OUT='<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3h7v7M13 3 5 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
+var navDir='fwd';
 function go(step,replace){
   S.step=step;save();
   var url=location.pathname+(step==='depart'?'':'#'+step);
@@ -242,13 +264,13 @@ window.addEventListener('popstate',function(e){
   var st=e.state&&e.state.step;
   if(st==='envoye'&&!sent)st='depart';
   if(st&&st!=='depart'&&st!=='envoye'&&st!=='suivi'&&!(S.path&&PATHS[S.path].indexOf(st)>=0))st='depart';
-  S.step=st||'depart';save();render(true);
+  S.step=st||'depart';save();navDir='back';render(true);
 });
 
 function progress(){
   if(!S.path||['depart','envoye','suivi'].indexOf(S.step)>=0)return '';
   var steps=PATHS[S.path],i=steps.indexOf(S.step);
-  var bars=steps.length>1?'<div class="bars" aria-hidden="true">'+steps.map(function(_,j){return '<span'+(j<=i?' class="on"':'')+'></span>'}).join('')+'</div>':'';
+  var bars=steps.length>1?'<div class="bars" aria-hidden="true">'+steps.map(function(_,j){return '<span'+(j<i||(j===i&&navDir!=='fwd')?' class="on"':j===i?' class="fill"':'')+'></span>'}).join('')+'</div>':'';
   return '<div class="progress"><div class="progress-top"><button type="button" class="back" data-action="back">'+ICON_BACK+'Retour</button>'+(steps.length>1?'<span class="count">Étape '+(i+1)+' sur '+steps.length+'&#8239;: '+STEP_NAMES[S.step]+'</span>':'')+'</div>'+bars+'</div>';
 }
 
@@ -267,7 +289,9 @@ function render(focus){
     case 'suivi':html=vTrack();break;
     default:S.step='depart';html=vStart();
   }
-  app.innerHTML=progress()+'<section class="step" tabindex="-1">'+html+'</section>';
+  app.innerHTML=progress()+'<section class="step'+(focus?' enter-'+navDir:'')+'" tabindex="-1">'+html+'</section>';
+  navDir='fwd';
+  setTimeout(function(){var f=app.querySelector('.bars .fill');if(f)f.classList.add('on')},40);
   bind();
   if(focus){var s=app.querySelector('.step');window.scrollTo(0,0);if(s)s.focus({preventScroll:true})}
   if(S.step==='envoye'||S.step==='suivi')track();
@@ -421,17 +445,22 @@ function confBlock(){
   if(Date.now()<CONF_END)return '<div class="meanwhile"><h2>En attendant, viens à ma conférence.</h2><p>Gratuite, en ligne, mercredi 18 novembre à 20&nbsp;h (heure de France). Je raconte mon parcours de A à Z.</p><a class="btn btn-line" href="https://lekacademy.com/enrick" target="_blank" rel="noopener">Réserver ma place'+ICON_OUT+'</a></div>';
   return '<div class="meanwhile"><h2>En attendant, rejoins le canal gratuit.</h2><p>Mes vidéos, mes annonces et les lives sont aussi sur mon canal Telegram ouvert à tous.</p><a class="btn btn-line" href="https://t.me/+mAcBYu895IxiMTdk" target="_blank" rel="noopener">Rejoindre le canal Telegram'+ICON_OUT+'</a></div>';
 }
+function memberCard(label,status){
+  var name=sent&&sent.firstName?esc(sent.firstName)+(sent.lastInitial?' '+esc(sent.lastInitial)+'.':''):'Membre';
+  return '<div class="mcard" data-card role="img" aria-label="Ta carte '+label+' au nom de '+name+', statut : '+status+'"><div class="mcard-top"><span class="mcard-brand">Enrick95</span><span class="tag">'+label+'</span></div><svg class="mcard-line" viewBox="0 0 300 64" aria-hidden="true"><path pathLength="1" d="M0 56 L22 50 L40 53 L62 42 L84 46 L106 35 L128 38 L152 26 L174 30 L200 18 L224 22 L250 10 L274 14 L300 4"/></svg><div class="mcard-name">'+name+'</div><div class="mcard-meta"><span>Carte membre</span><span class="mcard-status" data-card-status>'+status+'</span></div></div>';
+}
+function cardStatus(kind,text){var c=document.querySelector('[data-card-status]');if(!c)return;c.className='mcard-status'+(kind?' '+kind:'');c.textContent=text}
 function vSent(){
   var who=sent&&sent.firstName?', '+esc(sent.firstName):'';
   if(sent&&sent.kind==='essai'){
     return '<div class="voice"><img src="/vip-assets/img/avatar-192.jpg" alt="" width="48" height="48"><p><b>C\'est envoyé.</b> On s\'occupe de ta démo.</p></div>'+
-    '<h1>Demande d\'essai reçue'+who+'.</h1>'+
+    '<h1>Demande d\'essai reçue'+who+'.</h1>'+memberCard('Essai VIP','Essai demandé')+
     '<div class="status"><div class="status-head"><span class="dot" aria-hidden="true"></span><h2>Dernière étape, obligatoire</h2></div><p>Rejoins le canal Essai VIP&#8239;: c\'est là que tu vois les trades pendant ton essai.</p><a class="btn btn-gold" href="https://t.me/+hNCn_4xGGKMxZjJk" target="_blank" rel="noopener">Rejoindre le canal Essai VIP'+ICON_OUT+'</a></div>'+
     '<ol class="next"><li><span class="n">1</span><p><b>On branche la copie sur ton compte démo.</b> Tu vois les trades arriver dessus.</p></li><li><span class="n">2</span><p><b>On te confirme sur WhatsApp ou Telegram</b> dès que c\'est fait.</p></li><li><span class="n">3</span><p><b>Avant le 30 novembre</b>, si tu veux continuer&#8239;: un dépôt de 300 $ minimum sur ton compte, et tu gardes ton accès.</p></li></ol>'+
     confBlock();
   }
   return '<div class="voice"><img src="/vip-assets/img/avatar-192.jpg" alt="" width="48" height="48"><p><b>Bien reçu.</b> À très vite dans le VIP.</p></div>'+
-  '<h1>Dossier reçu'+who+'.</h1>'+statusBox()+
+  '<h1>Dossier reçu'+who+'.</h1>'+memberCard('VIP','En validation')+statusBox()+
   '<ol class="next"><li><span class="n">1</span><p><b>L\'équipe vérifie ton compte et ton dépôt.</b> On te contacte sur WhatsApp ou Telegram s\'il manque quelque chose.</p></li><li><span class="n">2</span><p><b>Tu reçois un e-mail'+(sent&&sent.email?' à '+esc(sent.email):'')+'</b> dès que c\'est validé, pour créer ton accès avec cette même adresse.</p></li><li><span class="n">3</span><p><b>Ton lien perso vers le canal Telegram VIP s\'ouvre</b>, avec ton espace VIP sur le site.</p></li></ol>'+
   '<p class="intro" style="margin-top:22px">Tu peux fermer cette page&#8239;: ta demande t\'attend ici, sur ce téléphone, et l\'e-mail arrive dès qu\'elle est validée.</p>'+
   confBlock();
@@ -457,11 +486,11 @@ function track(){
     if(!r.ok)throw 0;return r.json();
   }).then(function(s){
     if(!s)return;
-    if(s.status==='submitted'){setStatus('','En cours de vérification','En général sous 24 h. Cette page se met à jour toute seule.','')}
-    else if(s.status==='approved'&&s.claimUrl){setStatus('ok','Dossier validé','Crée ton accès avec la même adresse e-mail que ton dossier&#8239;: ton lien vers le canal VIP s\'ouvre juste après.','<a class="btn btn-gold" href="'+esc(s.claimUrl)+'">Créer mon accès</a>');return}
-    else if(s.status==='approved'){setStatus('no','Ton lien a expiré','Ton dossier est validé, mais le lien de création a expiré. Écris à l\'équipe&#8239;: on te le renvoie.','<a class="btn btn-gold" href="'+TEAM+'" target="_blank" rel="noopener">Écrire à @EquipeInvestPro</a>');return}
-    else if(s.status==='claimed'){store(SUIVI_KEY,'');setStatus('ok','Ton accès est actif','Tu es dans le VIP. Retrouve tes signaux et ton lien Telegram dans ton espace.','<a class="btn btn-gold" href="/dashboard/vip">Ouvrir mon espace VIP</a>');return}
-    else if(s.status==='denied'){setStatus('no','Dossier refusé',(s.rejectionReason?'Motif&#8239;: '+esc(s.rejectionReason)+'. ':'')+'Écris à l\'équipe pour corriger, ou envoie un nouveau dossier.','<div class="copyrow"><a class="btn btn-gold" href="'+TEAM+'" target="_blank" rel="noopener">Écrire à @EquipeInvestPro</a><button type="button" class="btn btn-line" data-action="restart">Nouveau dossier</button></div>');return}
+    if(s.status==='submitted'){cardStatus('','En validation');setStatus('','En cours de vérification','En général sous 24 h. Cette page se met à jour toute seule.','')}
+    else if(s.status==='approved'&&s.claimUrl){cardStatus('ok','Validée');setStatus('ok','Dossier validé','Crée ton accès avec la même adresse e-mail que ton dossier&#8239;: ton lien vers le canal VIP s\'ouvre juste après.','<a class="btn btn-gold" href="'+esc(s.claimUrl)+'">Créer mon accès</a>');return}
+    else if(s.status==='approved'){cardStatus('no','Lien expiré');setStatus('no','Ton lien a expiré','Ton dossier est validé, mais le lien de création a expiré. Écris à l\'équipe&#8239;: on te le renvoie.','<a class="btn btn-gold" href="'+TEAM+'" target="_blank" rel="noopener">Écrire à @EquipeInvestPro</a>');return}
+    else if(s.status==='claimed'){store(SUIVI_KEY,'');cardStatus('ok','Active');setStatus('ok','Ton accès est actif','Tu es dans le VIP. Retrouve tes signaux et ton lien Telegram dans ton espace.','<a class="btn btn-gold" href="/dashboard/vip">Ouvrir mon espace VIP</a>');return}
+    else if(s.status==='denied'){cardStatus('no','Refusée');setStatus('no','Dossier refusé',(s.rejectionReason?'Motif&#8239;: '+esc(s.rejectionReason)+'. ':'')+'Écris à l\'équipe pour corriger, ou envoie un nouveau dossier.','<div class="copyrow"><a class="btn btn-gold" href="'+TEAM+'" target="_blank" rel="noopener">Écrire à @EquipeInvestPro</a><button type="button" class="btn btn-line" data-action="restart">Nouveau dossier</button></div>');return}
     if(!document.hidden)trackTimer=setTimeout(track,20000);
   }).catch(function(){setStatus('','Suivi momentanément indisponible','Ta demande est bien enregistrée. Réessaie dans un instant.','');trackTimer=setTimeout(track,30000)});
 }
@@ -493,8 +522,8 @@ function bindActions(root){
   root.querySelectorAll('[data-copy]').forEach(function(b){b.addEventListener('click',function(){copy(b.getAttribute('data-copy'),b)})});
   root.querySelectorAll('[data-action]').forEach(function(b){b.addEventListener('click',function(){
     var a=b.getAttribute('data-action');
-    if(a==='back'){var steps=PATHS[S.path]||[],i=steps.indexOf(S.step);go(i>0?steps[i-1]:'depart')}
-    else if(a==='home'){go('depart')}
+    if(a==='back'){var steps=PATHS[S.path]||[],i=steps.indexOf(S.step);navDir='back';go(i>0?steps[i-1]:'depart')}
+    else if(a==='home'){navDir='back';go('depart')}
     else if(a==='restart'){store(SUIVI_KEY,'');S.path='';go('depart')}
     else if(a==='copy-page'){copy(location.href,b)}
   })});
@@ -580,7 +609,7 @@ function submitAccount(e){
   fetch('/api/vip/nouveau-membre/demande',{method:'POST',body:fd,credentials:'same-origin'}).then(function(r){return r.json().catch(function(){return {}}).then(function(j){return {status:r.status,body:j}})}).then(function(res){
     if((res.status===201||res.status===200)&&res.body&&res.body.ok){
       if(res.body.suiviToken)store(SUIVI_KEY,res.body.suiviToken);
-      sent={kind:S.path,firstName:S.firstName,email:S.email};finish();return;
+      sent={kind:S.path,firstName:S.firstName,lastInitial:S.lastName.trim().charAt(0).toUpperCase(),email:S.email};finish();return;
     }
     busy(false,'Envoyer mon dossier');
     var msg=res.body&&res.body.error?esc(res.body.error):'L\'envoi n\'a pas marché. Réessaie dans un instant.';
@@ -602,7 +631,7 @@ function submitDemo(e){
   busy(true,'Envoi en cours…');
   fetch('/api/essai-vip',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({prenom:S.firstName,nomFamille:S.lastName,email:S.email,telephone:phoneE164(),telegram:'@'+cleanTelegram(S.telegram),broker:BROKERS[S.broker].essai,compte:S.account.trim(),serveur:S.server.trim(),motdepasse:pw,confirmeDemo:true,website:form.elements.website.value||''})})
   .then(function(r){return r.json().catch(function(){return {}}).then(function(j){return {status:r.status,body:j}})}).then(function(res){
-    if(res.status===200&&res.body&&res.body.ok){document.getElementById('password').value='';sent={kind:'essai',firstName:S.firstName,email:S.email};finish();return}
+    if(res.status===200&&res.body&&res.body.ok){document.getElementById('password').value='';sent={kind:'essai',firstName:S.firstName,lastInitial:S.lastName.trim().charAt(0).toUpperCase(),email:S.email};finish();return}
     busy(false,'Envoyer ma demande d\'essai');
     if(res.body&&res.body.error==='contact'){formError('Ton WhatsApp ou ton Telegram ne passe pas. <button type="button" class="btn btn-line btn-sm" data-go="coordonnees" style="margin-top:10px">Corriger mes coordonnées</button>');bindActions(document.getElementById('form-error'));return}
     if(res.status===429){formError('Trop de tentatives d\'un coup. Attends une minute et réessaie.');return}

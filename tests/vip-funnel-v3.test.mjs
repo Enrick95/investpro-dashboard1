@@ -69,3 +69,15 @@ test("the landing tells the true story and promises nothing that is not live", (
   assert.match(landing, /fetch\('\/api\/vip\/performance'/);
   assert.ok(!/Ce mois/.test(landing), "results open on the whole history, not the current month");
 });
+
+test("animations follow the real trades and switch off for reduced motion", () => {
+  assert.match(landing, /matchMedia\('\(prefers-reduced-motion: reduce\)'\)/);
+  assert.match(landing, /@media \(prefers-reduced-motion:reduce\)\{[^]*?\.mq-track[^]*?animation:none/);
+  // Notifications, bandeau et courbe viennent de la même requête que les résultats, sans trade écrit en dur.
+  assert.equal((landing.match(/fetch\('\/api\/vip\/performance'/g) || []).length, 1);
+  assert.match(landing, /notifications\(t\);ticker\(t\);results\(t\);/);
+  assert.ok(!/XAUUSD|NAS100|EURJPY/.test(landing.replace(/alt="[^"]*"/g, "")), "no hard-coded trade in the page");
+  // La carte membre suit le statut du dossier.
+  for (const label of ["En validation", "Validée", "Active", "Refusée", "Lien expiré"]) assert.ok(join.includes(`'${label}'`), label);
+  assert.ok(join.includes(".step.enter-fwd,.step.enter-back,.mcard,.mcard::after,.mcard-line path{animation:none}"));
+});
