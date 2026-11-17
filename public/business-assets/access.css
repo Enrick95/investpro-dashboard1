@@ -1,9 +1,14 @@
-/* Shared phone, typography, spacing and colors come from reference-layout.css. */
-#access-guide{display:block!important;position:relative;font-family:Biotif,"Helvetica Neue",Arial,sans-serif}
-.access-page .guide-shell{background:linear-gradient(118deg,#dce0de05,transparent 48%,#dce0de03 78%,transparent),#080909;min-height:100svh;padding-top:25px}
-.access-page .guide-copy h1{font-family:Biotif,"Helvetica Neue",Arial,sans-serif;letter-spacing:-.045em}.access-page .guide-copy h1 em{font-family:inherit;font-style:normal;font-weight:400;color:transparent;background:linear-gradient(108deg,#bd7957,#e2c2a4 48%,#d6d8cf 76%,#c17e59);background-clip:text;-webkit-background-clip:text}
-.access-page .guide-visual{position:relative;overflow:visible}.access-page .phone{position:relative}.access-page .phone-screen{position:relative;height:490px;min-height:0}.site-iframe{height:420px;overflow:hidden;pointer-events:none}.site-iframe iframe{width:390px;max-width:none;height:850px;border:0;transform-origin:0 0}.access-page .menu-sheet{opacity:0;visibility:hidden;transform:translateY(-7px) scale(.97);transition:opacity .3s,transform .3s,visibility .3s}.access-page .menu-sheet.is-visible{opacity:1;visibility:visible;transform:none}.access-page .menu-choice{background:#e9e9e6;border-radius:10px}
-.access-page .guide-step{text-align:left;width:100%;cursor:pointer;color:#f7f5f0;font-family:inherit}.access-page .guide-step.active{border-color:#d5ad8e99;box-shadow:0 0 16px #ca946d16}.access-page .guide-step.active .step-num{background:#cf865f;color:#111}.access-page .guide-step:focus-visible,.motion-control:focus-visible{outline:2px solid #e6c9aa;outline-offset:3px}.access-continue{margin-top:20px;min-height:48px;background:linear-gradient(110deg,#35241a,#15100e);border-color:#d5ad8eaa;color:#f7f5f0}.access-page .guide-note{font-size:10px;color:#a9a59d;max-width:420px;line-height:1.6}.access-page .guide-tools{margin-top:16px}.access-page .guide-tools button{font-size:11px}.motion-control{margin-top:12px;padding:4px 0;border:0;background:transparent;color:#b7aea1;font-family:inherit;font-size:10px;text-decoration:underline;text-underline-offset:4px;cursor:pointer}
-.phone-callout{position:absolute;z-index:12;top:8px;left:10px;display:grid;color:#e5c7b0;text-align:center;font-size:9px;letter-spacing:.12em}.phone-callout>span{font-size:23px;line-height:1.3}.guide-arrow{position:absolute;z-index:11;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}.access-page .browser-dots.highlight{box-shadow:0 0 0 3px #cf865f44;border-radius:50%}.guide-callout{right:12px!important}
-@media(max-width:680px){.access-page .guide-shell{padding-top:16px}.access-page .phone-screen{height:340px}.access-page .site-iframe{height:282px}.access-page .guide-visual{min-height:380px}.access-page .guide-head{margin-bottom:12px}.phone-callout{left:1px;top:21px;font-size:8px}.phone-callout>span{font-size:20px}.access-page .guide-copy h1{font-size:clamp(30px,8.8vw,42px)}.access-page .guide-steps{gap:8px}.access-continue{width:100%;margin-top:14px}.access-page .guide-tools{flex-wrap:wrap}.access-page .guide-tools button{flex:1;min-width:120px}.access-page .guide-footer{font-size:9px;line-height:1.6}.access-page .guide-callout{top:8px}}
-@media(prefers-reduced-motion:reduce){.access-page *{animation:none!important;transition:none!important}}
+/* Screenshot-matched guide: keep the reference typography, phone and spacing. */
+#access-guide{display:block!important}
+#access-guide.guide-shell{min-height:100svh;background:linear-gradient(118deg,rgba(220,224,222,.018),transparent 48%,rgba(220,224,222,.012) 78%,transparent),#080909}
+#access-guide .guide-callout{opacity:1;transform:none}
+#access-guide .guide-step{cursor:pointer}
+#access-guide .guide-pointer{opacity:1;transform:none;transition:left .72s cubic-bezier(.2,.72,.18,1),top .72s cubic-bezier(.2,.72,.18,1)}
+#access-guide .menu-sheet{opacity:0;visibility:hidden;transform:translateY(-7px) scale(.97)}
+#access-guide .menu-sheet.is-visible{opacity:1;visibility:visible;transform:none}
+#access-guide .mock-photo img{object-position:center 18%}
+#access-guide .mock-caption strong{max-width:190px}
+#access-guide .mock-story-preview strong{line-height:1.13}
+#access-guide .guide-tools .btn{white-space:nowrap}
+#access-guide .guide-footer{border-top:1px solid var(--line);margin-top:0}
+@media(prefers-reduced-motion:reduce){#access-guide *{animation:none!important;transition:none!important}}

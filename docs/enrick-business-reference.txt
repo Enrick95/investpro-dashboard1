@@ -20,3 +20,10 @@ Formulaire : lead-flow.css et questions/logique de lead-flow.js conservés du ZI
 Aucun enregistrement serveur des réponses. WhatsApp reste à envoyer par le visiteur.
 Guide TikTok : /business/acces. Illustrations seulement ; ouverture du navigateur
 à faire dans le menu natif. Détection automatique TikTok indicative sur /business.
+
+Guide TikTok corrigé d’après la capture du propriétaire : repère supérieur droit,
+téléphone et curseur du modèle, aperçu éditorial avec vraies photo et histoire
+Enrick, deux boutons Copier/Revoir uniquement. Animation en deux gestes jouée une
+fois puis rejouable ; les étapes peuvent être sélectionnées manuellement.
+/business/acces : détection indicative du navigateur externe vers /business ;
+/business/acces?guide=1 force l’aperçu du guide. Le lien bio reste /business/acces.
