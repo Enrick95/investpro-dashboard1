@@ -54,3 +54,9 @@ Les URLs vidéo et image portent une nouvelle version pour éviter l’ancien ca
 Rangée secondaire « Mes photos » retirée à la demande du propriétaire.
 La galerie animée principale et la grande photo des coulisses restent présentes.
 Les propositions de pictogrammes en verre restent à l’état de maquette.
+
+Correction iPhone : les caractères fléchés des actions sont remplacés par des
+pictogrammes SVG pour éviter leur rendu en émojis bleus. Les cinq CTA principaux
+utilisent une petite pastille en verre à contour fin, champagne pour l’accompagnement
+et bleu clair pour Telegram (avion en papier). Les autres commandes restent sobres.
+Les textes, les choix du formulaire et les destinations restent identiques.
