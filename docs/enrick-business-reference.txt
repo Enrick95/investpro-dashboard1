@@ -32,3 +32,7 @@ Photos personnelles ajoutées le 18 novembre 2026 : six JPEG fournis par Enrick,
 conservés sans retouche. Galerie animée : les six photos et la photo de trading.
 Le portrait en tenue verte illustre l’accompagnement, le téléphone du guide TikTok
 et les métadonnées de partage. Les cadrages sont appliqués uniquement en CSS.
+
+Seconde série : quatre JPEG personnels ajoutés à la même galerie (ordinateur en
+tenue bleue, portrait en blanc, intérieur en bleu, détail de montre). Les dix
+photos fournies et la photo de trading forment onze vues, sans retouche des JPEG.
