@@ -284,7 +284,7 @@ html:has(.zoom[open]){overflow:hidden}
 <div class="halo" aria-hidden="true"></div>
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="/vip-test-2" aria-label="VIP d'Enrick 95, accueil">ENRICK 95 <b>VIP</b></a>
+    <a class="brand" href="/vip" aria-label="VIP d'Enrick 95, accueil">ENRICK 95 <b>VIP</b></a>
     <nav class="nav" aria-label="Sections">
       <a href="#vip">Le VIP</a>
       <a href="#temoignages">Témoignages</a>
@@ -327,7 +327,7 @@ html:has(.zoom[open]){overflow:hidden}
           <span class="opt-dot" aria-hidden="true"></span>
         </label>
       </fieldset>
-      <a class="cta" id="start" href="/vip-test-2/rejoindre?parcours=nouveau">Commencer mon inscription<span class="cta-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg></span></a>
+      <a class="cta" id="start" href="/vip/rejoindre?parcours=nouveau">Commencer mon inscription<span class="cta-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg></span></a>
       <p class="sep">Déjà dans le canal VIP Telegram&#8239;?</p>
       <a class="btn2" href="/vip/deja-membre">Activer mon espace VIP</a>
       <div class="join-foot"><span>Une question&#8239;?</span><a href="https://t.me/EquipeInvestPro" target="_blank" rel="noopener">Écrire à l'équipe</a></div>
@@ -437,7 +437,7 @@ html:has(.zoom[open]){overflow:hidden}
       <p class="kicker">Le prochain pas est le tien</p>
       <h2 id="fin-titre">Prêt à trader<br><em>avec moi&#8239;?</em></h2>
       <p>Inscription en quelques minutes. L'équipe valide ton dossier, en général sous 24&nbsp;h.</p>
-      <a class="cta" href="/vip-test-2/rejoindre">Commencer mon inscription<span class="cta-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg></span></a>
+      <a class="cta" href="/vip/rejoindre?parcours=choix">Commencer mon inscription<span class="cta-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg></span></a>
       <small>Le trading comporte un risque de perte en capital.</small>
     </div>
   </section>
@@ -446,7 +446,7 @@ html:has(.zoom[open]){overflow:hidden}
 <footer class="foot" id="pied">
   <div class="wrap">
     <div class="foot-top">
-      <a class="brand" href="/vip-test-2">ENRICK 95 <b>VIP</b></a>
+      <a class="brand" href="/vip">ENRICK 95 <b>VIP</b></a>
       <nav class="foot-links" aria-label="Liens utiles">
         <a href="https://t.me/EquipeInvestPro" target="_blank" rel="noopener">Écrire à l'équipe</a>
         <a href="https://www.tiktok.com/@enrick95__" target="_blank" rel="noopener">TikTok</a>
@@ -460,7 +460,7 @@ html:has(.zoom[open]){overflow:hidden}
 </footer>
 
 <div class="dock" id="dock">
-  <a class="cta" href="/vip-test-2/rejoindre">Commencer mon inscription<span class="cta-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg></span></a>
+  <a class="cta" href="/vip/rejoindre?parcours=choix">Commencer mon inscription<span class="cta-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg></span></a>
 </div>
 
 <dialog class="zoom" id="zoom" aria-label="Capture agrandie">
@@ -478,7 +478,7 @@ html:has(.zoom[open]){overflow:hidden}
   function pick(){
     var on=document.querySelector('.opt input:checked');
     opts.forEach(function(o){o.classList.toggle('on',o.querySelector('input')===on)});
-    if(start&&on)start.href='/vip-test-2/rejoindre?parcours='+encodeURIComponent(on.value);
+    if(start&&on)start.href='/vip/rejoindre?parcours='+encodeURIComponent(on.value);
   }
   opts.forEach(function(o){o.querySelector('input').addEventListener('change',pick)});
   function trial(){

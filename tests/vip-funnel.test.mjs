@@ -3,24 +3,31 @@ import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
-// Pages VIP en test : /vip-test (v4) et /vip-test-2 (v5, au design de /business). Elles réutilisent les API
-// existantes sans les modifier, donc leurs champs, leurs brokers et leurs liens d'affiliation doivent rester alignés sur elles.
+// Pages VIP : /vip et /vip/rejoindre en ligne (v5, au design de /business), /vip-test gardée de côté (v4).
+// Elles réutilisent les API existantes sans les modifier, donc leurs champs, leurs brokers et leurs liens
+// d'affiliation doivent rester alignés sur elles.
 const project = path.resolve(import.meta.dirname, "..");
 const read = (file) => fs.readFileSync(path.join(project, file), "utf8");
 const VERSIONS = [
   { name: "v4", route: "/vip-test", landing: read("public/vip-v4.html"), join: read("public/vip-v4-rejoindre.html") },
-  { name: "v5", route: "/vip-test-2", landing: read("public/vip-v5.html"), join: read("public/vip-v5-rejoindre.html") },
+  { name: "v5", route: "/vip", landing: read("public/vip-v5.html"), join: read("public/vip-v5-rejoindre.html") },
 ];
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
 
-test("the test URLs serve the new pages and the live /vip stays on the current page", () => {
+test("/vip and /vip/rejoindre serve v5, while invitation codes and old access links keep their app pages", () => {
   const config = read("next.config.ts");
-  for (const { name, route } of VERSIONS) {
-    assert.match(config, new RegExp(`\\{source:"${esc(route)}",destination:"/vip-${name}\\.html"\\}`));
-    assert.match(config, new RegExp(`\\{source:"${esc(route)}/rejoindre",destination:"/vip-${name}-rejoindre\\.html"\\}`));
-  }
-  assert.match(config, /\{source:"\/vip",destination:"\/vip-v2\.html",missing:\[\{type:"query",key:"code"\}\]\}/);
+  assert.match(config, /\{source:"\/vip",destination:"\/vip-v5\.html",missing:\[\{type:"query",key:"code"\}\]\}/);
+  assert.match(config, /\{source:"\/vip\/rejoindre",destination:"\/vip-v5-rejoindre\.html",missing:\[\{type:"query",key:"access"\}\]\}/);
+  assert.ok(!/source:"\/vip\/rejoindre",destination:"\/vip",statusCode:301/.test(config), "the old redirect to /vip is gone");
+  // L'ancienne adresse de test renvoie vers la page en ligne, sans redirection permanente.
+  assert.match(config, /\{source:"\/vip-test-2",destination:"\/vip",permanent:false\}/);
+  assert.match(config, /\{source:"\/vip-test-2\/rejoindre",destination:"\/vip\/rejoindre",permanent:false\}/);
+  // La v4 reste consultable sur /vip-test.
+  assert.match(config, /\{source:"\/vip-test",destination:"\/vip-v4\.html"\}/);
+  assert.match(config, /\{source:"\/vip-test\/rejoindre",destination:"\/vip-v4-rejoindre\.html"\}/);
   for (const { landing, join } of VERSIONS) for (const page of [landing, join]) assert.match(page, /<meta name="robots" content="noindex">/);
+  const [, v5] = VERSIONS;
+  assert.ok(!/vip-test/.test(v5.landing) && !/vip-test/.test(v5.join), "the live pages never link to a test address");
 });
 
 for (const { name, route, landing, join } of VERSIONS) {
