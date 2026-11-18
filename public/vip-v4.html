@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>VIP InvestPro avec Enrick95</title>
+<meta name="description" content="Rejoins le VIP d'Enrick95 : ses analyses en H4, chaque signal en direct avec une notification et le suivi de chaque trade. Gratuit avec un broker partenaire.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#080807">
+<meta property="og:type" content="website">
+<meta property="og:title" content="VIP InvestPro avec Enrick95">
+<meta property="og:description" content="Trade avec moi, chaque jour. Gratuit avec un broker partenaire.">
+<meta property="og:image" content="https://investprotrading.fr/vip-assets/img/hero-1600.jpg">
+<link rel="icon" href="/vip-assets/img/logo-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Inter:wght@400..800&display=swap">
+<style>
+:root{
+  --bg:#080807;--card:rgba(255,255,255,.03);--field:#111213;--field-2:#17181a;
+  --line:rgba(255,255,255,.08);--line-2:rgba(255,255,255,.14);
+  --ink:#f4f0e9;--soft:#d9d5cc;--mute:#b6b2a9;--dim:#8b877f;
+  --gold:#f2b441;--gold-light:#f5c975;--gold-deep:#d59e39;--gold-ink:#1a1408;
+  --gold-soft:rgba(242,180,65,.09);--gold-line:rgba(242,180,65,.45);
+  --green:#3ddc97;
+  --sans:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --num:"Barlow Condensed","Inter",system-ui,sans-serif;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth;scroll-padding-top:80px}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.55 var(--sans);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+img,svg{display:block;max-width:100%}
+a{color:inherit}
+p{margin:0}
+h1,h2,h3{margin:0;text-wrap:balance}
+button,input{font:inherit;color:inherit}
+::selection{background:var(--gold);color:var(--gold-ink)}
+:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:6px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.glow{position:absolute;left:0;right:0;top:0;height:640px;pointer-events:none;background:radial-gradient(ellipse 90% 60% at 50% -8%,rgba(242,180,65,.2),rgba(242,180,65,0) 72%)}
+.wrap{max-width:1200px;margin-inline:auto;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px))}
+.gold{color:var(--gold)}
+
+/* En-tête */
+.top{position:sticky;top:0;z-index:20;background:rgba(8,8,7,.82);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:21}
+.top .wrap{display:flex;align-items:center;gap:16px 28px;min-height:68px}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-weight:700;font-size:16px;letter-spacing:-.01em}
+.brand img{width:36px;height:36px;border-radius:50%}
+.nav{display:none;gap:26px;margin-left:auto;font-size:14px;font-weight:500}
+.nav a{text-decoration:none;color:var(--mute)}
+.nav a:hover{color:var(--ink)}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border:1px solid rgba(255,255,255,.1);border-radius:999px;background:var(--card);font-size:12px;font-weight:500;color:var(--soft)}
+.pill i{width:7px;height:7px;border-radius:50%;background:var(--green)}
+.top .pill{display:none}
+.member{display:inline-flex;align-items:center;height:38px;padding:0 14px;margin-left:auto;border:1px solid var(--gold-line);border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;color:var(--gold);white-space:nowrap}
+.member:hover{background:var(--gold-soft)}
+@media (min-width:960px){.nav{display:flex}.top .pill{display:inline-flex}.member{margin-left:0;height:40px;padding:0 16px;font-size:14px}.brand{font-size:18px}.brand img{width:40px;height:40px}}
+
+/* Boutons */
+.btn{display:flex;align-items:center;justify-content:center;gap:10px;min-height:54px;padding:0 24px;border-radius:12px;border:0;font-size:16px;font-weight:700;text-decoration:none;cursor:pointer;transition:transform .12s ease,filter .15s ease,background-color .15s ease,border-color .15s ease}
+.btn:active{transform:translateY(1px)}
+.btn-gold{background:linear-gradient(180deg,var(--gold-light) 0%,var(--gold) 55%,var(--gold-deep) 100%);color:var(--gold-ink);box-shadow:0 12px 30px rgba(242,180,65,.14)}
+.btn-gold:hover{filter:brightness(1.06)}
+.btn-gold:focus-visible{outline-color:var(--ink)}
+.btn-dark{min-height:50px;border:1px solid var(--line-2);background:var(--field);color:var(--ink);font-size:15px;font-weight:600}
+.btn-dark:hover{border-color:rgba(255,255,255,.28)}
+
+/* Mise en page */
+main{position:relative}
+.intro{display:grid;grid-template-areas:"hero" "join" "points";gap:30px;padding-block:26px 0}
+.hero{grid-area:hero;display:flex;flex-direction:column;gap:16px}
+.hero .pill{align-self:flex-start}
+.eyebrow{display:flex;align-items:center;gap:10px;font-size:12px;font-weight:600;color:var(--gold)}
+.eyebrow::before{content:"";width:22px;height:1px;background:var(--gold)}
+h1{font-size:clamp(40px,10.6vw,66px);line-height:1.06;font-weight:500;letter-spacing:-.028em}
+.lead{font-size:16px;line-height:1.6;color:var(--mute);max-width:34em}
+.who{display:flex;align-items:center;gap:12px;margin-top:4px}
+.who img{width:44px;height:44px;border-radius:50%;border:1px solid var(--line-2)}
+.who b{display:block;font-size:14px;font-weight:600}
+.who span{display:block;font-size:13px;color:var(--dim)}
+.card{border:1px solid rgba(255,255,255,.09);border-radius:20px;background:var(--card)}
+.join{grid-area:join;display:flex;flex-direction:column;gap:18px;padding:22px 18px;scroll-margin-top:90px}
+.join h2{font-size:26px;font-weight:700;letter-spacing:-.02em}
+.join-intro{font-size:15px;line-height:1.5;color:var(--mute)}
+.opts{display:flex;flex-direction:column;gap:10px;margin:0;padding:0;border:0;min-width:0}
+.opt{position:relative;display:grid;grid-template-columns:40px minmax(0,1fr) 20px;gap:12px;align-items:center;padding:14px;border:1px solid rgba(255,255,255,.12);border-radius:14px;background:var(--field);cursor:pointer;transition:border-color .15s,background-color .15s}
+.opt:hover{border-color:rgba(255,255,255,.26)}
+.opt input{position:absolute;opacity:0;pointer-events:none}
+.opt-ic{display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:11px;background:rgba(255,255,255,.05);color:var(--soft)}
+.opt-ic svg{width:20px;height:20px}
+.opt-t{display:flex;flex-direction:column;gap:3px;min-width:0}
+.opt-t b{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:15px;font-weight:600;line-height:1.3}
+.opt-t span{font-size:13px;line-height:1.4;color:var(--mute)}
+.opt-dot{width:20px;height:20px;border-radius:50%;border:1.5px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center}
+.opt.on{border:1.5px solid var(--gold);background:var(--gold-soft);padding:13.5px}
+.opt.on .opt-ic{background:var(--gold-soft);color:var(--gold)}
+.opt.on .opt-dot{border-color:var(--gold)}
+.opt.on .opt-dot::after{content:"";width:10px;height:10px;border-radius:50%;background:var(--gold)}
+.opt:focus-within{outline:2px solid var(--gold);outline-offset:2px}
+.chip{padding:2px 7px;border-radius:6px;background:rgba(61,220,151,.14);color:var(--green);font-size:11px;font-weight:700}
+.sep{display:flex;align-items:center;gap:12px;font-size:12px;font-weight:600;color:var(--dim);text-align:center}
+.sep::before,.sep::after{content:"";flex:1;height:1px;background:rgba(255,255,255,.09)}
+.join-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:14px;border-top:1px solid rgba(255,255,255,.07);font-size:13px}
+.join-foot span{color:var(--dim)}
+.join-foot a{font-weight:600;text-decoration:none;color:var(--gold)}
+.points{grid-area:points;display:flex;flex-direction:column}
+.point{display:grid;grid-template-columns:42px minmax(0,1fr);gap:12px;padding:18px 0;border-top:1px solid var(--line)}
+.point:last-child{border-bottom:1px solid var(--line)}
+.point .n{font:800 24px/1 var(--num);color:var(--gold)}
+.point b{display:block;font-size:16px;font-weight:600}
+.point p{margin-top:4px;font-size:14px;line-height:1.55;color:var(--mute)}
+@media (min-width:960px){
+  .intro{grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);grid-template-areas:"hero join" "points join";column-gap:56px;row-gap:34px;padding-block:72px 0;align-items:start}
+  .hero{gap:20px;padding-top:12px}
+  .eyebrow{font-size:13px}.eyebrow::before{width:28px}
+  .lead{font-size:18px}
+  .join{position:sticky;top:96px;padding:30px 28px;border-radius:22px}
+  .join h2{font-size:30px}
+  .points{max-width:540px}
+  .point{grid-template-columns:52px minmax(0,1fr);gap:14px;padding:20px 0}
+  .point .n{font-size:26px}
+  .point b{font-size:17px}.point p{font-size:15px}
+}
+
+/* Sections */
+.sec{display:flex;flex-direction:column;gap:16px;padding-top:56px}
+.sec h2{font-size:clamp(26px,6.4vw,42px);line-height:1.12;font-weight:500;letter-spacing:-.022em}
+.fine{font-size:12px;line-height:1.55;color:var(--dim)}
+.proofs{display:flex;align-items:flex-start;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;margin-right:calc(-1 * max(20px,env(safe-area-inset-right,0px)));padding:4px max(20px,env(safe-area-inset-right,0px)) 10px 0;scrollbar-width:none}
+.proofs::-webkit-scrollbar{display:none}
+.proof-col{display:contents}
+.proof{flex:0 0 auto;display:block;overflow:hidden;border-radius:16px;border:1px solid var(--line);background:var(--field);scroll-snap-align:start;cursor:zoom-in;transition:border-color .15s}
+.proof:hover{border-color:var(--line-2)}
+.proof:focus-visible{outline-offset:-3px;border-radius:16px}
+.proof img{width:auto;max-width:none;height:300px}
+.proof-wide img{width:min(330px,calc(100vw - 60px));height:auto}
+.zoom{position:fixed;inset:0;width:100%;height:100%;max-width:none;max-height:none;margin:0;padding:calc(64px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));border:0;background:rgba(6,6,5,.95);color:var(--ink);overscroll-behavior:contain;cursor:zoom-out}
+.zoom[open]{display:flex;align-items:center;justify-content:center}
+.zoom::backdrop{background:transparent}
+.zoom img{width:auto;height:auto;max-width:min(100%,560px);max-height:100%;border-radius:16px;border:1px solid var(--line-2)}
+.zoom-close{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px));display:flex;align-items:center;justify-content:center;width:44px;height:44px;border:1px solid var(--line-2);border-radius:999px;background:var(--field);color:var(--ink);cursor:pointer}
+html:has(.zoom[open]){overflow:hidden}
+.about-grid{display:flex;flex-direction:column;gap:16px}
+.about-photo{width:100%;height:280px;object-fit:cover;object-position:50% 24%;border-radius:18px;border:1px solid var(--line)}
+.about-text{display:flex;flex-direction:column;gap:16px}
+.about-text p{font-size:15px;line-height:1.65;color:var(--mute);max-width:36em}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding-top:16px;border-top:1px solid var(--line);max-width:520px}
+.stats b{display:block;font:800 28px/1 var(--num);color:var(--gold)}
+.stats span{display:block;margin-top:3px;font-size:12px;color:var(--dim)}
+.duo{display:flex;flex-direction:column;gap:40px;padding-top:56px}
+.app{display:flex;flex-direction:column;gap:14px;padding:22px 18px;align-self:flex-start;width:100%}
+.app-ic{display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:12px;background:var(--gold-soft);color:var(--gold)}
+.app h2{font-size:22px;line-height:1.2;font-weight:700;letter-spacing:-.01em}
+.app p{font-size:15px;line-height:1.55;color:var(--mute)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips span{padding:7px 11px;border:1px solid rgba(255,255,255,.12);border-radius:999px;font-size:12px;font-weight:500;color:var(--soft)}
+.faq h2{margin-bottom:10px;font-size:clamp(26px,5.6vw,34px);line-height:1.12;font-weight:500;letter-spacing:-.02em}
+.faq details{border-top:1px solid var(--line)}
+.faq details:last-of-type{border-bottom:1px solid var(--line)}
+.faq summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 0;font-size:15px;font-weight:600;cursor:pointer}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";flex:0 0 auto;font-size:22px;line-height:1;font-weight:400;color:var(--gold)}
+.faq details[open] summary::after{content:"−"}
+.faq details p{padding:0 0 16px;font-size:14px;line-height:1.6;color:var(--mute);max-width:40em}
+.final{display:flex;flex-direction:column;gap:14px;margin-top:56px;padding:26px 18px;border:1px solid var(--gold-line);border-radius:20px;background:var(--gold-soft)}
+.final h2{font-size:28px;line-height:1.12;font-weight:600;letter-spacing:-.02em}
+.final p{font-size:15px;line-height:1.55;color:var(--soft)}
+.final-tx{display:flex;flex-direction:column;gap:10px;min-width:0}
+.foot{display:flex;flex-direction:column;gap:12px;margin-top:40px;padding-block:22px calc(40px + env(safe-area-inset-bottom,0px));border-top:1px solid rgba(255,255,255,.07)}
+.foot .brand{font-size:14px}
+.foot .brand img{width:28px;height:28px}
+.foot p{font-size:11px;line-height:1.6;color:var(--dim);max-width:60em}
+.foot a{color:var(--mute)}
+@media (min-width:960px){
+  .sec,.duo{padding-top:96px}
+  .proofs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));align-items:start;gap:16px;overflow:visible;margin-right:0;padding:4px 0 0}
+  .proof-col{display:flex;flex-direction:column;gap:16px;min-width:0}
+  .proof,.proof:focus-visible{border-radius:18px}
+  .proof img,.proof-wide img{width:100%;height:auto}
+  .about-grid{flex-direction:row;align-items:center;gap:56px}
+  .about-photo{flex:1 1 0;min-width:0;height:480px;border-radius:22px}
+  .about-text{flex:1.2 1 0;min-width:0;gap:18px}
+  .about-text p{font-size:16px}
+  .stats b{font-size:34px}.stats span{font-size:13px}
+  .duo{flex-direction:row;align-items:flex-start;gap:40px}
+  .app{flex:1 1 0;padding:30px 28px;border-radius:22px}
+  .app h2{font-size:26px}
+  .faq{flex:1.4 1 0;min-width:0}
+  .faq summary{font-size:16px;padding:18px 0}
+  .faq details p{font-size:15px}
+  .final{flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:24px;margin-top:96px;padding:40px;border-radius:24px}
+  .final h2{font-size:38px}
+  .final-tx{flex:1 1 380px}
+  .final .btn{padding:0 30px}
+  .foot{flex-direction:row;align-items:center;justify-content:space-between;gap:24px}
+}
+
+/* Apparition à l'ouverture */
+@media (prefers-reduced-motion:no-preference){
+  .rise{animation:rise .7s cubic-bezier(.2,.75,.2,1) both}
+  .rise-2{animation-delay:.08s}.rise-3{animation-delay:.16s}.rise-4{animation-delay:.24s}.rise-5{animation-delay:.32s}
+  @keyframes rise{from{opacity:0;transform:translateY(14px)}}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.btn,.opt{transition:none}}
+</style>
+</head>
+<body>
+<div class="glow" aria-hidden="true"></div>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="/vip-test" aria-label="VIP InvestPro d'Enrick95, accueil"><img src="/vip-assets/img/logo-192.png" alt="" width="36" height="36">Enrick95&nbsp;<span class="gold">VIP</span></a>
+    <nav class="nav" aria-label="Sections">
+      <a href="#temoignages">Témoignages</a>
+      <a href="#parcours">Mon parcours</a>
+      <a href="#questions">Questions</a>
+    </nav>
+    <span class="pill" data-until-end><i aria-hidden="true"></i>Essai gratuit jusqu'au 30/11</span>
+    <a class="member" href="/dashboard/vip">Espace membre</a>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <div class="intro">
+      <section class="hero" aria-labelledby="titre">
+        <span class="pill rise" data-until-end><i aria-hidden="true"></i>Essai gratuit en démo jusqu'au 30 novembre</span>
+        <p class="eyebrow rise rise-2">VIP InvestPro</p>
+        <h1 id="titre" class="rise rise-3">Trade avec moi,<br><span class="gold">chaque jour.</span></h1>
+        <p class="lead rise rise-4">Mes analyses en H4, chaque signal en direct avec une notification, et le suivi de chaque trade jusqu'à la clôture.</p>
+        <div class="who rise rise-5">
+          <img src="/vip-assets/img/avatar-192.jpg" alt="Photo d'Enrick" width="44" height="44">
+          <div><b>Enrick95</b><span>Trader depuis 7 ans, 40&#8239;000 abonnés TikTok</span></div>
+        </div>
+      </section>
+
+      <section class="card join rise rise-4" id="rejoindre" aria-labelledby="rejoindre-titre">
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <h2 id="rejoindre-titre">Rejoindre le VIP</h2>
+          <p class="join-intro">Gratuit avec un compte chez un de mes brokers partenaires. Choisis ta situation&#8239;:</p>
+        </div>
+        <fieldset class="opts">
+          <legend class="sr">Ta situation</legend>
+          <label class="opt on"><input type="radio" name="parcours" value="nouveau" checked>
+            <span class="opt-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span>
+            <span class="opt-t"><b>Je n'ai pas encore de compte broker</b><span>J'en ouvre un avec ton lien. Dépôt de 300&nbsp;$ minimum, il reste sur mon compte.</span></span>
+            <span class="opt-dot" aria-hidden="true"></span>
+          </label>
+          <label class="opt"><input type="radio" name="parcours" value="rattachement">
+            <span class="opt-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1"/><path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"/></svg></span>
+            <span class="opt-t"><b>J'ai déjà un compte broker</b><span>Bullwaves, Raise&nbsp;FX, VT&nbsp;Markets, PU&nbsp;Prime ou Axi&#8239;: on le rattache à ton code.</span></span>
+            <span class="opt-dot" aria-hidden="true"></span>
+          </label>
+          <label class="opt" data-until-end><input type="radio" name="parcours" value="essai">
+            <span class="opt-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l5-5 4 4 8-8"/><path d="M15 8h5v5"/></svg></span>
+            <span class="opt-t"><b>Je veux tester en démo <span class="chip">Offre</span></b><span>Gratuit et sans dépôt, jusqu'au 30 novembre.</span></span>
+            <span class="opt-dot" aria-hidden="true"></span>
+          </label>
+        </fieldset>
+        <a class="btn btn-gold" id="start" href="/vip-test/rejoindre?parcours=nouveau">Commencer mon inscription</a>
+        <p class="sep">Déjà dans le canal VIP Telegram&#8239;?</p>
+        <a class="btn btn-dark" href="/vip/deja-membre">Activer mon espace VIP</a>
+        <div class="join-foot"><span>Une question&#8239;?</span><a href="https://t.me/EquipeInvestPro" target="_blank" rel="noopener">Écrire à l'équipe</a></div>
+      </section>
+
+      <section class="points" aria-label="Ce que tu as dans le VIP">
+        <div class="point"><span class="n">01</span><div><b>Recevoir chaque signal</b><p>Actif, sens, entrée, stop et objectifs, avec une notification sur ton téléphone.</p></div></div>
+        <div class="point"><span class="n">02</span><div><b>Suivre chaque trade</b><p>Stop remonté, prise partielle, clôture&#8239;: tu vois tout en direct, jusqu'au résultat.</p></div></div>
+        <div class="point"><span class="n">03</span><div><b>Progresser avec moi</b><p>Mes analyses H4, ton journal de trading et le calculateur de lot pour gérer ton risque.</p></div></div>
+      </section>
+    </div>
+
+    <section class="sec" id="temoignages" aria-labelledby="temoignages-titre">
+      <p class="eyebrow">Dans le VIP</p>
+      <h2 id="temoignages-titre">Ce que les membres m'envoient</h2>
+      <div class="proofs">
+        <div class="proof-col">
+          <a class="proof" href="/enrick-assets/m-yann.jpg"><img src="/enrick-assets/m-yann.jpg" alt="Message de Yann : son bilan de la semaine" loading="lazy" width="720" height="746"></a>
+          <a class="proof" href="/enrick-assets/preuve-5.jpg"><img src="/enrick-assets/preuve-5.jpg" alt="Capture de Johnny : trois ventes sur l'or clôturées en gain" loading="lazy" width="720" height="848"></a>
+        </div>
+        <div class="proof-col">
+          <a class="proof proof-wide" href="/enrick-assets/n-axel.jpg"><img src="/enrick-assets/n-axel.jpg" alt="Message d'Axel : une vente sur le Bitcoin clôturée en gain" loading="lazy" width="720" height="505"></a>
+          <a class="proof" href="/enrick-assets/n-jojo2.jpg"><img src="/enrick-assets/n-jojo2.jpg" alt="Message de Jojo : ses gains de la semaine" loading="lazy" width="720" height="999"></a>
+        </div>
+        <div class="proof-col">
+          <a class="proof" href="/enrick-assets/m-harmonie1.jpg"><img src="/enrick-assets/m-harmonie1.jpg" alt="Capture d'Harmonie : plusieurs ventes clôturées en gain" loading="lazy" width="720" height="1356"></a>
+        </div>
+        <div class="proof-col">
+          <a class="proof" href="/enrick-assets/p-quotes.jpg"><img src="/enrick-assets/p-quotes.jpg" alt="Messages de plusieurs membres qui remercient Enrick" loading="lazy" width="720" height="1397"></a>
+        </div>
+      </div>
+      <p class="fine">Clique sur une capture pour l'agrandir. Captures partagées par les membres, résultats individuels, sans garantie pour la suite.</p>
+    </section>
+
+    <section class="sec" id="parcours" aria-labelledby="parcours-titre">
+      <div class="about-grid">
+        <img class="about-photo" src="/vip-assets/img/story-800.jpg" alt="Enrick assis en terrasse, son ordinateur devant lui" loading="lazy" width="800" height="1421">
+        <div class="about-text">
+          <p class="eyebrow">Qui je suis</p>
+          <h2 id="parcours-titre">De préparateur de commandes<br><span class="gold">à trader à plein temps.</span></h2>
+          <p>Pendant cinq ans, j'ai préparé des commandes, de 9&nbsp;h à 17&nbsp;h. Puis les stations essence, Leader Price, l'intérim. Devenu papa jeune, j'ai appris le trading à côté pour être là pour ma fille.</p>
+          <p>Sept ans plus tard, j'en vis. Dans le VIP, je partage exactement ce que je fais sur les marchés.</p>
+          <div class="stats">
+            <div><b>7 ans</b><span>de trading</span></div>
+            <div><b>40&#8239;000</b><span>abonnés TikTok</span></div>
+            <div><b>3&#8239;990</b><span>membres Telegram</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="duo">
+      <section class="card app" aria-labelledby="app-titre">
+        <span class="app-ic" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg></span>
+        <h2 id="app-titre">Ton espace VIP s'installe comme une appli</h2>
+        <p>Les signaux arrivent en notification, comme un message. Pas de store, pas de téléchargement.</p>
+        <div class="chips"><span>Notifications</span><span>Accès en un clic</span><span>iPhone et Android</span></div>
+      </section>
+
+      <section class="faq" id="questions" aria-labelledby="faq-titre">
+        <h2 id="faq-titre">Questions fréquentes</h2>
+        <details open><summary>C'est vraiment gratuit&#8239;?</summary><p>Oui, sans abonnement. Tu ouvres ton compte chez un de mes brokers partenaires avec mon lien et tu déposes au moins 300&nbsp;$. Cet argent reste sur ton compte de trading&#8239;: c'est ton capital, pas un paiement.</p></details>
+        <details><summary>Pourquoi passer par ton lien&#8239;?</summary><p>C'est ce qui relie ton compte à mon code partenaire, et c'est ce partenariat qui rend le VIP gratuit. Un compte ouvert sans le lien ne peut pas être validé, sauf s'il est rattaché ensuite.</p></details>
+        <details><summary>J'ai déjà un compte chez un de tes brokers</summary><p>Pas besoin d'en ouvrir un autre&#8239;: on le rattache à mon code. Dans l'inscription, choisis «&#8239;J'ai déjà un compte broker&#8239;»&#8239;: tu as le message exact à envoyer à ton broker.</p></details>
+        <details><summary>Combien de temps pour être validé&#8239;?</summary><p>En général sous 24&nbsp;h. Tu suis ta demande en direct sur la page, et tu reçois un e-mail dès qu'elle est validée.</p></details>
+        <details><summary>Je débute, c'est pour moi&#8239;?</summary><p>Oui. Commence par l'essai en démo si tu veux voir avant de déposer. Dans le VIP, tu vois mon analyse avant chaque trade, et le calculateur de lot t'aide à ne pas risquer plus que prévu.</p></details>
+        <details><summary>Est-ce que je peux perdre de l'argent&#8239;?</summary><p>Oui. Le trading comporte un vrai risque de perte en capital, même en suivant un VIP. Ne dépose que ce que tu peux te permettre de perdre, et respecte la gestion du risque.</p></details>
+        <details><summary>Les liens ne s'ouvrent pas depuis TikTok ou Instagram</summary><p>Ouvre la page dans Safari ou Chrome&#8239;: touche les trois points en haut, puis «&#8239;Ouvrir dans le navigateur&#8239;».</p></details>
+      </section>
+    </div>
+
+    <section class="final" aria-labelledby="fin-titre">
+      <div class="final-tx">
+        <h2 id="fin-titre">Prêt à trader avec moi&#8239;?</h2>
+        <p>Inscription en quelques minutes. L'équipe valide ton dossier, en général sous 24&nbsp;h.</p>
+      </div>
+      <a class="btn btn-gold" href="#rejoindre">Commencer mon inscription</a>
+    </section>
+
+    <footer class="foot">
+      <span class="brand"><img src="/vip-assets/img/logo-192.png" alt="" width="28" height="28">Enrick95&nbsp;<span class="gold">VIP</span></span>
+      <p>Le trading de CFD et de devises comporte un risque élevé de perte en capital. Les contenus du VIP sont éducatifs et ne constituent pas un conseil en investissement personnalisé. Contact&#8239;: <a href="https://t.me/EquipeInvestPro" target="_blank" rel="noopener">@EquipeInvestPro</a></p>
+    </footer>
+  </div>
+</main>
+
+<dialog class="zoom" id="zoom" aria-label="Capture agrandie">
+  <button type="button" class="zoom-close" aria-label="Fermer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+  <img alt="">
+</dialog>
+
+<script>
+(function(){
+  'use strict';
+  var END=new Date('2026-11-30T23:59:59+01:00').getTime();
+  var start=document.getElementById('start');
+  var opts=[].slice.call(document.querySelectorAll('.opt'));
+  function pick(){
+    var on=document.querySelector('.opt input:checked');
+    opts.forEach(function(o){o.classList.toggle('on',o.querySelector('input')===on)});
+    if(start&&on)start.href='/vip-test/rejoindre?parcours='+encodeURIComponent(on.value);
+  }
+  opts.forEach(function(o){o.querySelector('input').addEventListener('change',pick)});
+  function trial(){
+    var over=Date.now()>=END;
+    document.querySelectorAll('[data-until-end]').forEach(function(el){el.hidden=over});
+    if(over){var t=document.querySelector('.opt input[value="essai"]');if(t&&t.checked){document.querySelector('.opt input[value="nouveau"]').checked=true}}
+    pick();
+  }
+  trial();setInterval(trial,60000);
+
+  // Agrandir une capture : sans <dialog>, le lien ouvre simplement l'image.
+  var zoom=document.getElementById('zoom');
+  if(zoom&&typeof zoom.showModal==='function'){
+    var zimg=zoom.querySelector('img');
+    document.querySelectorAll('.proof').forEach(function(a){
+      a.addEventListener('click',function(e){
+        e.preventDefault();
+        zimg.src=a.getAttribute('href');
+        zimg.alt=a.querySelector('img').alt;
+        zoom.showModal();
+      });
+    });
+    zoom.addEventListener('click',function(){zoom.close()});
+  }
+})();
+</script>
+</body>
+</html>

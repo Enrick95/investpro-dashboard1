@@ -3,19 +3,39 @@ import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
-// Nouveau parcours VIP en test (/vip-test et /vip-test/rejoindre) : il réutilise les API existantes
+// Nouvelle page VIP en test (/vip-test et /vip-test/rejoindre) : elle réutilise les API existantes
 // sans les modifier, donc ses champs, ses brokers et ses liens d'affiliation doivent rester alignés sur elles.
 const project = path.resolve(import.meta.dirname, "..");
 const read = (file) => fs.readFileSync(path.join(project, file), "utf8");
-const landing = read("public/vip-v3.html");
-const join = read("public/vip-v3-rejoindre.html");
+const landing = read("public/vip-v4.html");
+const join = read("public/vip-v4-rejoindre.html");
 
 test("the test URLs serve the new pages and the live /vip stays on the current page", () => {
   const config = read("next.config.ts");
-  assert.match(config, /\{source:"\/vip-test",destination:"\/vip-v3\.html"\}/);
-  assert.match(config, /\{source:"\/vip-test\/rejoindre",destination:"\/vip-v3-rejoindre\.html"\}/);
+  assert.match(config, /\{source:"\/vip-test",destination:"\/vip-v4\.html"\}/);
+  assert.match(config, /\{source:"\/vip-test\/rejoindre",destination:"\/vip-v4-rejoindre\.html"\}/);
   assert.match(config, /\{source:"\/vip",destination:"\/vip-v2\.html",missing:\[\{type:"query",key:"code"\}\]\}/);
   for (const page of [landing, join]) assert.match(page, /<meta name="robots" content="noindex">/);
+});
+
+test("the page's join card sends the chosen situation to the join flow", () => {
+  for (const value of ["nouveau", "rattachement", "essai"]) assert.match(landing, new RegExp(`name="parcours" value="${value}"`));
+  assert.match(landing, /start\.href='\/vip-test\/rejoindre\?parcours='\+encodeURIComponent\(on\.value\)/);
+  assert.match(landing, /href="\/vip\/deja-membre"/);
+  assert.match(landing, /href="\/dashboard\/vip"/);
+  // L'essai disparaît tout seul après le 30 novembre.
+  assert.match(landing, /new Date\('2026-11-30T23:59:59\+01:00'\)/);
+  assert.match(landing, /<label class="opt" data-until-end>/);
+});
+
+test("the page shows the members' screenshots and no VIP statistics", () => {
+  assert.ok(!/api\/vip\/performance/.test(landing));
+  assert.ok(!/\d+,\d\s?R\b/.test(landing), "no R result on the page");
+  assert.match(landing, /id="temoignages"/);
+  assert.ok((landing.match(/src="\/enrick-assets\/[a-z0-9-]+\.jpg"/g) || []).length >= 4);
+  assert.match(landing, /préparateur de commandes/);
+  assert.ok(!/responsable logistique/i.test(landing));
+  assert.ok(!/InvestPro Copy/i.test(landing));
 });
 
 test("the dossier is sent with exactly the fields the application API reads", () => {
@@ -52,32 +72,13 @@ test("brokers and affiliate links match the current join wizard", () => {
   assert.ok(join.includes("code 90088") && join.includes("4740681") && join.includes("ENRICK100"));
 });
 
-test("status tracking is shared with the current new-member page", () => {
+test("status tracking is shared with the current new-member page and the member card follows it", () => {
   const current = read("public/vip-nouveau-membre.html");
   const key = current.match(/SUIVI_KEY='([^']+)'/)[1];
   assert.ok(join.includes(`var SUIVI_KEY='${key}'`));
   assert.match(join, /fetch\('\/api\/vip\/nouveau-membre\/suivi',\{method:'POST'/);
-  // Ni fichier ni mot de passe dans le brouillon gardé sur le téléphone.
   const fields = join.match(/var FIELDS=\[([^\]]+)\]/)[1];
-  assert.ok(!/password|motdepasse|capture/i.test(fields));
-});
-
-test("the landing tells the true story and promises nothing that is not live", () => {
-  assert.ok(!/responsable logistique/i.test(landing));
-  assert.ok(!/InvestPro Copy/i.test(landing));
-  assert.match(landing, /préparateur de commandes/);
-  assert.match(landing, /fetch\('\/api\/vip\/performance'/);
-  assert.ok(!/Ce mois/.test(landing), "results open on the whole history, not the current month");
-});
-
-test("animations follow the real trades and switch off for reduced motion", () => {
-  assert.match(landing, /matchMedia\('\(prefers-reduced-motion: reduce\)'\)/);
-  assert.match(landing, /@media \(prefers-reduced-motion:reduce\)\{[^]*?\.mq-track[^]*?animation:none/);
-  // Notifications, bandeau et courbe viennent de la même requête que les résultats, sans trade écrit en dur.
-  assert.equal((landing.match(/fetch\('\/api\/vip\/performance'/g) || []).length, 1);
-  assert.match(landing, /notifications\(t\);ticker\(t\);results\(t\);/);
-  assert.ok(!/XAUUSD|NAS100|EURJPY/.test(landing.replace(/alt="[^"]*"/g, "")), "no hard-coded trade in the page");
-  // La carte membre suit le statut du dossier.
+  assert.ok(!/password|motdepasse|capture/i.test(fields), "no file or password kept in the draft");
   for (const label of ["En validation", "Validée", "Active", "Refusée", "Lien expiré"]) assert.ok(join.includes(`'${label}'`), label);
   assert.ok(join.includes(".step.enter-fwd,.step.enter-back,.mcard,.mcard::after,.mcard-line path{animation:none}"));
 });
