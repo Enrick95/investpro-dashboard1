@@ -587,8 +587,10 @@ function submitContact(e){
   ['firstName','lastName','email','phone','telegram'].forEach(clearErr);
   if(!S.firstName.trim()){showErr('firstName','Écris ton prénom.');ok=false}
   if(!S.lastName.trim()){showErr('lastName','Écris ton nom.');ok=false}
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(S.email.trim())){showErr('email','Vérifie ton adresse e-mail.');ok=false}
-  if(!phoneE164()){showErr('phone',S.cc==='autre'?'Écris ton numéro avec l\'indicatif, par exemple +44 7911 123456.':'Ce numéro ne semble pas complet. Vérifie-le.');ok=false}
+  if(!S.email.trim()){showErr('email','Écris ton adresse e-mail.');ok=false}
+  else if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(S.email.trim())){showErr('email','Vérifie ton adresse e-mail.');ok=false}
+  if(!String(S.phone||'').trim()){showErr('phone','Écris ton numéro WhatsApp.');ok=false}
+  else if(!phoneE164()){showErr('phone',S.cc==='autre'?'Écris ton numéro avec l\'indicatif, par exemple +44 7911 123456.':'Ce numéro ne semble pas complet. Vérifie-le.');ok=false}
   if(!/^[A-Za-z][A-Za-z0-9_]{4,31}$/.test(cleanTelegram(S.telegram))){showErr('telegram','Écris ton @pseudo Telegram (5 à 32 caractères, lettres, chiffres ou _).');ok=false}
   if(!ok){firstErr();return}
   S.firstName=S.firstName.trim();S.lastName=S.lastName.trim();S.email=S.email.trim().toLowerCase();S.telegram='@'+cleanTelegram(S.telegram);save();
