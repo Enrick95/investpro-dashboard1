@@ -150,7 +150,13 @@ h2 em{letter-spacing:-.034em}
 .step p{margin-top:10px;font-size:15px;line-height:1.7;color:var(--mute)}
 
 /* Témoignages */
-.toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:30px}
+.proofline{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px 14px;margin-top:24px;padding-top:18px;border-top:1px solid var(--line);font-size:13px;color:var(--mute)}
+.proofline p{display:flex;align-items:baseline;gap:8px}
+.proofline p+p{padding-left:14px;border-left:1px solid var(--line)}
+.proofline b{font-size:21px;line-height:1;font-weight:700;letter-spacing:-.035em;color:var(--ink)}
+.round .ic-play,.round[aria-pressed="true"] .ic-pause{display:none}
+.round[aria-pressed="true"] .ic-play{display:block}
+.toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:26px}
 .toolbar>span{font-size:10px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#9b9b94}
 .toolbar>div{display:flex;align-items:center;gap:8px}
 .count{min-width:44px;font-size:13px;color:var(--mute);font-variant-numeric:tabular-nums;text-align:right}
@@ -235,6 +241,7 @@ h2 em{letter-spacing:-.034em}
 .zoom-nav{position:absolute;left:0;right:0;bottom:calc(20px + env(safe-area-inset-bottom,0px));display:flex;justify-content:center;gap:12px}
 html:has(.zoom[open]){overflow:hidden}
 
+@media (max-width:519px){.count{display:none}}
 @media (min-width:720px){.band .wide{display:block}.band span{font-size:10px}}
 @media (min-width:960px){
   .top .wrap{min-height:72px}
@@ -260,7 +267,9 @@ html:has(.zoom[open]){overflow:hidden}
   .gallery,.quotes{margin-right:0;padding-right:0}
   .mcard{width:284px}
   .shot{height:400px}
-  .quotes figure{width:340px}
+  .proofline{gap:10px 18px;font-size:14px}.proofline p+p{padding-left:18px}.proofline b{font-size:24px}
+  .quotes{display:block;columns:3;column-gap:14px;overflow:visible;padding-top:18px}
+  .quotes figure{width:auto;min-height:0;margin:0 0 14px;break-inside:avoid}
   .about{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:80px;align-items:center}
   .art img{height:640px}
   .duo{display:grid;grid-template-columns:minmax(0,.82fr) minmax(0,1.18fr);gap:64px;align-items:start;padding-top:124px}
@@ -362,29 +371,64 @@ html:has(.zoom[open]){overflow:hidden}
       <div class="sec-head">
         <p class="kicker">Les retours des membres</p>
         <h2 id="temoignages-titre">Ce que les membres<br><em>m'envoient.</em></h2>
-        <p class="sec-lede">Des captures partagées par les membres sur Telegram et dans le VIP. Clique sur une capture pour la lire en grand.</p>
+        <p class="sec-lede">Des captures et des messages envoyés par les membres sur Telegram et dans le VIP, avec leurs propres mots. Clique sur une capture pour la lire en grand.</p>
       </div>
+      <div class="proofline"><p><b>36</b> captures à découvrir</p><p><b>7</b> témoignages écrits</p></div>
       <div class="toolbar">
         <span>Glisse pour explorer</span>
         <div>
-          <span class="count" id="gallery-count">1 / 6</span>
+          <span class="count" id="gallery-count">1 / 36</span>
+          <button class="round" type="button" data-auto aria-pressed="false" aria-label="Mettre le défilement des captures en pause" aria-controls="gallery" hidden><svg class="ic-pause" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg><svg class="ic-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="M8 5.5v13l10-6.5-10-6.5Z"/></svg></button>
           <button class="round" type="button" data-gal="-1" aria-label="Captures précédentes" aria-controls="gallery"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12H4m6-6-6 6 6 6"/></svg></button>
           <button class="round" type="button" data-gal="1" aria-label="Captures suivantes" aria-controls="gallery"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16m-6-6 6 6-6 6"/></svg></button>
         </div>
       </div>
       <div class="gallery" id="gallery">
-        <article class="mcard"><a href="/enrick-assets/m-yann.jpg"><span class="shot"><img src="/enrick-assets/m-yann.jpg" alt="Message de Yann : son bilan de la semaine" loading="lazy" width="720" height="746"></span><span class="meta"><span>Yann</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
-        <article class="mcard"><a href="/enrick-assets/preuve-5.jpg"><span class="shot"><img src="/enrick-assets/preuve-5.jpg" alt="Capture de Johnny : trois ventes sur l'or clôturées en gain" loading="lazy" width="720" height="848"></span><span class="meta"><span>Johnny</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
-        <article class="mcard"><a href="/enrick-assets/n-axel.jpg"><span class="shot"><img src="/enrick-assets/n-axel.jpg" alt="Message d'Axel : une vente sur le Bitcoin clôturée en gain" loading="lazy" width="720" height="505"></span><span class="meta"><span>Axel</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
-        <article class="mcard"><a href="/enrick-assets/n-jojo2.jpg"><span class="shot"><img src="/enrick-assets/n-jojo2.jpg" alt="Message de Jojo : ses gains de la semaine" loading="lazy" width="720" height="999"></span><span class="meta"><span>Jojo</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
-        <article class="mcard"><a href="/enrick-assets/m-harmonie1.jpg"><span class="shot"><img src="/enrick-assets/m-harmonie1.jpg" alt="Capture d'Harmonie : plusieurs ventes clôturées en gain" loading="lazy" width="720" height="1356"></span><span class="meta"><span>Harmonie</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
-        <article class="mcard"><a href="/enrick-assets/p-quotes.jpg"><span class="shot"><img src="/enrick-assets/p-quotes.jpg" alt="Messages de plusieurs membres qui remercient Enrick" loading="lazy" width="720" height="1397"></span><span class="meta"><span>Plusieurs membres</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/m-yann.jpg"><span class="shot"><img src="/enrick-assets/m-yann.jpg" alt="Message de Yann : son bilan de la semaine" loading="lazy" decoding="async" width="720" height="746"></span><span class="meta"><span>Yann</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/n-kallista.jpg"><span class="shot"><img src="/enrick-assets/n-kallista.jpg" alt="Messages de Kallista après avoir pris le trade du live" loading="lazy" decoding="async" width="720" height="572"></span><span class="meta"><span>Kallista</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/n-axel.jpg"><span class="shot"><img src="/enrick-assets/n-axel.jpg" alt="Message d'Axel : une vente sur le Bitcoin clôturée en gain" loading="lazy" decoding="async" width="720" height="505"></span><span class="meta"><span>Axel</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/n-anes.jpg"><span class="shot"><img src="/enrick-assets/n-anes.jpg" alt="Message d'Anès qui raconte son trade" loading="lazy" decoding="async" width="720" height="1130"></span><span class="meta"><span>Anès</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/p-le7.jpg"><span class="shot"><img src="/enrick-assets/p-le7.jpg" alt="Message de Le_7 après une vente sur l'or" loading="lazy" decoding="async" width="720" height="484"></span><span class="meta"><span>Le_7</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/n-jojo2.jpg"><span class="shot"><img src="/enrick-assets/n-jojo2.jpg" alt="Message de Jojo : ses gains de la semaine" loading="lazy" decoding="async" width="720" height="999"></span><span class="meta"><span>Jojo</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/preuve-5.jpg"><span class="shot"><img src="/enrick-assets/preuve-5.jpg" alt="Capture de Johnny : trois ventes sur l'or clôturées en gain" loading="lazy" decoding="async" width="720" height="848"></span><span class="meta"><span>Johnny</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/p-quotes.jpg"><span class="shot"><img src="/enrick-assets/p-quotes.jpg" alt="Messages de plusieurs membres qui remercient Enrick" loading="lazy" decoding="async" width="720" height="1397"></span><span class="meta"><span>Plusieurs membres</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/m-harmonie1.jpg"><span class="shot"><img src="/enrick-assets/m-harmonie1.jpg" alt="Capture d'Harmonie : plusieurs ventes clôturées en gain" loading="lazy" decoding="async" width="720" height="1356"></span><span class="meta"><span>Harmonie</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/p-davy3.jpg"><span class="shot"><img src="/enrick-assets/p-davy3.jpg" alt="Message de Davy après deux ventes clôturées en gain" loading="lazy" decoding="async" width="720" height="433"></span><span class="meta"><span>Davy</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/n-lagnole.jpg"><span class="shot"><img src="/enrick-assets/n-lagnole.jpg" alt="Capture partagée par Lagnole" loading="lazy" decoding="async" width="720" height="664"></span><span class="meta"><span>Lagnole</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/m-flodio.jpg"><span class="shot"><img src="/enrick-assets/m-flodio.jpg" alt="Capture partagée par Flodio" loading="lazy" decoding="async" width="720" height="373"></span><span class="meta"><span>Flodio</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/preuve-8.jpg"><span class="shot"><img src="/enrick-assets/preuve-8.jpg" alt="Capture de Red : trois ventes sur l'or clôturées en gain" loading="lazy" decoding="async" width="720" height="509"></span><span class="meta"><span>Red</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/preuve-6.jpg"><span class="shot"><img src="/enrick-assets/preuve-6.jpg" alt="Capture de Julien : plusieurs trades clôturés en gain" loading="lazy" decoding="async" width="720" height="1219"></span><span class="meta"><span>Julien</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/p-lexa.jpg"><span class="shot"><img src="/enrick-assets/p-lexa.jpg" alt="Capture partagée par Lex.a" loading="lazy" decoding="async" width="720" height="1201"></span><span class="meta"><span>Lex.a</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/preuve-4.jpg"><span class="shot"><img src="/enrick-assets/preuve-4.jpg" alt="Capture de Lex.a : plusieurs achats sur l'or" loading="lazy" decoding="async" width="720" height="1233"></span><span class="meta"><span>Lex.a</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/m-william.jpg"><span class="shot"><img src="/enrick-assets/m-william.jpg" alt="Capture partagée par William" loading="lazy" decoding="async" width="720" height="1381"></span><span class="meta"><span>William</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/n-chuck2.jpg"><span class="shot"><img src="/enrick-assets/n-chuck2.jpg" alt="Capture partagée par Chuck" loading="lazy" decoding="async" width="720" height="1282"></span><span class="meta"><span>Chuck</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/preuve-2.jpg"><span class="shot"><img src="/enrick-assets/preuve-2.jpg" alt="Capture partagée par Chuck" loading="lazy" decoding="async" width="720" height="1214"></span><span class="meta"><span>Chuck</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/preuve-3.jpg"><span class="shot"><img src="/enrick-assets/preuve-3.jpg" alt="Capture partagée par Jojo" loading="lazy" decoding="async" width="720" height="1275"></span><span class="meta"><span>Jojo</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/preuve-7.jpg"><span class="shot"><img src="/enrick-assets/preuve-7.jpg" alt="Capture partagée par Jojo" loading="lazy" decoding="async" width="720" height="1267"></span><span class="meta"><span>Jojo</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/m-harmonie2.jpg"><span class="shot"><img src="/enrick-assets/m-harmonie2.jpg" alt="Capture partagée par Harmonie" loading="lazy" decoding="async" width="720" height="1591"></span><span class="meta"><span>Harmonie</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/n-rayen1.jpg"><span class="shot"><img src="/enrick-assets/n-rayen1.jpg" alt="Capture partagée par Rayen" loading="lazy" decoding="async" width="720" height="1258"></span><span class="meta"><span>Rayen</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/n-rayen2.jpg"><span class="shot"><img src="/enrick-assets/n-rayen2.jpg" alt="Capture partagée par Rayen" loading="lazy" decoding="async" width="720" height="1296"></span><span class="meta"><span>Rayen</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/n-titi2.jpg"><span class="shot"><img src="/enrick-assets/n-titi2.jpg" alt="Capture partagée par Titi" loading="lazy" decoding="async" width="786" height="1470"></span><span class="meta"><span>Titi</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/preuve-9.jpg"><span class="shot"><img src="/enrick-assets/preuve-9.jpg" alt="Capture partagée par Titi" loading="lazy" decoding="async" width="652" height="1692"></span><span class="meta"><span>Titi</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/n-mohaa.jpg"><span class="shot"><img src="/enrick-assets/n-mohaa.jpg" alt="Capture partagée par Mohaa" loading="lazy" decoding="async" width="720" height="1312"></span><span class="meta"><span>Mohaa</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/preuve-1.jpg"><span class="shot"><img src="/enrick-assets/preuve-1.jpg" alt="Capture partagée par Kayn" loading="lazy" decoding="async" width="676" height="1404"></span><span class="meta"><span>Kayn</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/m-met.jpg"><span class="shot"><img src="/enrick-assets/m-met.jpg" alt="Capture partagée par Met" loading="lazy" decoding="async" width="720" height="1039"></span><span class="meta"><span>Met</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/p-davy1.jpg"><span class="shot"><img src="/enrick-assets/p-davy1.jpg" alt="Capture partagée par Davy" loading="lazy" decoding="async" width="720" height="1644"></span><span class="meta"><span>Davy</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/p-davy2.jpg"><span class="shot"><img src="/enrick-assets/p-davy2.jpg" alt="Capture partagée par Davy" loading="lazy" decoding="async" width="687" height="1778"></span><span class="meta"><span>Davy</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/p-youss.jpg"><span class="shot"><img src="/enrick-assets/p-youss.jpg" alt="Capture partagée par Youss" loading="lazy" decoding="async" width="720" height="1358"></span><span class="meta"><span>Youss</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/p-maks.jpg"><span class="shot"><img src="/enrick-assets/p-maks.jpg" alt="Capture partagée par Maks" loading="lazy" decoding="async" width="720" height="1241"></span><span class="meta"><span>Maks</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/p-a.jpg"><span class="shot"><img src="/enrick-assets/p-a.jpg" alt="Capture partagée par un membre" loading="lazy" decoding="async" width="720" height="1402"></span><span class="meta"><span>Un membre</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/p-fatih1.jpg"><span class="shot"><img src="/enrick-assets/p-fatih1.jpg" alt="Capture partagée par Fatih" loading="lazy" decoding="async" width="720" height="1394"></span><span class="meta"><span>Fatih</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
+        <article class="mcard"><a href="/enrick-assets/p-fatih2.jpg"><span class="shot"><img src="/enrick-assets/p-fatih2.jpg" alt="Capture partagée par Fatih" loading="lazy" decoding="async" width="720" height="1306"></span><span class="meta"><span>Fatih</span><b>Agrandir<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></b></span></a></article>
       </div>
       <h3 class="quotes-h">Leurs mots</h3>
       <div class="quotes">
+        <figure><blockquote>«&#8239;Premier trade suivi, et c'est déjà du lourd&#8239;!&#8239;»</blockquote><figcaption>Lex.a</figcaption></figure>
         <figure><blockquote>«&#8239;Ton trading est vraiment propre et technique. Tu pousses le groupe vers le haut et t'es proche de nous aussi, et ça c'est important.&#8239;»</blockquote><figcaption>Yann</figcaption></figure>
         <figure><blockquote>«&#8239;Je gère toujours bien mon money management et je suis tes conseils, donc tout roule. Tu es vraiment quelqu'un de bien.&#8239;»</blockquote><figcaption>Harmonie</figcaption></figure>
+        <figure><blockquote>«&#8239;Sans toi, je serais encore à bosser en usine à me lever à 6&nbsp;h du matin. Aujourd'hui, je me lève à l'heure que je veux.&#8239;»</blockquote><figcaption>Mathews</figcaption></figure>
         <figure><blockquote>«&#8239;Reconnaissance totale pour la qualité et la précision de tes analyses.&#8239;»</blockquote><figcaption>Jojo</figcaption></figure>
+        <figure><blockquote>«&#8239;J'essaye de me former de mon côté. J'aime beaucoup tes analyses.&#8239;»</blockquote><figcaption>Dadra</figcaption></figure>
         <figure><blockquote>«&#8239;J'écoute tes conseils sur le VIP et en live, ça me régale. Merci beaucoup&#8239;!&#8239;»</blockquote><figcaption>Lex.a</figcaption></figure>
       </div>
       <p class="fine">Captures et messages partagés par les membres. Résultats individuels, sans garantie pour la suite.</p>
@@ -507,11 +551,38 @@ html:has(.zoom[open]){overflow:hidden}
   var ticking=false;
   gal.addEventListener('scroll',function(){if(!ticking){ticking=true;requestAnimationFrame(function(){ticking=false;sync()})}},{passive:true});
   window.addEventListener('resize',sync);
+  var reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var holdUntil=0;
+  function hold(){holdUntil=Date.now()+8000}
   [prev,next].forEach(function(b){b.addEventListener('click',function(){
+    hold();
     var i=Math.max(0,Math.min(cards.length-1,index()+Number(b.getAttribute('data-gal'))));
-    gal.scrollTo({left:cards[i].offsetLeft,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+    gal.scrollTo({left:cards[i].offsetLeft,behavior:reduce?'auto':'smooth'});
   })});
   sync();
+
+  // Défilement automatique doux, comme sur /business : une capture toutes les 3,2 s quand la galerie est à l'écran.
+  // Il s'arrête au survol, au toucher, au clavier, pendant le zoom, et ne démarre pas si l'appareil demande moins d'animations.
+  var autoBtn=document.querySelector('[data-auto]');
+  if(!reduce&&autoBtn){
+    var paused=false,hover=false,inView=false;
+    autoBtn.hidden=false;
+    autoBtn.addEventListener('click',function(){
+      paused=!paused;
+      autoBtn.setAttribute('aria-pressed',String(paused));
+      autoBtn.setAttribute('aria-label',paused?'Relancer le défilement des captures':'Mettre le défilement des captures en pause');
+    });
+    ['pointerdown','touchstart','wheel','keydown'].forEach(function(ev){gal.addEventListener(ev,hold,{passive:true})});
+    gal.addEventListener('mouseenter',function(){hover=true});
+    gal.addEventListener('mouseleave',function(){hover=false});
+    if('IntersectionObserver' in window)new IntersectionObserver(function(es){inView=es[0].isIntersecting},{threshold:.35}).observe(gal);else inView=true;
+    setInterval(function(){
+      if(paused||hover||!inView||document.hidden||Date.now()<holdUntil||gal.contains(document.activeElement)||(zoom&&zoom.open))return;
+      var end=gal.scrollLeft+gal.clientWidth>=gal.scrollWidth-4;
+      var i=end?0:Math.min(cards.length-1,index()+1);
+      gal.scrollTo({left:cards[i].offsetLeft,behavior:'smooth'});
+    },3200);
+  }
 
   // Capture agrandie, avec précédente et suivante. Sans <dialog>, le lien ouvre l'image.
   var zoom=document.getElementById('zoom');

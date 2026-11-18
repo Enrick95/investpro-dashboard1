@@ -108,3 +108,13 @@ test("v5 uses the /business typeface and keeps the neon border still when motion
   assert.match(v5.landing, /prefers-reduced-motion:reduce\)\{html\{scroll-behavior:auto\}\.cta::before\{animation:none\}/);
   assert.match(v5.join, /prefers-reduced-motion:reduce\)\{\.btn,\.choice,\.input\{transition:none\}\.btn-gold::before,/);
 });
+
+test("v5 shows every member capture and written testimonial that /business has", () => {
+  const data = JSON.parse(read("public/business-assets/testimonials.json"));
+  const [, v5] = VERSIONS;
+  for (const src of data.screenshots) assert.ok(v5.landing.includes(`<a href="${src}">`), src);
+  assert.equal((v5.landing.match(/<article class="mcard">/g) || []).length, data.screenshots.length);
+  for (const { author } of data.quotes) assert.ok(v5.landing.includes(`<figcaption>${author}</figcaption>`), author);
+  assert.equal((v5.landing.match(/<figure><blockquote>/g) || []).length, data.quotes.length);
+  assert.match(v5.landing, new RegExp(`<b>${data.screenshots.length}</b> captures à découvrir`));
+});
