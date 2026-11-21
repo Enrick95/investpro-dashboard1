@@ -10,7 +10,7 @@
     --accent: #16694a; --accent-ink: #ffffff; --accent-soft: #e5f2ec;
     --hot: #b4473f; --hot-soft: #f8e9e7; --warm: #a96c12; --warm-soft: #faf0dd;
     --cold: #3d63a0; --cold-soft: #eaf0f9; --vip: #16694a; --vip-soft: #e5f2ec;
-    --stop: #7b847f; --stop-soft: #eef1ef; --invite: #6d4fa3; --invite-soft: #f0ecf8;
+    --stop: #7b847f; --stop-soft: #eef1ef; --invite: #6d4fa3; --invite-soft: #f0ecf8; --sub: #b03a7a; --sub-soft: #f9e8f1;
     --quote: #f6f8f7; --focus: #2b7de9;
     --shadow: 0 1px 2px rgba(22, 33, 29, .05), 0 8px 24px rgba(22, 33, 29, .05);
     color-scheme: light;
@@ -21,7 +21,7 @@
       --accent: #3fae80; --accent-ink: #08130e; --accent-soft: #1d3a2e;
       --hot: #ec8a80; --hot-soft: #3a2220; --warm: #e2ad55; --warm-soft: #382c17;
       --cold: #86a8e0; --cold-soft: #1f2a3c; --vip: #57c495; --vip-soft: #1d3a2e;
-      --stop: #9aa49f; --stop-soft: #262d2a; --invite: #b39ae4; --invite-soft: #2c2540;
+      --stop: #9aa49f; --stop-soft: #262d2a; --invite: #b39ae4; --invite-soft: #2c2540; --sub: #ec9cc6; --sub-soft: #3a2131;
       --quote: #1e2724; --shadow: none; color-scheme: dark;
     }
   }
@@ -83,18 +83,19 @@
   .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--stop); }
   .dot[data-cat="chaud"] { background: var(--hot); } .dot[data-cat="tiede"] { background: var(--warm); }
   .dot[data-cat="froid"] { background: var(--cold); } .dot[data-cat="vip"] { background: var(--vip); }
-  .dot[data-cat="invite"] { background: var(--invite); }
+  .dot[data-cat="invite"] { background: var(--invite); } .dot[data-cat="abonne"] { background: var(--sub); }
   .tag { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; background: var(--stop-soft); color: var(--stop); }
   .tag.ready { background: var(--accent-soft); color: var(--accent); }
   .tag[data-cat="chaud"] { background: var(--hot-soft); color: var(--hot); } .tag[data-cat="tiede"] { background: var(--warm-soft); color: var(--warm); }
   .tag[data-cat="froid"] { background: var(--cold-soft); color: var(--cold); } .tag[data-cat="vip"] { background: var(--vip-soft); color: var(--vip); }
   .tag[data-cat="invite"] { background: var(--invite-soft); color: var(--invite); }
+  .tag[data-cat="abonne"] { background: var(--sub-soft); color: var(--sub); }
   .empty { padding: 28px 16px; color: var(--muted); text-align: center; }
   .list li.group { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 8px; padding: 8px 14px; font-size: 12px; font-weight: 700; background: var(--quote); border-bottom: 1px solid var(--line); }
   .list li.group::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--stop); }
   .list li.group[data-cat="chaud"]::before { background: var(--hot); } .list li.group[data-cat="tiede"]::before { background: var(--warm); }
   .list li.group[data-cat="froid"]::before { background: var(--cold); } .list li.group[data-cat="vip"]::before { background: var(--vip); }
-  .list li.group[data-cat="invite"]::before { background: var(--invite); }
+  .list li.group[data-cat="invite"]::before { background: var(--invite); } .list li.group[data-cat="abonne"]::before { background: var(--sub); }
 
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; box-shadow: var(--shadow); display: grid; gap: 14px; min-width: 0; }
   .card-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; align-items: flex-start; }
@@ -166,12 +167,12 @@
 <script>
 (() => {
   const $ = (id) => document.getElementById(id);
-  const CAT_LABEL = { chaud: "Chaud", tiede: "Tiède", froid: "Froid", vip: "Déjà membre VIP", invite: "Déjà invité", stop: "Ne plus contacter" };
-  const CAT_ORDER = { chaud: 0, tiede: 1, froid: 2, invite: 3, vip: 4, stop: 5 };
-  const GROUP_LABEL = { chaud: "Les plus chauds", tiede: "Tièdes", froid: "Froids", invite: "Déjà invités", vip: "Déjà membres VIP", stop: "Ne plus contacter" };
-  const CAT_SHORT = { chaud: "Chaud", tiede: "Tiède", froid: "Froid", invite: "Invité", vip: "VIP", stop: "Stop" };
+  const CAT_LABEL = { chaud: "Chaud", abonne: "Ancien abonné", tiede: "Tiède", froid: "Froid", vip: "Déjà membre VIP", invite: "Déjà invité", stop: "Ne plus contacter" };
+  const CAT_ORDER = { chaud: 0, abonne: 1, tiede: 2, froid: 3, invite: 4, vip: 5, stop: 6 };
+  const GROUP_LABEL = { chaud: "Les plus chauds", abonne: "Anciens abonnés", tiede: "Tièdes", froid: "Froids", invite: "Déjà invités", vip: "Déjà membres VIP", stop: "Ne plus contacter" };
+  const CAT_SHORT = { chaud: "Chaud", abonne: "Ex-abonné", tiede: "Tiède", froid: "Froid", invite: "Invité", vip: "VIP", stop: "Stop" };
   const FILTERS = [
-    { key: "ready", label: "À relancer" }, { key: "chaud", label: "Chauds" }, { key: "tiede", label: "Tièdes" },
+    { key: "ready", label: "À relancer" }, { key: "chaud", label: "Chauds" }, { key: "abonne", label: "Anciens abonnés" }, { key: "tiede", label: "Tièdes" },
     { key: "froid", label: "Froids" }, { key: "check", label: "VIP à vérifier" }, { key: "excluded", label: "Écartés" }, { key: "all", label: "Tous" },
   ];
   const AGES = [["all", "Toutes"], ["recent", "Moins de 3 mois"], ["3m", "3 à 6 mois"], ["6m", "6 à 12 mois"], ["1an", "Plus d’un an"]];
@@ -198,7 +199,7 @@
   function matches(c) {
     const f = state.filter;
     if (f === "ready" && !c.can_send) return false;
-    if (["chaud", "tiede", "froid"].includes(f) && c.category !== f) return false;
+    if (["chaud", "abonne", "tiede", "froid"].includes(f) && c.category !== f) return false;
     if (f === "check" && !c.needs_vip_check) return false;
     if (f === "excluded" && !["vip", "stop", "invite"].includes(c.category)) return false;
     if (state.age !== "all" && c.age_bucket !== state.age) return false;
@@ -235,7 +236,7 @@
 
   function renderChips() {
     const d = state.data, cs = d.contacts;
-    const count = { ready: d.ready, chaud: d.categories.chaud, tiede: d.categories.tiede, froid: d.categories.froid, check: d.to_review, excluded: d.categories.vip + d.categories.stop + d.categories.invite, all: d.total };
+    const count = { ready: d.ready, chaud: d.categories.chaud, abonne: d.categories.abonne || 0, tiede: d.categories.tiede, froid: d.categories.froid, check: d.to_review, excluded: d.categories.vip + d.categories.stop + d.categories.invite, all: d.total };
     $("catChips").innerHTML = FILTERS.map((f) => `<button type="button" class="chip" data-filter="${f.key}" aria-pressed="${state.filter === f.key}">${f.label}<b>${count[f.key]}</b></button>`).join("");
     const keep = state.age; state.age = "all";
     const base = cs.filter(matches);

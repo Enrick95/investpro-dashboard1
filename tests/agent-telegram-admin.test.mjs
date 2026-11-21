@@ -31,8 +31,9 @@ test("the tab filters contacts by readiness and by age, up to more than a year",
   assert.match(page, /AGENT_VERSION = "2"/);
   for (const name of ["filterRow", "groupHead", "catTag", "ageTag", "quote", "okBox"]) assert.match(css, new RegExp(`\\.${name}\\{`));
   // Les contacts sont regroupés : les plus chauds, puis les tièdes, puis les froids.
-  assert.match(page, /chaud: "Les plus chauds", tiede: "Tièdes", froid: "Froids"/);
-  assert.match(page, /chaud: 0, tiede: 1, froid: 2/);
+  assert.match(page, /chaud: "Les plus chauds", abonne: "Anciens abonnés", tiede: "Tièdes", froid: "Froids"/);
+  assert.match(page, /chaud: 0, abonne: 1, tiede: 2, froid: 3/);
+  assert.match(css, /\.root \[data-cat=abonne\]\{--c:#f29ac8\}/);
 });
 
 test("investprotrading.fr/whatsapp opens Enrick's WhatsApp with a message saying the person comes from Telegram", () => {

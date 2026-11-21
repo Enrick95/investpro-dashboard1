@@ -13,6 +13,8 @@ Sont écartés d’office : les membres d’InvestPro Trading VIP, les refus («
 
 Le message proposé dépend de la catégorie : les plus chauds (infos broker, lien VIP, appel), les tièdes (ils ont écrit en dernier sans réponse) et les froids. Chaque message invite à écrire sur WhatsApp via `investprotrading.fr/whatsapp`, qui ouvre le WhatsApp d’Enrick avec un message déjà écrit (« je viens de ton Telegram InvestPro Support »). Jusqu’au 30 novembre 2026, il mentionne aussi l’essai VIP gratuit sur compte démo.
 
+Les membres des chats VIP sont aussi écartés (sécurité en plus, sans appel Telegram supplémentaire). L’agent lit les 40 derniers messages de chaque conversation pour repérer qui est venu par abonnement ou par affiliation : les anciens abonnés qui ne sont plus dans le groupe forment la catégorie « Anciens abonnés », avec un message à part. Quand les règles changent (`SCAN_VERSION`), le lancement suivant refait une analyse complète.
+
 Avant d’envoyer, l’agent écarte aussi les pseudos connus du site (`data/site-checks.json`, empreintes SHA-256 des pseudos Telegram) : demande d’accès VIP en attente, demande d’essai déjà faite, accès déjà accepté.
 
 ## Mise à jour sur le Mac

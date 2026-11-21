@@ -110,7 +110,7 @@ def test_full_checkup_reads_every_conversation_and_keeps_vip_members_out(env):
     info = cli.classify_contact(old, False)
     assert info["can_send"] and info["age_bucket"] == "1an" and info["category"] == "froid"
     assert row(102)["status"] == "actif", "visible dans la liste partielle du canal VIP"
-    assert row(103)["vip_check"] == "non_membre", "seul InvestPro Trading VIP compte, pas le chat"
+    assert row(103)["status"] == "actif" and row(103)["vip_group"] == "CHAT VIP - INVESTPRO TRADING", "le chat VIP écarte aussi"
     assert row(104)["status"] == "actif" and row(104)["vip_check"] == "membre", "trouvé contact par contact"
     assert row(105)["status"] == "pas_interesse", "un refus dans les derniers messages ferme le contact"
     nadia = row(107)
@@ -131,7 +131,7 @@ def test_full_checkup_reads_every_conversation_and_keeps_vip_members_out(env):
     assert any("InvestPro Trading VIP ™ :" in issue and "1 contact" in issue for issue in issues)
     assert set(client.calls_by_channel) == {9001}, "seul InvestPro Trading VIP est interrogé"
     groups = json.loads(cli.meta_value(cli.db_connect(), "vip_membership_groups"))
-    assert groups == ["InvestPro Trading VIP ™"]
+    assert set(groups) == {"InvestPro Trading VIP ™", "CHAT VIP - INVESTPRO TRADING"}, "jamais INSTALLATION"
 
 
 def test_a_single_failure_on_the_main_vip_channel_blocks_everyone_until_checked_by_hand(env):
@@ -380,6 +380,7 @@ def test_platform_overview_and_detail(server, env):
     status, body, _ = call(server, "/api/agent/overview")
     assert status == 200 and body["agent_version"] == "2"
     assert body["ready"] == 1 and body["categories"]["vip"] == 1
+    assert set(body["categories"]) == {"chaud", "abonne", "tiede", "froid", "vip", "invite", "stop"}
     assert body["age_buckets"]["3m"] == 1 and body["age_buckets"]["1an"] == 1 and body["ready_age_buckets"]["3m"] == 1
     karim = next(c for c in body["contacts"] if c["peer_id"] == 401)
     assert karim["can_send"] and karim["snippet"] == "Tu veux le lien ?" and karim["snippet_outgoing"] is True
@@ -413,6 +414,11 @@ def test_launching_the_agent_starts_an_analysis_when_the_last_one_is_old(env):
     cli.set_meta(conn, {"last_scan_at": iso(0)})
     conn.commit()
     conn.close()
+    assert dashboard.auto_scan_due(), "analyse faite avec d’anciennes règles : on refait tout"
+    conn = cli.db_connect()
+    cli.set_meta(conn, {"scan_version": cli.SCAN_VERSION})
+    conn.commit()
+    conn.close()
     assert not dashboard.auto_scan_due(), "analyse récente : pas de nouvelle analyse au lancement"
     assert dashboard.auto_scan_due(NOW + timedelta(hours=13))
 
@@ -441,7 +447,7 @@ def test_only_the_investpro_trading_vip_group_is_the_reference():
 
 def test_without_the_vip_group_nobody_can_be_sent_to(env):
     env["client"].add(chat(9002, "CHAT VIP - INVESTPRO TRADING", count=2), [Msg(False, "annonce", 1)])
-    env["client"].visible[9002] = [901]
+    env["client"].visible[9002] = [902]
     env["client"].add(user(901, "Prospect"), [Msg(True, "Tu veux voir le VIP ?", 40)])
     asyncio.run(cli.scan(0, None, lambda c, p: None, interactive=False))
     assert row(901)["vip_check"] == "inconnu"
@@ -465,3 +471,33 @@ def test_launch_opens_the_admin_tab_in_chrome_and_falls_back_to_the_local_page(m
     monkeypatch.setattr(dashboard.subprocess, "run", lambda cmd, **kw: Done(1))
     assert dashboard.open_platform("http://127.0.0.1:8765") == "http://127.0.0.1:8765"
     assert opened == [("navigateur", "http://127.0.0.1:8765")]
+
+
+def test_vip_chat_titles_are_extra_safety_only():
+    assert cli.is_vip_chat("CHAT VIP - INVESTPRO TRADING") and cli.is_vip_chat("Chat ~ VIP InvestPro")
+    assert not cli.is_vip_chat("INSTALLATION InvestPro Trading VIP ™️") and not cli.is_vip_chat("InvestPro Trading VIP ™")
+
+
+def test_subscription_or_affiliation_is_read_from_the_conversation():
+    assert cli.join_hint_of("Merci pour ton paiement, ton abonnement est activé") == "abonnement"
+    assert cli.join_hint_of("Ton abonnement a expiré hier, tu veux renouveler ?") == "abonnement"
+    assert cli.join_hint_of("C’est bon, ton compte est rattaché avec mon lien") == "affiliation"
+    assert cli.join_hint_of("C’est combien l’abonnement par mois ?") is None, "demander le prix ne fait pas un ancien abonné"
+    assert cli.join_hint_of("ton abonnement expire, sinon passe par l’affiliation") == "mixte"
+
+
+def test_former_subscribers_get_their_own_category_and_message(env):
+    client = env["client"]
+    main_vip = channel(9001, "InvestPro Trading VIP ™", count=2)
+    client.add(main_vip, [Msg(False, "annonce", 1)])
+    client.visible[9001] = [1002, 999]
+    old_sub = [Msg(True, "Tu veux revenir ?", 60)] + [Msg(False, "ok", 61 + i) for i in range(20)] + [Msg(True, "Merci pour ton paiement, ton abonnement est activé", 200)]
+    client.add(user(1001, "Thomas"), old_sub)
+    client.add(user(1002, "Lina"), [Msg(True, "Ton compte est bien rattaché, bienvenue", 30)])
+    asyncio.run(cli.scan(0, None, lambda c, p: None, interactive=False))
+    thomas = cli.classify_contact(row(1001), False)
+    assert thomas["category"] == "abonne" and thomas["can_send"], "le paiement est 22 messages plus haut : lu quand même"
+    assert cli.build_draft(row(1001)).startswith("Salut Thomas, ça fait un moment !")
+    assert "sans abonnement" in cli.build_draft(row(1001))
+    lina = cli.classify_contact(row(1002), False)
+    assert lina["category"] == "vip" and "Venu par affiliation" in lina["reason"]

@@ -16,7 +16,7 @@ from urllib.parse import parse_qs, urlparse
 
 from .cli import (
     AGE_BUCKETS, AGENT_VERSION, CONFIG_PATH, DAILY_SEND_LIMIT, FOLDER_BY_STATUS, MIN_SEND_INTERVAL,
-    SESSION_PATH, STATUS_LABELS, STATUS_VALUES, SendFailed, SendRefused, build_draft, classify_contact,
+    SCAN_VERSION, SESSION_PATH, STATUS_LABELS, STATUS_VALUES, SendFailed, SendRefused, build_draft, classify_contact,
     db_connect, log_event, meta_value, scan, send_followup, sends_today,
 )
 
@@ -39,7 +39,7 @@ ADMIN_ORIGINS = {
 }
 SCAN_STATE = {"running": False, "error": None, "processed": 0, "phase": None}
 SEND_STATE = {"running": False, "last_at": 0.0}
-CATEGORY_KEYS = ("chaud", "tiede", "froid", "vip", "invite", "stop")
+CATEGORY_KEYS = ("chaud", "abonne", "tiede", "froid", "vip", "invite", "stop")
 
 
 def _scan_worker() -> None:
@@ -65,15 +65,16 @@ def start_scan_thread() -> bool:
 
 
 def auto_scan_due(now: datetime | None = None) -> bool:
-    """Au lancement, une analyse part toute seule si la dernière date de plus de 12 heures."""
+    """Au lancement, une analyse part toute seule si la dernière date de plus de 12 heures ou d’une ancienne version."""
     if not CONFIG_PATH.exists() or not Path(f"{SESSION_PATH}.session").exists():
         return False
     conn = db_connect()
     try:
         last = meta_value(conn, "last_scan_at")
+        version = meta_value(conn, "scan_version")
     finally:
         conn.close()
-    if not last:
+    if not last or version != SCAN_VERSION:
         return True
     try:
         moment = datetime.fromisoformat(last)

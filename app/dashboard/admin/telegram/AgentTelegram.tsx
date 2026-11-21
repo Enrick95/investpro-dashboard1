@@ -12,9 +12,9 @@ import s from "./TelegramAdmin.module.css";
 const AGENT = "http://127.0.0.1:8765";
 const AGENT_VERSION = "2";
 
-type Category = "chaud" | "tiede" | "froid" | "vip" | "invite" | "stop";
+type Category = "chaud" | "abonne" | "tiede" | "froid" | "vip" | "invite" | "stop";
 type AgeBucket = "recent" | "3m" | "6m" | "1an";
-type Filter = "ready" | "chaud" | "tiede" | "froid" | "check" | "excluded" | "all";
+type Filter = "ready" | "chaud" | "abonne" | "tiede" | "froid" | "check" | "excluded" | "all";
 type Contact = {
   peer_id: number; display_name: string; username: string | null; last_message_at: string; last_message_outgoing: boolean;
   last_followup_at: string | null; invited_at: string | null; vip_checked_manually_at: string | null;
@@ -31,17 +31,17 @@ type Overview = {
 type Detail = { contact: Contact; events: { at: string; action: string; detail: string | null }[]; draft: string | null };
 
 const FILTERS: { key: Filter; label: string }[] = [
-  { key: "ready", label: "À relancer" }, { key: "chaud", label: "Chauds" }, { key: "tiede", label: "Tièdes" }, { key: "froid", label: "Froids" },
+  { key: "ready", label: "À relancer" }, { key: "chaud", label: "Chauds" }, { key: "abonne", label: "Anciens abonnés" }, { key: "tiede", label: "Tièdes" }, { key: "froid", label: "Froids" },
   { key: "check", label: "VIP à vérifier" }, { key: "excluded", label: "Écartés" }, { key: "all", label: "Tous" },
 ];
 const AGES: { key: AgeBucket | "all"; label: string }[] = [
   { key: "all", label: "Toutes" }, { key: "recent", label: "Moins de 3 mois" }, { key: "3m", label: "3 à 6 mois" },
   { key: "6m", label: "6 à 12 mois" }, { key: "1an", label: "Plus d’un an" },
 ];
-const CATEGORY_LABEL: Record<Category, string> = { chaud: "Chaud", tiede: "Tiède", froid: "Froid", vip: "Déjà membre VIP", invite: "Déjà invité", stop: "Ne plus contacter" };
-const ORDER: Record<Category, number> = { chaud: 0, tiede: 1, froid: 2, invite: 3, vip: 4, stop: 5 };
-const GROUP_LABEL: Record<Category, string> = { chaud: "Les plus chauds", tiede: "Tièdes", froid: "Froids", invite: "Déjà invités", vip: "Déjà membres VIP", stop: "Ne plus contacter" };
-const CAT_SHORT: Record<Category, string> = { chaud: "Chaud", tiede: "Tiède", froid: "Froid", invite: "Invité", vip: "VIP", stop: "Stop" };
+const CATEGORY_LABEL: Record<Category, string> = { chaud: "Chaud", abonne: "Ancien abonné", tiede: "Tiède", froid: "Froid", vip: "Déjà membre VIP", invite: "Déjà invité", stop: "Ne plus contacter" };
+const ORDER: Record<Category, number> = { chaud: 0, abonne: 1, tiede: 2, froid: 3, invite: 4, vip: 5, stop: 6 };
+const GROUP_LABEL: Record<Category, string> = { chaud: "Les plus chauds", abonne: "Anciens abonnés", tiede: "Tièdes", froid: "Froids", invite: "Déjà invités", vip: "Déjà membres VIP", stop: "Ne plus contacter" };
+const CAT_SHORT: Record<Category, string> = { chaud: "Chaud", abonne: "Ex-abonné", tiede: "Tiède", froid: "Froid", invite: "Invité", vip: "VIP", stop: "Stop" };
 const EXCLUDED: Category[] = ["vip", "stop", "invite"];
 
 async function agent<T>(path: string, body?: unknown): Promise<T> {
@@ -65,7 +65,7 @@ function ageText(days: number | null) {
 }
 function matches(contact: Contact, filter: Filter, age: AgeBucket | "all", query: string) {
   if (filter === "ready" && !contact.can_send) return false;
-  if ((filter === "chaud" || filter === "tiede" || filter === "froid") && contact.category !== filter) return false;
+  if ((filter === "chaud" || filter === "abonne" || filter === "tiede" || filter === "froid") && contact.category !== filter) return false;
   if (filter === "check" && !contact.needs_vip_check) return false;
   if (filter === "excluded" && !EXCLUDED.includes(contact.category)) return false;
   if (age !== "all" && contact.age_bucket !== age) return false;
@@ -167,7 +167,7 @@ export default function AgentTelegram() {
   const excluded = data.categories.vip + data.categories.stop + data.categories.invite;
   const tg = selected?.username ? `https://t.me/${encodeURIComponent(selected.username)}` : null;
   const draftReady = detail !== null && selected !== null && detail.contact.peer_id === selected.peer_id && detail.draft !== null;
-  const counts: Record<Filter, number> = { ready: data.ready, chaud: data.categories.chaud, tiede: data.categories.tiede, froid: data.categories.froid, check: data.to_review, excluded, all: data.total };
+  const counts: Record<Filter, number> = { ready: data.ready, chaud: data.categories.chaud, abonne: data.categories.abonne ?? 0, tiede: data.categories.tiede, froid: data.categories.froid, check: data.to_review, excluded, all: data.total };
   const phase = data.scan_phase === "contrôle VIP" ? `contrôle VIP : ${data.scan_processed} contact(s) vérifié(s)` : data.scan_phase === "conversations" ? `${data.scan_processed} conversation(s) parcourue(s)` : "connexion à Telegram…";
 
   return <div className={s.root}>

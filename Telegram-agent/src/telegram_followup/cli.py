@@ -13,6 +13,8 @@ from pathlib import Path
 from typing import Callable, Iterable
 
 AGENT_VERSION = "2"
+# Change quand les règles d’analyse changent : le prochain lancement refait alors une analyse complète.
+SCAN_VERSION = "2.3"
 
 
 def _find_app_dir() -> Path:
@@ -62,6 +64,20 @@ OPT_OUT_TERMS = (
     "non merci", "pas pour moi", "laisse moi tranquille", "laisse-moi tranquille", "desabonne",
     "désabonne", "unsubscribe",
 )
+# Signes qu’il a eu l’abonnement VIP (et pas seulement demandé le prix).
+SUBSCRIBER_TERMS = (
+    "ton abonnement", "mon abonnement", "votre abonnement", "reabonn", "réabonn", "renouvel", "abonnement expir",
+    "abonnement a expir", "fin de ton abonnement", "fin de l'abonnement", "paiement recu", "paiement reçu",
+    "paiement bien recu", "paiement bien reçu", "merci pour ton paiement", "merci pour le paiement", "abonnement active",
+    "abonnement activé", "abonnement est activ", "prelevement", "prélèvement", "abonne au vip", "abonné au vip",
+)
+# Signes qu’il est passé par l’affiliation (compte broker ouvert ou rattaché avec le lien d’Enrick).
+AFFILIATION_TERMS = (
+    "affiliation", "affilie", "affilié", "rattach", "code partenaire", "lien partenaire", "avec mon lien",
+    "sous mon lien", "153152",
+)
+HISTORY_DEPTH = 40  # messages lus par conversation : une seule requête Telegram, quelle que soit la valeur
+
 STATUS_VALUES = {
     "a_verifier", "vip_interesse", "appel_demande", "infos_broker_demandees",
     "pas_interesse", "actif", "relance_envoyee", "reponse_attendue", "deja_invite",
@@ -118,6 +134,15 @@ def explicit_intent(text: str) -> str | None:
     if has_any(text, INTEREST_TERMS):
         return "vip_interesse"
     return None
+
+
+def join_hint_of(text: str) -> str | None:
+    """« abonnement », « affiliation », « mixte » ou None, d’après les messages de la conversation."""
+    subscriber = has_any(text, SUBSCRIBER_TERMS)
+    affiliate = has_any(text, AFFILIATION_TERMS)
+    if subscriber and affiliate:
+        return "mixte"
+    return "abonnement" if subscriber else "affiliation" if affiliate else None
 
 
 def classify_incoming(text: str) -> tuple[str, str]:
@@ -197,6 +222,7 @@ def db_connect() -> sqlite3.Connection:
         ("vip_check", "TEXT"),
         ("vip_checked_at", "TEXT"),
         ("vip_group", "TEXT"),
+        ("join_hint", "TEXT"),
     ):
         if name not in columns:
             connection.execute(f"ALTER TABLE contacts ADD COLUMN {name} {kind}")
@@ -310,10 +336,12 @@ def classify_contact(row: sqlite3.Row, vip_verified: bool, now: datetime | None 
     relevant = _column(row, "relevant")
     ago = "aujourd’hui" if days == 0 else f"il y a {days} j" if days is not None else "date inconnue"
     sources = site_sources(_column(row, "username"))
+    join_hint = _column(row, "join_hint")
+    joined = {"abonnement": " Venu par abonnement.", "affiliation": " Venu par affiliation.", "mixte": " Abonnement et affiliation évoqués."}.get(join_hint or "", "")
 
     if status == "actif" or vip_check == "membre":
         category = "vip"
-        reason = f"Membre du groupe VIP « {vip_group} »." if vip_group else "Présent dans un groupe VIP vérifié."
+        reason = (f"Membre du groupe VIP « {vip_group} »." if vip_group else "Présent dans un groupe VIP vérifié.") + joined
     elif status == "pas_interesse":
         category, reason = "stop", "A refusé d’autres messages, t’a bloqué ou a été marqué « ne plus contacter »."
     elif sources & SITE_MEMBER_SOURCES:
@@ -321,6 +349,9 @@ def classify_contact(row: sqlite3.Row, vip_verified: bool, now: datetime | None 
     elif status == "deja_invite" or invited_at:
         category = "invite"
         reason = "Lien d’invitation déjà envoyé" + (f" (il y a {_days_since(invited_at, now)} j)" if invited_at else "") + "."
+    elif join_hint == "abonnement":
+        category = "abonne"
+        reason = "A eu l’abonnement VIP d’après la conversation, et n’est plus dans le groupe VIP : message spécial anciens abonnés."
     elif status in HOT_STATUSES:
         category = "chaud"
         reason = {
@@ -378,6 +409,7 @@ def classify_contact(row: sqlite3.Row, vip_verified: bool, now: datetime | None 
         "age_days": days,
         "age_bucket": age_bucket(days),
         "status_label": STATUS_LABELS.get(status, status),
+        "join_hint": join_hint,
     }
 
 
@@ -520,14 +552,15 @@ async def scan(
             last_at = last.date.replace(tzinfo=timezone.utc) if last.date.tzinfo is None else last.date.astimezone(timezone.utc)
             if (lower_bound and last_at < lower_bound) or (upper_bound and last_at > upper_bound):
                 continue
-            recent = [message async for message in client.iter_messages(entity, limit=8)]
-            if not recent:
+            history = [message async for message in client.iter_messages(entity, limit=HISTORY_DEPTH)]
+            if not history:
                 continue
+            recent = history[:8]
             incoming = [message for message in recent if not message.out]
             incoming_texts = [message.message for message in incoming if message.message]
             latest_incoming = incoming_texts[0] if incoming_texts else ""
             opted_out = any(is_opt_out(text) for text in incoming_texts)
-            context_text = "\n".join(message.message or "" for message in recent if message.message)
+            context_text = "\n".join(message.message or "" for message in history if message.message)
             existing = conn.execute("SELECT * FROM contacts WHERE peer_id=?", (entity.id,)).fetchone()
             previous = existing["status"] if existing else None
             status = decide_status(previous, bool(last.out), latest_incoming, opted_out)
@@ -544,8 +577,8 @@ async def scan(
                 last_incoming_at = (moment.replace(tzinfo=timezone.utc) if moment.tzinfo is None else moment.astimezone(timezone.utc)).isoformat(timespec="seconds")
             conn.execute(
                 """INSERT INTO contacts(peer_id, display_name, username, last_message_at, last_message_outgoing,
-                       status, suggested_folder, last_seen_at, last_snippet, snippet_outgoing, last_incoming_at, relevant)
-                   VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                       status, suggested_folder, last_seen_at, last_snippet, snippet_outgoing, last_incoming_at, relevant, join_hint)
+                   VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                    ON CONFLICT(peer_id) DO UPDATE SET
                        display_name=excluded.display_name,
                        username=excluded.username,
@@ -557,12 +590,13 @@ async def scan(
                        last_snippet=excluded.last_snippet,
                        snippet_outgoing=excluded.snippet_outgoing,
                        last_incoming_at=excluded.last_incoming_at,
-                       relevant=excluded.relevant""",
+                       relevant=excluded.relevant,
+                       join_hint=excluded.join_hint""",
                 (
                     entity.id, name, getattr(entity, "username", None), last_at.isoformat(timespec="seconds"),
                     int(bool(last.out)), status, folder, now.isoformat(timespec="seconds"),
                     snippet_of(_message_text(recent[0])), int(bool(recent[0].out)), last_incoming_at,
-                    int(has_any(context_text, RELEVANT_TERMS)),
+                    int(has_any(context_text, RELEVANT_TERMS)), join_hint_of(context_text),
                 ),
             )
             seen[entity.id] = entity
@@ -571,7 +605,7 @@ async def scan(
                 conn.commit()
         conn.commit()
         summary = await check_vip_members(client, conn, groups, seen, lambda count: progress(count, "contrôle VIP"))
-        set_meta(conn, {"last_scan_at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "scan_scope": "toutes les conversations privées"})
+        set_meta(conn, {"last_scan_at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "scan_scope": "toutes les conversations privées", "scan_version": SCAN_VERSION})
         conn.commit()
     finally:
         conn.close()
@@ -594,19 +628,25 @@ def is_reference_vip(title: str) -> bool:
     )
 
 
+def is_vip_chat(title: str) -> bool:
+    """Les chats VIP : être dedans veut aussi dire être membre, ils servent de sécurité en plus."""
+    words = normalize(title)
+    return "vip" in words and "chat" in words and ("investpro" in words or "trading" in words) and "installation" not in words
+
+
 async def load_vip_groups(client) -> list[dict]:
-    """Le groupe VIP de référence, avec la liste de membres que Telegram laisse voir."""
+    """InvestPro Trading VIP (référence) et les chats VIP (sécurité en plus), avec les membres visibles."""
     from telethon.tl.types import Channel, Chat
 
     groups: list[dict] = []
     async for dialog in client.iter_dialogs():
         entity = dialog.entity
         title = getattr(entity, "title", "") or ""
-        if not (isinstance(entity, (Channel, Chat)) and is_reference_vip(title)):
+        if not isinstance(entity, (Channel, Chat)) or not (is_reference_vip(title) or is_vip_chat(title)):
             continue
         group = {
             "entity": entity, "title": title, "ids": set(), "complete": False,
-            "channel": isinstance(entity, Channel), "error": None,
+            "channel": isinstance(entity, Channel), "error": None, "extra": not is_reference_vip(title),
         }
         try:
             async for participant in client.iter_participants(entity):
@@ -635,11 +675,20 @@ async def check_vip_members(client, conn: sqlite3.Connection, groups: list[dict]
     issues: list[str] = []
     stopped = False
     checked = 0
-    if not groups:
+    references = [group for group in groups if not group["extra"]]
+    if not references:
         issues.append("Groupe « InvestPro Trading VIP » introuvable sur ce compte : impossible de savoir qui est déjà membre, vérifie chaque contact à la main")
-    for group in groups:
+    # Les chats VIP d’abord (listes complètes, aucun appel en plus), puis le groupe de référence contact par contact.
+    for group in sorted(groups, key=lambda item: not item["extra"]):
         attempts = errors_count = 0
         given_up = False
+        if group["extra"]:
+            for peer_id in peer_ids:
+                if peer_id not in member_of and peer_id in group["ids"]:
+                    member_of[peer_id] = group["title"]
+            if group["error"]:
+                issues.append(f"{group['title']} : liste des membres illisible ({group['error']}), seul InvestPro Trading VIP a servi pour ce chat")
+            continue
         for peer_id in peer_ids:
             if peer_id in member_of:
                 continue
@@ -691,13 +740,13 @@ async def check_vip_members(client, conn: sqlite3.Connection, groups: list[dict]
             log_event(conn, peer_id, "Trouvé dans un groupe VIP", member_of[peer_id])
             continue
         blocking = unknown[peer_id]
-        if blocking or not groups:
+        if blocking or not references:
             unknowns += 1
         conn.execute(
             "UPDATE contacts SET vip_check=?, vip_group=NULL, vip_checked_at=? WHERE peer_id=?",
-            ("inconnu" if blocking or not groups else "non_membre", now_iso, peer_id),
+            ("inconnu" if blocking or not references else "non_membre", now_iso, peer_id),
         )
-    state = "verified" if groups and not unknowns and not stopped else "partial" if groups else "unverified"
+    state = "verified" if references and not unknowns and not stopped else "partial" if references else "unverified"
     set_meta(conn, {
         "vip_membership_checked_at": now_iso,
         "vip_membership_state": state,
@@ -970,7 +1019,16 @@ def build_draft(row: sqlite3.Row, name: str | None = None, now: datetime | None 
     first = name or first_name_from(row["display_name"])
     trial = now <= ESSAI_END
     trial_line = "jusqu’au 30 novembre, tu peux tester le VIP gratuitement sur un compte démo, sans dépôt."
-    if category == "chaud":
+    if category == "abonne":
+        parts = [
+            f"Salut {first}, ça fait un moment ! 👋" if first else "Salut, ça fait un moment ! 👋",
+            "Tu avais pris l’abonnement VIP. Si tu as envie de revenir, sache qu’il y a maintenant plusieurs façons de rejoindre, "
+            "dont une sans abonnement : par affiliation, avec un broker partenaire.",
+            f"Écris-moi sur WhatsApp, je te dis ce qui est le mieux pour toi 👉 {WHATSAPP_LINK}",
+        ]
+        if trial:
+            parts.append("Et jusqu’au 30 novembre, tu peux même retester le VIP gratuitement sur un compte démo, sans dépôt.")
+    elif category == "chaud":
         parts = [
             f"Salut {first} ! 👋" if first else "Salut ! 👋",
             "Tu m’avais demandé des infos pour rejoindre le VIP. Pour aller plus vite, je t’ai ouvert un WhatsApp : "
