@@ -1,0 +1,34 @@
+CONNECTEUR INVESTPRO D15 - INSTALLE SUR LE PC D'HEBERGEMENT LE 21 NOVEMBRE 2026
+
+Panne constatee : du 15/11 20:44 (heure de Paris) au 21/11 09:30, plus aucun compte MT5 heberge n'a ete lu
+(les comptes MT4 tournaient). Le connecteur etait vivant (bail tenu, « SITE JOIGNABLE » toutes les minutes)
+mais aucun terminal MT5 n'etait ouvert et 31 tickets attendaient dans
+%LOCALAPPDATA%\InvestProHosted\mt5-snapshot-queue.
+
+Cause : la file d'attente MT5 (mt5_ticket_queue.py, version D13 de Codex) laisse passer les comptes dans
+l'ordre de leurs tickets. Un ticket n'etait retire que si son processus etait mort. Quand close() ne pouvait
+pas supprimer le ticket d'un compte (fichier ouvert au meme instant par un autre enfant qui lisait la file :
+PermissionError WinError 32, vue dans le journal a 20:44:41), ce ticket restait en tete de file pour
+toujours puisque son processus vivait. Des que trois tickets de ce genre se sont accumules (taille du pool),
+plus aucun compte MT5 n'a eu son tour.
+
+Remise en route le 21/11 : arret du processus host.py run bloque ; le lanceur D14 l'a relance seul
+(nettoyage des enfants et terminaux). Les comptes MT5 ont ete relus dans le quart d'heure.
+
+D15 (deux fichiers, dans le dossier WINDOWS du PC) :
+- mt5_ticket_queue.py : renommage et suppression des tickets rejoues (10 essais) ; un ticket illisible
+  est ignore pour un tour au lieu de faire planter le compte (« child:676 PermissionError ») ; chaque
+  processus supprime ses propres tickets restes en arriere.
+- run_host_background.py : surveillance de la file. Si un compte MT5 attend son tour depuis plus de
+  30 minutes alors que le connecteur tourne depuis plus de 30 minutes, le connecteur est arrete puis
+  relance comme apres un arret (au plus une fois toutes les 90 minutes). Le journal l'indique :
+  « LANCEUR : file MT5 bloquee : N compte(s) en attente depuis plus de 30 min ; arret du connecteur ».
+
+Tests : python -m unittest test_d15 (13 tests, Linux et Windows).
+
+Retour arriere (dossier WINDOWS du PC) : arreter la tache InvestProHostedCollector et le lanceur, remettre
+mt5_ticket_queue-D14-avant-D15.py en mt5_ticket_queue.py et run_host_background-D14-avant-D15.py en
+run_host_background.py, relancer la tache.
+
+A savoir : demarrer la tache ouvre une fenetre de console vide (Windows Terminal) ; la fermer arrete le
+connecteur. Elle a ete reduite dans la barre des taches.
