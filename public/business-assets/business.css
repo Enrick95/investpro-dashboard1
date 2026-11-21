@@ -42,3 +42,16 @@
 :focus-visible{outline:2px solid #e6c9aa;outline-offset:4px}
 @media(max-width:640px){#site-content .biz-archive-stage{padding-block:52px}#site-content .biz-archive-shell{gap:25px}#site-content .biz-archive-feature{grid-template-columns:1fr;gap:25px}#site-content .biz-archive-poster{height:350px}#site-content .biz-archive-card{width:200px}#site-content .biz-archive-card-image{height:210px}#site-content .biz-archive-topline{font-size:8px}#site-content .biz-scroll-film-video{object-position:52% 50%}#site-content .biz-scroll-film-headline h2{font-size:clamp(30px,8.6vw,44px)}.member-toolbar{font-size:8px;gap:8px}.member-toolbar>div{gap:5px}.member-toolbar button{width:32px;height:32px}.member-card{flex-basis:min(300px,82vw)}.member-card>a{height:320px}.quotes figure{flex-basis:min(320px,82vw)}.quotes blockquote{font-size:17px}#gallery-count{margin-right:3px;font-size:10px}.lightbox{padding:12px}.lightbox img{height:65svh}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto!important}#site-content .biz-scroll-film-headline{opacity:1!important;transform:none!important}#site-content .biz-scroll-film-video{transform:none!important}.reel-motion{display:none}}
+
+/* Permanent access to the next conference, without a dated announcement. */
+#site-content .biz-header .nav{gap:24px}
+#site-content .biz-header .nav-links{margin-left:auto}
+#site-content .biz-conference-link{display:inline-flex;align-items:center;justify-content:center;gap:9px;flex:none;min-height:44px;padding:6px 15px 6px 8px;box-sizing:border-box;border:1px solid #d9b49480;border-radius:999px;background:linear-gradient(120deg,#a9774e2b,#ead7bd0b);box-shadow:inset 0 1px 0 #fff2,0 3px 18px #b2845e12;color:#efdbc5;font-size:12px;font-weight:500;line-height:1.2;text-decoration:none;white-space:nowrap;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);transition:background .2s,border-color .2s}
+#site-content .biz-conference-icon{display:grid;place-items:center;width:28px;height:28px;border:1px solid #e5c6a64d;border-radius:50%;background:linear-gradient(140deg,#f0d8bb24,#d5a57408);box-shadow:inset 0 1px 1px #fff2}
+#site-content .biz-conference-icon .biz-ui-icon{width:15px;height:15px}
+#site-content .biz-conference-link:hover{border-color:#ebccabc9;background:linear-gradient(120deg,#a9774e47,#ead7bd12)}
+#site-content .biz-conference-link:focus-visible,#site-content .biz-button-conference:focus-visible{outline:2px solid #f2d7b6;outline-offset:4px}
+#site-content .biz-button-conference .biz-button-content{white-space:normal;line-height:1.3}
+@media(max-width:640px){#site-content .biz-header .nav{gap:12px}#site-content .biz-header .nav-links{display:none}#site-content .biz-conference-link{margin-left:auto;padding-right:12px;font-size:11px;gap:7px}}
+@media(max-width:360px){#site-content .biz-header .nav{gap:8px}#site-content .biz-conference-link{padding:6px 9px;gap:6px;font-size:10px}#site-content .biz-conference-icon{width:24px;height:24px}#site-content .biz-button-conference{font-size:14px}}
+@media(prefers-reduced-motion:reduce){#site-content .biz-conference-link{transition:none}}
