@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import getpass
+import hashlib
 import json
 import os
 import sqlite3
@@ -26,13 +27,17 @@ APP_DIR = _find_app_dir()
 SESSION_PATH = APP_DIR / "data" / "support_account"
 DB_PATH = APP_DIR / "data" / "followups.sqlite3"
 CONFIG_PATH = APP_DIR / "data" / "telegram_api.json"
+# Pseudos Telegram (hachés) des demandes VIP, essais et membres enregistrés sur le site.
+SITE_CHECKS_PATH = APP_DIR / "data" / "site-checks.json"
 
 DEFAULT_SITE = "https://investprotrading.fr/vip"
+# Lien du site qui ouvre le WhatsApp d’Enrick avec un message déjà écrit (« je viens de Telegram »).
+WHATSAPP_LINK = os.getenv("TG_AGENT_WHATSAPP_LINK", "https://investprotrading.fr/whatsapp")
 # L’essai VIP gratuit sur compte démo s’arrête le 30 novembre 2026 à minuit (heure de Paris).
 ESSAI_END = datetime(2026, 11, 30, 23, 59, 59, tzinfo=timezone(timedelta(hours=1)))
 # Notifications officielles de Telegram : jamais des prospects.
 TELEGRAM_SERVICE_IDS = {777000, 42777}
-DAILY_SEND_LIMIT = 200
+DAILY_SEND_LIMIT = 100
 MIN_SEND_INTERVAL = 3.0
 SENT_ACTION = "Relance envoyée depuis l’agent"
 SNIPPET_MAX = 280
@@ -136,6 +141,13 @@ def snippet_of(text: str | None) -> str:
     return compact if len(compact) <= SNIPPET_MAX else compact[: SNIPPET_MAX - 1].rstrip() + "…"
 
 
+# Débuts de noms affichés qui ne sont pas des prénoms (« La Fouine », « Trader Karim »…).
+NOT_FIRST_NAMES = {
+    "la", "le", "les", "mr", "mme", "mlle", "mrs", "ms", "dr", "the", "trader", "trading", "invest",
+    "crypto", "forex", "official", "officiel", "vip", "support", "team", "equipe",
+}
+
+
 def first_name_from(display_name: str | None) -> str | None:
     """Prénom présentable pour le brouillon, ou None quand le nom affiché n’en contient pas."""
     name = (display_name or "").strip()
@@ -143,7 +155,7 @@ def first_name_from(display_name: str | None) -> str | None:
         return None
     token = name.split()[0]
     cleaned = "".join(ch for ch in token if ch.isalpha() or ch in "-'’").strip("-'’")
-    if len(cleaned) < 2:
+    if len(cleaned) < 2 or normalize(cleaned) in NOT_FIRST_NAMES:
         return None
     if cleaned.isupper() or cleaned.islower():
         cleaned = "-".join(part[:1].upper() + part[1:].lower() for part in cleaned.split("-"))
@@ -250,6 +262,33 @@ def _days_since(value: str | None, now: datetime) -> int | None:
     return max(0, (now - moment).days)
 
 
+SITE_MEMBER_SOURCES = {"acces_approved", "candidature_approved", "candidature_claimed", "paiement_stripe"}
+_SITE_CACHE: dict = {"mtime": None, "path": None, "handles": {}}
+
+
+def site_checks() -> dict:
+    """Empreintes des pseudos connus du site, relues seulement quand le fichier change."""
+    try:
+        mtime = SITE_CHECKS_PATH.stat().st_mtime
+    except OSError:
+        return {}
+    if _SITE_CACHE["mtime"] != mtime or _SITE_CACHE["path"] != str(SITE_CHECKS_PATH):
+        try:
+            data = json.loads(SITE_CHECKS_PATH.read_text(encoding="utf-8"))
+            handles = {str(key): [str(item) for item in value] for key, value in (data.get("handles") or {}).items()}
+        except (OSError, ValueError, AttributeError, TypeError):
+            handles = {}
+        _SITE_CACHE.update(mtime=mtime, path=str(SITE_CHECKS_PATH), handles=handles)
+    return _SITE_CACHE["handles"]
+
+
+def site_sources(username: str | None) -> set:
+    handle = (username or "").strip().lstrip("@").lower()
+    if not handle:
+        return set()
+    return set(site_checks().get(hashlib.sha256(handle.encode("utf-8")).hexdigest(), []))
+
+
 def _column(row: sqlite3.Row, name: str):
     return row[name] if name in row.keys() else None
 
@@ -270,12 +309,15 @@ def classify_contact(row: sqlite3.Row, vip_verified: bool, now: datetime | None 
     vip_group = _column(row, "vip_group")
     relevant = _column(row, "relevant")
     ago = "aujourd’hui" if days == 0 else f"il y a {days} j" if days is not None else "date inconnue"
+    sources = site_sources(_column(row, "username"))
 
     if status == "actif" or vip_check == "membre":
         category = "vip"
         reason = f"Membre du groupe VIP « {vip_group} »." if vip_group else "Présent dans un groupe VIP vérifié."
     elif status == "pas_interesse":
         category, reason = "stop", "A refusé d’autres messages, t’a bloqué ou a été marqué « ne plus contacter »."
+    elif sources & SITE_MEMBER_SOURCES:
+        category, reason = "vip", "Sa demande d’accès au VIP a été acceptée sur le site."
     elif status == "deja_invite" or invited_at:
         category = "invite"
         reason = "Lien d’invitation déjà envoyé" + (f" (il y a {_days_since(invited_at, now)} j)" if invited_at else "") + "."
@@ -303,6 +345,10 @@ def classify_contact(row: sqlite3.Row, vip_verified: bool, now: datetime | None 
         exclusion = "Ne veut plus être contacté"
     elif category == "invite":
         exclusion = "Lien VIP déjà envoyé"
+    elif "acces_pending" in sources:
+        exclusion = "Demande d’accès VIP en attente sur le site : valide-la dans ton admin plutôt que de le relancer"
+    elif any(source.startswith("essai_") for source in sources):
+        exclusion = "A déjà demandé l’essai VIP sur le site : traite sa demande dans ton admin"
     elif incoming_last and days is not None and days < 2:
         exclusion = "T’a écrit il y a moins de 2 jours : réponds d’abord dans Telegram"
     elif days is not None and days < 7:
@@ -318,7 +364,9 @@ def classify_contact(row: sqlite3.Row, vip_verified: bool, now: datetime | None 
         exclusion = f"Déjà relancé il y a {followup_days} j"
 
     warning = None
-    if relevant == 0 and category in {"froid", "tiede"}:
+    if any(source.endswith("_denied") for source in sources) and category not in {"vip", "stop"}:
+        warning = "Sa demande VIP a été refusée sur le site : vérifie avant de relancer."
+    elif relevant == 0 and category in {"froid", "tiede"}:
         warning = "Aucun mot lié au trading dans ses derniers messages : vérifie que c’est bien un prospect."
     return {
         "category": category,
@@ -913,28 +961,49 @@ def show_draft(peer_id: int, name: str | None = None) -> None:
 
 
 def build_draft(row: sqlite3.Row, name: str | None = None, now: datetime | None = None) -> str:
+    """Message proposé selon la catégorie : chauds, tièdes ou froids. Toujours modifiable avant l’envoi."""
     now = now or datetime.now(timezone.utc)
-    first_name = name or first_name_from(row["display_name"])
-    hello = f"Salut {first_name}, j’espère que tu vas bien !" if first_name else "Salut, j’espère que tu vas bien !"
-    if now <= ESSAI_END:
-        body = (
-            "On avait échangé il y a quelque temps sur le trading. Petite info avant la fin du mois : "
-            "jusqu’au 30 novembre, tu peux tester le VIP gratuitement sur un compte démo, sans dépôt.\n\n"
-            f"Tout est expliqué ici : {DEFAULT_SITE}"
-        )
-        close = "Si tu as la moindre question, réponds-moi ici."
+    try:
+        category = classify_contact(row, True, now)["category"]
+    except (KeyError, IndexError, TypeError):
+        category = "froid"
+    first = name or first_name_from(row["display_name"])
+    trial = now <= ESSAI_END
+    trial_line = "jusqu’au 30 novembre, tu peux tester le VIP gratuitement sur un compte démo, sans dépôt."
+    if category == "chaud":
+        parts = [
+            f"Salut {first} ! 👋" if first else "Salut ! 👋",
+            "Tu m’avais demandé des infos pour rejoindre le VIP. Pour aller plus vite, je t’ai ouvert un WhatsApp : "
+            "c’est là que je réponds en priorité, et je t’explique tout en 2 minutes (broker, dépôt, accès au VIP).",
+            f"👉 Écris-moi ici : {WHATSAPP_LINK}",
+        ]
+        if trial:
+            parts.append("Petit plus : " + trial_line)
+    elif category == "tiede":
+        parts = [
+            f"Salut {first}, désolé pour le retour tardif ! 🙏" if first else "Salut, désolé pour le retour tardif ! 🙏",
+            "J’ai bien vu ton message et je ne veux pas te laisser sans réponse. Le plus simple maintenant : "
+            "écris-moi sur WhatsApp, je te réponds directement là-bas.",
+            f"👉 {WHATSAPP_LINK}",
+        ]
+        if trial:
+            parts.append("Et bonne nouvelle : " + trial_line)
     else:
-        body = (
-            "On avait échangé il y a quelque temps sur le trading, je me permets de revenir vers toi. "
-            "Si ça t’intéresse toujours, je peux te montrer comment se passe le VIP (analyses, signaux, accompagnement) "
-            "et répondre à tes questions.\n\n"
-            f"Toutes les infos sont ici : {DEFAULT_SITE}"
-        )
-        close = "Si tu préfères, on peut aussi s’appeler, sans engagement."
-    return (
-        f"{hello}\n\n{body}\n\n{close} Et si ce n’est plus d’actualité, dis-le-moi simplement, "
-        "je ne te relancerai plus.\n\n(Le trading comporte un risque de perte.)"
-    )
+        parts = [f"Salut {first}, j’espère que tu vas bien !" if first else "Salut, j’espère que tu vas bien !"]
+        if trial:
+            parts += [
+                "On avait échangé il y a quelque temps sur le trading. Petite nouvelle : " + trial_line,
+                f"Si ça te tente, écris-moi sur WhatsApp, je t’explique tout et je t’ouvre l’accès 👉 {WHATSAPP_LINK}",
+            ]
+        else:
+            parts += [
+                "On avait échangé il y a quelque temps sur le trading, je me permets de revenir vers toi. "
+                "Si le VIP t’intéresse toujours, écris-moi sur WhatsApp : je t’explique tout et je réponds à tes questions.",
+                f"👉 {WHATSAPP_LINK}",
+            ]
+        parts.append("Et si ce n’est plus d’actualité, dis-le-moi simplement, je ne te relancerai plus.")
+    parts.append("(Le trading comporte un risque de perte.)")
+    return "\n\n".join(parts)
 
 
 def build_parser() -> argparse.ArgumentParser:

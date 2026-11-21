@@ -90,6 +90,11 @@
   .tag[data-cat="froid"] { background: var(--cold-soft); color: var(--cold); } .tag[data-cat="vip"] { background: var(--vip-soft); color: var(--vip); }
   .tag[data-cat="invite"] { background: var(--invite-soft); color: var(--invite); }
   .empty { padding: 28px 16px; color: var(--muted); text-align: center; }
+  .list li.group { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 8px; padding: 8px 14px; font-size: 12px; font-weight: 700; background: var(--quote); border-bottom: 1px solid var(--line); }
+  .list li.group::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--stop); }
+  .list li.group[data-cat="chaud"]::before { background: var(--hot); } .list li.group[data-cat="tiede"]::before { background: var(--warm); }
+  .list li.group[data-cat="froid"]::before { background: var(--cold); } .list li.group[data-cat="vip"]::before { background: var(--vip); }
+  .list li.group[data-cat="invite"]::before { background: var(--invite); }
 
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; box-shadow: var(--shadow); display: grid; gap: 14px; min-width: 0; }
   .card-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; align-items: flex-start; }
@@ -163,6 +168,8 @@
   const $ = (id) => document.getElementById(id);
   const CAT_LABEL = { chaud: "Chaud", tiede: "Tiède", froid: "Froid", vip: "Déjà membre VIP", invite: "Déjà invité", stop: "Ne plus contacter" };
   const CAT_ORDER = { chaud: 0, tiede: 1, froid: 2, invite: 3, vip: 4, stop: 5 };
+  const GROUP_LABEL = { chaud: "Les plus chauds", tiede: "Tièdes", froid: "Froids", invite: "Déjà invités", vip: "Déjà membres VIP", stop: "Ne plus contacter" };
+  const CAT_SHORT = { chaud: "Chaud", tiede: "Tiède", froid: "Froid", invite: "Invité", vip: "VIP", stop: "Stop" };
   const FILTERS = [
     { key: "ready", label: "À relancer" }, { key: "chaud", label: "Chauds" }, { key: "tiede", label: "Tièdes" },
     { key: "froid", label: "Froids" }, { key: "check", label: "VIP à vérifier" }, { key: "excluded", label: "Écartés" }, { key: "all", label: "Tous" },
@@ -242,7 +249,13 @@
     if (!rows.length) {
       $("list").innerHTML = `<li class="empty">${state.data.total ? "Personne dans ce filtre." : "Lance une première analyse pour remplir la liste."}</li>`;
     } else {
-      $("list").innerHTML = rows.map((c) => `<li><button type="button" data-peer="${c.peer_id}" aria-current="${state.selected === c.peer_id}"><span class="dot" data-cat="${c.category}" aria-hidden="true"></span><span class="who"><b>${esc(c.display_name)}</b><small>${c.last_message_outgoing ? "Toi" : esc(firstOf(c.display_name))} · ${fmt(c.last_message_at)}</small></span>${c.can_send ? '<span class="tag ready">prêt</span>' : `<span class="tag">${esc(ageText(c.age_days))}</span>`}</button></li>`).join("");
+      const perCat = rows.reduce((acc, c) => { acc[c.category] = (acc[c.category] || 0) + 1; return acc; }, {});
+      let current = null;
+      $("list").innerHTML = rows.map((c) => {
+        const head = c.category !== current ? `<li class="group" data-cat="${c.category}">${GROUP_LABEL[c.category]} · ${perCat[c.category]}</li>` : "";
+        current = c.category;
+        return `${head}<li><button type="button" data-peer="${c.peer_id}" aria-current="${state.selected === c.peer_id}"><span class="dot" data-cat="${c.category}" aria-hidden="true"></span><span class="who"><b>${esc(c.display_name)}</b><small>${c.last_message_outgoing ? "Toi" : esc(firstOf(c.display_name))} · ${fmt(c.last_message_at)} · ${esc(ageText(c.age_days))}</small></span><span class="tag" data-cat="${c.category}">${c.can_send ? "✓ " : ""}${CAT_SHORT[c.category]}</span></button></li>`;
+      }).join("");
     }
     if (!rows.some((c) => c.peer_id === state.selected)) select(rows.length ? rows[0].peer_id : null);
   }

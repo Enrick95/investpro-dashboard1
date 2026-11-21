@@ -260,17 +260,50 @@ def test_empty_or_oversized_messages_are_refused(env):
             asyncio.run(cli.send_followup(401, text))
 
 
-def test_draft_uses_the_trial_until_30_november_then_the_undated_follow_up():
-    contact = {"display_name": "JEAN-PIERRE Dupont"}
-    before = cli.build_draft(contact, now=datetime(2026, 11, 22, tzinfo=timezone.utc))
-    assert before.startswith("Salut Jean-Pierre, j’espère que tu vas bien !")
-    assert "jusqu’au 30 novembre" in before and "https://investprotrading.fr/vip" in before
-    assert before.endswith("(Le trading comporte un risque de perte.)")
-    after = cli.build_draft(contact, now=datetime(2026, 12, 1, tzinfo=timezone.utc))
-    assert "30 novembre" not in after and "s’appeler" in after
-    assert cli.build_draft({"display_name": "Telegram 12345"}).startswith("Salut, j’espère")
+def draft_row(name, status="a_verifier", outgoing=1, days=120):
+    return {"display_name": name, "status": status, "last_message_outgoing": outgoing, "last_message_at": iso(days),
+            "username": None, "vip_check": "non_membre"}
+
+
+def test_each_category_gets_its_own_message_with_the_whatsapp_link():
+    before = datetime(2026, 11, 22, tzinfo=timezone.utc)
+    after = datetime(2026, 12, 1, tzinfo=timezone.utc)
+    cold = cli.build_draft(draft_row("JEAN-PIERRE Dupont"), now=before)
+    assert cold.startswith("Salut Jean-Pierre, j’espère que tu vas bien !")
+    assert "jusqu’au 30 novembre" in cold and "https://investprotrading.fr/whatsapp" in cold
+    assert "je ne te relancerai plus" in cold and cold.endswith("(Le trading comporte un risque de perte.)")
+    warm = cli.build_draft(draft_row("Sarah", outgoing=0), now=before)
+    assert warm.startswith("Salut Sarah, désolé pour le retour tardif !") and "https://investprotrading.fr/whatsapp" in warm
+    hot = cli.build_draft(draft_row("Karim", status="infos_broker_demandees"), now=before)
+    assert hot.startswith("Salut Karim ! 👋") and "broker, dépôt" in hot and "Écris-moi ici : https://investprotrading.fr/whatsapp" in hot
+    for text in (cli.build_draft(draft_row("Jean"), now=after), cli.build_draft(draft_row("Sarah", outgoing=0), now=after),
+                 cli.build_draft(draft_row("Karim", status="vip_interesse"), now=after)):
+        assert "30 novembre" not in text and "https://investprotrading.fr/whatsapp" in text
+    assert cli.build_draft(draft_row("Telegram 12345")).startswith("Salut, j’espère")
     assert cli.first_name_from("🔥karim 95") == "Karim"
     assert cli.first_name_from("M.") is None
+    assert cli.first_name_from("La Fouine") is None and cli.first_name_from("Trader Karim") is None
+    assert cli.first_name_from("Lamine K") == "Lamine"
+    assert cli.DAILY_SEND_LIMIT == 100
+
+
+def test_people_known_on_the_site_are_not_followed_up_by_mistake(env):
+    import hashlib
+    def h(name):
+        return hashlib.sha256(name.encode()).hexdigest()
+    (env["data"] / "site-checks.json").write_text(json.dumps({"handles": {
+        h("enattente"): ["acces_pending"], h("essaiuser"): ["essai_new"], h("membresite"): ["acces_approved"], h("refuse"): ["acces_denied"],
+    }}))
+    conn = cli.db_connect()
+    for peer, username in ((701, "EnAttente"), (702, "@essaiuser"), (703, "membresite"), (704, "refuse"), (705, "inconnu")):
+        insert(conn, peer, f"Contact {peer}", username=username, days=60, vip_check="non_membre", relevant=1)
+    conn.close()
+    pending, trial, member, refused, other = (cli.classify_contact(row(p), False) for p in (701, 702, 703, 704, 705))
+    assert not pending["can_send"] and "en attente sur le site" in pending["exclusion"]
+    assert not trial["can_send"] and "essai VIP sur le site" in trial["exclusion"]
+    assert member["category"] == "vip" and not member["can_send"]
+    assert refused["can_send"] and "refusée sur le site" in refused["warning"]
+    assert other["can_send"] and other["warning"] is None
 
 
 def test_vip_rules_in_classification(env):

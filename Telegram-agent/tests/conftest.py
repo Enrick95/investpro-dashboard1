@@ -19,6 +19,8 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setattr(cli, "DB_PATH", data / "followups.sqlite3")
     monkeypatch.setattr(cli, "SESSION_PATH", data / "support_account")
     monkeypatch.setattr(cli, "CONFIG_PATH", data / "telegram_api.json")
+    monkeypatch.setattr(cli, "SITE_CHECKS_PATH", data / "site-checks.json")
+    cli._SITE_CACHE.update(mtime=None, path=None, handles={})
     monkeypatch.setattr(dashboard, "SESSION_PATH", data / "support_account")
     monkeypatch.setattr(dashboard, "CONFIG_PATH", data / "telegram_api.json")
     client = FakeClient()

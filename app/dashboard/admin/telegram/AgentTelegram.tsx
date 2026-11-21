@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { Ban, CheckCircle2, Copy, ExternalLink, Laptop, Loader2, MailCheck, RefreshCw, ScanSearch, Search, Send, ShieldAlert, ShieldCheck, SkipForward } from "lucide-react";
 import s from "./TelegramAdmin.module.css";
 
@@ -40,6 +40,8 @@ const AGES: { key: AgeBucket | "all"; label: string }[] = [
 ];
 const CATEGORY_LABEL: Record<Category, string> = { chaud: "Chaud", tiede: "Tiède", froid: "Froid", vip: "Déjà membre VIP", invite: "Déjà invité", stop: "Ne plus contacter" };
 const ORDER: Record<Category, number> = { chaud: 0, tiede: 1, froid: 2, invite: 3, vip: 4, stop: 5 };
+const GROUP_LABEL: Record<Category, string> = { chaud: "Les plus chauds", tiede: "Tièdes", froid: "Froids", invite: "Déjà invités", vip: "Déjà membres VIP", stop: "Ne plus contacter" };
+const CAT_SHORT: Record<Category, string> = { chaud: "Chaud", tiede: "Tiède", froid: "Froid", invite: "Invité", vip: "VIP", stop: "Stop" };
 const EXCLUDED: Category[] = ["vip", "stop", "invite"];
 
 async function agent<T>(path: string, body?: unknown): Promise<T> {
@@ -102,6 +104,7 @@ export default function AgentTelegram() {
     const base = (data?.contacts || []).filter(contact => matches(contact, filter, "all", query));
     return Object.fromEntries(AGES.map(item => [item.key, item.key === "all" ? base.length : base.filter(contact => contact.age_bucket === item.key).length])) as Record<AgeBucket | "all", number>;
   }, [data, filter, query]);
+  const groupCounts = useMemo(() => visible.reduce((acc, contact) => { acc[contact.category] = (acc[contact.category] || 0) + 1; return acc; }, {} as Partial<Record<Category, number>>), [visible]);
   const selected = visible.find(contact => contact.peer_id === selectedId) || visible[0] || null;
 
   const loadDetail = useCallback(async (peerId: number) => {
@@ -195,11 +198,14 @@ export default function AgentTelegram() {
     <div className={s.agentSplit}>
       <div className={s.agentList}>
         <label className={s.search}><Search size={14} aria-hidden="true" /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Nom ou @pseudo…" aria-label="Rechercher un contact" /></label>
-        <ul>{visible.map(item => <li key={item.peer_id}><button type="button" aria-pressed={selected?.peer_id === item.peer_id} onClick={() => setSelectedId(item.peer_id)}>
-          <span className={s.dot} data-cat={item.category} aria-hidden="true" />
-          <span className={s.agentWho}><b>{item.display_name}</b><small>{item.last_message_outgoing ? "Toi" : firstName(item.display_name)} · {when(item.last_message_at, false)}</small></span>
-          {item.can_send ? <span className={s.readyTag}>prêt</span> : <span className={s.ageTag}>{ageText(item.age_days)}</span>}
-        </button></li>)}</ul>
+        <ul>{visible.map((item, index) => <Fragment key={item.peer_id}>
+          {(index === 0 || visible[index - 1].category !== item.category) && <li className={s.groupHead} data-cat={item.category}>{GROUP_LABEL[item.category]} · {groupCounts[item.category]}</li>}
+          <li><button type="button" aria-pressed={selected?.peer_id === item.peer_id} onClick={() => setSelectedId(item.peer_id)}>
+            <span className={s.dot} data-cat={item.category} aria-hidden="true" />
+            <span className={s.agentWho}><b>{item.display_name}</b><small>{item.last_message_outgoing ? "Toi" : firstName(item.display_name)} · {when(item.last_message_at, false)} · {ageText(item.age_days)}</small></span>
+            <span className={s.catTag} data-cat={item.category}>{item.can_send ? "✓ " : ""}{CAT_SHORT[item.category]}</span>
+          </button></li>
+        </Fragment>)}</ul>
         {!visible.length && <p className={s.empty}>{data.total ? "Personne dans ce filtre." : "Lance une première analyse pour remplir la liste."}</p>}
       </div>
 

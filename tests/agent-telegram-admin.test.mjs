@@ -29,5 +29,19 @@ test("the tab filters contacts by readiness and by age, up to more than a year",
   for (const label of ["À relancer", "VIP à vérifier", "Écartés", "Moins de 3 mois", "3 à 6 mois", "6 à 12 mois", "Plus d’un an"]) assert.ok(page.includes(label), label);
   assert.match(page, /InvestPro Trading VIP/);
   assert.match(page, /AGENT_VERSION = "2"/);
-  for (const name of ["filterRow", "readyTag", "ageTag", "quote", "okBox"]) assert.match(css, new RegExp(`\\.${name}\\{`));
+  for (const name of ["filterRow", "groupHead", "catTag", "ageTag", "quote", "okBox"]) assert.match(css, new RegExp(`\\.${name}\\{`));
+  // Les contacts sont regroupés : les plus chauds, puis les tièdes, puis les froids.
+  assert.match(page, /chaud: "Les plus chauds", tiede: "Tièdes", froid: "Froids"/);
+  assert.match(page, /chaud: 0, tiede: 1, froid: 2/);
+});
+
+test("investprotrading.fr/whatsapp opens Enrick's WhatsApp with a message saying the person comes from Telegram", () => {
+  const config = fs.readFileSync(path.join(root, "next.config.ts"), "utf8");
+  assert.match(config, /\{source:"\/whatsapp",destination:WHATSAPP_RELANCE,permanent:false\}/);
+  assert.match(config, /const WHATSAPP_RELANCE="https:\/\/wa\.me\/6285128115218\?text="\+encodeURIComponent\(WHATSAPP_RELANCE_TEXT\);/);
+  const text = config.match(/const WHATSAPP_RELANCE_TEXT="([^"]+)";/)[1];
+  assert.match(text, /Telegram InvestPro Support/);
+  assert.ok(!/[()*:{}]/.test(text), "no character that the redirect pattern would misread");
+  // Le numéro est celui déjà affiché sur la page business.
+  assert.ok(fs.readFileSync(path.join(root, "public/business-assets/lead-flow.js"), "utf8").includes('whatsappNumber: "6285128115218"'));
 });
