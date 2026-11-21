@@ -11,6 +11,16 @@ const headers = { 'Cache-Control': 'private, no-store', Vary: 'Cookie, Origin' }
 const reply = (value: unknown, status = 200) =>
   Response.json(value, { status, headers });
 
+// The hosting PC writes the password into MetaTrader's startup file, which refuses every control
+// character, tabulation included. Such a password can never connect, so it is refused here.
+function hasControlCharacter(value: string) {
+  for (let i = 0; i < value.length; i++) {
+    const code = value.charCodeAt(i);
+    if (code < 32 || code === 127) return true;
+  }
+  return false;
+}
+
 function hostedConnectorConfigured() {
   return (
     /^[a-f0-9]{64}$/.test(process.env.METASYNC_HOSTED_ENCRYPTION_KEY ?? '') &&
@@ -159,9 +169,15 @@ export async function POST(req: Request) {
       400
     );
   }
-  if (typeof v.password !== 'string' || !v.password.length || v.password.length > 128 || /[\r\n\0]/.test(v.password)) {
+  if (typeof v.password !== 'string' || !v.password.length || v.password.length > 128) {
     return reply(
       { error: 'Le mot de passe est absent ou son format ne peut pas être accepté. Vérifie la saisie.' },
+      400
+    );
+  }
+  if (hasControlCharacter(v.password)) {
+    return reply(
+      { error: 'Le mot de passe contient un caractère invisible (tabulation ou retour à la ligne), souvent ajouté par un copier-coller. Tape-le à la main puis réessaie.' },
       400
     );
   }
