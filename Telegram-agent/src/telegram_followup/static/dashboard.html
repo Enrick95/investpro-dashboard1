@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent de relance — InvestPro</title>
+<style>
+  :root {
+    --ink: #16211d; --muted: #6c7a73; --line: #e2e8e4; --paper: #f4f7f5; --card: #ffffff;
+    --accent: #16694a; --accent-ink: #ffffff; --accent-soft: #e5f2ec;
+    --hot: #b4473f; --hot-soft: #f8e9e7; --warm: #a96c12; --warm-soft: #faf0dd;
+    --cold: #3d63a0; --cold-soft: #eaf0f9; --vip: #16694a; --vip-soft: #e5f2ec;
+    --stop: #7b847f; --stop-soft: #eef1ef; --invite: #6d4fa3; --invite-soft: #f0ecf8;
+    --quote: #f6f8f7; --focus: #2b7de9;
+    --shadow: 0 1px 2px rgba(22, 33, 29, .05), 0 8px 24px rgba(22, 33, 29, .05);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #e7eeea; --muted: #94a39b; --line: #2a3430; --paper: #121816; --card: #19211e;
+      --accent: #3fae80; --accent-ink: #08130e; --accent-soft: #1d3a2e;
+      --hot: #ec8a80; --hot-soft: #3a2220; --warm: #e2ad55; --warm-soft: #382c17;
+      --cold: #86a8e0; --cold-soft: #1f2a3c; --vip: #57c495; --vip-soft: #1d3a2e;
+      --stop: #9aa49f; --stop-soft: #262d2a; --invite: #b39ae4; --invite-soft: #2c2540;
+      --quote: #1e2724; --shadow: none; color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  button, input, textarea, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 20px max(16px, env(safe-area-inset-left)) 40px max(16px, env(safe-area-inset-right)); display: grid; gap: 16px; }
+
+  header.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+  .brand h1 { margin: 0; font-size: 20px; letter-spacing: -.01em; }
+  .brand p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+  .btn { border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 8px 14px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+  .btn:hover { border-color: var(--muted); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .btn-primary:hover { filter: brightness(1.06); border-color: var(--accent); }
+  a.btn { text-decoration: none; }
+  .btn-quiet { border-color: transparent; background: transparent; color: var(--muted); padding-inline: 8px; }
+  .btn-quiet:hover { color: var(--ink); border-color: transparent; }
+  .btn-danger { color: var(--hot); }
+
+  .banner { border-radius: 12px; padding: 10px 14px; border: 1px solid var(--line); background: var(--card); display: flex; gap: 10px; align-items: flex-start; }
+  .banner b { display: block; }
+  .banner.warn { background: var(--warm-soft); border-color: transparent; }
+  .banner.error { background: var(--hot-soft); border-color: transparent; }
+  .banner.info { background: var(--cold-soft); border-color: transparent; }
+  .banner ul { margin: 4px 0 0; padding-left: 18px; }
+  .spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: spin .8s linear infinite; flex: none; margin-top: 3px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow); }
+  .kpi span { color: var(--muted); font-size: 12px; }
+  .kpi strong { display: block; font-size: 24px; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .kpi small { color: var(--muted); }
+  .kpi.main strong { color: var(--accent); }
+
+  .filters { display: grid; gap: 8px; }
+  .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .row > .label { color: var(--muted); font-size: 12px; min-width: 76px; }
+  .chip { border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 5px 11px; font-size: 13px; }
+  .chip b { font-weight: 600; color: var(--muted); margin-left: 4px; font-variant-numeric: tabular-nums; }
+  .chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+  .chip[aria-pressed="true"] b { color: inherit; opacity: .75; }
+  .search { margin-left: auto; border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 6px 12px; min-width: 200px; }
+
+  .split { display: grid; grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); gap: 14px; align-items: start; }
+  .list { background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); }
+  .list-head { padding: 10px 14px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; display: flex; justify-content: space-between; }
+  .list ul { list-style: none; margin: 0; padding: 0; max-height: calc(100vh - 330px); min-height: 240px; overflow: auto; }
+  .list li button { width: 100%; text-align: left; border: 0; background: transparent; padding: 10px 14px; display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 10px; align-items: center; border-bottom: 1px solid var(--line); }
+  .list li button:hover { background: var(--quote); }
+  .list li button[aria-current="true"] { background: var(--accent-soft); }
+  .who { min-width: 0; }
+  .who b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .who small { color: var(--muted); }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--stop); }
+  .dot[data-cat="chaud"] { background: var(--hot); } .dot[data-cat="tiede"] { background: var(--warm); }
+  .dot[data-cat="froid"] { background: var(--cold); } .dot[data-cat="vip"] { background: var(--vip); }
+  .dot[data-cat="invite"] { background: var(--invite); }
+  .tag { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; background: var(--stop-soft); color: var(--stop); }
+  .tag.ready { background: var(--accent-soft); color: var(--accent); }
+  .tag[data-cat="chaud"] { background: var(--hot-soft); color: var(--hot); } .tag[data-cat="tiede"] { background: var(--warm-soft); color: var(--warm); }
+  .tag[data-cat="froid"] { background: var(--cold-soft); color: var(--cold); } .tag[data-cat="vip"] { background: var(--vip-soft); color: var(--vip); }
+  .tag[data-cat="invite"] { background: var(--invite-soft); color: var(--invite); }
+  .empty { padding: 28px 16px; color: var(--muted); text-align: center; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; box-shadow: var(--shadow); display: grid; gap: 14px; min-width: 0; }
+  .card-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; align-items: flex-start; }
+  .card-head h2 { margin: 0; font-size: 19px; letter-spacing: -.01em; }
+  .card-head a { color: var(--cold); text-decoration: none; font-size: 13px; }
+  .tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 16px; }
+  .facts div span { display: block; color: var(--muted); font-size: 12px; }
+  .quote { background: var(--quote); border-radius: 10px; padding: 10px 12px; border-left: 3px solid var(--line); }
+  .quote small { color: var(--muted); display: block; margin-bottom: 4px; }
+  .quote p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .quote.them { border-left-color: var(--warm); }
+  .note { border-radius: 10px; padding: 10px 12px; font-size: 13px; }
+  .note.ok { background: var(--vip-soft); color: var(--vip); }
+  .note.warn { background: var(--warm-soft); color: var(--warm); }
+  .note.block { background: var(--hot-soft); color: var(--hot); }
+  .note .inline { margin-top: 8px; }
+  .draft label { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+  textarea { width: 100%; min-height: 210px; resize: vertical; border: 1px solid var(--line); border-radius: 10px; padding: 12px; background: var(--card); line-height: 1.5; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .actions .push { margin-left: auto; }
+  .hint { color: var(--muted); font-size: 12px; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  .timeline { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 6px; font-size: 13px; }
+  .timeline time { color: var(--muted); margin-right: 8px; font-variant-numeric: tabular-nums; }
+
+  .toast { position: fixed; left: 50%; bottom: max(20px, env(safe-area-inset-bottom)); transform: translateX(-50%) translateY(20px); background: var(--ink); color: var(--paper); padding: 10px 16px; border-radius: 10px; opacity: 0; transition: .2s; pointer-events: none; max-width: calc(100vw - 32px); }
+  .toast.show { opacity: 1; transform: translateX(-50%); }
+  .offline { max-width: 560px; margin: 60px auto; text-align: center; }
+
+  @media (max-width: 860px) {
+    .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .split { grid-template-columns: 1fr; }
+    .list ul { max-height: 320px; }
+    .search { margin-left: 0; width: 100%; }
+  }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } .toast { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <header class="top">
+    <div class="brand">
+      <h1>Agent de relance · InvestPro Support</h1>
+      <p id="subtitle">Connexion à l’agent…</p>
+    </div>
+    <button class="btn" id="scanBtn" type="button">Analyser Telegram</button>
+  </header>
+  <div id="banners"></div>
+  <section class="kpis" aria-label="Chiffres clés">
+    <div class="kpi main"><span>Prêts à relancer</span><strong id="kReady">–</strong><small>message prêt, rien ne bloque</small></div>
+    <div class="kpi"><span>Envoyés aujourd’hui</span><strong id="kSent">–</strong><small id="kLimit">&nbsp;</small></div>
+    <div class="kpi"><span>Ils t’ont écrit en dernier</span><strong id="kReplies">–</strong><small>réponses à lire</small></div>
+    <div class="kpi"><span>Écartés</span><strong id="kExcluded">–</strong><small>VIP, refus, déjà invités</small></div>
+  </section>
+  <section class="filters" aria-label="Filtres">
+    <div class="row"><span class="label">Contacts</span><span class="row" id="catChips"></span></div>
+    <div class="row"><span class="label">Ancienneté</span><span class="row" id="ageChips"></span><input class="search" id="search" type="search" placeholder="Nom ou @pseudo…" aria-label="Rechercher un contact"></div>
+  </section>
+  <section class="split">
+    <div class="list">
+      <div class="list-head"><span id="listCount">–</span><span>dernier échange</span></div>
+      <ul id="list"></ul>
+    </div>
+    <div id="detail"></div>
+  </section>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const CAT_LABEL = { chaud: "Chaud", tiede: "Tiède", froid: "Froid", vip: "Déjà membre VIP", invite: "Déjà invité", stop: "Ne plus contacter" };
+  const CAT_ORDER = { chaud: 0, tiede: 1, froid: 2, invite: 3, vip: 4, stop: 5 };
+  const FILTERS = [
+    { key: "ready", label: "À relancer" }, { key: "chaud", label: "Chauds" }, { key: "tiede", label: "Tièdes" },
+    { key: "froid", label: "Froids" }, { key: "check", label: "VIP à vérifier" }, { key: "excluded", label: "Écartés" }, { key: "all", label: "Tous" },
+  ];
+  const AGES = [["all", "Toutes"], ["recent", "Moins de 3 mois"], ["3m", "3 à 6 mois"], ["6m", "6 à 12 mois"], ["1an", "Plus d’un an"]];
+  const state = { data: null, filter: "ready", age: "all", q: "", selected: null, detail: null, draft: "", busy: false, poll: null, offline: false };
+
+  const esc = (v) => String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const fmt = (v, withTime) => {
+    if (!v) return "—";
+    const d = new Date(v);
+    if (isNaN(d)) return "—";
+    return new Intl.DateTimeFormat("fr-FR", withTime ? { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" } : { day: "numeric", month: "short", year: "numeric" }).format(d);
+  };
+  const ageText = (days) => days == null ? "" : days < 1 ? "aujourd’hui" : days < 31 ? `${days} j` : days < 365 ? `${Math.round(days / 30.4)} mois` : `${(days / 365).toFixed(days < 730 ? 1 : 0).replace(".", ",")} an${days >= 730 ? "s" : ""}`;
+  const firstOf = (name) => (String(name || "").trim().split(/\s+/)[0] || "Lui");
+  function toast(text) { const t = $("toast"); t.textContent = text; t.classList.add("show"); clearTimeout(toast.timer); toast.timer = setTimeout(() => t.classList.remove("show"), 3200); }
+
+  async function api(path, body) {
+    const res = await fetch(path, body === undefined ? { cache: "no-store" } : { method: "POST", cache: "no-store", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || data.message || "L’agent n’a pas pu traiter la demande.");
+    return data;
+  }
+
+  function matches(c) {
+    const f = state.filter;
+    if (f === "ready" && !c.can_send) return false;
+    if (["chaud", "tiede", "froid"].includes(f) && c.category !== f) return false;
+    if (f === "check" && !c.needs_vip_check) return false;
+    if (f === "excluded" && !["vip", "stop", "invite"].includes(c.category)) return false;
+    if (state.age !== "all" && c.age_bucket !== state.age) return false;
+    if (state.q && !`${c.display_name} ${c.username || ""}`.toLocaleLowerCase("fr").includes(state.q)) return false;
+    return true;
+  }
+  function visible() {
+    const rows = (state.data ? state.data.contacts : []).filter(matches);
+    return rows.sort((a, b) => (CAT_ORDER[a.category] - CAT_ORDER[b.category]) || String(b.last_message_at).localeCompare(String(a.last_message_at)));
+  }
+
+  function renderHeader() {
+    const d = state.data;
+    $("subtitle").textContent = d.last_scan_at ? `Dernière analyse : ${fmt(d.last_scan_at, true)} · ${d.total} contacts suivis` : "Aucune analyse pour l’instant : clique sur « Analyser Telegram ».";
+    $("scanBtn").disabled = d.scan_running || d.send_running;
+    $("scanBtn").textContent = d.scan_running ? "Analyse en cours…" : "Analyser Telegram";
+    $("kReady").textContent = d.ready;
+    $("kSent").textContent = d.sent_today;
+    $("kLimit").textContent = `limite de sécurité : ${d.daily_send_limit} par jour`;
+    $("kReplies").textContent = d.replies;
+    $("kExcluded").textContent = d.categories.vip + d.categories.stop + d.categories.invite;
+    const banners = [];
+    if (d.scan_running) {
+      const phase = d.scan_phase === "contrôle VIP" ? `Contrôle VIP : ${d.scan_processed} contact(s) vérifié(s)` : d.scan_phase === "conversations" ? `${d.scan_processed} conversation(s) parcourue(s)` : "Connexion à Telegram…";
+      banners.push(`<div class="banner info"><span class="spinner" aria-hidden="true"></span><div><b>Analyse de tout ton Telegram support en cours</b>${esc(phase)}. Si le Terminal te demande ton numéro ou un code, réponds dans sa fenêtre. Rien n’est envoyé pendant l’analyse.</div></div>`);
+    } else if (d.scan_error) {
+      banners.push(`<div class="banner error"><div><b>L’analyse s’est arrêtée</b>${esc(d.scan_error)}</div></div>`);
+    }
+    if (!d.scan_running && d.vip_membership_issues && d.vip_membership_issues.length) {
+      banners.push(`<div class="banner warn"><div><b>Contrôle des groupes VIP</b><ul>${d.vip_membership_issues.map((i) => `<li>${esc(i)}</li>`).join("")}</ul></div></div>`);
+    }
+    $("banners").innerHTML = banners.join("");
+  }
+
+  function renderChips() {
+    const d = state.data, cs = d.contacts;
+    const count = { ready: d.ready, chaud: d.categories.chaud, tiede: d.categories.tiede, froid: d.categories.froid, check: d.to_review, excluded: d.categories.vip + d.categories.stop + d.categories.invite, all: d.total };
+    $("catChips").innerHTML = FILTERS.map((f) => `<button type="button" class="chip" data-filter="${f.key}" aria-pressed="${state.filter === f.key}">${f.label}<b>${count[f.key]}</b></button>`).join("");
+    const keep = state.age; state.age = "all";
+    const base = cs.filter(matches);
+    state.age = keep;
+    $("ageChips").innerHTML = AGES.map(([k, l]) => `<button type="button" class="chip" data-age="${k}" aria-pressed="${state.age === k}">${l}<b>${k === "all" ? base.length : base.filter((c) => c.age_bucket === k).length}</b></button>`).join("");
+  }
+
+  function renderList() {
+    const rows = visible();
+    $("listCount").textContent = `${rows.length} contact${rows.length > 1 ? "s" : ""}`;
+    if (!rows.length) {
+      $("list").innerHTML = `<li class="empty">${state.data.total ? "Personne dans ce filtre." : "Lance une première analyse pour remplir la liste."}</li>`;
+    } else {
+      $("list").innerHTML = rows.map((c) => `<li><button type="button" data-peer="${c.peer_id}" aria-current="${state.selected === c.peer_id}"><span class="dot" data-cat="${c.category}" aria-hidden="true"></span><span class="who"><b>${esc(c.display_name)}</b><small>${c.last_message_outgoing ? "Toi" : esc(firstOf(c.display_name))} · ${fmt(c.last_message_at)}</small></span>${c.can_send ? '<span class="tag ready">prêt</span>' : `<span class="tag">${esc(ageText(c.age_days))}</span>`}</button></li>`).join("");
+    }
+    if (!rows.some((c) => c.peer_id === state.selected)) select(rows.length ? rows[0].peer_id : null);
+  }
+
+  async function select(peerId) {
+    state.selected = peerId;
+    document.querySelectorAll("#list button[data-peer]").forEach((b) => b.setAttribute("aria-current", String(Number(b.dataset.peer) === peerId)));
+    if (peerId == null) { state.detail = null; renderDetail(); return; }
+    try {
+      const detail = await api(`/api/agent/contacts/${peerId}`);
+      if (state.selected !== peerId) return;
+      state.detail = detail; state.draft = detail.draft || ""; renderDetail();
+    } catch (e) { toast(e.message); }
+  }
+
+  function vipNote(c) {
+    if (c.category === "vip") return `<div class="note ok">${esc(c.reason)}</div>`;
+    if (c.vip_checked_manually_at) return `<div class="note ok">Vérifié à la main : pas membre VIP (${esc(fmt(c.vip_checked_manually_at))}).</div>`;
+    if (c.vip_check === "non_membre") return `<div class="note ok">Pas membre des groupes VIP · contrôlé le ${esc(fmt(c.vip_checked_at))}.</div>`;
+    if (c.needs_vip_check) return `<div class="note warn">${esc(c.exclusion)}<div class="inline"><button type="button" class="btn" data-act="vip">J’ai vérifié : pas membre VIP</button></div></div>`;
+    return "";
+  }
+
+  function renderDetail() {
+    const box = $("detail");
+    const det = state.detail;
+    if (!det) { box.innerHTML = `<div class="card"><p class="empty">${state.data && state.data.total ? "Sélectionne un contact dans la liste." : "Aucun contact pour l’instant."}</p></div>`; return; }
+    const c = det.contact;
+    const first = firstOf(c.display_name);
+    const tg = c.username ? `https://t.me/${encodeURIComponent(c.username)}` : null;
+    const quote = c.snippet ? `<div class="quote ${c.snippet_outgoing ? "" : "them"}"><small>Dernier message · ${c.snippet_outgoing ? "toi" : esc(first)} · ${esc(fmt(c.last_message_at, true))}</small><p>${esc(c.snippet)}</p></div>` : "";
+    const blocked = c.exclusion && !c.needs_vip_check ? `<div class="note block"><b>Pas de relance pour l’instant</b> · ${esc(c.exclusion)}</div>` : "";
+    const warn = c.warning ? `<div class="note warn">${esc(c.warning)}</div>` : "";
+    const draft = det.draft !== null && det.draft !== undefined ? `
+      <div class="draft">
+        <label for="draft"><span>Message (modifiable avant l’envoi)</span><span id="chars">${state.draft.length} caractères</span></label>
+        <textarea id="draft">${esc(state.draft)}</textarea>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn btn-primary" data-act="send" ${c.can_send && !state.busy ? "" : "disabled"}>${state.busy ? "Envoi…" : `Envoyer à ${esc(first || "ce contact")}`}</button>
+        <button type="button" class="btn" data-act="next">Passer</button>
+        <button type="button" class="btn btn-quiet" data-act="copy">Copier</button>
+        ${tg ? `<a class="btn btn-quiet" href="${tg}" target="_blank" rel="noreferrer">Ouvrir dans Telegram</a>` : ""}
+        <span class="hint push">⌘ + Entrée pour envoyer</span>
+      </div>` : "";
+    box.innerHTML = `<article class="card">
+      <div class="card-head">
+        <div><h2>${esc(c.display_name)}</h2>${tg ? `<a href="${tg}" target="_blank" rel="noreferrer">@${esc(c.username)}</a>` : '<span class="hint">Pas de @pseudo</span>'}</div>
+        <div class="tags"><span class="tag" data-cat="${c.category}">${CAT_LABEL[c.category]}</span>${c.age_days != null ? `<span class="tag">${esc(ageText(c.age_days))}</span>` : ""}</div>
+      </div>
+      ${quote}
+      <div class="facts">
+        <div><span>Pourquoi ce classement</span>${esc(c.reason)}</div>
+        <div><span>Dernière relance</span>${esc(fmt(c.last_followup_at, true))}</div>
+        <div><span>Statut</span>${esc(c.status_label)}</div>
+      </div>
+      ${vipNote(c)}${blocked}${warn}${draft}
+      <div class="actions">
+        ${!["vip", "stop", "invite"].includes(c.category) ? '<button type="button" class="btn btn-quiet" data-act="invited">Lien VIP déjà envoyé</button>' : ""}
+        ${c.category !== "stop" ? '<button type="button" class="btn btn-quiet btn-danger" data-act="stop">Ne plus contacter</button>' : ""}
+        ${det.draft !== null && det.draft !== undefined ? '<button type="button" class="btn btn-quiet" data-act="manual">Je l’ai envoyé à la main</button>' : ""}
+      </div>
+      <details><summary>Historique (${det.events.length})</summary>${det.events.length ? `<ol class="timeline">${det.events.map((e) => `<li><time>${esc(fmt(e.at, true))}</time>${esc(e.action)}${e.detail ? ` · ${esc(e.detail)}` : ""}</li>`).join("")}</ol>` : '<p class="hint">Aucune action enregistrée.</p>'}</details>
+    </article>`;
+    const ta = $("draft");
+    if (ta) {
+      const fit = () => { ta.style.height = "auto"; ta.style.height = `${ta.scrollHeight + 2}px`; };
+      fit();
+      ta.addEventListener("input", () => { state.draft = ta.value; $("chars").textContent = `${ta.value.length} caractères`; fit(); });
+    }
+  }
+
+  function nextContact() {
+    const rows = visible();
+    const i = rows.findIndex((c) => c.peer_id === state.selected);
+    const next = rows[i + 1] || rows[0];
+    if (next && next.peer_id !== state.selected) select(next.peer_id);
+  }
+
+  async function refresh(keepSelection = true) {
+    try {
+      const data = await api("/api/agent/overview");
+      state.data = data;
+      if (state.offline) { state.offline = false; }
+      renderHeader(); renderChips(); renderList();
+      if (keepSelection && state.selected != null && !state.busy) {
+        const still = data.contacts.find((c) => c.peer_id === state.selected);
+        if (still && state.detail) { state.detail.contact = Object.assign({}, state.detail.contact, still); }
+      }
+      if (data.scan_running && !state.poll) state.poll = setInterval(() => refresh(), 2500);
+      if (!data.scan_running && state.poll) { clearInterval(state.poll); state.poll = null; if (state.selected != null) select(state.selected); }
+    } catch (e) {
+      state.offline = true;
+      if (state.poll) { clearInterval(state.poll); state.poll = null; }
+      $("app").innerHTML = `<div class="offline card"><h2>L’agent ne répond pas</h2><p class="hint">Double-clique sur « Lancer-agent-relances » dans Documents › ChatGPT › TELEGRAM, garde la fenêtre du Terminal ouverte, puis recharge cette page.</p></div>`;
+    }
+  }
+
+  async function act(kind) {
+    const c = state.detail && state.detail.contact;
+    if (!c || state.busy) return;
+    const id = c.peer_id;
+    if (kind === "next") { nextContact(); return; }
+    if (kind === "copy") {
+      try { await navigator.clipboard.writeText(state.draft); toast("Message copié."); } catch (e) { $("draft").select(); toast("Sélectionné : copie-le avec ⌘ + C."); }
+      return;
+    }
+    const paths = { vip: "vip-checked", invited: "invited", stop: "do-not-contact", manual: "mark-followup" };
+    const done = { vip: "Noté : pas membre VIP.", invited: "Noté : lien VIP déjà envoyé.", stop: `${c.display_name} ne sera plus relancé.`, manual: "Relance notée comme envoyée à la main." };
+    if (kind === "stop" && !confirm(`Ne plus jamais proposer de relance à ${c.display_name} ?`)) return;
+    if (kind === "send") {
+      if (!c.can_send) { toast(c.exclusion || "Envoi impossible pour ce contact."); return; }
+      const text = state.draft.trim();
+      if (!text) { toast("Le message est vide."); return; }
+      state.busy = true; renderDetail();
+      try {
+        const res = await api(`/api/contacts/${id}/send`, { text });
+        toast(`Envoyé à ${c.display_name} ✓ (${res.sent_today} aujourd’hui)`);
+        state.busy = false;
+        const rows = visible(); const i = rows.findIndex((r) => r.peer_id === id); const next = rows[i + 1] || null;
+        await refresh(false);
+        if (next) select(next.peer_id); else select(state.selected);
+      } catch (e) { state.busy = false; renderDetail(); toast(e.message); }
+      return;
+    }
+    try { await api(`/api/contacts/${id}/${paths[kind]}`, {}); toast(done[kind]); await refresh(); await select(id); }
+    catch (e) { toast(e.message); }
+  }
+
+  document.addEventListener("click", (event) => {
+    const chip = event.target.closest("[data-filter]");
+    if (chip) { state.filter = chip.dataset.filter; state.age = "all"; renderChips(); renderList(); return; }
+    const age = event.target.closest("[data-age]");
+    if (age) { state.age = age.dataset.age; renderChips(); renderList(); return; }
+    const row = event.target.closest("[data-peer]");
+    if (row) { select(Number(row.dataset.peer)); return; }
+    const action = event.target.closest("[data-act]");
+    if (action) act(action.dataset.act);
+  });
+  document.addEventListener("keydown", (event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") { event.preventDefault(); act("send"); }
+  });
+  $("search").addEventListener("input", (event) => { state.q = event.target.value.trim().toLocaleLowerCase("fr"); renderChips(); renderList(); });
+  $("scanBtn").addEventListener("click", async () => {
+    try { const r = await api("/api/scan", {}); toast(r.message || "Analyse démarrée."); await refresh(); }
+    catch (e) { toast(e.message); }
+  });
+  refresh(false);
+})();
+</script>
+</body>
+</html>

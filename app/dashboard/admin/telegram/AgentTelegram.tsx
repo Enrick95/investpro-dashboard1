@@ -1,35 +1,46 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Ban, Check, CheckCircle2, Copy, ExternalLink, Laptop, Loader2, MailCheck, RefreshCw, ScanSearch, Search, ShieldAlert, ShieldCheck } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from "react";
+import { Ban, CheckCircle2, Copy, ExternalLink, Laptop, Loader2, MailCheck, RefreshCw, ScanSearch, Search, Send, ShieldAlert, ShieldCheck, SkipForward } from "lucide-react";
 import s from "./TelegramAdmin.module.css";
 
 /**
- * Agent Telegram : l’interface est ici, mais les données restent sur l’ordinateur d’Enrick.
- * Le navigateur lit directement le service Python local (127.0.0.1) ; rien ne passe par le serveur du site.
- * Aucun envoi automatique : chaque relance est copiée, envoyée à la main dans Telegram, puis notée ici.
+ * Agent Telegram : la plateforme de relance est ici, mais les données restent sur le Mac d’Enrick.
+ * Le navigateur lit directement l’agent local (127.0.0.1) ; rien ne passe par le serveur du site.
+ * Un message ne part que quand Enrick clique sur « Envoyer », depuis son compte support.
  */
 const AGENT = "http://127.0.0.1:8765";
+const AGENT_VERSION = "2";
 
 type Category = "chaud" | "tiede" | "froid" | "vip" | "invite" | "stop";
+type AgeBucket = "recent" | "3m" | "6m" | "1an";
+type Filter = "ready" | "chaud" | "tiede" | "froid" | "check" | "excluded" | "all";
 type Contact = {
   peer_id: number; display_name: string; username: string | null; last_message_at: string; last_message_outgoing: boolean;
   last_followup_at: string | null; invited_at: string | null; vip_checked_manually_at: string | null;
-  status: string; status_label: string; category: Category; reason: string; exclusion: string | null;
+  status: string; status_label: string; category: Category; reason: string; exclusion: string | null; warning: string | null;
+  needs_vip_check: boolean; can_send: boolean; age_days: number | null; age_bucket: AgeBucket | null;
+  snippet: string | null; snippet_outgoing: boolean | null; vip_check: "membre" | "non_membre" | "inconnu" | null; vip_checked_at: string | null;
 };
 type Overview = {
-  total: number; categories: Record<Category, number>; replies: number; to_review: number; pending_tasks: number;
-  last_scan_at: string | null; vip_membership_state: string; vip_membership_groups: string[]; vip_membership_issues: string[];
-  scan_running: boolean; scan_error: string | null; scan_processed: number; status_labels: Record<string, string>; contacts: Contact[];
+  agent_version?: string; total: number; ready: number; categories: Record<Category, number>; replies: number; to_review: number;
+  sent_today: number; daily_send_limit: number; last_scan_at: string | null; vip_membership_issues: string[];
+  scan_running: boolean; scan_error: string | null; scan_processed: number; scan_phase: string | null; send_running: boolean;
+  contacts: Contact[];
 };
 type Detail = { contact: Contact; events: { at: string; action: string; detail: string | null }[]; draft: string | null };
 
-const CATEGORIES: { key: Category | "all"; label: string }[] = [
-  { key: "all", label: "Tous" }, { key: "chaud", label: "Chauds" }, { key: "tiede", label: "Tièdes" }, { key: "froid", label: "Froids" },
-  { key: "vip", label: "Déjà membre VIP" }, { key: "invite", label: "Déjà invité" }, { key: "stop", label: "Ne plus contacter" },
+const FILTERS: { key: Filter; label: string }[] = [
+  { key: "ready", label: "À relancer" }, { key: "chaud", label: "Chauds" }, { key: "tiede", label: "Tièdes" }, { key: "froid", label: "Froids" },
+  { key: "check", label: "VIP à vérifier" }, { key: "excluded", label: "Écartés" }, { key: "all", label: "Tous" },
+];
+const AGES: { key: AgeBucket | "all"; label: string }[] = [
+  { key: "all", label: "Toutes" }, { key: "recent", label: "Moins de 3 mois" }, { key: "3m", label: "3 à 6 mois" },
+  { key: "6m", label: "6 à 12 mois" }, { key: "1an", label: "Plus d’un an" },
 ];
 const CATEGORY_LABEL: Record<Category, string> = { chaud: "Chaud", tiede: "Tiède", froid: "Froid", vip: "Déjà membre VIP", invite: "Déjà invité", stop: "Ne plus contacter" };
-const EDITABLE_STATUSES = ["a_verifier", "vip_interesse", "appel_demande", "infos_broker_demandees", "reponse_attendue", "relance_envoyee"];
+const ORDER: Record<Category, number> = { chaud: 0, tiede: 1, froid: 2, invite: 3, vip: 4, stop: 5 };
+const EXCLUDED: Category[] = ["vip", "stop", "invite"];
 
 async function agent<T>(path: string, body?: unknown): Promise<T> {
   const response = await fetch(AGENT + path, body === undefined ? { cache: "no-store" } : { method: "POST", cache: "no-store", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -37,16 +48,33 @@ async function agent<T>(path: string, body?: unknown): Promise<T> {
   if (!response.ok) throw new Error((data as { error?: string; message?: string }).error || (data as { message?: string }).message || "L’agent n’a pas pu traiter la demande.");
   return data as T;
 }
-function when(value: string | null) {
+function when(value: string | null, withTime = true) {
   if (!value) return "—";
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "—" : new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" }).format(date);
+  return Number.isNaN(date.getTime()) ? "—" : new Intl.DateTimeFormat("fr-FR", withTime ? { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" } : { day: "numeric", month: "short", year: "numeric" }).format(date);
+}
+function firstName(name: string) { return name.trim().split(/\s+/)[0] || "ce contact"; }
+function ageText(days: number | null) {
+  if (days === null) return "";
+  if (days < 1) return "aujourd’hui";
+  if (days < 31) return `${days} j`;
+  if (days < 365) return `${Math.round(days / 30.4)} mois`;
+  return days < 730 ? `${(days / 365).toFixed(1).replace(".", ",")} an` : `${Math.floor(days / 365)} ans`;
+}
+function matches(contact: Contact, filter: Filter, age: AgeBucket | "all", query: string) {
+  if (filter === "ready" && !contact.can_send) return false;
+  if ((filter === "chaud" || filter === "tiede" || filter === "froid") && contact.category !== filter) return false;
+  if (filter === "check" && !contact.needs_vip_check) return false;
+  if (filter === "excluded" && !EXCLUDED.includes(contact.category)) return false;
+  if (age !== "all" && contact.age_bucket !== age) return false;
+  return !query || `${contact.display_name} ${contact.username || ""}`.toLocaleLowerCase("fr").includes(query);
 }
 
 export default function AgentTelegram() {
   const [state, setState] = useState<"checking" | "offline" | "online">("checking");
   const [data, setData] = useState<Overview | null>(null);
-  const [filter, setFilter] = useState<Category | "all">("all");
+  const [filter, setFilter] = useState<Filter>("ready");
+  const [age, setAge] = useState<AgeBucket | "all">("all");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detail, setDetail] = useState<Detail | null>(null);
@@ -66,11 +94,15 @@ export default function AgentTelegram() {
     return () => clearInterval(timer);
   }, [data?.scan_running, load]);
 
-  const contacts = useMemo(() => {
-    const query = search.trim().toLocaleLowerCase("fr");
-    return (data?.contacts || []).filter(contact => (filter === "all" || contact.category === filter) && (!query || `${contact.display_name} ${contact.username || ""}`.toLocaleLowerCase("fr").includes(query)));
-  }, [data, filter, search]);
-  const selected = contacts.find(contact => contact.peer_id === selectedId) || contacts[0] || null;
+  const query = search.trim().toLocaleLowerCase("fr");
+  const visible = useMemo(() => (data?.contacts || [])
+    .filter(contact => matches(contact, filter, age, query))
+    .sort((a, b) => ORDER[a.category] - ORDER[b.category] || b.last_message_at.localeCompare(a.last_message_at)), [data, filter, age, query]);
+  const ageCounts = useMemo(() => {
+    const base = (data?.contacts || []).filter(contact => matches(contact, filter, "all", query));
+    return Object.fromEntries(AGES.map(item => [item.key, item.key === "all" ? base.length : base.filter(contact => contact.age_bucket === item.key).length])) as Record<AgeBucket | "all", number>;
+  }, [data, filter, query]);
+  const selected = visible.find(contact => contact.peer_id === selectedId) || visible[0] || null;
 
   const loadDetail = useCallback(async (peerId: number) => {
     try { const value = await agent<Detail>(`/api/agent/contacts/${peerId}`); setDetail(value); setDraft(value.draft || ""); }
@@ -80,103 +112,139 @@ export default function AgentTelegram() {
   useEffect(() => { if (selected) void loadDetail(selected.peer_id); else setDetail(null); }, [selected?.peer_id, loadDetail]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function run(label: string, path: string, body: unknown, done: string) {
-    if (busy) return;
+    if (busy || !selected) return;
+    const peerId = selected.peer_id;
     setBusy(label); setNotice("");
-    try { await agent(path, body); setNotice(done); await load(); if (selected) await loadDetail(selected.peer_id); }
+    try { await agent(path, body); setNotice(done); await load(); await loadDetail(peerId); }
     catch (cause) { setNotice(cause instanceof Error ? cause.message : "Action impossible."); }
     finally { setBusy(""); }
   }
+  async function send() {
+    if (!selected || busy) return;
+    if (!selected.can_send) { setNotice(selected.exclusion || "Envoi impossible pour ce contact."); return; }
+    const text = draft.trim();
+    if (!text) { setNotice("Le message est vide."); return; }
+    const index = visible.findIndex(contact => contact.peer_id === selected.peer_id);
+    const next = visible[index + 1] || null;
+    setBusy("send"); setNotice("");
+    try {
+      const result = await agent<{ sent_today: number }>(`/api/contacts/${selected.peer_id}/send`, { text });
+      setNotice(`Envoyé à ${selected.display_name} ✓ (${result.sent_today} aujourd’hui)`);
+      await load();
+      if (next) setSelectedId(next.peer_id); else await loadDetail(selected.peer_id);
+    } catch (cause) { setNotice(cause instanceof Error ? cause.message : "Envoi impossible."); }
+    finally { setBusy(""); }
+  }
+  function skip() {
+    const index = visible.findIndex(contact => contact.peer_id === selected?.peer_id);
+    const next = visible[index + 1] || visible[0];
+    if (next) setSelectedId(next.peer_id);
+  }
   async function copyDraft() {
-    try { await navigator.clipboard.writeText(draft); setNotice("Message copié. Colle-le dans Telegram, relis-le, puis envoie-le toi-même."); }
+    try { await navigator.clipboard.writeText(draft); setNotice("Message copié."); }
     catch { setNotice("Copie impossible : sélectionne le texte et copie-le à la main."); }
   }
+  function onDraftKey(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") { event.preventDefault(); void send(); }
+  }
 
-  if (state !== "online") return <section className={s.card}>
-    <header><h3><Laptop size={16} aria-hidden="true" /> Agent Telegram · sur ton ordinateur</h3></header>
+  if (state !== "online" || !data) return <section className={s.card}>
+    <header><h3><Laptop size={16} aria-hidden="true" /> Agent Telegram · sur ton Mac</h3></header>
     {state === "checking" ? <p className={s.muted}><Loader2 size={14} className={s.spin} aria-hidden="true" /> Connexion à l’agent sur ton Mac…</p> : <>
-      <p className={s.muted}>L’agent lit ton compte InvestPro Support <b>sur ton Mac uniquement</b> : tes messages, ta session et tes identifiants ne sont jamais envoyés au site. Pour l’afficher ici, lance-le sur cet ordinateur :</p>
+      <p className={s.muted}>L’agent de relance tourne sur ton Mac : c’est là que ton compte Telegram support est connecté. Tes messages et ta session ne passent jamais par le site. Pour l’afficher ici :</p>
       <ol className={s.stepsList}>
-        <li>Ouvre <b>Terminal</b> et va dans le dossier de l’agent (<code>cd</code> + glisse le dossier dans la fenêtre).</li>
-        <li>Tape <code>.venv/bin/tg-followup dashboard</code> puis Entrée. Laisse la fenêtre ouverte.</li>
-        <li>Reviens ici et clique sur « Réessayer ». Utilise Chrome ; s’il demande l’accès au réseau local, clique sur « Autoriser ».</li>
+        <li>Sur ton Mac, ouvre <b>Documents › ChatGPT › TELEGRAM</b> et double-clique sur <b>« Lancer-agent-relances »</b>. Laisse la fenêtre du Terminal ouverte.</li>
+        <li>Reviens ici dans <b>Chrome</b> et clique sur « Réessayer ». Si Chrome demande l’accès aux appareils du réseau local, clique sur « Autoriser ».</li>
       </ol>
-      <p className={s.muted}>Ça ne marche que sur l’ordinateur où tourne l’agent (pas sur ton téléphone).</p>
+      <p className={s.muted}>Ça marche seulement sur le Mac où tourne l’agent, pas sur ton téléphone.</p>
       <div><button type="button" className={s.ghost} onClick={() => { setState("checking"); void load(); }}><RefreshCw size={14} aria-hidden="true" />Réessayer</button></div>
     </>}
   </section>;
 
-  const overview = data as Overview;
-  const contact = detail?.contact.peer_id === selected?.peer_id ? detail?.contact : selected;
-  const tg = contact?.username ? `https://t.me/${encodeURIComponent(contact.username)}` : null;
+  const excluded = data.categories.vip + data.categories.stop + data.categories.invite;
+  const tg = selected?.username ? `https://t.me/${encodeURIComponent(selected.username)}` : null;
+  const draftReady = detail !== null && selected !== null && detail.contact.peer_id === selected.peer_id && detail.draft !== null;
+  const counts: Record<Filter, number> = { ready: data.ready, chaud: data.categories.chaud, tiede: data.categories.tiede, froid: data.categories.froid, check: data.to_review, excluded, all: data.total };
+  const phase = data.scan_phase === "contrôle VIP" ? `contrôle VIP : ${data.scan_processed} contact(s) vérifié(s)` : data.scan_phase === "conversations" ? `${data.scan_processed} conversation(s) parcourue(s)` : "connexion à Telegram…";
+
   return <div className={s.root}>
+    {data.agent_version !== AGENT_VERSION && <div className={s.warnBox}><ShieldAlert size={16} aria-hidden="true" /><div><b>Ton agent n’est pas à jour.</b> Ferme la fenêtre du Terminal sur ton Mac, puis relance « Lancer-agent-relances ».</div></div>}
+    {data.scan_running && <p className={s.notice} role="status"><Loader2 size={14} className={s.spin} aria-hidden="true" /> Analyse de tout ton Telegram support en cours ({phase}). Si le Terminal demande ton numéro ou un code, réponds dans sa fenêtre. Rien n’est envoyé pendant l’analyse.</p>}
+    {!data.scan_running && data.scan_error && <div className={s.warnBox}><ShieldAlert size={16} aria-hidden="true" /><div><b>L’analyse s’est arrêtée.</b> {data.scan_error}</div></div>}
+    {!data.scan_running && data.vip_membership_issues.length > 0 && <div className={s.warnBox}><ShieldAlert size={16} aria-hidden="true" /><div><b>Contrôle du groupe InvestPro Trading VIP</b><ul>{data.vip_membership_issues.map(issue => <li key={issue}>{issue}</li>)}</ul></div></div>}
+
     <div className={s.kpis}>
-      <article><span>Contacts suivis</span><strong>{overview.total}</strong><small>dernière analyse : {when(overview.last_scan_at)}</small></article>
-      <article data-tone="tg"><span>Réponses reçues</span><strong>{overview.replies}</strong><small>à lire</small></article>
-      <article data-tone="warn"><span>Relances à vérifier</span><strong>{overview.to_review}</strong><small>froids sans blocage</small></article>
-      <article data-tone="bad"><span>Tâches en attente</span><strong>{overview.pending_tasks}</strong><small>contacts chauds</small></article>
+      <article data-tone="tg"><span>Prêts à relancer</span><strong>{data.ready}</strong><small>message prêt, rien ne bloque</small></article>
+      <article><span>Envoyés aujourd’hui</span><strong>{data.sent_today}</strong><small>limite de sécurité : {data.daily_send_limit} par jour</small></article>
+      <article data-tone="warn"><span>Ils t’ont écrit en dernier</span><strong>{data.replies}</strong><small>réponses à lire</small></article>
+      <article data-tone="bad"><span>Écartés</span><strong>{excluded}</strong><small>déjà VIP, refus, déjà invités</small></article>
     </div>
 
-    {overview.vip_membership_state !== "verified" && <div className={s.warnBox}><ShieldAlert size={16} aria-hidden="true" /><div><b>Contrôle des groupes VIP incomplet.</b> Avant de relancer quelqu’un, confirme à la main qu’il n’est pas déjà membre (bouton dans sa fiche).{overview.vip_membership_issues.length > 0 && <ul>{overview.vip_membership_issues.map(issue => <li key={issue}>{issue}</li>)}</ul>}</div></div>}
-
     <div className={s.toolbar}>
-      <span>{overview.scan_running ? `Analyse en cours… ${overview.scan_processed} conversations parcourues` : overview.scan_error ? `Dernière analyse : ${overview.scan_error}` : "Aucun message n’est envoyé automatiquement."}</span>
+      <span>{data.last_scan_at ? `Dernière analyse : ${when(data.last_scan_at)} · ${data.total} contacts suivis` : "Aucune analyse pour l’instant."}</span>
       <span style={{ display: "flex", gap: 8 }}>
         <button type="button" className={s.ghost} onClick={() => void load()}><RefreshCw size={14} aria-hidden="true" />Actualiser</button>
-        <button type="button" className={s.ghost} disabled={overview.scan_running || !!busy} onClick={() => void run("scan", "/api/scan", {}, "Analyse démarrée sur ton Mac.")}><ScanSearch size={14} aria-hidden="true" />Analyser Telegram</button>
+        <button type="button" className={s.ghost} disabled={data.scan_running || data.send_running || !!busy} onClick={() => void run("scan", "/api/scan", {}, "Analyse démarrée sur ton Mac.")}><ScanSearch size={14} aria-hidden="true" />Analyser Telegram</button>
       </span>
     </div>
     {notice && <p className={s.notice} role="status">{notice}</p>}
 
-    <nav className={s.chips} aria-label="Catégories">{CATEGORIES.map(item => <button type="button" key={item.key} aria-pressed={filter === item.key} data-cat={item.key} onClick={() => setFilter(item.key)}>{item.label} <b>{item.key === "all" ? overview.total : overview.categories[item.key]}</b></button>)}</nav>
+    <div className={s.filterRow}><span>Contacts</span><nav className={s.chips} aria-label="Catégories">{FILTERS.map(item => <button type="button" key={item.key} aria-pressed={filter === item.key} onClick={() => { setFilter(item.key); setAge("all"); }}>{item.label} <b>{counts[item.key]}</b></button>)}</nav></div>
+    <div className={s.filterRow}><span>Ancienneté</span><nav className={s.chips} aria-label="Ancienneté">{AGES.map(item => <button type="button" key={item.key} aria-pressed={age === item.key} onClick={() => setAge(item.key)}>{item.label} <b>{ageCounts[item.key]}</b></button>)}</nav></div>
 
     <div className={s.agentSplit}>
       <div className={s.agentList}>
         <label className={s.search}><Search size={14} aria-hidden="true" /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Nom ou @pseudo…" aria-label="Rechercher un contact" /></label>
-        <ul>{contacts.map(item => <li key={item.peer_id}><button type="button" aria-pressed={selected?.peer_id === item.peer_id} onClick={() => setSelectedId(item.peer_id)}>
+        <ul>{visible.map(item => <li key={item.peer_id}><button type="button" aria-pressed={selected?.peer_id === item.peer_id} onClick={() => setSelectedId(item.peer_id)}>
           <span className={s.dot} data-cat={item.category} aria-hidden="true" />
-          <span className={s.agentWho}><b>{item.display_name}</b><small>{item.last_message_outgoing ? "Toi" : "Lui"} · {when(item.last_message_at)}</small></span>
-          {item.exclusion ? <Ban size={13} aria-label="Exclu des relances" /> : null}
+          <span className={s.agentWho}><b>{item.display_name}</b><small>{item.last_message_outgoing ? "Toi" : firstName(item.display_name)} · {when(item.last_message_at, false)}</small></span>
+          {item.can_send ? <span className={s.readyTag}>prêt</span> : <span className={s.ageTag}>{ageText(item.age_days)}</span>}
         </button></li>)}</ul>
-        {!contacts.length && <p className={s.empty}>Aucun contact dans cette catégorie.</p>}
+        {!visible.length && <p className={s.empty}>{data.total ? "Personne dans ce filtre." : "Lance une première analyse pour remplir la liste."}</p>}
       </div>
 
-      {contact ? <article className={s.card}>
-        <header><div><h3>{contact.display_name}</h3>{tg ? <a className={s.link} href={tg} target="_blank" rel="noreferrer">@{contact.username} ↗</a> : <small className={s.muted}>Pas de @pseudo</small>}</div><span className={s.catPill} data-cat={contact.category}>{CATEGORY_LABEL[contact.category]}</span></header>
-        <div className={s.factGrid}>
-          <div><span>Dernier échange</span>{when(contact.last_message_at)} · {contact.last_message_outgoing ? "envoyé par toi" : "reçu de lui"}</div>
-          <div><span>Statut</span>{contact.status_label}</div>
-          <div><span>Dernière relance</span>{when(contact.last_followup_at)}</div>
-          <div><span>Lien VIP envoyé</span>{when(contact.invited_at)}</div>
-        </div>
-        <div className={s.reasonBox}><b>Pourquoi ce classement</b><p>{contact.reason}</p><small>Classement suggéré à partir de mots-clés : vérifie toujours la conversation.</small></div>
-        {contact.exclusion && <div className={s.warnBox}><Ban size={16} aria-hidden="true" /><div><b>Pas de relance pour l’instant</b> — {contact.exclusion}</div></div>}
+      {selected ? <article className={s.card}>
+        <header><div><h3>{selected.display_name}</h3>{tg ? <a className={s.link} href={tg} target="_blank" rel="noreferrer">@{selected.username} ↗</a> : <small className={s.muted}>Pas de @pseudo</small>}</div>
+          <span style={{ display: "flex", gap: 6 }}><span className={s.catPill} data-cat={selected.category}>{CATEGORY_LABEL[selected.category]}</span>{selected.age_days !== null && <span className={s.ageTag}>{ageText(selected.age_days)}</span>}</span></header>
 
-        {detail?.draft !== null && detail?.contact.peer_id === contact.peer_id && !contact.exclusion?.startsWith("Déjà relancé") && <div className={s.block}>
-          <h4>Brouillon de relance (modifiable)</h4>
-          <textarea className={s.draft} value={draft} onChange={event => setDraft(event.target.value)} rows={9} />
+        {selected.snippet && <div className={s.quote} data-them={selected.snippet_outgoing ? undefined : "true"}><small>Dernier message · {selected.snippet_outgoing ? "toi" : firstName(selected.display_name)} · {when(selected.last_message_at)}</small><p>{selected.snippet}</p></div>}
+        <div className={s.factGrid}>
+          <div><span>Pourquoi ce classement</span>{selected.reason}</div>
+          <div><span>Dernière relance</span>{when(selected.last_followup_at)}</div>
+          <div><span>Statut</span>{selected.status_label}</div>
+        </div>
+
+        {selected.category === "vip" ? <p className={s.okBox}>{selected.reason}</p>
+          : selected.vip_checked_manually_at ? <p className={s.okBox}>Vérifié à la main : pas membre VIP ({when(selected.vip_checked_manually_at, false)}).</p>
+          : selected.vip_check === "non_membre" ? <p className={s.okBox}>Pas membre d’InvestPro Trading VIP · contrôlé le {when(selected.vip_checked_at, false)}.</p>
+          : selected.needs_vip_check ? <div className={s.warnBox}><ShieldAlert size={16} aria-hidden="true" /><div>{selected.exclusion}<div className={s.actionsRow} style={{ marginTop: 8 }}><button type="button" className={s.ghost} disabled={!!busy} onClick={() => void run("vip", `/api/contacts/${selected.peer_id}/vip-checked`, {}, "Noté : vérifié à la main, pas membre VIP.")}><ShieldCheck size={14} aria-hidden="true" />J’ai vérifié : pas membre VIP</button></div></div></div>
+          : null}
+        {selected.exclusion && !selected.needs_vip_check && <div className={s.warnBox}><Ban size={16} aria-hidden="true" /><div><b>Pas de relance pour l’instant</b> · {selected.exclusion}</div></div>}
+        {selected.warning && <div className={s.warnBox}><ShieldAlert size={16} aria-hidden="true" /><div>{selected.warning}</div></div>}
+
+        {draftReady && <div className={s.block}>
+          <h4>Message (modifiable avant l’envoi)</h4>
+          <textarea className={s.draft} value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={onDraftKey} rows={12} aria-label="Message de relance" />
           <div className={s.actionsRow}>
-            <button type="button" className={s.ghost} onClick={() => void copyDraft()}><Copy size={14} aria-hidden="true" />Copier le message</button>
-            {tg && <a className={s.ghost} href={tg} target="_blank" rel="noreferrer"><ExternalLink size={14} aria-hidden="true" />Ouvrir la conversation</a>}
-            <button type="button" className={s.primaryBtn} disabled={!!busy} onClick={() => { if (window.confirm(`Confirmes-tu avoir envoyé toi-même la relance à ${contact.display_name} dans Telegram ?`)) void run("sent", `/api/contacts/${contact.peer_id}/mark-followup`, {}, "Relance notée. Le contact passe en « réponse attendue »."); }}><MailCheck size={14} aria-hidden="true" />J’ai envoyé la relance</button>
+            <button type="button" className={s.primaryBtn} disabled={!selected.can_send || !!busy} onClick={() => void send()}>{busy === "send" ? <Loader2 size={14} className={s.spin} aria-hidden="true" /> : <Send size={14} aria-hidden="true" />}{busy === "send" ? "Envoi…" : `Envoyer à ${firstName(selected.display_name)}`}</button>
+            <button type="button" className={s.ghost} onClick={skip}><SkipForward size={14} aria-hidden="true" />Passer</button>
+            <button type="button" className={s.ghost} onClick={() => void copyDraft()}><Copy size={14} aria-hidden="true" />Copier</button>
+            {tg && <a className={s.ghost} href={tg} target="_blank" rel="noreferrer"><ExternalLink size={14} aria-hidden="true" />Ouvrir dans Telegram</a>}
+            <span className={`${s.hint} ${s.push}`}>⌘ + Entrée pour envoyer</span>
           </div>
-          <small className={s.muted}>Rien n’est envoyé par le site ni par l’agent : c’est toi qui envoies depuis Telegram.</small>
+          <small className={s.muted}>Le message part de ton compte support seulement quand tu cliques sur « Envoyer ».</small>
         </div>}
 
-        <div className={s.block}><h4>Actions</h4><div className={s.actionsRow}>
-          {contact.exclusion?.startsWith("Vérification VIP") && <button type="button" className={s.ghost} disabled={!!busy} onClick={() => void run("vip", `/api/contacts/${contact.peer_id}/vip-checked`, {}, "Noté : vérifié à la main, pas membre VIP.")}><ShieldCheck size={14} aria-hidden="true" />J’ai vérifié : pas membre VIP</button>}
-          {!["vip", "stop", "invite"].includes(contact.category) && <button type="button" className={s.ghost} disabled={!!busy} onClick={() => void run("inv", `/api/contacts/${contact.peer_id}/invited`, {}, "Noté : lien d’invitation déjà envoyé.")}><CheckCircle2 size={14} aria-hidden="true" />Lien déjà envoyé</button>}
-          {contact.category !== "stop" && <button type="button" className={s.ghost} disabled={!!busy} onClick={() => { if (window.confirm(`Ne plus jamais proposer de relance à ${contact.display_name} ?`)) void run("stop", `/api/contacts/${contact.peer_id}/do-not-contact`, {}, "Contact marqué « ne plus contacter »."); }}><Ban size={14} aria-hidden="true" />Ne plus contacter</button>}
-          {!["vip", "stop"].includes(contact.category) && <label className={s.selectLabel}>Statut<select value={EDITABLE_STATUSES.includes(contact.status) ? contact.status : ""} disabled={!!busy} onChange={event => event.target.value && void run("status", `/api/contacts/${contact.peer_id}/status`, { status: event.target.value }, "Statut mis à jour.")}>
-            {!EDITABLE_STATUSES.includes(contact.status) && <option value="">{contact.status_label}</option>}
-            {EDITABLE_STATUSES.map(value => <option key={value} value={value}>{overview.status_labels[value] || value}</option>)}
-          </select></label>}
-        </div></div>
+        <div className={s.actionsRow}>
+          {!EXCLUDED.includes(selected.category) && <button type="button" className={s.ghost} disabled={!!busy} onClick={() => void run("inv", `/api/contacts/${selected.peer_id}/invited`, {}, "Noté : lien VIP déjà envoyé.")}><CheckCircle2 size={14} aria-hidden="true" />Lien VIP déjà envoyé</button>}
+          {selected.category !== "stop" && <button type="button" className={s.ghost} disabled={!!busy} onClick={() => { if (window.confirm(`Ne plus jamais proposer de relance à ${selected.display_name} ?`)) void run("stop", `/api/contacts/${selected.peer_id}/do-not-contact`, {}, `${selected.display_name} ne sera plus relancé.`); }}><Ban size={14} aria-hidden="true" />Ne plus contacter</button>}
+          {draftReady && <button type="button" className={s.ghost} disabled={!!busy} onClick={() => { if (window.confirm(`Tu as envoyé toi-même la relance à ${selected.display_name} dans Telegram ?`)) void run("sent", `/api/contacts/${selected.peer_id}/mark-followup`, {}, "Relance notée comme envoyée à la main."); }}><MailCheck size={14} aria-hidden="true" />Je l’ai envoyé à la main</button>}
+        </div>
 
         <div className={s.block}><h4>Historique</h4>
-          {detail?.contact.peer_id === contact.peer_id && detail.events.length ? <ol className={s.timeline}>{detail.events.map((event, index) => <li key={index} data-tone="tg"><time>{when(event.at).split(" à ")[0]}</time><span>{event.action}{event.detail ? ` · ${event.detail}` : ""}</span></li>)}</ol> : <p className={s.muted}>Pas encore d’action enregistrée (l’historique démarre avec cette version).</p>}
+          {detail?.contact.peer_id === selected.peer_id && detail.events.length ? <ol className={s.timeline}>{detail.events.map((event, index) => <li key={index} data-tone="tg"><time>{when(event.at, false)}</time><span>{event.action}{event.detail ? ` · ${event.detail}` : ""}</span></li>)}</ol> : <p className={s.muted}>Pas encore d’action enregistrée.</p>}
         </div>
       </article> : <p className={s.empty}>Sélectionne un contact.</p>}
     </div>
-    {busy && <p className={s.muted}><Check size={13} aria-hidden="true" /> Traitement…</p>}
   </div>;
 }
