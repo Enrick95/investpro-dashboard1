@@ -416,3 +416,19 @@ def test_without_the_vip_group_nobody_can_be_sent_to(env):
     issues = json.loads(cli.meta_value(conn, "vip_membership_issues"))
     conn.close()
     assert any("introuvable" in issue for issue in issues)
+
+
+def test_launch_opens_the_admin_tab_in_chrome_and_falls_back_to_the_local_page(monkeypatch):
+    opened = []
+    monkeypatch.setattr(dashboard.sys, "platform", "darwin")
+    monkeypatch.setattr(dashboard.webbrowser, "open", lambda url: opened.append(("navigateur", url)))
+
+    class Done:
+        def __init__(self, code): self.returncode = code
+    monkeypatch.setattr(dashboard.subprocess, "run", lambda cmd, **kw: opened.append(tuple(cmd)) or Done(0))
+    assert dashboard.open_platform("http://127.0.0.1:8765") == "https://investprotrading.fr/dashboard/admin?tool=telegram&view=agent"
+    assert opened == [("open", "-a", "Google Chrome", "https://investprotrading.fr/dashboard/admin?tool=telegram&view=agent")]
+    opened.clear()
+    monkeypatch.setattr(dashboard.subprocess, "run", lambda cmd, **kw: Done(1))
+    assert dashboard.open_platform("http://127.0.0.1:8765") == "http://127.0.0.1:8765"
+    assert opened == [("navigateur", "http://127.0.0.1:8765")]

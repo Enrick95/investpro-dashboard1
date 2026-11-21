@@ -4,6 +4,8 @@ import asyncio
 import json
 import math
 import os
+import subprocess
+import sys
 import threading
 import time
 import webbrowser
@@ -20,6 +22,8 @@ from .cli import (
 
 
 HTML_PATH = Path(__file__).resolve().parent / "static" / "dashboard.html"
+# Au lancement, la plateforme s’ouvre dans l’onglet Agent Telegram de l’admin (Chrome).
+ADMIN_URL = os.getenv("TG_AGENT_ADMIN_URL", "https://investprotrading.fr/dashboard/admin?tool=telegram&view=agent")
 # Une seule opération Telegram à la fois : l’analyse et les envois partagent la même session.
 TELEGRAM_LOCK = threading.Lock()
 # Pages autorisées à lire ce service depuis TON navigateur (panneau admin InvestPro).
@@ -505,23 +509,36 @@ class DashboardHandler(BaseHTTPRequestHandler):
         self._json({"ok": True})
 
 
+def open_platform(local_url: str) -> str:
+    """Ouvre l’onglet Agent Telegram de l’admin dans Chrome ; à défaut, la plateforme locale."""
+    if sys.platform == "darwin" and os.getenv("TG_AGENT_OPEN", "admin") != "local":
+        try:
+            if subprocess.run(["open", "-a", "Google Chrome", ADMIN_URL], capture_output=True, timeout=15).returncode == 0:
+                return ADMIN_URL
+        except (OSError, subprocess.SubprocessError):
+            pass
+    webbrowser.open(local_url)
+    return local_url
+
+
 def serve(port: int = 8765, open_browser: bool = True, auto_scan: bool = True) -> None:
     url = f"http://127.0.0.1:{port}"
     db_connect().close()
     try:
         server = ThreadingHTTPServer(("127.0.0.1", port), DashboardHandler)
     except OSError:
-        print(f"L’agent tourne déjà sur ce Mac : ouvre {url}")
+        print("L’agent tourne déjà sur ce Mac : ouvre l’onglet Agent Telegram de ton admin.")
         if open_browser:
-            webbrowser.open(url)
+            open_platform(url)
         return
-    print(f"Plateforme de relance : {url}")
+    print("Plateforme de relance : onglet « Agent Telegram » de ton admin, dans Chrome.")
+    print(f"Elle est aussi disponible ici, sur ce Mac : {url}")
     print("Garde cette fenêtre ouverte pendant que tu utilises la plateforme. Pour arrêter : ferme-la.")
     if auto_scan and auto_scan_due() and start_scan_thread():
         print("Analyse de ton Telegram lancée automatiquement (rien n’est envoyé).")
         print("Si Telegram demande ton numéro, un code ou ton mot de passe 2FA, tape-les ici, dans cette fenêtre.")
     if open_browser:
-        threading.Timer(0.8, lambda: webbrowser.open(url)).start()
+        threading.Timer(0.8, lambda: open_platform(url)).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:
