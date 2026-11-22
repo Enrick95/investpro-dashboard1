@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>VIP InvestPro avec Enrick 95</title>
-<meta name="description" content="Rejoins le VIP d'Enrick 95 : ses analyses en H4, chaque signal en direct avec une notification et le suivi de chaque trade. Gratuit avec un broker partenaire.">
+<meta name="description" content="Rejoins le VIP d'Enrick 95 : ses analyses, chaque signal en direct avec une notification et le suivi de chaque trade. Gratuit avec un broker partenaire.">
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#080909">
 <meta property="og:type" content="website">
@@ -187,6 +187,9 @@ h2 em{letter-spacing:-.034em}
 .pillars div+div{padding-left:14px;border-left:1px solid var(--line)}
 .pillars b{font-size:25px;line-height:1;font-weight:700;letter-spacing:-.035em}
 .pillars span{font-size:9.5px;line-height:1.4;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--label)}
+/* La phrase à retenir, sous l'histoire : même jeu que les titres, la seconde ligne en dégradé */
+.about-copy p.motto{display:flex;flex-direction:column;gap:4px;max-width:none;margin-top:8px;padding:4px 0 4px 20px;border-left:2px solid var(--copper);font-size:clamp(21px,5.6vw,27px);line-height:1.2;font-weight:700;letter-spacing:-.03em;color:var(--ink);text-wrap:balance}
+.about-copy p.motto em{font-style:normal;font-weight:400;background:var(--accent);-webkit-background-clip:text;background-clip:text;color:transparent}
 .art{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:22px;background:var(--panel)}
 .art img{width:100%;height:440px;object-fit:cover;object-position:50% 22%}
 
@@ -287,6 +290,82 @@ html:has(.zoom[open]){overflow:hidden}
   @keyframes rise{from{opacity:0;transform:translateY(16px)}}
 }
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.cta::before{animation:none}.cta,.opt,.dock,.round{transition:none}}
+
+/* Téléphone : l'espace VIP tel qu'il s'affiche dans l'appli (écrans du vrai espace, contenu d'exemple) */
+.ph{--pw:280px;--u:calc(var(--pw) / 390);position:relative;flex:0 0 auto;width:calc(var(--pw) + 22 * var(--u));padding:calc(11 * var(--u));border-radius:calc(62 * var(--u));background:linear-gradient(150deg,#57504a 0%,#26231f 30%,#191715 55%,#2f2b26 80%,#121110 100%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1),inset 0 0 0 calc(3 * var(--u)) #090808,0 50px 90px -40px rgba(0,0,0,.9),0 0 70px -30px rgba(207,134,95,.4)}
+.ph::before,.ph::after{content:"";position:absolute;width:calc(4 * var(--u));border-radius:2px;background:#2b2723}
+.ph::before{left:calc(-3 * var(--u));top:calc(190 * var(--u));height:calc(62 * var(--u));box-shadow:0 calc(84 * var(--u)) 0 #2b2723}
+.ph::after{right:calc(-3 * var(--u));top:calc(250 * var(--u));height:calc(100 * var(--u))}
+.ph-screen{position:relative;isolation:isolate;display:flex;flex-direction:column;overflow:hidden;width:var(--pw);height:calc(844 * var(--u));border-radius:calc(51 * var(--u));background:#16130f;color:#f2ebdd}
+.ph-island{position:absolute;z-index:3;top:calc(11 * var(--u));left:50%;width:calc(120 * var(--u));height:calc(35 * var(--u));margin-left:calc(-60 * var(--u));border-radius:99px;background:#000}
+.ph-status{flex:0 0 calc(50 * var(--u));display:flex;align-items:center;justify-content:space-between;padding:calc(4 * var(--u)) calc(32 * var(--u)) 0 calc(38 * var(--u));font:600 calc(16 * var(--u))/1 -apple-system,"SF Pro Text","Helvetica Neue",Arial,sans-serif;letter-spacing:.01em}
+.ph-icons{display:flex;align-items:center;gap:calc(6 * var(--u))}
+.ph-icons svg{display:block;width:auto;height:calc(12 * var(--u));fill:currentColor}
+.ph-scroll{position:relative;flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}
+.ph-scroll::-webkit-scrollbar{display:none}
+.ph-still{overflow:hidden}
+.ph-page{position:relative;transition:opacity .22s ease}
+.ph-page img,.ph-navimg img{display:block;width:100%;max-width:none;height:auto}
+.ph-nav{position:relative;flex:0 0 auto;padding-bottom:calc(22 * var(--u));background:#16130f}
+.ph-navimg{position:relative}
+.ph-home{position:absolute;bottom:calc(8 * var(--u));left:50%;width:calc(134 * var(--u));height:calc(5 * var(--u));margin-left:calc(-67 * var(--u));border-radius:9px;background:#f2ebdd;opacity:.8}
+.ph-hit{position:absolute;z-index:2;margin:0;padding:0;border:0;border-radius:calc(14 * var(--u));background:transparent;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.ph-hit:hover{background:rgba(255,255,255,.05)}
+.ph-hit:focus-visible{outline:2px solid var(--champagne);outline-offset:0}
+.ph.is-swapping .ph-page{opacity:.15}
+.ph-note{display:flex;flex-direction:column;align-items:center;gap:4px;margin-top:18px;font-size:12px;line-height:1.5;color:var(--dim);text-align:center}
+.ph-note b{font-weight:700;color:var(--soft)}
+/* Pour qu'on comprenne qu'on peut toucher l'écran : une étiquette au-dessus du téléphone et un rond qui clignote à l'endroit où appuyer */
+.tap-hint{display:inline-flex;align-items:center;gap:10px;margin:0 0 18px;padding:11px 18px;border-radius:999px;background:var(--champagne);color:#1a120c;font-size:14px;line-height:1.25;font-weight:700;letter-spacing:-.01em;text-align:left;box-shadow:0 12px 34px -12px rgba(230,201,170,.6)}
+.tap-hint svg{display:block;flex:0 0 auto;width:19px;height:19px}
+.tap-pulse{position:absolute;z-index:3;width:calc(48 * var(--u));height:calc(48 * var(--u));margin:calc(-24 * var(--u)) 0 0 calc(-24 * var(--u));pointer-events:none;transition:opacity .4s}
+.tap-pulse i{position:absolute;inset:0;border:calc(3 * var(--u)) solid var(--champagne);border-radius:50%;box-shadow:0 0 calc(20 * var(--u)) rgba(230,201,170,.6);animation:tapRing 1.5s ease-out infinite}
+.tap-pulse::after{content:"";position:absolute;left:50%;top:50%;width:calc(12 * var(--u));height:calc(12 * var(--u));margin:calc(-6 * var(--u)) 0 0 calc(-6 * var(--u));border-radius:50%;background:var(--champagne)}
+.tap-label{position:absolute;bottom:calc(100% + 12 * var(--u));left:50%;transform:translateX(-50%);padding:calc(7 * var(--u)) calc(12 * var(--u));border-radius:999px;background:var(--champagne);color:#1a120c;font:700 calc(15 * var(--u))/1 var(--sans);white-space:nowrap;box-shadow:0 6px 18px rgba(0,0,0,.5)}
+.tap-label::after{content:"";position:absolute;top:100%;left:50%;margin-left:calc(-7 * var(--u));border:calc(7 * var(--u)) solid transparent;border-top-color:var(--champagne)}
+.touched .tap-pulse{opacity:0}
+.t-click{display:none}
+@media (hover:hover) and (pointer:fine){.t-touch{display:none}.t-click{display:inline}}
+@keyframes tapRing{0%{transform:scale(.55);opacity:1}100%{transform:scale(1.5);opacity:0}}
+@media (prefers-reduced-motion:reduce){.ph-page{transition:none}.tap-pulse i{animation:none}}
+
+/* Dans le VIP : le téléphone suit les étapes */
+.tour{display:flex;flex-direction:column;gap:28px}
+.tour-intro{display:flex;flex-direction:column;gap:18px}
+.tour-device{display:flex;flex-direction:column;align-items:center}
+.tour-device .ph{--pw:min(272px,70vw)}
+.tour-steps{display:flex;gap:8px;margin:0 -20px;padding:2px 20px;list-style:none;overflow-x:auto;scrollbar-width:none}
+.tour-steps::-webkit-scrollbar{display:none}
+.tour-steps li{flex:0 0 auto}
+.tour-step{display:inline-flex;align-items:center;margin:0;padding:10px 15px;border:1px solid var(--line-2);border-radius:999px;background:transparent;color:var(--soft);text-align:left;cursor:pointer;transition:border-color .2s,background .2s,color .2s}
+.tour-step .n,.tour-step b,.tour-step .t{display:none}
+.tour-step small{display:none}
+.tour-step .short{font-size:13.5px;font-style:normal;font-weight:700;letter-spacing:-.01em}
+.tour-step.on{border-color:var(--copper-line);background:var(--copper-soft);color:var(--ink)}
+.tour-desc{display:flex;flex-direction:column;gap:8px;min-height:120px}
+.tour-pick{margin:4px 0 -14px;font-size:14px;font-weight:700;color:var(--soft)}
+.tour-desc h3{font-size:25px;line-height:1.1;letter-spacing:-.035em}
+.tour-desc p{font-size:15px;line-height:1.7;color:var(--mute)}
+@media (min-width:960px){
+  .tour{display:grid;grid-template-columns:minmax(0,1fr) 400px;grid-template-areas:"intro device" "steps device";column-gap:72px;row-gap:42px;align-items:start}
+  .tour-intro{grid-area:intro}
+  .tour-device{grid-area:device;position:sticky;top:92px}
+  .tour-device .ph{--pw:300px}
+  .tour-steps{grid-area:steps;position:relative;flex-direction:column;gap:10px;margin:0;padding:0 0 0 30px;overflow:visible}
+  .tour-steps::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:1px;background:linear-gradient(180deg,rgba(207,134,95,0),var(--copper) 12%,var(--champagne) 50%,var(--copper) 88%,rgba(207,134,95,0));box-shadow:0 0 10px rgba(207,134,95,.45)}
+  .tour-step{display:grid;grid-template-columns:36px minmax(0,1fr);gap:22px;width:100%;padding:20px 22px;border-color:transparent;border-radius:20px;color:inherit;opacity:.55}
+  .tour-step:hover{opacity:.85}
+  .tour-step.on{opacity:1;border-color:rgba(207,134,95,.26)}
+  .tour-step .n{display:grid;place-items:center;width:36px;height:36px;border:1px solid rgba(207,134,95,.55);border-radius:50%;font-size:10.5px;color:var(--copper);transition:background .2s,color .2s}
+  .tour-step.on .n{background:var(--copper);border-color:var(--copper);color:#160e09}
+  .tour-step .short{display:none}
+  .tour-step small{display:block;padding-top:9px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--label)}
+  .tour-step b{display:block;margin-top:10px;font-size:29px;line-height:1.08;letter-spacing:-.035em;color:var(--ink)}
+  .tour-step .t{display:block;margin-top:10px;font-size:16px;line-height:1.7;color:var(--mute)}
+  .tour-desc,.tour-pick{display:none}
+}
+@media (min-width:960px) and (max-height:880px){.tour-device .ph{--pw:262px}}
+
 </style>
 </head>
 <body>
@@ -309,7 +388,7 @@ html:has(.zoom[open]){overflow:hidden}
     <section class="hero" aria-labelledby="titre">
       <p class="kicker rise">Le VIP <span>avec Enrick 95</span></p>
       <h1 id="titre" class="rise rise-2">Trade avec moi,<br><em>chaque jour.</em></h1>
-      <p class="lede rise rise-3">Mes analyses en H4, chaque signal en direct avec une notification, et le suivi de chaque trade jusqu'à la clôture.</p>
+      <p class="lede rise rise-3">Mes analyses, chaque signal en direct avec une notification, et le suivi de chaque trade jusqu'à la clôture.</p>
       <span class="pill rise rise-4" data-until-end><i aria-hidden="true"></i>Essai gratuit en démo jusqu'au 30 novembre</span>
     </section>
 
@@ -344,25 +423,24 @@ html:has(.zoom[open]){overflow:hidden}
   </div>
 
   <div class="band" aria-hidden="true">
-    <div class="wrap"><span>Signaux</span><i></i><span>Analyses H4</span><i class="wide"></i><span class="wide">Suivi en direct</span><i></i><span>Gestion du risque</span></div>
+    <div class="wrap"><span>Signaux</span><i></i><span>Analyses</span><i class="wide"></i><span class="wide">Suivi en direct</span><i></i><span>Gestion du risque</span></div>
   </div>
 
   <section class="sec" id="vip" aria-labelledby="vip-titre">
-    <div class="wrap vip-grid">
-      <div class="vip-intro">
+    <div class="wrap tour">
+      <div class="tour-intro">
         <p class="kicker">Dans le VIP</p>
         <h2 id="vip-titre">Chaque trade,<br><em>de l'entrée à la clôture.</em></h2>
-        <p class="sec-lede">Ce que je fais sur les marchés, tu le vois en même temps que moi&#8239;: le signal, le suivi, puis le résultat.</p>
-        <figure class="poster">
-          <img src="/vip-assets/img/hero-1600.jpg" alt="Enrick devant ses écrans pendant une analyse" loading="lazy" width="1600" height="900">
-          <figcaption><small>Au quotidien</small><strong>Mes analyses en H4</strong></figcaption>
-        </figure>
+        <p class="sec-lede">Tout se passe dans ton espace VIP, sur ton téléphone : les signaux, le suivi de chaque trade, mes analyses et ton journal.</p>
       </div>
-      <div class="steps">
-        <article class="step"><span class="n">01</span><div><small>Le signal</small><h3>Recevoir chaque signal</h3><p>Actif, sens, entrée, stop et objectifs, avec une notification sur ton téléphone.</p></div></article>
-        <article class="step"><span class="n">02</span><div><small>Le suivi</small><h3>Suivre chaque trade</h3><p>Stop remonté, prise partielle, clôture&#8239;: tu vois tout en direct, jusqu'au résultat.</p></div></article>
-        <article class="step"><span class="n">03</span><div><small>La progression</small><h3>Progresser avec moi</h3><p>Mes analyses H4, ton journal de trading et le calculateur de lot pour gérer ton risque.</p></div></article>
+      <div class="tour-device">
+        <p class="tap-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 14a8 8 0 0 1-8 8"/><path d="M18 11v-1a2 2 0 0 0-4 0"/><path d="M14 10V9a2 2 0 0 0-4 0v1"/><path d="M10 9.5V4a2 2 0 0 0-4 0v10"/><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg><span class="t-touch">Touche l’écran pour explorer l’appli</span><span class="t-click">Clique sur l’écran pour explorer l’appli</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg></p>
+        <div class="ph " id="phoneA" data-phone data-screen="signaux"><div class="ph-screen"><span class="ph-island" aria-hidden="true"></span><div class="ph-status" aria-hidden="true"><span>16:05</span><span class="ph-icons"><svg viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5.5" width="3" height="6.5" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg><svg viewBox="0 0 16 12"><path d="M8 11.5 5.6 9a3.4 3.4 0 0 1 4.8 0z"/><path d="M3.4 6.9a6.5 6.5 0 0 1 9.2 0l-1.4 1.4a4.5 4.5 0 0 0-6.4 0z"/><path d="M1.2 4.7a9.6 9.6 0 0 1 13.6 0l-1.4 1.4a7.6 7.6 0 0 0-10.8 0z"/></svg><svg viewBox="0 0 27 12"><rect x=".5" y=".5" width="23" height="11" rx="3.2" fill="none" stroke="currentColor" opacity=".45"/><rect x="2" y="2" width="18" height="8" rx="2"/><path d="M25 4v4a2 2 0 0 0 0-4z" opacity=".5"/></svg></span></div><div class="ph-scroll" tabindex="0" aria-label="Écran de l’espace VIP, fais défiler"><div class="ph-page"><img src="/vip-assets/espace/signaux.webp" width="390" height="1386" alt="Écran Signaux : deux trades en cours, EURUSD et XAUUSD, avec les niveaux et le lot calculé pour le compte du membre" loading="lazy" decoding="async"></div></div><div class="ph-nav"><div class="ph-navimg"><img src="/vip-assets/espace/nav-signaux.webp" width="390" height="71" alt="" loading="lazy" decoding="async"><span class="tap-pulse" style="left:30.77%;top:35.9%" aria-hidden="true"><i></i><b class="tap-label"><span class="t-touch">Touche ici</span><span class="t-click">Clique ici</span></b></span></div><span class="ph-home" aria-hidden="true"></span></div></div></div>
+        <p class="ph-note"><b>L’espace VIP, tel qu’il s’affiche sur ton téléphone</b><span>Contenu d’exemple</span></p>
       </div>
+      <p class="tour-pick">Ou choisis une étape :</p>
+      <ol class="tour-steps" aria-label="Les étapes d’un trade dans le VIP"><li><button class="tour-step on" type="button" data-show="signaux" aria-pressed="true" aria-controls="phoneA"><span class="n" aria-hidden="true">01</span><span class="tour-copy"><small>Le signal</small><i class="short">Signal</i><b>Recevoir chaque signal</b><span class="t">Actif, sens, entrée, stop et objectifs, avec une notification sur ton téléphone. Ton lot est déjà calculé pour ton compte.</span></span></button></li><li><button class="tour-step" type="button" data-show="fil-gold" aria-pressed="false" aria-controls="phoneA"><span class="n" aria-hidden="true">02</span><span class="tour-copy"><small>Le suivi</small><i class="short">Suivi</i><b>Suivre chaque trade</b><span class="t">Objectif touché, stop remonté au point d’entrée, clôture : tu vois tout en direct, jusqu’au résultat.</span></span></button></li><li><button class="tour-step" type="button" data-show="canal" aria-pressed="false" aria-controls="phoneA"><span class="n" aria-hidden="true">03</span><span class="tour-copy"><small>Les analyses</small><i class="short">Analyses</i><b>Lire mes analyses</b><span class="t">Mes analyses avec le graphique, au même endroit que les signaux et les suivis.</span></span></button></li><li><button class="tour-step" type="button" data-show="journal" aria-pressed="false" aria-controls="phoneA"><span class="n" aria-hidden="true">04</span><span class="tour-copy"><small>La progression</small><i class="short">Journal</i><b>Suivre ta progression</b><span class="t">Ton journal de trading, jour par jour, à côté des signaux du VIP. Et le calculateur de lot pour gérer ton risque.</span></span></button></li></ol>
+      <div class="tour-desc" aria-live="polite"><h3>Recevoir chaque signal</h3><p>Actif, sens, entrée, stop et objectifs, avec une notification sur ton téléphone. Ton lot est déjà calculé pour ton compte.</p></div>
     </div>
   </section>
 
@@ -440,8 +518,9 @@ html:has(.zoom[open]){overflow:hidden}
       <div class="about-copy">
         <p class="kicker">Qui je suis</p>
         <h2 id="parcours-titre">De préparateur de commandes<br><em>à trader à plein temps.</em></h2>
-        <p>Pendant cinq ans, j'ai préparé des commandes, de 9&nbsp;h à 17&nbsp;h. Puis les stations essence, Leader Price, l'intérim. Devenu papa jeune, j'ai appris le trading à côté pour être là pour ma fille.</p>
+        <p>Pendant cinq ans, j'ai préparé des commandes, de 9&nbsp;h à 17&nbsp;h. Devenu papa jeune, j'ai appris le trading à côté pour être là pour ma fille.</p>
         <p>Sept ans plus tard, j'en vis. Dans le VIP, je partage exactement ce que je fais sur les marchés.</p>
+        <p class="motto">Pas besoin de tout quitter pour commencer. <em>Moi aussi, j'ai commencé à côté.</em></p>
         <div class="pillars">
           <div><b>7 ans</b><span>de trading</span></div>
           <div><b>40&#8239;000</b><span>abonnés TikTok</span></div>
@@ -611,6 +690,84 @@ html:has(.zoom[open]){overflow:hidden}
       dock.classList.toggle('show',!anyVisible);
     });
     watched.forEach(function(el){seen.set(el,true);io.observe(el)});
+  }
+})();
+</script>
+<script>
+/* Le téléphone se parcourt comme l'appli : la barre du bas et les boutons « Le fil du trade » ouvrent les écrans. */
+(function(){
+  var SCREENS = {"signaux":{"h":1386,"nh":71,"alt":"Écran Signaux : deux trades en cours, EURUSD et XAUUSD, avec les niveaux et le lot calculé pour le compte du membre","links":[{"go":"fil-eur","label":"Le fil du trade","about":"EURUSD","box":[51.026,49.784,40.0,3.319]},{"go":"fil-gold","label":"Le fil du trade","about":"XAUUSD","box":[51.026,94.733,40.0,3.319]}],"nav":[{"go":"signaux","label":"Signaux","box":[1.538,9.859,19.487,78.873]},{"go":"canal","label":"Canal","box":[21.026,9.859,19.487,78.873]},{"go":"journal","label":"Journal","box":[40.256,9.859,19.487,78.873]},{"go":"copie","label":"Copie","box":[59.744,9.859,19.487,78.873]},{"go":"compte","label":"Compte","box":[78.974,9.859,19.487,78.873]}]},"fil-eur":{"h":565,"nh":71,"alt":"Le fil du trade EURUSD : le signal et ses niveaux","links":[{"go":"signaux","label":"Signaux","about":"","box":[4.615,3.186,21.795,7.788]}],"nav":[{"go":"signaux","label":"Signaux","box":[1.538,9.859,19.487,78.873]},{"go":"canal","label":"Canal","box":[21.026,9.859,19.487,78.873]},{"go":"journal","label":"Journal","box":[40.256,9.859,19.487,78.873]},{"go":"copie","label":"Copie","box":[59.744,9.859,19.487,78.873]},{"go":"compte","label":"Compte","box":[78.974,9.859,19.487,78.873]}]},"fil-gold":{"h":829,"nh":71,"alt":"Le fil du trade XAUUSD : signal publié, position détectée, TP1 touché, stop au point d’entrée","links":[{"go":"signaux","label":"Signaux","about":"","box":[4.615,2.171,21.795,5.308]}],"nav":[{"go":"signaux","label":"Signaux","box":[1.538,9.859,19.487,78.873]},{"go":"canal","label":"Canal","box":[21.026,9.859,19.487,78.873]},{"go":"journal","label":"Journal","box":[40.256,9.859,19.487,78.873]},{"go":"copie","label":"Copie","box":[59.744,9.859,19.487,78.873]},{"go":"compte","label":"Compte","box":[78.974,9.859,19.487,78.873]}]},"canal":{"h":1536,"nh":71,"alt":"Le canal : mon analyse sur l’or avec le graphique, puis les signaux et les suivis","links":[{"go":"fil-eur","label":"Le fil du trade ›","about":"EURUSD","box":[67.179,46.81,23.846,0.977]},{"go":"fil-gold","label":"Le fil du trade ›","about":"XAUUSD","box":[67.179,58.594,23.846,0.977]},{"go":"fil-gold","label":"Le fil du trade ›","about":"XAUUSD","box":[67.179,72.591,23.846,0.977]},{"go":"fil-gold","label":"Le fil du trade ›","about":"XAUUSD","box":[67.179,84.375,23.846,0.977]}],"nav":[{"go":"signaux","label":"Signaux","box":[1.538,9.859,19.487,78.873]},{"go":"canal","label":"Canal","box":[21.026,9.859,19.487,78.873]},{"go":"journal","label":"Journal","box":[40.256,9.859,19.487,78.873]},{"go":"copie","label":"Copie","box":[59.744,9.859,19.487,78.873]},{"go":"compte","label":"Compte","box":[78.974,9.859,19.487,78.873]}]},"journal":{"h":1344,"nh":71,"alt":"Le journal de trading du membre, jour par jour, à côté des signaux du VIP","links":[],"nav":[{"go":"signaux","label":"Signaux","box":[1.538,9.859,19.487,78.873]},{"go":"canal","label":"Canal","box":[21.026,9.859,19.487,78.873]},{"go":"journal","label":"Journal","box":[40.256,9.859,19.487,78.873]},{"go":"copie","label":"Copie","box":[59.744,9.859,19.487,78.873]},{"go":"compte","label":"Compte","box":[78.974,9.859,19.487,78.873]}]},"copie":{"h":1338,"nh":71,"alt":"La copie de mes trades sur le compte du membre, bientôt dans l’espace VIP","links":[],"nav":[{"go":"signaux","label":"Signaux","box":[1.538,9.859,19.487,78.873]},{"go":"canal","label":"Canal","box":[21.026,9.859,19.487,78.873]},{"go":"journal","label":"Journal","box":[40.256,9.859,19.487,78.873]},{"go":"copie","label":"Copie","box":[59.744,9.859,19.487,78.873]},{"go":"compte","label":"Compte","box":[78.974,9.859,19.487,78.873]}]},"compte":{"h":974,"nh":71,"alt":"Le compte du membre : sa carte VIP, son risque par trade et ses comptes de trading","links":[],"nav":[{"go":"signaux","label":"Signaux","box":[1.538,9.859,19.487,78.873]},{"go":"canal","label":"Canal","box":[21.026,9.859,19.487,78.873]},{"go":"journal","label":"Journal","box":[40.256,9.859,19.487,78.873]},{"go":"copie","label":"Copie","box":[59.744,9.859,19.487,78.873]},{"go":"compte","label":"Compte","box":[78.974,9.859,19.487,78.873]}]}}, BASE = "/vip-assets/espace/";
+  function hit(box, label, go, onGo) {
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "ph-hit"; b.setAttribute("aria-label", label);
+    b.style.left = box[0] + "%"; b.style.top = box[1] + "%"; b.style.width = box[2] + "%"; b.style.height = box[3] + "%";
+    b.addEventListener("click", function(){ onGo(go); });
+    return b;
+  }
+  function mount(el) {
+    var page = el.querySelector(".ph-page"), img = page.querySelector("img"), scroll = el.querySelector(".ph-scroll");
+    var navBox = el.querySelector(".ph-navimg"), navImg = navBox.querySelector("img");
+    function draw(name) {
+      var s = SCREENS[name];
+      page.querySelectorAll(".ph-hit").forEach(function(n){ n.remove(); });
+      navBox.querySelectorAll(".ph-hit").forEach(function(n){ n.remove(); });
+      s.links.forEach(function(l){ page.appendChild(hit(l.box, l.go === "signaux" ? "Revenir aux signaux" : "Voir le fil du trade " + l.about, l.go, show)); });
+      s.nav.forEach(function(n){ navBox.appendChild(hit(n.box, "Onglet " + n.label, n.go, show)); });
+    }
+    function show(name) {
+      if (!SCREENS[name] || el.getAttribute("data-screen") === name) return;
+      var s = SCREENS[name], next = new Image();
+      el.classList.add("is-swapping");
+      next.onload = next.onerror = function(){
+        img.src = next.src; img.height = s.h; img.alt = s.alt;
+        navImg.src = BASE + "nav-" + name + ".webp";
+        el.setAttribute("data-screen", name); scroll.scrollTop = 0; draw(name);
+        requestAnimationFrame(function(){ el.classList.remove("is-swapping"); });
+        el.dispatchEvent(new CustomEvent("phone:screen", { detail: name, bubbles: true }));
+      };
+      next.src = BASE + name + ".webp";
+    }
+    el.phoneShow = show;
+    draw(el.getAttribute("data-screen"));
+    // Les autres écrans se chargent quand le téléphone arrive à l'écran.
+    if ("IntersectionObserver" in window) {
+      var io = new IntersectionObserver(function(entries){
+        if (!entries.some(function(e){ return e.isIntersecting; })) return;
+        io.disconnect();
+        Object.keys(SCREENS).forEach(function(n){ (new Image()).src = BASE + n + ".webp"; (new Image()).src = BASE + "nav-" + n + ".webp"; });
+      }, { rootMargin: "400px" });
+      io.observe(el);
+    }
+  }
+  document.querySelectorAll("[data-phone]").forEach(mount);
+})();
+
+(function(){
+  var phone = document.getElementById("phoneA"), steps = [].slice.call(document.querySelectorAll(".tour-step")), desc = document.querySelector(".tour-desc");
+  if (!phone) return;
+  function mark(name){
+    steps.forEach(function(b){
+      var on = b.getAttribute("data-show") === name || (name === "fil-eur" && b.getAttribute("data-show") === "fil-gold");
+      b.classList.toggle("on", on); b.setAttribute("aria-pressed", on ? "true" : "false");
+      if (on && desc) { desc.querySelector("h3").textContent = b.querySelector("b").textContent; desc.querySelector("p").textContent = b.querySelector(".t").textContent; }
+    });
+  }
+  steps.forEach(function(b){ b.addEventListener("click", function(){ phone.phoneShow(b.getAttribute("data-show")); mark(b.getAttribute("data-show")); }); });
+  phone.addEventListener("phone:screen", function(e){ mark(e.detail); });
+  // Dès que la personne touche le téléphone, fait défiler son écran ou choisit une étape, le rond qui clignote s'efface.
+  var tour = document.querySelector(".tour");
+  function touched(){ tour.classList.add("touched"); }
+  phone.addEventListener("click", touched);
+  phone.querySelector(".ph-scroll").addEventListener("scroll", touched, { passive: true });
+  steps.forEach(function(b){ b.addEventListener("click", touched); });
+  // Sur ordinateur, l'écran suit l'étape qui passe au milieu de la fenêtre.
+  var wide = window.matchMedia("(min-width:960px)");
+  if ("IntersectionObserver" in window) {
+    var io = new IntersectionObserver(function(entries){
+      if (!wide.matches) return;
+      entries.forEach(function(e){ if (e.isIntersecting) { phone.phoneShow(e.target.getAttribute("data-show")); mark(e.target.getAttribute("data-show")); } });
+    }, { rootMargin: "-46% 0px -46% 0px" });
+    steps.forEach(function(b){ io.observe(b); });
   }
 })();
 </script>
