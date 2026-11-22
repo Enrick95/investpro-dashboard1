@@ -1010,56 +1010,47 @@ def show_draft(peer_id: int, name: str | None = None) -> None:
 
 
 def build_draft(row: sqlite3.Row, name: str | None = None, now: datetime | None = None) -> str:
-    """Message proposé selon la catégorie : chauds, tièdes ou froids. Toujours modifiable avant l’envoi."""
+    """Message proposé selon la catégorie. Il pousse à rejoindre le VIP (affiliation ou abonnement), pas à tester."""
     now = now or datetime.now(timezone.utc)
     try:
         category = classify_contact(row, True, now)["category"]
     except (KeyError, IndexError, TypeError):
         category = "froid"
     first = name or first_name_from(row["display_name"])
-    trial = now <= ESSAI_END
-    trial_line = "jusqu’au 30 novembre, tu peux tester le VIP gratuitement sur un compte démo, sans dépôt."
+    free_line = "Avec un de mes brokers partenaires, le VIP est gratuit, sans abonnement. Sinon, il y a aussi l’abonnement."
     if category == "abonne":
         parts = [
             f"Salut {first}, ça fait un moment ! 👋" if first else "Salut, ça fait un moment ! 👋",
-            "Tu avais pris l’abonnement VIP. Si tu as envie de revenir, sache qu’il y a maintenant plusieurs façons de rejoindre, "
-            "dont une sans abonnement : par affiliation, avec un broker partenaire.",
-            f"Écris-moi sur WhatsApp, je te dis ce qui est le mieux pour toi 👉 {WHATSAPP_LINK}",
+            "Tu avais pris l’abonnement VIP. Si tu as envie de revenir, tu peux aussi rejoindre sans abonnement : "
+            "tu ouvres ton compte chez un de mes brokers partenaires avec mon lien, tu fais ton dépôt, et le VIP est gratuit.",
+            f"Écris-moi sur WhatsApp, je te remets dedans rapidement 👉 {WHATSAPP_LINK}",
         ]
-        if trial:
-            parts.append("Et jusqu’au 30 novembre, tu peux même retester le VIP gratuitement sur un compte démo, sans dépôt.")
     elif category == "chaud":
         parts = [
             f"Salut {first} ! 👋" if first else "Salut ! 👋",
-            "Tu m’avais demandé des infos pour rejoindre le VIP. Pour aller plus vite, je t’ai ouvert un WhatsApp : "
-            "c’est là que je réponds en priorité, et je t’explique tout en 2 minutes (broker, dépôt, accès au VIP).",
+            "Tu m’avais demandé des infos pour rejoindre le VIP, je reviens vers toi. Pour aller plus vite, je t’ai ouvert un WhatsApp : "
+            "je t’envoie le lien du broker, je te guide pour le dépôt et j’active ton accès au VIP.",
             f"👉 Écris-moi ici : {WHATSAPP_LINK}",
+            free_line,
         ]
-        if trial:
-            parts.append("Petit plus : " + trial_line)
     elif category == "tiede":
         parts = [
             f"Salut {first}, désolé pour le retour tardif ! 🙏" if first else "Salut, désolé pour le retour tardif ! 🙏",
-            "J’ai bien vu ton message et je ne veux pas te laisser sans réponse. Le plus simple maintenant : "
-            "écris-moi sur WhatsApp, je te réponds directement là-bas.",
+            "J’ai bien vu ton message et je ne veux pas te laisser sans réponse. Si tu veux toujours rejoindre le VIP, "
+            "écris-moi sur WhatsApp : je t’explique comment entrer et je t’accompagne pour la mise en place.",
             f"👉 {WHATSAPP_LINK}",
+            free_line,
         ]
-        if trial:
-            parts.append("Et bonne nouvelle : " + trial_line)
     else:
-        parts = [f"Salut {first}, j’espère que tu vas bien !" if first else "Salut, j’espère que tu vas bien !"]
-        if trial:
-            parts += [
-                "On avait échangé il y a quelque temps sur le trading. Petite nouvelle : " + trial_line,
-                f"Si ça te tente, écris-moi sur WhatsApp, je t’explique tout et je t’ouvre l’accès 👉 {WHATSAPP_LINK}",
-            ]
-        else:
-            parts += [
-                "On avait échangé il y a quelque temps sur le trading, je me permets de revenir vers toi. "
-                "Si le VIP t’intéresse toujours, écris-moi sur WhatsApp : je t’explique tout et je réponds à tes questions.",
-                f"👉 {WHATSAPP_LINK}",
-            ]
-        parts.append("Et si ce n’est plus d’actualité, dis-le-moi simplement, je ne te relancerai plus.")
+        parts = [
+            f"Salut {first}, j’espère que tu vas bien !" if first else "Salut, j’espère que tu vas bien !",
+            "On avait échangé il y a quelque temps sur le trading. Je reviens vers toi pour le VIP : tu y retrouves mes analyses "
+            "et mes signaux, et je t’accompagne pour tout mettre en place.",
+            "Le plus simple pour entrer : tu ouvres ton compte chez un de mes brokers partenaires avec mon lien, tu fais ton dépôt, "
+            "et le VIP est gratuit, sans abonnement. Tu peux aussi passer par l’abonnement si tu préfères.",
+            f"Écris-moi sur WhatsApp, je te mets en place en quelques minutes 👉 {WHATSAPP_LINK}",
+            "Et si ce n’est plus d’actualité, dis-le-moi simplement, je ne te relancerai plus.",
+        ]
     parts.append("(Le trading comporte un risque de perte.)")
     return "\n\n".join(parts)
 

@@ -265,20 +265,19 @@ def draft_row(name, status="a_verifier", outgoing=1, days=120):
             "username": None, "vip_check": "non_membre"}
 
 
-def test_each_category_gets_its_own_message_with_the_whatsapp_link():
-    before = datetime(2026, 11, 22, tzinfo=timezone.utc)
-    after = datetime(2026, 12, 1, tzinfo=timezone.utc)
-    cold = cli.build_draft(draft_row("JEAN-PIERRE Dupont"), now=before)
+def test_each_category_gets_a_message_that_pushes_to_join_through_whatsapp():
+    now = datetime(2026, 11, 22, tzinfo=timezone.utc)
+    cold = cli.build_draft(draft_row("JEAN-PIERRE Dupont"), now=now)
     assert cold.startswith("Salut Jean-Pierre, j’espère que tu vas bien !")
-    assert "jusqu’au 30 novembre" in cold and "https://investprotrading.fr/whatsapp" in cold
-    assert "je ne te relancerai plus" in cold and cold.endswith("(Le trading comporte un risque de perte.)")
-    warm = cli.build_draft(draft_row("Sarah", outgoing=0), now=before)
-    assert warm.startswith("Salut Sarah, désolé pour le retour tardif !") and "https://investprotrading.fr/whatsapp" in warm
-    hot = cli.build_draft(draft_row("Karim", status="infos_broker_demandees"), now=before)
-    assert hot.startswith("Salut Karim ! 👋") and "broker, dépôt" in hot and "Écris-moi ici : https://investprotrading.fr/whatsapp" in hot
-    for text in (cli.build_draft(draft_row("Jean"), now=after), cli.build_draft(draft_row("Sarah", outgoing=0), now=after),
-                 cli.build_draft(draft_row("Karim", status="vip_interesse"), now=after)):
-        assert "30 novembre" not in text and "https://investprotrading.fr/whatsapp" in text
+    assert "le VIP est gratuit, sans abonnement" in cold and "l’abonnement si tu préfères" in cold
+    assert "https://investprotrading.fr/whatsapp" in cold and "je ne te relancerai plus" in cold
+    warm = cli.build_draft(draft_row("Sarah", outgoing=0), now=now)
+    assert warm.startswith("Salut Sarah, désolé pour le retour tardif !") and "rejoindre le VIP" in warm
+    hot = cli.build_draft(draft_row("Karim", status="infos_broker_demandees"), now=now)
+    assert hot.startswith("Salut Karim ! 👋") and "lien du broker" in hot and "Écris-moi ici : https://investprotrading.fr/whatsapp" in hot
+    for text in (cold, warm, hot):
+        assert "essai" not in text and "démo" not in text and "30 novembre" not in text, "on pousse à rejoindre, pas à tester"
+        assert text.endswith("(Le trading comporte un risque de perte.)")
     assert cli.build_draft(draft_row("Telegram 12345")).startswith("Salut, j’espère")
     assert cli.first_name_from("🔥karim 95") == "Karim"
     assert cli.first_name_from("M.") is None
@@ -502,6 +501,6 @@ def test_former_subscribers_get_their_own_category_and_message(env):
     thomas = cli.classify_contact(row(1001), False)
     assert thomas["category"] == "abonne" and thomas["can_send"], "le paiement est 22 messages plus haut : lu quand même"
     assert cli.build_draft(row(1001)).startswith("Salut Thomas, ça fait un moment !")
-    assert "sans abonnement" in cli.build_draft(row(1001))
+    assert "rejoindre sans abonnement" in cli.build_draft(row(1001)) and "essai" not in cli.build_draft(row(1001))
     lina = cli.classify_contact(row(1002), False)
     assert lina["category"] == "vip" and "Venu par affiliation" in lina["reason"]
