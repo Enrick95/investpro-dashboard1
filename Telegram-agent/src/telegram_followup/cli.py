@@ -1024,12 +1024,16 @@ def build_draft(row: sqlite3.Row, name: str | None = None, now: datetime | None 
     except (KeyError, IndexError, TypeError):
         category = "froid"
     first = name or first_name_from(row["display_name"])
-    free_line = "Avec un de mes brokers partenaires, le VIP est gratuit, sans abonnement. Sinon, il y a aussi l’abonnement."
+    # Le bonus de 100 % : un exemple chiffré, pour qu’on comprenne qu’il s’ajoute au dépôt.
+    bonus_line = ("Et tu peux avoir un bonus de 100\u00a0% en plus de ton dépôt : par exemple, si tu déposes 500\u00a0$, "
+                  "le broker t’ajoute 500\u00a0$ de bonus, donc tu trades avec 1\u00a0000\u00a0$.")
+    free_line = "Avec un de mes brokers partenaires, le VIP est gratuit, sans abonnement. " + bonus_line
+    subscription_line = "Sinon, il y a aussi l’abonnement."
     call_line = "Si besoin, on peut aussi se faire un petit appel pour en parler."
     infra = "toute une nouvelle infrastructure : les signaux, le copy, le journal de trading et plein d’autres choses"
     if category == "abonne":
         hello = f"Salut {first}, ça fait un moment ! 👋" if first else "Salut, ça fait un moment ! 👋"
-        brokers = ("tu ouvres ton compte chez un de mes brokers partenaires avec mon lien, tu fais ton dépôt, et le VIP est gratuit.")
+        brokers = "tu ouvres ton compte chez un de mes brokers partenaires avec mon lien, tu fais ton dépôt, et le VIP est gratuit. " + bonus_line
         if now <= SUBSCRIPTION_OFFER_END:
             parts = [
                 hello,
@@ -1049,6 +1053,7 @@ def build_draft(row: sqlite3.Row, name: str | None = None, now: datetime | None 
             f"👉 Écris-moi sur WhatsApp : {WHATSAPP_LINK}",
             "Ou réponds-moi directement ici, comme tu préfères.",
             free_line,
+            subscription_line,
             call_line,
         ]
     elif category == "tiede":
@@ -1058,6 +1063,7 @@ def build_draft(row: sqlite3.Row, name: str | None = None, now: datetime | None 
             "écris-moi sur WhatsApp : je t’explique comment entrer et je t’accompagne pour la mise en place.",
             f"👉 {WHATSAPP_LINK}",
             free_line,
+            subscription_line,
             call_line,
         ]
     else:

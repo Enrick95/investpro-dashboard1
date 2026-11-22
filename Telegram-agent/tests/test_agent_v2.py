@@ -294,6 +294,12 @@ def test_each_category_gets_a_message_that_pushes_to_join_through_whatsapp():
         assert "risque de perte" not in text, "pas de mention de risque dans les relances"
         assert "essai" not in text and "démo" not in text, "on pousse à rejoindre, pas à tester"
     assert hot.endswith("pour en parler.")
+    # Le bonus de 100 % s’ajoute au dépôt, avec un exemple chiffré ; pas chez les froids (message court, sans offre).
+    for text in (warm, hot, abo, later):
+        assert "bonus de 100\u00a0% en plus de ton dépôt" in text and "si tu déposes 500\u00a0$" in text and "tu trades avec 1\u00a0000\u00a0$" in text
+    for text in (warm, hot):
+        assert text.index("bonus de 100") < text.index("Sinon, il y a aussi l’abonnement.") < text.index("petit appel")
+    assert "bonus" not in cold
     # Les chauds et les froids sont invités sur la page du VIP ; le lien du site passe avant WhatsApp, pour l’aperçu Telegram.
     for text in (hot, cold):
         assert "https://investprotrading.fr/vip" in text
