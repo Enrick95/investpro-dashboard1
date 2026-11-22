@@ -1044,9 +1044,10 @@ def build_draft(row: sqlite3.Row, name: str | None = None, now: datetime | None 
             f"Salut {first} ! 👋" if first else "Salut ! 👋",
             f"Tu m’avais demandé des infos pour rejoindre le VIP, je reviens vers toi. Entre-temps, j’ai mis en place {infra}.",
             f"N’hésite pas à passer sur le site pour voir à quoi ressemble le VIP 👉 {VIP_PAGE_LINK}",
-            "Si tu veux toujours le rejoindre, c’est le bon moment. On s’en occupe ensemble sur WhatsApp : "
+            "Si tu veux toujours le rejoindre, c’est le bon moment. On s’en occupe ensemble : "
             "je t’envoie le lien du broker, je te guide pour le dépôt et j’active ton accès.",
-            f"👉 Écris-moi ici : {WHATSAPP_LINK}",
+            f"👉 Écris-moi sur WhatsApp : {WHATSAPP_LINK}",
+            "Ou réponds-moi directement ici, comme tu préfères.",
             free_line,
             call_line,
         ]

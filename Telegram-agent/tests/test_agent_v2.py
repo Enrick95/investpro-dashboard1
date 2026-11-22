@@ -279,9 +279,9 @@ def test_each_category_gets_a_message_that_pushes_to_join_through_whatsapp():
     warm = cli.build_draft(draft_row("Sarah", outgoing=0), now=now)
     assert warm.startswith("Salut Sarah, désolé pour le retour tardif !") and "rejoindre le VIP" in warm
     hot = cli.build_draft(draft_row("Karim", status="infos_broker_demandees"), now=now)
-    assert hot.startswith("Salut Karim ! 👋") and "lien du broker" in hot and "Écris-moi ici : https://investprotrading.fr/whatsapp" in hot
+    assert hot.startswith("Salut Karim ! 👋") and "lien du broker" in hot and "Écris-moi sur WhatsApp : https://investprotrading.fr/whatsapp" in hot and "Ou réponds-moi directement ici" in hot
     assert "nouvelle infrastructure : les signaux, le copy, le journal de trading et plein d’autres choses" in hot
-    assert "c’est le bon moment. On s’en occupe ensemble sur WhatsApp" in hot and "je t’ai ouvert un WhatsApp" not in hot
+    assert "c’est le bon moment. On s’en occupe ensemble :" in hot and "je t’ai ouvert un WhatsApp" not in hot
     abo = cli.build_draft(draft_row("Lina", status="a_verifier") | {"join_hint": "abonnement"}, now=now)
     assert abo.startswith("Salut Lina, ça fait un moment !")
     assert "l’abonnement est à -25 %, jusqu’au 30 novembre" in abo and "le VIP est gratuit" in abo
