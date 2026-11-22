@@ -1,16 +1,17 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useMemo, useState, type KeyboardEvent } from "react";
-import { Ban, CheckCircle2, Copy, ExternalLink, Laptop, Loader2, MailCheck, RefreshCw, ScanSearch, Search, Send, ShieldAlert, ShieldCheck, SkipForward } from "lucide-react";
+import { Ban, CheckCircle2, Copy, ExternalLink, Laptop, Loader2, MailCheck, RefreshCw, ScanSearch, Search, Send, SendHorizontal, ShieldAlert, ShieldCheck, SkipForward, Square } from "lucide-react";
 import s from "./TelegramAdmin.module.css";
 
 /**
  * Agent Telegram : la plateforme de relance est ici, mais les données restent sur le Mac d’Enrick.
  * Le navigateur lit directement l’agent local (127.0.0.1) ; rien ne passe par le serveur du site.
- * Un message ne part que quand Enrick clique sur « Envoyer », depuis son compte support.
+ * Un message ne part que quand Enrick clique sur « Envoyer » (un contact) ou lance « Tout envoyer » (la liste affichée,
+ * après confirmation), depuis son compte support.
  */
 const AGENT = "http://127.0.0.1:8765";
-const AGENT_VERSION = "2";
+const AGENT_VERSION = "3";
 
 type Category = "chaud" | "abonne" | "tiede" | "froid" | "vip" | "invite" | "stop";
 type AgeBucket = "recent" | "3m" | "6m" | "1an";
@@ -22,8 +23,12 @@ type Contact = {
   needs_vip_check: boolean; can_send: boolean; age_days: number | null; age_bucket: AgeBucket | null;
   snippet: string | null; snippet_outgoing: boolean | null; vip_check: "membre" | "non_membre" | "inconnu" | null; vip_checked_at: string | null;
 };
+type Batch = {
+  running: boolean; total?: number; sent?: number; skipped?: number; members?: number; failed?: number; current?: string | null;
+  next_in?: number | null; phase?: string | null; stopped_reason?: string | null; started_at?: string | null; finished_at?: string | null;
+};
 type Overview = {
-  agent_version?: string; total: number; ready: number; categories: Record<Category, number>; replies: number; to_review: number;
+  agent_version?: string; batch?: Batch; total: number; ready: number; categories: Record<Category, number>; replies: number; to_review: number;
   sent_today: number; daily_send_limit: number; last_scan_at: string | null; vip_membership_issues: string[];
   scan_running: boolean; scan_error: string | null; scan_processed: number; scan_phase: string | null; send_running: boolean;
   contacts: Contact[];
@@ -83,6 +88,7 @@ export default function AgentTelegram() {
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState("");
+  const [confirmAll, setConfirmAll] = useState(false);
 
   const load = useCallback(async () => {
     try { const overview = await agent<Overview>("/api/agent/overview"); setData(overview); setState("online"); }
@@ -91,10 +97,10 @@ export default function AgentTelegram() {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void load(); }, [load]);
   useEffect(() => {
-    if (!data?.scan_running) return;
+    if (!data?.scan_running && !data?.batch?.running) return;
     const timer = setInterval(() => void load(), 2500);
     return () => clearInterval(timer);
-  }, [data?.scan_running, load]);
+  }, [data?.scan_running, data?.batch?.running, load]);
 
   const query = search.trim().toLocaleLowerCase("fr");
   const visible = useMemo(() => (data?.contacts || [])
@@ -106,6 +112,9 @@ export default function AgentTelegram() {
   }, [data, filter, query]);
   const groupCounts = useMemo(() => visible.reduce((acc, contact) => { acc[contact.category] = (acc[contact.category] || 0) + 1; return acc; }, {} as Partial<Record<Category, number>>), [visible]);
   const selected = visible.find(contact => contact.peer_id === selectedId) || visible[0] || null;
+  // « Tout envoyer » : les contacts affichés et prêts, dans l’ordre de la liste, sans dépasser la limite du jour.
+  const allTargets = useMemo(() => data ? visible.filter(contact => contact.can_send).slice(0, Math.max(0, data.daily_send_limit - data.sent_today)) : [], [data, visible]);
+  const allByCategory = useMemo(() => allTargets.reduce((acc, contact) => { acc[contact.category] = (acc[contact.category] || 0) + 1; return acc; }, {} as Partial<Record<Category, number>>), [allTargets]);
 
   const loadDetail = useCallback(async (peerId: number) => {
     try { const value = await agent<Detail>(`/api/agent/contacts/${peerId}`); setDetail(value); setDraft(value.draft || ""); }
@@ -137,6 +146,21 @@ export default function AgentTelegram() {
       if (next) setSelectedId(next.peer_id); else await loadDetail(selected.peer_id);
     } catch (cause) { setNotice(cause instanceof Error ? cause.message : "Envoi impossible."); }
     finally { setBusy(""); }
+  }
+  async function sendAll() {
+    if (busy || !allTargets.length) return;
+    setBusy("all"); setNotice("");
+    try {
+      const result = await agent<{ total: number; minutes: number }>("/api/send-batch", { peer_ids: allTargets.map(contact => contact.peer_id) });
+      setConfirmAll(false);
+      setNotice(`Envoi lancé : ${result.total} message${result.total > 1 ? "s" : ""}, environ ${result.minutes} min. Tu peux fermer cet onglet : l’agent continue sur ton Mac.`);
+      await load();
+    } catch (cause) { setNotice(cause instanceof Error ? cause.message : "Envoi impossible."); }
+    finally { setBusy(""); }
+  }
+  async function stopAll() {
+    try { const result = await agent<{ message: string }>("/api/send-batch/stop", {}); setNotice(result.message); await load(); }
+    catch (cause) { setNotice(cause instanceof Error ? cause.message : "Arrêt impossible."); }
   }
   function skip() {
     const index = visible.findIndex(contact => contact.peer_id === selected?.peer_id);
@@ -192,6 +216,36 @@ export default function AgentTelegram() {
     </div>
     {notice && <p className={s.notice} role="status">{notice}</p>}
 
+    {data.batch?.running ? <div className={s.batchBox} role="status">
+      <div className={s.batchHead}><b><Loader2 size={14} className={s.spin} aria-hidden="true" /> Envoi en cours · {data.batch.sent ?? 0} / {data.batch.total ?? 0}</b>
+        <button type="button" className={s.ghost} onClick={() => void stopAll()}><Square size={13} aria-hidden="true" />Arrêter</button></div>
+      <div className={s.batchBar}><span style={{ width: `${Math.round(100 * (data.batch.sent ?? 0) / Math.max(1, data.batch.total ?? 1))}%` }} /></div>
+      <small className={s.muted}>{data.batch.phase === "envoi"
+        ? (data.batch.next_in ? `Prochain message dans ${data.batch.next_in} s.` : data.batch.current ? `Envoi à ${data.batch.current}…` : "Envoi…")
+        : "Connexion à Telegram et contrôle du groupe VIP…"}
+        {(data.batch.members ?? 0) > 0 ? ` · ${data.batch.members} déjà membre${(data.batch.members ?? 0) > 1 ? "s" : ""} VIP écarté${(data.batch.members ?? 0) > 1 ? "s" : ""}` : ""}
+        {(data.batch.skipped ?? 0) + (data.batch.failed ?? 0) > 0 ? ` · ${(data.batch.skipped ?? 0) + (data.batch.failed ?? 0)} non envoyé(s)` : ""}</small>
+    </div>
+    : data.batch?.finished_at ? <p className={s.notice} role="status">Dernier « Tout envoyer » : {data.batch.sent ?? 0} envoyé(s){(data.batch.members ?? 0) ? `, ${data.batch.members} déjà membre(s) VIP écarté(s)` : ""}{(data.batch.skipped ?? 0) + (data.batch.failed ?? 0) ? `, ${(data.batch.skipped ?? 0) + (data.batch.failed ?? 0)} non envoyé(s)` : ""}.{data.batch.stopped_reason ? ` ${data.batch.stopped_reason}` : ""}</p>
+    : null}
+
+    {data.batch && !data.batch.running && allTargets.length > 1 && (confirmAll ? <div className={s.batchBox}>
+      <b>Envoyer {allTargets.length} messages ({(Object.keys(allByCategory) as Category[]).map(key => `${allByCategory[key]} ${GROUP_LABEL[key].toLocaleLowerCase("fr")}`).join(", ")}) ?</b>
+      <ul className={s.batchList}>
+        <li>Chacun reçoit le message de sa catégorie, comme dans l’aperçu. Les modifications faites à la main dans un message ne sont pas reprises.</li>
+        <li>Un message toutes les 30 à 60 secondes, pour ne pas déclencher l’anti-spam de Telegram : environ {Math.ceil(allTargets.length * 45 / 60)} min.</li>
+        <li>Juste avant chaque envoi, l’agent revérifie que la personne n’est pas dans le groupe VIP : si elle l’a rejoint, rien ne part.</li>
+        <li>Tu peux arrêter à tout moment. Arrêt automatique si Telegram signale une limite.</li>
+      </ul>
+      <div className={s.actionsRow}>
+        <button type="button" className={s.primaryBtn} disabled={!!busy} onClick={() => void sendAll()}>{busy === "all" ? <Loader2 size={14} className={s.spin} aria-hidden="true" /> : <SendHorizontal size={14} aria-hidden="true" />}Lancer l’envoi</button>
+        <button type="button" className={s.ghost} onClick={() => setConfirmAll(false)}>Annuler</button>
+      </div>
+    </div> : <div className={s.actionsRow}>
+      <button type="button" className={s.primaryBtn} disabled={!!busy || data.scan_running} onClick={() => setConfirmAll(true)}><SendHorizontal size={14} aria-hidden="true" />Tout envoyer · {allTargets.length} contact{allTargets.length > 1 ? "s" : ""} affiché{allTargets.length > 1 ? "s" : ""}</button>
+      <small className={s.muted}>Un message toutes les 30 à 60 s, avec confirmation avant de lancer.</small>
+    </div>)}
+
     <div className={s.filterRow}><span>Contacts</span><nav className={s.chips} aria-label="Catégories">{FILTERS.map(item => <button type="button" key={item.key} aria-pressed={filter === item.key} onClick={() => { setFilter(item.key); setAge("all"); }}>{item.label} <b>{counts[item.key]}</b></button>)}</nav></div>
     <div className={s.filterRow}><span>Ancienneté</span><nav className={s.chips} aria-label="Ancienneté">{AGES.map(item => <button type="button" key={item.key} aria-pressed={age === item.key} onClick={() => setAge(item.key)}>{item.label} <b>{ageCounts[item.key]}</b></button>)}</nav></div>
 
@@ -232,13 +286,13 @@ export default function AgentTelegram() {
           <h4>Message (modifiable avant l’envoi)</h4>
           <textarea className={s.draft} value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={onDraftKey} rows={12} aria-label="Message de relance" />
           <div className={s.actionsRow}>
-            <button type="button" className={s.primaryBtn} disabled={!selected.can_send || !!busy} onClick={() => void send()}>{busy === "send" ? <Loader2 size={14} className={s.spin} aria-hidden="true" /> : <Send size={14} aria-hidden="true" />}{busy === "send" ? "Envoi…" : `Envoyer à ${firstName(selected.display_name)}`}</button>
+            <button type="button" className={s.primaryBtn} disabled={!selected.can_send || !!busy || data.send_running} onClick={() => void send()}>{busy === "send" ? <Loader2 size={14} className={s.spin} aria-hidden="true" /> : <Send size={14} aria-hidden="true" />}{busy === "send" ? "Envoi…" : `Envoyer à ${firstName(selected.display_name)}`}</button>
             <button type="button" className={s.ghost} onClick={skip}><SkipForward size={14} aria-hidden="true" />Passer</button>
             <button type="button" className={s.ghost} onClick={() => void copyDraft()}><Copy size={14} aria-hidden="true" />Copier</button>
             {tg && <a className={s.ghost} href={tg} target="_blank" rel="noreferrer"><ExternalLink size={14} aria-hidden="true" />Ouvrir dans Telegram</a>}
             <span className={`${s.hint} ${s.push}`}>⌘ + Entrée pour envoyer</span>
           </div>
-          <small className={s.muted}>Le message part de ton compte support seulement quand tu cliques sur « Envoyer ».</small>
+          <small className={s.muted}>Le message part de ton compte support seulement quand tu cliques sur « Envoyer » ou lances « Tout envoyer ».</small>
         </div>}
 
         <div className={s.actionsRow}>

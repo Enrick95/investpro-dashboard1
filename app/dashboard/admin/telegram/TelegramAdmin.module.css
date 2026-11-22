@@ -146,3 +146,12 @@
 .botLine>svg{flex-shrink:0;color:#e8a39a}
 .botLine[data-ok]{color:var(--text)}
 .botLine[data-ok]>svg{color:var(--teal)}
+
+/* « Tout envoyer » : confirmation puis progression */
+.batchBox{display:grid;gap:10px;padding:14px 16px;border-radius:14px;border:1px solid #8fc9ff40;background:#8fc9ff0d;font-size:13px;line-height:1.55}
+.batchHead{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.batchHead b{display:inline-flex;align-items:center;gap:7px}
+.batchBar{height:6px;border-radius:99px;background:#20241f;overflow:hidden}
+.batchBar span{display:block;height:100%;background:var(--tg);border-radius:inherit;transition:width .4s ease}
+.batchList{margin:0;padding-left:18px;color:var(--muted);font-size:12px;display:grid;gap:4px}
+@media (prefers-reduced-motion:reduce){.batchBar span{transition:none}}

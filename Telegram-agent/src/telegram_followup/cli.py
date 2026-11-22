@@ -5,15 +5,17 @@ import getpass
 import hashlib
 import json
 import os
+import random
 import re
 import sqlite3
 import sys
+import time
 import unicodedata
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable, Iterable
 
-AGENT_VERSION = "2"
+AGENT_VERSION = "3"
 # Change quand les règles d’analyse changent : le prochain lancement refait alors une analyse complète.
 SCAN_VERSION = "2.3"
 
@@ -47,6 +49,9 @@ TELEGRAM_SERVICE_IDS = {777000, 42777}
 DAILY_SEND_LIMIT = 100
 MIN_SEND_INTERVAL = 3.0
 SENT_ACTION = "Relance envoyée depuis l’agent"
+# « Tout envoyer » : une pause au hasard entre deux messages, pour ne pas ressembler à un robot aux yeux de Telegram.
+BATCH_PAUSE_SECONDS = (30.0, 60.0)
+BATCH_SENT_DETAIL = "envoyés avec « Tout envoyer » après relecture de la liste"
 SNIPPET_MAX = 280
 
 RELEVANT_TERMS = (
@@ -842,32 +847,137 @@ async def send_followup(peer_id: int, text: str, now: datetime | None = None) ->
             raise SendFailed(reason) from exc
     except SendFailed:
         if new_status:
-            conn = db_connect()
-            try:
-                conn.execute(
-                    "UPDATE contacts SET status=?, suggested_folder=? WHERE peer_id=?",
-                    (new_status, FOLDER_BY_STATUS[new_status], peer_id),
-                )
-                log_event(conn, peer_id, "Envoi refusé par Telegram", "Passé en « ne plus contacter »")
-                conn.commit()
-            finally:
-                conn.close()
+            _mark_refused(peer_id, new_status)
         raise
     finally:
         await client.disconnect()
 
+    count = _record_sent(peer_id, len(message), "relus et validés avant envoi", now)
+    return {"ok": True, "sent_today": count, "daily_limit": DAILY_SEND_LIMIT}
+
+
+def _record_sent(peer_id: int, length: int, detail: str, now: datetime | None = None) -> int:
+    """Note la relance partie (statut « réponse attendue ») et renvoie le nombre d’envois du jour."""
     conn = db_connect()
     try:
         conn.execute(
             "UPDATE contacts SET status='reponse_attendue', suggested_folder='attente', last_followup_at=? WHERE peer_id=?",
             ((now or datetime.now(timezone.utc)).isoformat(timespec="seconds"), peer_id),
         )
-        log_event(conn, peer_id, SENT_ACTION, f"{len(message)} caractères, relus et validés avant envoi")
+        log_event(conn, peer_id, SENT_ACTION, f"{length} caractères, {detail}")
         conn.commit()
-        count = sends_today(conn, now)
+        return sends_today(conn, now)
     finally:
         conn.close()
-    return {"ok": True, "sent_today": count, "daily_limit": DAILY_SEND_LIMIT}
+
+
+def _mark_refused(peer_id: int, new_status: str) -> None:
+    """Telegram refuse l’envoi pour de bon (bloqué, compte supprimé) : le contact sort des relances."""
+    conn = db_connect()
+    try:
+        conn.execute("UPDATE contacts SET status=?, suggested_folder=? WHERE peer_id=?", (new_status, FOLDER_BY_STATUS[new_status], peer_id))
+        log_event(conn, peer_id, "Envoi refusé par Telegram", "Passé en « ne plus contacter »")
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _mark_vip_member(peer_id: int, group_title: str) -> None:
+    """Trouvé dans un groupe VIP juste avant l’envoi : rangé « déjà membre », aucun message."""
+    conn = db_connect()
+    try:
+        conn.execute(
+            "UPDATE contacts SET status='actif', suggested_folder='actifs', vip_check='membre', vip_group=?, vip_checked_at=? WHERE peer_id=?",
+            (group_title, datetime.now(timezone.utc).isoformat(timespec="seconds"), peer_id),
+        )
+        log_event(conn, peer_id, "Trouvé dans un groupe VIP", f"{group_title} (juste avant l’envoi)")
+        conn.commit()
+    finally:
+        conn.close()
+
+
+async def send_batch(peer_ids: list[int], state: dict, stop, pause: tuple[float, float] | None = None, sleep=None) -> None:
+    """« Tout envoyer » : la liste relue par Enrick, chacun avec le message de sa catégorie, un envoi toutes les 30 à 60 s.
+
+    Juste avant chaque envoi, le contact est reclassé (exclusions, limite du jour) et l’appartenance aux groupes VIP est
+    revérifiée : personne qui a rejoint depuis l’analyse n’est relancé. Arrêt immédiat si Telegram signale une limite
+    anti-spam, si la limite du jour est atteinte, ou quand Enrick clique « Arrêter » (`stop` : threading.Event).
+    `state` est lu par le panneau admin pendant l’envoi.
+    """
+    import asyncio
+    from telethon import errors
+    from telethon.tl.functions.channels import GetParticipantRequest
+
+    sleep = sleep or asyncio.sleep
+    client = telegram_client()
+    await connect_client(client, interactive=False)
+    try:
+        state["phase"] = "contrôle des groupes VIP"
+        groups = await load_vip_groups(client)
+        reference = next((group for group in groups if not group["extra"]), None)
+        if reference is None:
+            state["stopped_reason"] = "Groupe « InvestPro Trading VIP » introuvable : envoi arrêté, aucun message n’est parti."
+            return
+        state["phase"] = "envoi"
+        for position, peer_id in enumerate(peer_ids):
+            if stop.is_set():
+                state["stopped_reason"] = "Arrêté à ta demande."
+                return
+            conn = db_connect()
+            try:
+                row = conn.execute("SELECT * FROM contacts WHERE peer_id=?", (peer_id,)).fetchone()
+                info = classify_contact(row, meta_value(conn, "vip_membership_state") == "verified") if row else None
+                count = sends_today(conn)
+            finally:
+                conn.close()
+            if count >= DAILY_SEND_LIMIT:
+                state["stopped_reason"] = f"Limite de {DAILY_SEND_LIMIT} relances par jour atteinte : la suite demain."
+                return
+            if row is None or info["exclusion"]:
+                state["skipped"] += 1
+                continue
+            state["current"] = row["display_name"]
+            try:
+                entity = await _resolve_contact(client, peer_id, row["username"])
+                member = next((group["title"] for group in groups if peer_id in group["ids"]), None)
+                if member is None and not reference["complete"]:
+                    try:
+                        await client(GetParticipantRequest(channel=reference["entity"], participant=entity))
+                        member = reference["title"]
+                    except errors.UserNotParticipantError:
+                        pass
+                if member:
+                    _mark_vip_member(peer_id, member)
+                    state["members"] += 1
+                    continue
+                text = build_draft(row)
+                await client.send_message(entity, text)
+            except SendFailed:
+                state["failed"] += 1
+                continue
+            except Exception as exc:
+                reason, new_status = _send_failure(exc)
+                if new_status:
+                    _mark_refused(peer_id, new_status)
+                if type(exc).__name__ in {"FloodWaitError", "PeerFloodError"}:
+                    state["stopped_reason"] = reason
+                    return
+                state["failed"] += 1
+                continue
+            _record_sent(peer_id, len(text), BATCH_SENT_DETAIL)
+            state["sent"] += 1
+            if position < len(peer_ids) - 1:
+                wait = random.uniform(*(pause or BATCH_PAUSE_SECONDS))
+                state["next_at"] = time.time() + wait
+                waited = 0.0
+                while waited < wait and not stop.is_set():
+                    step = min(1.0, wait - waited)
+                    await sleep(step)
+                    waited += step
+                state["next_at"] = None
+    finally:
+        state["current"] = None
+        await client.disconnect()
 
 
 async def sync_folders(apply: bool) -> None:

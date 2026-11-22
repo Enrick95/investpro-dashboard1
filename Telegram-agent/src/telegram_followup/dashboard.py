@@ -16,8 +16,8 @@ from urllib.parse import parse_qs, urlparse
 
 from .cli import (
     AGE_BUCKETS, AGENT_VERSION, CONFIG_PATH, DAILY_SEND_LIMIT, FOLDER_BY_STATUS, MIN_SEND_INTERVAL,
-    SCAN_VERSION, SESSION_PATH, STATUS_LABELS, STATUS_VALUES, SendFailed, SendRefused, build_draft, classify_contact,
-    db_connect, log_event, meta_value, scan, send_followup, sends_today,
+    SCAN_VERSION, SESSION_PATH, STATUS_LABELS, STATUS_VALUES, SendFailed, SendRefused, build_draft,
+    classify_contact, db_connect, log_event, meta_value, scan, send_batch, send_followup, sends_today,
 )
 
 
@@ -39,6 +39,9 @@ ADMIN_ORIGINS = {
 }
 SCAN_STATE = {"running": False, "error": None, "processed": 0, "phase": None}
 SEND_STATE = {"running": False, "last_at": 0.0}
+# « Tout envoyer » : un seul lot à la fois, lu par le panneau admin pendant l’envoi.
+BATCH_STATE: dict = {"running": False}
+BATCH_STOP = threading.Event()
 CATEGORY_KEYS = ("chaud", "abonne", "tiede", "froid", "vip", "invite", "stop")
 
 
@@ -53,6 +56,29 @@ def _scan_worker() -> None:
         SCAN_STATE["running"] = False
         SCAN_STATE["phase"] = None
         TELEGRAM_LOCK.release()
+
+
+def _batch_worker(peer_ids: list[int]) -> None:
+    try:
+        asyncio.run(send_batch(peer_ids, BATCH_STATE, BATCH_STOP))
+    except Exception as exc:  # affiché dans le panneau admin
+        BATCH_STATE["stopped_reason"] = str(exc) or type(exc).__name__
+    finally:
+        BATCH_STATE.update(running=False, current=None, next_at=None, phase=None, finished_at=datetime.now(timezone.utc).isoformat(timespec="seconds"))
+        TELEGRAM_LOCK.release()
+
+
+def cli_pause() -> tuple:
+    from . import cli
+    return cli.BATCH_PAUSE_SECONDS
+
+
+def batch_view() -> dict:
+    """État du « Tout envoyer » pour le panneau : compteurs, contact en cours, secondes avant le prochain envoi."""
+    view = {key: value for key, value in BATCH_STATE.items() if key != "next_at"}
+    next_at = BATCH_STATE.get("next_at")
+    view["next_in"] = max(0, round(next_at - time.time())) if next_at else None
+    return view
 
 
 def start_scan_thread() -> bool:
@@ -213,6 +239,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
         if parsed.path.startswith("/api/agent/contacts/"):
             self._agent_contact(parsed.path)
             return
+        if parsed.path == "/api/send-batch":
+            self._json(batch_view())
+            return
         self._json({"error": "Route inconnue."}, 404)
 
     def _agent_overview(self) -> None:
@@ -256,7 +285,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
             "scan_error": SCAN_STATE["error"],
             "scan_processed": SCAN_STATE["processed"],
             "scan_phase": SCAN_STATE["phase"],
-            "send_running": SEND_STATE["running"],
+            "send_running": SEND_STATE["running"] or bool(BATCH_STATE.get("running")),
+            "batch": batch_view(),
             "status_labels": STATUS_LABELS,
             "contacts": contacts,
         })
@@ -364,6 +394,13 @@ class DashboardHandler(BaseHTTPRequestHandler):
             if parsed.path == "/api/scan":
                 self._start_scan()
                 return
+            if parsed.path == "/api/send-batch":
+                self._start_batch(payload)
+                return
+            if parsed.path == "/api/send-batch/stop":
+                BATCH_STOP.set()
+                self._json({"ok": True, "message": "Arrêt demandé : le message en cours se termine, puis plus rien ne part."})
+                return
             if parsed.path.startswith("/api/contacts/") and parsed.path.endswith("/send"):
                 self._send_followup(parsed.path, payload)
                 return
@@ -403,6 +440,44 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self._json({"started": False, "error": "Une analyse ou un envoi est déjà en cours."}, 409)
             return
         self._json({"started": True, "message": "Analyse démarrée. Si Telegram demande ton numéro ou un code, réponds dans la fenêtre du Terminal."})
+
+    def _start_batch(self, payload: dict) -> None:
+        """Lance le « Tout envoyer » sur la liste qu’Enrick a sous les yeux (identifiants dans l’ordre affiché)."""
+        peer_ids = payload.get("peer_ids")
+        if not isinstance(peer_ids, list) or not peer_ids or not all(isinstance(value, int) and not isinstance(value, bool) for value in peer_ids):
+            raise ValueError("Liste de contacts invalide.")
+        if len(peer_ids) > DAILY_SEND_LIMIT or len(set(peer_ids)) != len(peer_ids):
+            raise ValueError(f"Liste invalide : {DAILY_SEND_LIMIT} contacts différents au maximum.")
+        conn = db_connect()
+        try:
+            verified = self._vip_verified(conn)
+            remaining = DAILY_SEND_LIMIT - sends_today(conn)
+            ready = []
+            for peer_id in peer_ids:
+                row = conn.execute("SELECT * FROM contacts WHERE peer_id=?", (peer_id,)).fetchone()
+                if row and classify_contact(row, verified)["can_send"]:
+                    ready.append(peer_id)
+        finally:
+            conn.close()
+        if remaining <= 0:
+            self._json({"error": f"Limite de {DAILY_SEND_LIMIT} relances par jour atteinte : reprends demain."}, 409)
+            return
+        ready = ready[:remaining]
+        if not ready:
+            self._json({"error": "Aucun contact de cette liste n’est prêt à être relancé."}, 409)
+            return
+        if not TELEGRAM_LOCK.acquire(blocking=False):
+            self._json({"error": "Une analyse ou un envoi est déjà en cours."}, 409)
+            return
+        BATCH_STOP.clear()
+        BATCH_STATE.clear()
+        BATCH_STATE.update(
+            running=True, total=len(ready), sent=0, skipped=0, members=0, failed=0, current=None, next_at=None,
+            phase="connexion", stopped_reason=None, started_at=datetime.now(timezone.utc).isoformat(timespec="seconds"), finished_at=None,
+        )
+        threading.Thread(target=_batch_worker, args=(ready,), daemon=True).start()
+        minutes = math.ceil(len(ready) * sum(cli_pause()) / 2 / 60)
+        self._json({"started": True, "total": len(ready), "minutes": minutes})
 
     def _send_followup(self, path: str, payload: dict) -> None:
         peer_id = _peer_id(path, 3)

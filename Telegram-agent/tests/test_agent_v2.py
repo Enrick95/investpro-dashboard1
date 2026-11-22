@@ -406,7 +406,7 @@ def test_platform_overview_and_detail(server, env):
     conn.commit()
     conn.close()
     status, body, _ = call(server, "/api/agent/overview")
-    assert status == 200 and body["agent_version"] == "2"
+    assert status == 200 and body["agent_version"] == "3"
     assert body["ready"] == 1 and body["categories"]["vip"] == 1
     assert set(body["categories"]) == {"chaud", "abonne", "tiede", "froid", "vip", "invite", "stop"}
     assert body["age_buckets"]["3m"] == 1 and body["age_buckets"]["1an"] == 1 and body["ready_age_buckets"]["3m"] == 1
@@ -533,3 +533,125 @@ def test_former_subscribers_get_their_own_category_and_message(env):
     assert "rejoindre sans abonnement" in cli.build_draft(row(1001)) and "essai" not in cli.build_draft(row(1001))
     lina = cli.classify_contact(row(1002), False)
     assert lina["category"] == "vip" and "Venu par affiliation" in lina["reason"]
+
+
+# « Tout envoyer » : la liste relue par Enrick, chacun avec le message de sa catégorie, un envoi toutes les 30 à 60 s.
+
+def vip_channel(client, members=(), complete=False):
+    """InvestPro Trading VIP sur le compte support ; `members` répondent « membre » au contrôle contact par contact."""
+    main_vip = channel(9001, "InvestPro Trading VIP ™", count=2 if complete else 427)
+    client.add(main_vip, [Msg(False, "annonce", 1)])
+    client.visible[9001] = [999] if complete else []
+    wanted = {("input", peer) for peer in members}
+    client.participant[9001] = lambda pid: pid in wanted
+    return main_vip
+
+
+def new_batch_state():
+    return {"sent": 0, "skipped": 0, "members": 0, "failed": 0}
+
+
+async def no_wait(seconds):
+    return None
+
+
+def test_send_all_sends_each_ready_contact_its_category_message_and_rechecks_the_vip_group(env):
+    client = env["client"]
+    vip_channel(client, members=[403])
+    ready_contact(401, "Karim Benali", "karimb")
+    ready_contact(402, "Sarah Diallo", "sarahd")
+    ready_contact(403, "Yanis Kaci", "yanisk")
+    conn = cli.db_connect()
+    insert(conn, 404, "Déjà membre", status="actif", days=40)
+    conn.close()
+    expected = {peer: cli.build_draft(row(peer)) for peer in (401, 402)}
+    state, stop = new_batch_state(), threading.Event()
+
+    asyncio.run(cli.send_batch([401, 402, 403, 404], state, stop, pause=(0, 0), sleep=no_wait))
+
+    assert client.sent == [(("input", 401), expected[401]), (("input", 402), expected[402])], "le message de sa catégorie, rien d’autre"
+    assert state == {**state, "sent": 2, "members": 1, "skipped": 1, "failed": 0, "current": None}
+    yanis = row(403)
+    assert yanis["status"] == "actif" and yanis["vip_check"] == "membre", "a rejoint depuis l’analyse : rangé membre, aucun message"
+    assert row(401)["status"] == "reponse_attendue" and row(402)["last_followup_at"]
+    conn = cli.db_connect()
+    detail = conn.execute("SELECT detail FROM contact_events WHERE peer_id=401 AND action=?", (cli.SENT_ACTION,)).fetchone()["detail"]
+    sent_today = cli.sends_today(conn)
+    conn.close()
+    assert "Tout envoyer" in detail and sent_today == 2
+    assert not client.connected, "la session Telegram est refermée à la fin"
+
+
+def test_send_all_stops_at_the_first_telegram_spam_warning(env):
+    client = env["client"]
+    vip_channel(client)
+    ready_contact(401)
+    ready_contact(402, "Sarah", "sarah")
+    client.send_error = errors.PeerFloodError(request=None)
+    state = new_batch_state()
+    asyncio.run(cli.send_batch([401, 402], state, threading.Event(), pause=(0, 0), sleep=no_wait))
+    assert "anti-spam" in state["stopped_reason"] and state["sent"] == 0
+    assert client.sent == [] and row(401)["status"] == "a_verifier" and row(402)["last_followup_at"] is None
+
+
+def test_send_all_stops_when_enrick_clicks_stop_during_the_pause(env):
+    client = env["client"]
+    vip_channel(client)
+    ready_contact(401)
+    ready_contact(402, "Sarah", "sarah")
+    state, stop = new_batch_state(), threading.Event()
+
+    async def click_stop(seconds):
+        stop.set()
+
+    asyncio.run(cli.send_batch([401, 402], state, stop, pause=(5, 5), sleep=click_stop))
+    assert state["sent"] == 1 and len(client.sent) == 1 and state["stopped_reason"] == "Arrêté à ta demande."
+
+
+def test_send_all_without_the_vip_group_sends_nothing(env):
+    client = env["client"]
+    ready_contact(401)
+    state = new_batch_state()
+    asyncio.run(cli.send_batch([401], state, threading.Event(), pause=(0, 0), sleep=no_wait))
+    assert "introuvable" in state["stopped_reason"] and client.sent == []
+
+
+def test_send_all_respects_the_daily_limit(env, monkeypatch):
+    client = env["client"]
+    vip_channel(client, complete=True)
+    ready_contact(401)
+    ready_contact(402, "Sarah", "sarah")
+    monkeypatch.setattr(cli, "DAILY_SEND_LIMIT", 1)
+    state = new_batch_state()
+    asyncio.run(cli.send_batch([401, 402], state, threading.Event(), pause=(0, 0), sleep=no_wait))
+    assert state["sent"] == 1 and "Limite de 1 relances" in state["stopped_reason"]
+
+
+def test_platform_send_all_endpoint(server, env, monkeypatch):
+    client = env["client"]
+    vip_channel(client, complete=True)
+    ready_contact(401)
+    ready_contact(402, "Sarah", "sarah")
+    conn = cli.db_connect()
+    insert(conn, 404, "Déjà membre", status="actif", days=40)
+    conn.close()
+    monkeypatch.setattr(cli, "BATCH_PAUSE_SECONDS", (0.0, 0.0))
+    status, body, _ = call(server, "/api/send-batch", {"peer_ids": [401, 402, 404]}, origin="https://investprotrading.fr")
+    assert status == 200 and body["started"] and body["total"] == 2, "les contacts écartés ne sont pas comptés"
+    for _ in range(100):
+        if not dashboard.BATCH_STATE.get("running"):
+            break
+        threading.Event().wait(0.05)
+    status, view, _ = call(server, "/api/send-batch")
+    assert view["running"] is False and view["sent"] == 2 and view["finished_at"]
+    assert [entity for entity, _ in client.sent] == [("input", 401), ("input", 402)]
+    status, overview, _ = call(server, "/api/agent/overview")
+    assert overview["batch"]["sent"] == 2 and overview["sent_today"] == 2 and overview["agent_version"] == "3"
+    status, body, _ = call(server, "/api/send-batch", {"peer_ids": [401]})
+    assert status == 409 and "prêt" in body["error"], "déjà relancés : plus rien à envoyer"
+    status, body, _ = call(server, "/api/send-batch", {"peer_ids": "401"})
+    assert status == 400
+    status, body, _ = call(server, "/api/send-batch/stop", {})
+    assert status == 200 and body["ok"]
+    assert dashboard.TELEGRAM_LOCK.acquire(blocking=False), "le lot fini libère Telegram"
+    dashboard.TELEGRAM_LOCK.release()

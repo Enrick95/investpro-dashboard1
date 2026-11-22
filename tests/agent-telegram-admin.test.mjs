@@ -18,17 +18,30 @@ test("the admin tab talks only to the agent running on the Mac", () => {
 
 test("a follow-up is sent only by clicking, with the text Enrick has read", () => {
   assert.match(page, /agent<\{ sent_today: number \}>\(`\/api\/contacts\/\$\{selected\.peer_id\}\/send`, \{ text \}\)/);
-  assert.match(page, /disabled=\{!selected\.can_send \|\| !!busy\}/);
+  assert.match(page, /disabled=\{!selected\.can_send \|\| !!busy \|\| data\.send_running\}/);
   assert.match(page, /if \(!selected\.can_send\) \{ setNotice\(selected\.exclusion/);
   // Aucune boucle d’envoi automatique : send() n’est appelé que par le bouton et le raccourci clavier.
   assert.equal((page.match(/void send\(\)/g) || []).length, 2);
   assert.ok(!/setInterval\([^)]*send/.test(page));
 });
 
+test("« Tout envoyer » sends the displayed list only after a confirmation, and can be stopped", () => {
+  // La liste envoyée à l’agent : les contacts affichés et prêts, sans dépasser la limite du jour.
+  assert.match(page, /visible\.filter\(contact => contact\.can_send\)\.slice\(0, Math\.max\(0, data\.daily_send_limit - data\.sent_today\)\)/);
+  assert.match(page, /agent<\{ total: number; minutes: number \}>\("\/api\/send-batch", \{ peer_ids: allTargets\.map\(contact => contact\.peer_id\) \}\)/);
+  // Le premier clic ouvre la confirmation ; seul « Lancer l’envoi » appelle sendAll().
+  assert.match(page, /onClick=\{\(\) => setConfirmAll\(true\)\}/);
+  assert.equal((page.match(/void sendAll\(\)/g) || []).length, 1);
+  assert.match(page, /Lancer l’envoi<\/button>/);
+  assert.ok(page.includes("Juste avant chaque envoi, l’agent revérifie que la personne n’est pas dans le groupe VIP"));
+  assert.match(page, /agent<\{ message: string \}>\("\/api\/send-batch\/stop", \{\}\)/);
+  for (const name of ["batchBox", "batchBar", "batchList"]) assert.match(css, new RegExp(`\\.${name}\\{`));
+});
+
 test("the tab filters contacts by readiness and by age, up to more than a year", () => {
   for (const label of ["À relancer", "VIP à vérifier", "Écartés", "Moins de 3 mois", "3 à 6 mois", "6 à 12 mois", "Plus d’un an"]) assert.ok(page.includes(label), label);
   assert.match(page, /InvestPro Trading VIP/);
-  assert.match(page, /AGENT_VERSION = "2"/);
+  assert.match(page, /AGENT_VERSION = "3"/);
   for (const name of ["filterRow", "groupHead", "catTag", "ageTag", "quote", "okBox"]) assert.match(css, new RegExp(`\\.${name}\\{`));
   // Les contacts sont regroupés : les plus chauds, puis les tièdes, puis les froids.
   assert.match(page, /chaud: "Les plus chauds", abonne: "Anciens abonnés", tiede: "Tièdes", froid: "Froids"/);
