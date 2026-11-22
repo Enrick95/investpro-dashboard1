@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, Eye, EyeOff, Loader2, LockKeyhole, Mail } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
+import { createRecoveryRequestClient } from "@/lib/supabase/recovery";
 import { safeNextPath } from "@/lib/auth-next-path";
 import { normalizeAccessCode } from "@/lib/vip/access-code";
 import AuthExperienceShell, {
@@ -46,6 +47,11 @@ export default function LoginPage() {
   const requestedNext = useSyncExternalStore(subscribeToLocation, requestedNextPath, serverNextPath);
   const nextPath = requestedNext ? safeNextPath(requestedNext) : null;
   const isVipReturn = Boolean(nextPath?.includes("/vip/"));
+
+  // « Demander un nouveau lien » depuis la page du nouveau mot de passe : la page s’ouvre sur « Mot de passe oublié ».
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("oubli") === "1") setForgotMode(true);
+  }, []);
 
   useEffect(() => {
     const requestedNext = new URLSearchParams(window.location.search).get("next");
@@ -131,7 +137,8 @@ export default function LoginPage() {
 
     try {
       setBusy(true);
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      // Lien qui marche sur n’importe quel appareil (voir lib/supabase/recovery.ts).
+      const { error } = await createRecoveryRequestClient().auth.resetPasswordForEmail(email.trim(), {
         redirectTo: `${window.location.origin}/reset-password`,
       });
       if (error) throw error;
