@@ -511,13 +511,14 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
 
 def open_platform(local_url: str) -> str:
-    """Ouvre l’onglet Agent Telegram de l’admin dans Chrome ; à défaut, la plateforme locale."""
+    """Ouvre l’onglet Agent Telegram de l’admin dans Chrome ou Brave ; à défaut, la plateforme locale."""
     if sys.platform == "darwin" and os.getenv("TG_AGENT_OPEN", "admin") != "local":
-        try:
-            if subprocess.run(["open", "-a", "Google Chrome", ADMIN_URL], capture_output=True, timeout=15).returncode == 0:
-                return ADMIN_URL
-        except (OSError, subprocess.SubprocessError):
-            pass
+        for browser in ("Google Chrome", "Brave Browser"):
+            try:
+                if subprocess.run(["open", "-a", browser, ADMIN_URL], capture_output=True, timeout=15).returncode == 0:
+                    return ADMIN_URL
+            except (OSError, subprocess.SubprocessError):
+                pass
     webbrowser.open(local_url)
     return local_url
 
@@ -532,7 +533,7 @@ def serve(port: int = 8765, open_browser: bool = True, auto_scan: bool = True) -
         if open_browser:
             open_platform(url)
         return
-    print("Plateforme de relance : onglet « Agent Telegram » de ton admin, dans Chrome.")
+    print("Plateforme de relance : onglet « Agent Telegram » de ton admin, dans ton navigateur.")
     print(f"Elle est aussi disponible ici, sur ce Mac : {url}")
     print("Garde cette fenêtre ouverte pendant que tu utilises la plateforme. Pour arrêter : ferme-la.")
     if auto_scan and auto_scan_due() and start_scan_thread():

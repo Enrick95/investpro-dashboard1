@@ -468,6 +468,10 @@ def test_launch_opens_the_admin_tab_in_chrome_and_falls_back_to_the_local_page(m
     assert dashboard.open_platform("http://127.0.0.1:8765") == "https://investprotrading.fr/dashboard/admin?tool=telegram&view=agent"
     assert opened == [("open", "-a", "Google Chrome", "https://investprotrading.fr/dashboard/admin?tool=telegram&view=agent")]
     opened.clear()
+    monkeypatch.setattr(dashboard.subprocess, "run", lambda cmd, **kw: opened.append(tuple(cmd)) or Done(0 if cmd[2] == "Brave Browser" else 1))
+    assert dashboard.open_platform("http://127.0.0.1:8765").startswith("https://investprotrading.fr/dashboard/admin")
+    assert opened[-1][:3] == ("open", "-a", "Brave Browser"), "sans Chrome, Brave prend le relais"
+    opened.clear()
     monkeypatch.setattr(dashboard.subprocess, "run", lambda cmd, **kw: Done(1))
     assert dashboard.open_platform("http://127.0.0.1:8765") == "http://127.0.0.1:8765"
     assert opened == [("navigateur", "http://127.0.0.1:8765")]

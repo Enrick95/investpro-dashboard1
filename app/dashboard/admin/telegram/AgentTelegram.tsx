@@ -157,7 +157,7 @@ export default function AgentTelegram() {
       <p className={s.muted}>L’agent de relance tourne sur ton Mac : c’est là que ton compte Telegram support est connecté. Tes messages et ta session ne passent jamais par le site. Pour l’afficher ici :</p>
       <ol className={s.stepsList}>
         <li>Sur ton Mac, ouvre <b>Documents › ChatGPT › TELEGRAM</b> et double-clique sur <b>« Lancer-agent-relances »</b>. Laisse la fenêtre du Terminal ouverte.</li>
-        <li>Reviens ici dans <b>Chrome</b> et clique sur « Réessayer ». Si Chrome demande l’accès aux appareils du réseau local, clique sur « Autoriser ».</li>
+        <li>Reviens ici, dans ton navigateur sur ce Mac (Brave ou Chrome), et clique sur « Réessayer ». S’il demande l’accès à localhost ou aux appareils du réseau local, clique sur « Autoriser ».</li>
       </ol>
       <p className={s.muted}>Ça marche seulement sur le Mac où tourne l’agent, pas sur ton téléphone.</p>
       <div><button type="button" className={s.ghost} onClick={() => { setState("checking"); void load(); }}><RefreshCw size={14} aria-hidden="true" />Réessayer</button></div>
