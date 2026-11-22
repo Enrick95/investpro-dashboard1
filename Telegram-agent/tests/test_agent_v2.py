@@ -293,6 +293,12 @@ def test_each_category_gets_a_message_that_pushes_to_join_through_whatsapp():
         assert "risque de perte" not in text, "pas de mention de risque dans les relances"
         assert "essai" not in text and "démo" not in text, "on pousse à rejoindre, pas à tester"
     assert hot.endswith("pour en parler.")
+    # Les chauds et les froids sont invités sur la page du VIP ; le lien du site passe avant WhatsApp, pour l’aperçu Telegram.
+    for text in (hot, cold):
+        assert "https://investprotrading.fr/vip" in text
+        assert text.index("investprotrading.fr/vip") < text.index("investprotrading.fr/whatsapp")
+    for text in (warm, abo):
+        assert "investprotrading.fr/vip" not in text
     assert cli.build_draft(draft_row("Telegram 12345")).startswith("Salut, j’espère")
     assert cli.first_name_from("🔥karim 95") == "Karim"
     assert cli.first_name_from("M.") is None

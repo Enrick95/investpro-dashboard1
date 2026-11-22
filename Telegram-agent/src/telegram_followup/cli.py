@@ -35,6 +35,8 @@ SITE_CHECKS_PATH = APP_DIR / "data" / "site-checks.json"
 DEFAULT_SITE = "https://investprotrading.fr/vip"
 # Lien du site qui ouvre le WhatsApp d’Enrick avec un message déjà écrit (« je viens de Telegram »).
 WHATSAPP_LINK = os.getenv("TG_AGENT_WHATSAPP_LINK", "https://investprotrading.fr/whatsapp")
+# La page du VIP sur le site : les chauds et les froids y sont invités, pour voir à quoi ressemble le VIP.
+VIP_PAGE_LINK = os.environ.get("TG_AGENT_VIP_LINK", "https://investprotrading.fr/vip")
 # L’essai VIP gratuit sur compte démo s’arrête le 30 novembre 2026 à minuit (heure de Paris).
 ESSAI_END = datetime(2026, 11, 30, 23, 59, 59, tzinfo=timezone(timedelta(hours=1)))
 # Offre du moment pour les anciens abonnés : l’abonnement à -25 %, jusqu’au 30 novembre (heure de Paris). Après, la phrase disparaît des relances.
@@ -1038,6 +1040,7 @@ def build_draft(row: sqlite3.Row, name: str | None = None, now: datetime | None 
         parts = [
             f"Salut {first} ! 👋" if first else "Salut ! 👋",
             f"Tu m’avais demandé des infos pour rejoindre le VIP, je reviens vers toi. Entre-temps, j’ai mis en place {infra}.",
+            f"N’hésite pas à passer sur le site pour voir à quoi ressemble le VIP 👉 {VIP_PAGE_LINK}",
             "Pour aller plus vite, je t’ai ouvert un WhatsApp : je t’envoie le lien du broker, je te guide pour le dépôt et j’active ton accès au VIP.",
             f"👉 Écris-moi ici : {WHATSAPP_LINK}",
             free_line,
@@ -1058,6 +1061,7 @@ def build_draft(row: sqlite3.Row, name: str | None = None, now: datetime | None 
             f"Salut {first}, j’espère que tu vas bien !" if first else "Salut, j’espère que tu vas bien !",
             "On avait échangé il y a quelque temps sur le trading. Depuis, j’ai mis en place toute une nouvelle infrastructure pour le VIP : "
             "les signaux et mes analyses, le journal de trading, le copy et plein d’autres choses.",
+            f"N’hésite pas à passer sur le site pour voir à quoi ça ressemble 👉 {VIP_PAGE_LINK}",
             f"Si ça t’intéresse, écris-moi sur WhatsApp 👉 {WHATSAPP_LINK}",
             "Ensuite, si tu veux, on se fait un petit appel pour que je t’explique tout ce que j’ai à disposition et ce que je peux t’apporter.",
             "Et si ce n’est plus d’actualité, dis-le-moi simplement, je ne te relancerai plus.",
