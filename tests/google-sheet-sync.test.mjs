@@ -32,9 +32,15 @@ const requests = [
   { id: "req-existing", created_at: "2026-10-02T12:00:00Z", first_name: "Déjà", last_name: "Membre", email: "d@example.invalid", type: "affiliation", status: "approved", request_kind: "existing" },
 ];
 
+const stripePayments = [
+  { id: "pay-1", created_at: "2026-11-15T10:00:00Z", full_name: "Nadia Ben Salah", email: "nadia@example.invalid", phone: "+33611112222", telegram_username: "nadia_t", status: "active", invite_url: "https://t.me/+ne-doit-jamais-sortir" },
+  { id: "pay-2", created_at: "2026-11-16T10:00:00Z", full_name: "Omar", email: "omar@example.invalid", phone: null, telegram_username: null, status: "canceled" },
+];
+
 test("each VIP signup appears once, with its type, broker, declared and verified deposit, and status", () => {
-  const rows = sheet.sheetSignups(applications, requests);
-  assert.deepEqual(Array.from(rows, r => r.id), ["req-old", "req-abo", "app-1", "app-2", "app-3"], "du plus ancien au plus récent, sans doublon ni déjà-membre");
+  const rows = sheet.sheetSignups(applications, requests, stripePayments);
+  assert.deepEqual(Array.from(rows, r => r.id), ["req-old", "req-abo", "app-1", "pay-1", "pay-2", "app-2", "app-3"], "du plus ancien au plus récent, sans doublon ni déjà-membre");
+  assert.ok(!JSON.stringify(rows).includes("ne-doit-jamais-sortir"), "jamais le lien d'invitation");
   const byId = Object.fromEntries(rows.map(r => [r.id, r]));
   assert.deepEqual({ ...byId["app-1"] }, {
     id: "app-1", date_inscription: "2026-11-10T09:00:00.000Z", type: "Affiliation", prenom: "Karim", nom: "Benali", email: "karim@example.invalid",
@@ -53,6 +59,10 @@ test("each VIP signup appears once, with its type, broker, declared and verified
   assert.equal(byId["req-abo"].telegram, "@lina");
   assert.equal(byId["req-abo"].statut, "Validé");
   assert.equal(byId["req-old"].broker, "PU Prime");
+  // Abonnement payé sur le lien Stripe du site.
+  assert.deepEqual({ ...byId["pay-1"] }, { id: "pay-1", date_inscription: "2026-11-15T10:00:00.000Z", type: "Abonnement", prenom: "Nadia", nom: "Ben Salah", email: "nadia@example.invalid", telephone: "+33611112222", telegram: "@nadia_t", broker: "", depot_declare: "", depot_verifie: null, statut: "Validé", date_validation: "2026-11-15T10:00:00.000Z" });
+  assert.equal(byId["pay-2"].statut, "Annulé");
+  assert.equal(byId["pay-2"].nom, "");
   assert.equal(byId["req-old"].depot_declare, `${(750).toLocaleString("fr-FR")} $`);
 });
 
@@ -70,8 +80,8 @@ test("trial requests get the admin status words and the follow-up fields", () =>
 });
 
 test("the export never reads proofs, passwords or MetaTrader accounts", () => {
-  for (const columns of [sheet.SHEET_APPLICATION_COLUMNS, sheet.SHEET_REQUEST_COLUMNS, sheet.SHEET_TRIAL_COLUMNS]) {
-    for (const forbidden of ["proof", "password", "secret", "broker_account_id", "mt_server", "compte", "serveur", "suivi_token", "broker_email", "admin_notes"]) {
+  for (const columns of [sheet.SHEET_APPLICATION_COLUMNS, sheet.SHEET_REQUEST_COLUMNS, sheet.SHEET_TRIAL_COLUMNS, sheet.SHEET_STRIPE_COLUMNS]) {
+    for (const forbidden of ["proof", "password", "secret", "broker_account_id", "mt_server", "compte", "serveur", "suivi_token", "broker_email", "admin_notes", "invite", "stripe_", "checkout"]) {
       assert.ok(!columns.split(",").some(c => c.includes(forbidden)), `${forbidden} ne part jamais dans le Sheet`);
     }
   }
@@ -101,7 +111,7 @@ test("the Sheet route answers only with the right key, and the site keeps only i
   const key = crypto.randomBytes(32).toString("base64url");
   const env = { GOOGLE_SHEET_SYNC_KEY_SHA256: crypto.createHash("sha256").update(key).digest("hex"), NEXT_PUBLIC_SUPABASE_URL: "https://db.example.invalid", SUPABASE_SERVICE_ROLE_KEY: "service" };
   const calls = [];
-  const modules = { "@supabase/supabase-js": fakeSupabase({ vip_member_applications: applications, vip_access_requests: requests, essai_vip_leads: [] }, calls), "node:crypto": crypto, "@/lib/integrations/google-sheet": sheet };
+  const modules = { "@supabase/supabase-js": fakeSupabase({ vip_member_applications: applications, vip_access_requests: requests, essai_vip_leads: [], vip_stripe_payments: stripePayments }, calls), "node:crypto": crypto, "@/lib/integrations/google-sheet": sheet };
   const route = compile("app/api/integrations/google-sheet/route.ts", modules, env);
   const call = headers => route.GET(new Request("https://investprotrading.fr/api/integrations/google-sheet", { headers }));
   assert.equal((await call({})).status, 401);
@@ -112,7 +122,7 @@ test("the Sheet route answers only with the right key, and the site keeps only i
   assert.equal(ok.status, 200);
   assert.equal(ok.headers.get("cache-control"), "no-store");
   const body = await ok.json();
-  assert.equal(body.inscriptions.length, 5);
+  assert.equal(body.inscriptions.length, 7);
   assert.deepEqual(body.essais, []);
   assert.deepEqual(calls.find(c => c.table === "vip_access_requests").filters, [["request_kind", "new"]]);
   const withoutHash = compile("app/api/integrations/google-sheet/route.ts", modules, { ...env, GOOGLE_SHEET_SYNC_KEY_SHA256: "" });

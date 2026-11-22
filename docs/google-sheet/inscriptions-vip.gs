@@ -18,7 +18,7 @@ var SITE = "https://investprotrading.fr/api/integrations/google-sheet";
 var CLE = "COLLE_LA_CLE_ICI"; // Clé secrète de ton Sheet : ne partage pas ce code.
 
 // Mise en forme aux couleurs du VIP (noir, cuivre, champagne). Changer le numéro la fait réappliquer.
-var VERSION_FORME = "2";
+var VERSION_FORME = "3";
 var ENTETE = { fond: "#1d1916", texte: "#f2dfc7", trait: "#cf865f" };
 var LIGNE_PAIRE = "#faf6f1";
 var TEXTE = "#1d1916";
@@ -29,6 +29,8 @@ var PASTILLES = {
   "Validé": ["#dcf2e3", "#17703a"],
   "À vérifier": ["#fdeccc", "#8f5400"],
   "Refusé": ["#fbdedb", "#a8231b"],
+  "Paiement en échec": ["#fbdedb", "#a8231b"],
+  "Annulé": ["#efedeb", "#8a847e"],
   "Affiliation": ["#f6e3d5", "#8a4524"],
   "Rattachement": ["#e2ebfb", "#21509e"],
   "Abonnement": ["#ece2fa", "#6338ad"],

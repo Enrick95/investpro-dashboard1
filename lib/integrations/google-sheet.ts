@@ -7,6 +7,8 @@ import { vipAffiliationBrokerLabel } from "@/lib/vip/identity";
 export const SHEET_APPLICATION_COLUMNS = "id,created_at,first_name,last_name,verified_first_name,verified_last_name,email,phone_whatsapp,telegram_username,affiliation_broker,verified_affiliation_broker,broker_account_kind,deposit_range,declared_deposit_usd,verified_deposit_usd,status,reviewed_at,claim_request_id";
 export const SHEET_REQUEST_COLUMNS = "id,created_at,first_name,last_name,email,phone_whatsapp,telegram_username,type,verified_type,affiliation_broker,verified_affiliation_broker,broker_account_kind,deposit_range,declared_deposit_usd,verified_deposit_usd,status,reviewed_at,request_kind";
 export const SHEET_TRIAL_COLUMNS = "id,submitted_at,prenom,nom_famille,nom,email,telephone,telegram,broker,status,channel_joined,last_contacted_at,next_follow_up_on";
+// Abonnements payés directement sur le lien Stripe du site (jamais le lien d'invitation ni les identifiants Stripe).
+export const SHEET_STRIPE_COLUMNS = "id,created_at,full_name,email,phone,telegram_username,status";
 
 type Row = Record<string, unknown>;
 
@@ -24,6 +26,7 @@ export type SheetTrial = {
 const DEPOSIT_RANGES: Record<string, string> = { "300-499": "300 $ à 499 $", "500-999": "500 $ à 999 $", "1000-plus": "1 000 $ ou plus" };
 const APPLICATION_STATUS: Record<string, string> = { submitted: "À vérifier", approved: "Validé", claimed: "Validé", denied: "Refusé" };
 const REQUEST_STATUS: Record<string, string> = { pending: "À vérifier", approved: "Validé", denied: "Refusé" };
+const STRIPE_STATUS: Record<string, string> = { active: "Validé", past_due: "Paiement en échec", canceled: "Annulé" };
 // Mêmes mots que l'admin « Essai VIP ».
 const TRIAL_STATUS: Record<string, string> = { new: "Nouveau", contacted: "Contacté", qualified: "À vérifier", demo_active: "Démo branchée", completed: "Essai terminé", converted: "Converti en VIP", lost: "Clos" };
 
@@ -57,7 +60,7 @@ function brokerLabel(verified: unknown, declared: unknown): string {
  * Les inscriptions VIP, de la plus ancienne à la plus récente.
  * Une demande « nouveau membre » validée puis activée crée aussi une demande d'accès (claim_request_id) : on ne la compte qu'une fois.
  */
-export function sheetSignups(applications: Row[], requests: Row[]): SheetSignup[] {
+export function sheetSignups(applications: Row[], requests: Row[], stripePayments: Row[] = []): SheetSignup[] {
   const claimed = new Set(applications.map(app => text(app.claim_request_id)).filter(Boolean));
   const fromApplications = applications.map((app): SheetSignup => {
     const status = text(app.status);
@@ -100,7 +103,27 @@ export function sheetSignups(applications: Row[], requests: Row[]): SheetSignup[
         date_validation: validated ? date(request.reviewed_at) : null,
       };
     });
-  return [...fromApplications, ...fromRequests]
+  const fromStripe = stripePayments.map((payment): SheetSignup => {
+    const [first = "", ...rest] = text(payment.full_name).split(" ");
+    const status = text(payment.status) || "active";
+    return {
+      id: text(payment.id),
+      date_inscription: date(payment.created_at),
+      type: "Abonnement",
+      prenom: first,
+      nom: rest.join(" "),
+      email: text(payment.email),
+      telephone: text(payment.phone),
+      telegram: telegram(payment.telegram_username),
+      broker: "",
+      depot_declare: "",
+      depot_verifie: null,
+      statut: STRIPE_STATUS[status] ?? status,
+      // Payé sur Stripe : l'accès est ouvert au paiement.
+      date_validation: date(payment.created_at),
+    };
+  });
+  return [...fromApplications, ...fromRequests, ...fromStripe]
     .filter(row => row.id)
     .sort((a, b) => (a.date_inscription ?? "").localeCompare(b.date_inscription ?? ""));
 }
