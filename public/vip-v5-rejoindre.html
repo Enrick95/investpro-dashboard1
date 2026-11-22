@@ -204,6 +204,7 @@ select.input{appearance:none;-webkit-appearance:none;padding-right:34px;backgrou
 .mcard-status.ok{background:var(--up-soft);color:var(--up)}
 .mcard-status.no{background:var(--down-soft);color:var(--down)}
 @media (prefers-reduced-motion:reduce){.btn,.choice,.input{transition:none}.btn-gold::before,.step.enter-fwd,.step.enter-back,.mcard,.mcard::after,.mcard-line path{animation:none}.mcard-line path{stroke-dashoffset:0}.bars span::after{transition:none}}
+.contact{display:flex;flex-direction:column;align-items:flex-start;gap:10px;margin-top:14px}.contact .btn{margin-top:0}.contact .btn svg{width:18px;height:18px;flex:0 0 auto}.btn-wa{min-height:52px;padding:0 24px;border:1px solid #25d366;background:#25d366;color:#05200f;font-size:16px;font-weight:700;box-shadow:0 10px 26px -10px rgba(37,211,102,.6)}.btn-wa:hover{filter:brightness(1.06)}.btn-wa:focus-visible{outline:2px solid #fff;outline-offset:3px}
 </style>
 </head>
 <body>
@@ -229,6 +230,9 @@ var TRIAL_END=new Date('2026-11-30T23:59:59+01:00').getTime();
 var SUIVI_KEY='vip-nouveau-membre-suivi';
 var DRAFT_KEY='vip-rejoindre-v3';
 var TEAM='https://t.me/EquipeInvestPro';
+// WhatsApp d'Enrick (le même que sur /business et /whatsapp) : le message dit d'où vient la personne.
+var WHATSAPP='6285128115218';
+function waLink(label){return 'https://wa.me/'+WHATSAPP+'?text='+encodeURIComponent('Salut Enrick ! J’ai déjà un compte '+label+' et je voudrais le rattacher à ton code pour rejoindre le VIP 🙌')}
 var BROKERS={
   bullwaves:{label:'Bullwaves',signup:'https://go.bullwaves.com/visit/?bta=35465&brand=bullwaves&afp=enrick',link:{kind:'team'},essai:'Bullwaves'},
   raise_fx:{label:'Raise FX',signup:'https://partners.raisefx.com/visit/?bta=153152&brand=raisefx&afp=support',link:{kind:'chat',body:'Bonjour, je souhaiterais être rattaché au compte de Enrick, ID : 153152.'},code:'ENRICK100',essai:'Raise FX'},
@@ -269,6 +273,7 @@ if(/TikTok|musical_ly|Bytedance|Instagram|FBAN|FBAV|Snapchat|Line\/|Twitter/i.te
 var app=document.getElementById('app');
 var ICON_BACK='<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 var ICON_OUT='<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3h7v7M13 3 5 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+var ICON_CHAT='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 var navDir='fwd';
 function go(step,replace){
@@ -349,7 +354,7 @@ function vBroker(){
   return '<h1>'+title+'</h1><p class="intro">'+intro+'</p><div class="choices">'+list.map(function(k){
     var b=BROKERS[k],d='',tag='';
     if(S.path==='nouveau'&&b.code)d='Code bonus '+b.code+' à l\'ouverture.';
-    if(S.path==='rattachement')d=b.link.kind==='chat'?'Par le chat du broker, avec un message tout prêt.':b.link.kind==='email'?'Par e-mail au broker, avec le message tout prêt.':'Avec l\'équipe, sur Telegram.';
+    if(S.path==='rattachement')d=b.link.kind==='chat'?'Par le chat du broker, avec un message tout prêt.':b.link.kind==='email'?'Par e-mail au broker, avec le message tout prêt.':'Avec moi, sur WhatsApp.';
     if(S.path==='essai'&&k==='bullwaves'){d='Celui que je conseille pour l\'essai.';tag='mon conseil'}
     if(S.path==='essai'&&k==='raise_fx')d='Compte démo gratuit, sans dépôt.';
     return '<button type="button" class="choice" data-pick="broker" data-value="'+k+'" aria-pressed="'+(S.broker===k)+'"><span class="choice-ic choice-ini" aria-hidden="true">'+INITIALS[k]+'</span><span class="choice-tx"><span class="choice-t">'+b.label+(tag?' <span class="chip chip-gold">'+tag+'</span>':'')+'</span>'+(d?'<span class="choice-d">'+d+'</span>':'')+'</span><span class="choice-dot" aria-hidden="true"></span></button>';
@@ -379,7 +384,9 @@ function vLink(){
         '<div class="copyrow"><a class="btn btn-gold btn-sm" href="'+esc(mail)+'">Ouvrir ma messagerie</a><button type="button" class="btn btn-line btn-sm" data-copy="'+esc(l.body)+'">Copier le message</button></div></div>'+
         (l.body.indexOf('[')>=0?'<p>Remplace ce qui est entre crochets par tes infos.</p>':'')+'</div></li>';
   }else{
-    how='<li><span class="n">1</span><div><b>Écris à l\'équipe sur Telegram</b><p>Pour '+esc(b.label)+', on fait le rattachement avec toi. Envoie ton numéro de compte à @EquipeInvestPro.</p><a class="btn btn-gold btn-sm" href="'+TEAM+'" target="_blank" rel="noopener">Écrire à @EquipeInvestPro'+ICON_OUT+'</a></div></li>';
+    how='<li><span class="n">1</span><div><b>Écris-moi sur WhatsApp</b><p>Pour '+esc(b.label)+', on fait le rattachement avec toi. Envoie-moi ton numéro de compte, on s\'occupe du reste.</p>'+
+        '<div class="contact"><a class="btn btn-wa" href="'+esc(waLink(b.label))+'" target="_blank" rel="noopener">'+ICON_CHAT+'Écrire sur WhatsApp</a>'+
+        '<a class="btn btn-line btn-sm" href="'+TEAM+'" target="_blank" rel="noopener">Ou sur Telegram, à @EquipeInvestPro'+ICON_OUT+'</a></div></div></li>';
   }
   return '<h1>Rattache ton compte '+esc(b.label)+' à mon code.</h1><p class="intro">Tu gardes ton compte, ton historique et ton argent. Seul le partenaire change.</p>'+
   '<ol class="todo">'+how+
