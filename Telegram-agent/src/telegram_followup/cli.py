@@ -1018,12 +1018,14 @@ def build_draft(row: sqlite3.Row, name: str | None = None, now: datetime | None 
         category = "froid"
     first = name or first_name_from(row["display_name"])
     free_line = "Avec un de mes brokers partenaires, le VIP est gratuit, sans abonnement. Sinon, il y a aussi l’abonnement."
+    call_line = "Si besoin, on peut aussi se faire un petit appel pour en parler."
     if category == "abonne":
         parts = [
             f"Salut {first}, ça fait un moment ! 👋" if first else "Salut, ça fait un moment ! 👋",
             "Tu avais pris l’abonnement VIP. Si tu as envie de revenir, tu peux aussi rejoindre sans abonnement : "
             "tu ouvres ton compte chez un de mes brokers partenaires avec mon lien, tu fais ton dépôt, et le VIP est gratuit.",
             f"Écris-moi sur WhatsApp, je te remets dedans rapidement 👉 {WHATSAPP_LINK}",
+            call_line,
         ]
     elif category == "chaud":
         parts = [
@@ -1032,6 +1034,7 @@ def build_draft(row: sqlite3.Row, name: str | None = None, now: datetime | None 
             "je t’envoie le lien du broker, je te guide pour le dépôt et j’active ton accès au VIP.",
             f"👉 Écris-moi ici : {WHATSAPP_LINK}",
             free_line,
+            call_line,
         ]
     elif category == "tiede":
         parts = [
@@ -1040,6 +1043,7 @@ def build_draft(row: sqlite3.Row, name: str | None = None, now: datetime | None 
             "écris-moi sur WhatsApp : je t’explique comment entrer et je t’accompagne pour la mise en place.",
             f"👉 {WHATSAPP_LINK}",
             free_line,
+            call_line,
         ]
     else:
         parts = [
@@ -1049,6 +1053,7 @@ def build_draft(row: sqlite3.Row, name: str | None = None, now: datetime | None 
             "Le plus simple pour entrer : tu ouvres ton compte chez un de mes brokers partenaires avec mon lien, tu fais ton dépôt, "
             "et le VIP est gratuit, sans abonnement. Tu peux aussi passer par l’abonnement si tu préfères.",
             f"Écris-moi sur WhatsApp, je te mets en place en quelques minutes 👉 {WHATSAPP_LINK}",
+            call_line,
             "Et si ce n’est plus d’actualité, dis-le-moi simplement, je ne te relancerai plus.",
         ]
     parts.append("(Le trading comporte un risque de perte.)")

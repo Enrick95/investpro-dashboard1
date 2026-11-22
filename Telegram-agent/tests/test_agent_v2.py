@@ -275,6 +275,11 @@ def test_each_category_gets_a_message_that_pushes_to_join_through_whatsapp():
     assert warm.startswith("Salut Sarah, désolé pour le retour tardif !") and "rejoindre le VIP" in warm
     hot = cli.build_draft(draft_row("Karim", status="infos_broker_demandees"), now=now)
     assert hot.startswith("Salut Karim ! 👋") and "lien du broker" in hot and "Écris-moi ici : https://investprotrading.fr/whatsapp" in hot
+    abo = cli.build_draft(draft_row("Lina", status="a_verifier") | {"join_hint": "abonnement"}, now=now)
+    assert abo.startswith("Salut Lina, ça fait un moment !")
+    for text in (cold, warm, hot, abo):
+        assert "Si besoin, on peut aussi se faire un petit appel pour en parler." in text and "minutes" not in text.split("petit appel")[1]
+    assert cold.count("si tu préfères") == 1, "pas deux fois la même tournure dans le message froid"
     for text in (cold, warm, hot):
         assert "essai" not in text and "démo" not in text and "30 novembre" not in text, "on pousse à rejoindre, pas à tester"
         assert text.endswith("(Le trading comporte un risque de perte.)")
