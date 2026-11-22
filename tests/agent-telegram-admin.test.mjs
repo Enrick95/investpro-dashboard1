@@ -46,3 +46,13 @@ test("investprotrading.fr/whatsapp opens Enrick's WhatsApp with a message saying
   // Le numéro est celui déjà affiché sur la page business.
   assert.ok(fs.readFileSync(path.join(root, "public/business-assets/lead-flow.js"), "utf8").includes('whatsappNumber: "6285128115218"'));
 });
+
+test("investprotrading.fr/whatsapp-vip, for Telegram channel posts, says the person comes from the channel and wants the VIP", () => {
+  const config = fs.readFileSync(path.join(root, "next.config.ts"), "utf8");
+  assert.match(config, /\{source:"\/whatsapp-vip",destination:WHATSAPP_VIP,permanent:false\}/);
+  assert.match(config, /const WHATSAPP_VIP="https:\/\/wa\.me\/6285128115218\?text="\+encodeURIComponent\(WHATSAPP_VIP_TEXT\);/);
+  const text = config.match(/const WHATSAPP_VIP_TEXT="([^"]+)";/)[1];
+  assert.match(text, /canal Telegram/);
+  assert.match(text, /rejoindre le VIP/);
+  assert.ok(!/[()*:{}]/.test(text), "no character that the redirect pattern would misread");
+});
