@@ -1,0 +1,134 @@
+/* Thème « /vip » pour /vip/deja-membre (et /vip/nouveau-membre) : le même univers que investprotrading.fr/vip.
+   Biotif, noir profond, cuivre et champagne, boutons à liseré lumineux. Actif quand <html> porte « ipv5 » en plus de « iplogo ».
+   Seul l'habillage change : textes, étapes et fonctionnement de la page restent les mêmes. */
+@font-face{font-family:Biotif;src:url("/business-assets/biotif-400.woff2") format("woff2");font-weight:400;font-display:swap}
+@font-face{font-family:Biotif;src:url("/business-assets/biotif-700.woff2") format("woff2");font-weight:700;font-display:swap}
+@property --neon{syntax:"<angle>";inherits:false;initial-value:0deg}
+
+html.ipv5.iplogo{
+  --bg:#080909;--card:#111413;--card2:#151817;
+  --gold:#e6c9aa;--gold2:#cf865f;--teal:#e2ddd4;
+  --fg:#f5f2eb;--muted:#aaa9a2;--soft:#e2ddd4;--dim:#8c8d85;--text:#b7b6af;
+  --line:rgba(255,255,255,.11);--line2:rgba(255,255,255,.11);
+  --copper:#cf865f;--champagne:#e6c9aa;--copper-ink:#ecd6bc;--copper-soft:rgba(207,134,95,.09);--copper-line:rgba(207,134,95,.5);
+  --accent:linear-gradient(108deg,#bd7957 0%,#e2c2a4 48%,#d6d8cf 76%,#c17e59 100%);
+  --surface:linear-gradient(125deg,#171a19,#0c0f0e);
+  --metal-gold:var(--accent);--metal-silver:linear-gradient(#f5f2eb,#f5f2eb);
+  --sans:Biotif,"Helvetica Neue",Arial,sans-serif;
+  background:#080909;
+}
+html.ipv5.iplogo body{background:var(--bg);font-family:var(--sans);font-size:16px}
+html.ipv5.iplogo :is(h1,h2,h3,.sec-t,.flow-top strong,.ring b,.logo,.btn,.back,input,select,textarea,.bk,.mini,.linkbtn,label,.apercu-bar,.who,.code){font-family:var(--sans)}
+html.ipv5.iplogo a{color:var(--copper-ink)}
+html.ipv5.iplogo :focus-visible{outline-color:var(--champagne)}
+
+/* Fond : le halo cuivré de /vip, sans l'art de la bannière */
+html.ipv5.iplogo .ipbg{display:none}
+html.ipv5.iplogo body::before{display:block;background:radial-gradient(ellipse 70% 52% at 50% -4%,rgba(207,134,95,.17),rgba(207,134,95,0) 70%)}
+html.ipv5.iplogo .apercu-bar{background:var(--accent);color:#170f0a;font-family:var(--sans)}
+
+/* En-tête : ENRICK 95 VIP, comme sur /vip */
+html.ipv5.iplogo .head{padding:18px 0;border-bottom:1px solid var(--line);margin-bottom:8px}
+html.ipv5.iplogo .logo{display:inline-flex;align-items:baseline;gap:9px;font-size:12px;font-weight:700;letter-spacing:.24em;color:var(--fg);text-decoration:none;white-space:nowrap}
+html.ipv5.iplogo .logo::before,html.ipv5.iplogo .logo::after{display:none}
+html.ipv5.iplogo .logo b{color:var(--copper);font-weight:700}
+html.ipv5.iplogo .who{height:38px;padding:0 15px;border:1px solid var(--copper-line);border-radius:999px;background:linear-gradient(140deg,rgba(240,216,187,.08),rgba(213,165,116,.02) 50%,rgba(255,255,255,.01));color:var(--copper-ink);font-size:12.5px;font-weight:700}
+html.ipv5.iplogo .who i{background:var(--dim)}
+html.ipv5.iplogo .who.on i{background:#49d783;animation:none;box-shadow:0 0 10px rgba(73,215,131,.6)}
+
+/* Petits titres : cuivre, un trait devant */
+html.ipv5.iplogo .k{display:inline-flex;align-items:center;gap:12px;font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--copper)}
+html.ipv5.iplogo .hero .k{margin-top:26px;padding:0;background:none;border:0}
+html.ipv5.iplogo .hero .k::before,html.ipv5.iplogo .sec>.k::before{content:"";flex:0 0 26px;width:26px;height:1px;border-radius:0;background:currentColor;opacity:.85;animation:none}
+html.ipv5.iplogo .hero .k::after,html.ipv5.iplogo .sec>.k::after{display:none}
+
+/* Titres : en gras, la fin en dégradé cuivre, comme « chaque jour. » */
+html.ipv5.iplogo h1{margin-top:16px;font-weight:700;font-size:clamp(42px,12vw,66px);line-height:.98;letter-spacing:-.052em}
+html.ipv5.iplogo h1 .word{background:none;-webkit-text-fill-color:currentColor;color:var(--fg);padding-bottom:.06em}
+html.ipv5.iplogo .shine{background:var(--accent);background-size:100% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;font-weight:400;letter-spacing:-.036em;animation:none}
+html.ipv5.iplogo .win h1{background:none;-webkit-text-fill-color:currentColor;color:var(--fg)}
+html.ipv5.iplogo h2{font-weight:700;letter-spacing:-.035em;color:var(--fg)}
+html.ipv5.iplogo .sec-t{font-weight:700;font-size:clamp(26px,7vw,32px);line-height:1.05;letter-spacing:-.04em;color:var(--fg)}
+html.ipv5.iplogo :is(.lead,.vcard-cap,.card-cap){color:var(--text);text-shadow:none}
+html.ipv5.iplogo .hero .lead{font-size:16px;line-height:1.7}
+
+/* La carte membre garde son dessin ; le halo derrière devient cuivré */
+html.ipv5.iplogo .hero-card::before,html.ipv5.iplogo #intro .vcard-wrap::before{background:radial-gradient(closest-side,rgba(207,134,95,.3),transparent)}
+
+/* Le parcours : un fil cuivré et des numéros ronds, comme les étapes de /vip */
+html.ipv5.iplogo .road::before{background:rgba(207,134,95,.18)}
+html.ipv5.iplogo .road::after{background:linear-gradient(var(--copper),var(--champagne));box-shadow:0 0 10px rgba(207,134,95,.45)}
+html.ipv5.iplogo .road .ri{border-radius:50%;background:#0c0e0d;border:1px solid rgba(207,134,95,.55)}
+html.ipv5.iplogo .road .ri svg{stroke:var(--copper)}
+html.ipv5.iplogo .road li:last-child .ri{background:var(--copper-soft);border-color:var(--copper)}
+html.ipv5.iplogo .road b{font-size:16px;letter-spacing:-.01em}
+html.ipv5.iplogo .road small{font-size:14px;color:var(--muted)}
+
+/* Blocs : la surface sombre et le liseré clair des cartes de /vip */
+html.ipv5.iplogo :is(.panel,.priv,.perk,.soon,.tip,.quote,.proto,.install-final){border:1px solid rgba(255,255,255,.13);border-radius:22px;background:var(--surface);box-shadow:0 30px 80px rgba(0,0,0,.45)}
+html.ipv5.iplogo .panel::before{background:linear-gradient(90deg,transparent,var(--copper),transparent)}
+html.ipv5.iplogo .priv small,html.ipv5.iplogo .tgbox p{color:var(--muted)}
+html.ipv5.iplogo :is(.ph .pi,.soon .pi,.perk .pi,.al .pi,.priv .pi,.tip .pi){border-radius:50%;background:linear-gradient(140deg,rgba(240,216,187,.12),rgba(213,165,116,.03) 50%,rgba(255,255,255,.02));border:1px solid var(--copper-line)}
+html.ipv5.iplogo svg[stroke="#91D6D0"],html.ipv5.iplogo svg[stroke="#DADDE1"]{stroke:var(--champagne)}
+html.ipv5.iplogo .perk.big{background:linear-gradient(140deg,rgba(207,134,95,.13),rgba(207,134,95,.02) 70%);border-color:var(--copper-line)}
+html.ipv5.iplogo .note{color:var(--dim);font-size:13.5px}
+html.ipv5.iplogo .note a{color:var(--copper-ink)}
+
+/* Bouton principal : la pilule sombre au liseré cuivré qui tourne */
+html.ipv5.iplogo .btn{border-radius:999px;font-weight:400;font-size:16.5px;letter-spacing:-.005em;min-height:58px}
+html.ipv5.iplogo .btn-gold{isolation:isolate;overflow:hidden;border:1px solid rgba(255,255,255,.14);background:#100d0a;color:#f5f2ec;animation:none;box-shadow:0 6px 20px rgba(0,0,0,.5),0 0 20px rgba(220,152,111,.24),inset 0 1px 0 rgba(255,255,255,.12)}
+html.ipv5.iplogo .btn-gold::before{content:"";position:absolute;inset:0;z-index:-2;padding:2px;border-radius:inherit;background:conic-gradient(from var(--neon),transparent 0deg 258deg,#e2aa89 282deg,#fff 302deg,#dd9c75 328deg,transparent 354deg);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude;filter:drop-shadow(0 0 5px #e0a480) drop-shadow(0 0 12px rgba(220,152,111,.68));animation:v5neon 3.2s linear infinite;pointer-events:none}
+html.ipv5.iplogo .btn-gold::after{content:"";position:absolute;inset:2px;left:2px;top:2px;width:auto;height:auto;z-index:-1;border-radius:inherit;background:linear-gradient(112deg,#211811,#100d0b 65%,#0b0b0a);transform:none;animation:none}
+html.ipv5.iplogo .btn-gold .go{display:grid;place-items:center;flex:0 0 34px;width:34px;height:34px;border:1px solid rgba(231,201,165,.42);border-radius:50%;background:linear-gradient(140deg,rgba(240,216,187,.125),rgba(213,165,116,.03) 50%,rgba(255,255,255,.02));color:var(--copper-ink);font-size:15px;animation:none}
+html.ipv5.iplogo .btn-gold:hover{filter:brightness(1.08)}
+html.ipv5.iplogo .btn[disabled]::before{animation:none}
+html.ipv5.iplogo .btn-ghost{min-height:52px;font-size:15px;border:1px solid rgba(255,255,255,.17);background:rgba(255,255,255,.03);color:var(--fg)}
+html.ipv5.iplogo .btn-teal{background:var(--accent);color:#170f0a;box-shadow:none}
+html.ipv5.iplogo .mini{border-radius:999px;background:var(--accent);color:#170f0a;font-weight:700}
+html.ipv5.iplogo .mini.ghost{background:rgba(255,255,255,.03);color:var(--fg);border:1px solid rgba(255,255,255,.17)}
+html.ipv5.iplogo .back{color:var(--muted);font-weight:400}
+@keyframes v5neon{to{--neon:360deg}}
+
+/* Barre du bas, comme le bouton fixe de /vip sur téléphone */
+html.ipv5.iplogo .sticky{background:rgba(8,9,9,.94);border-top:1px solid var(--line);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+
+/* Progression */
+html.ipv5.iplogo #gr stop:first-child{stop-color:#cf865f}
+html.ipv5.iplogo #gr stop:last-child{stop-color:#e6c9aa}
+html.ipv5.iplogo .ring .bgc{stroke:#1d201f}
+html.ipv5.iplogo .flow-top small{letter-spacing:.14em;font-size:10.5px;color:var(--label,#a7a69e)}
+html.ipv5.iplogo .flow-top strong{font-weight:700;font-size:19px;letter-spacing:-.02em}
+html.ipv5.iplogo .chips i{background:#262928}
+html.ipv5.iplogo .chips i.ok{background:var(--champagne)}
+html.ipv5.iplogo .chips i.on{background:var(--copper)}
+
+/* Champs : ceux de /vip/rejoindre */
+html.ipv5.iplogo label{font-size:14px;font-weight:700;color:var(--fg)}
+html.ipv5.iplogo :is(input,select){border-radius:14px;background:#0e1110;border:1px solid rgba(255,255,255,.12);font-weight:400;color:var(--fg)}
+html.ipv5.iplogo :is(input,select):focus{border-color:var(--copper);box-shadow:0 0 0 3px rgba(207,134,95,.18)}
+html.ipv5.iplogo :is(input,select):focus-visible{outline:none}
+html.ipv5.iplogo label.consent{font-size:13.5px;font-weight:400;line-height:1.55;color:var(--soft);background:var(--copper-soft);border:1px solid var(--copper-line);border-radius:16px}
+html.ipv5.iplogo .code{font-weight:700;letter-spacing:.04em}
+html.ipv5.iplogo input::placeholder{color:#6f706a}
+html.ipv5.iplogo .help{font-size:13px;color:var(--muted)}
+html.ipv5.iplogo :is(.help a,.help button,.linkbtn){color:var(--copper-ink)}
+html.ipv5.iplogo .opt{border-color:rgba(255,255,255,.14);color:var(--dim)}
+html.ipv5.iplogo :is(.kd,.pl,.bk,.seg,.recap,.tick,.codebox,.al){border-radius:16px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.12)}
+html.ipv5.iplogo .bk span{border-radius:50%;background:rgba(255,255,255,.04);color:var(--champagne)}
+html.ipv5.iplogo :is(.kd,.pl,.bk,.seg button)[aria-pressed=true]{border-color:var(--copper);background:var(--copper-soft);box-shadow:inset 0 0 0 .5px var(--copper)}
+html.ipv5.iplogo .bk[aria-pressed=true] span{background:var(--accent);color:#170f0a}
+html.ipv5.iplogo :is(.login-box,.hint){border-radius:16px;background:var(--copper-soft);border:1px solid var(--copper-line)}
+html.ipv5.iplogo .req{background:var(--accent);color:#170f0a}
+html.ipv5.iplogo .code{background:var(--accent);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:none}
+html.ipv5.iplogo :is(.badge-ok,.on-badge){border-color:var(--copper-line);color:var(--copper-ink);background:var(--copper-soft);animation:none}
+html.ipv5.iplogo .tgbox::before{background:conic-gradient(from 0deg,transparent 0 70%,rgba(207,134,95,.6) 80%,transparent 90%)}
+html.ipv5.iplogo .tgbox::after{background:#0e1110}
+html.ipv5.iplogo .tl::before{background:rgba(207,134,95,.2)}
+html.ipv5.iplogo .tl .d i{background:var(--accent);color:#170f0a}
+html.ipv5.iplogo .tl .c i{background:#080909}
+html.ipv5.iplogo .radar::after{border-color:var(--copper-line)}
+html.ipv5.iplogo .radar span{background:linear-gradient(145deg,#171a19,#0c0f0e);border-color:var(--copper-line)}
+html.ipv5.iplogo .install-final{border-color:var(--copper-line);background:linear-gradient(145deg,rgba(207,134,95,.09),rgba(255,255,255,.02))}
+
+@media (min-width:900px){html.ipv5.iplogo h1{font-size:70px}}
+@media (prefers-reduced-motion:reduce){html.ipv5.iplogo .btn-gold::before{animation:none}}
