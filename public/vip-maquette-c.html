@@ -312,7 +312,19 @@ html:has(.zoom[open]){overflow:hidden}
 .ph.is-swapping .ph-page{opacity:.15}
 .ph-note{display:flex;flex-direction:column;align-items:center;gap:4px;margin-top:18px;font-size:12px;line-height:1.5;color:var(--dim);text-align:center}
 .ph-note b{font-weight:700;color:var(--soft)}
-@media (prefers-reduced-motion:reduce){.ph-page{transition:none}}
+/* Pour qu'on comprenne qu'on peut toucher l'écran : une étiquette au-dessus du téléphone et un rond qui clignote à l'endroit où appuyer */
+.tap-hint{display:inline-flex;align-items:center;gap:10px;margin:0 0 18px;padding:11px 18px;border-radius:999px;background:var(--champagne);color:#1a120c;font-size:14px;line-height:1.25;font-weight:700;letter-spacing:-.01em;text-align:left;box-shadow:0 12px 34px -12px rgba(230,201,170,.6)}
+.tap-hint svg{display:block;flex:0 0 auto;width:19px;height:19px}
+.tap-pulse{position:absolute;z-index:3;width:calc(48 * var(--u));height:calc(48 * var(--u));margin:calc(-24 * var(--u)) 0 0 calc(-24 * var(--u));pointer-events:none;transition:opacity .4s}
+.tap-pulse i{position:absolute;inset:0;border:calc(3 * var(--u)) solid var(--champagne);border-radius:50%;box-shadow:0 0 calc(20 * var(--u)) rgba(230,201,170,.6);animation:tapRing 1.5s ease-out infinite}
+.tap-pulse::after{content:"";position:absolute;left:50%;top:50%;width:calc(12 * var(--u));height:calc(12 * var(--u));margin:calc(-6 * var(--u)) 0 0 calc(-6 * var(--u));border-radius:50%;background:var(--champagne)}
+.tap-label{position:absolute;bottom:calc(100% + 12 * var(--u));left:50%;transform:translateX(-50%);padding:calc(7 * var(--u)) calc(12 * var(--u));border-radius:999px;background:var(--champagne);color:#1a120c;font:700 calc(15 * var(--u))/1 var(--sans);white-space:nowrap;box-shadow:0 6px 18px rgba(0,0,0,.5)}
+.tap-label::after{content:"";position:absolute;top:100%;left:50%;margin-left:calc(-7 * var(--u));border:calc(7 * var(--u)) solid transparent;border-top-color:var(--champagne)}
+.touched .tap-pulse{opacity:0}
+.t-click{display:none}
+@media (hover:hover) and (pointer:fine){.t-touch{display:none}.t-click{display:inline}}
+@keyframes tapRing{0%{transform:scale(.55);opacity:1}100%{transform:scale(1.5);opacity:0}}
+@media (prefers-reduced-motion:reduce){.ph-page{transition:none}.tap-pulse i{animation:none}}
 
 /* Maquette C : la visite de l'espace VIP */
 .screens{display:flex;gap:18px;margin:22px -20px 0;padding:6px 20px 22px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none}

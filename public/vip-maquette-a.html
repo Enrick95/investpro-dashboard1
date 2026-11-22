@@ -312,7 +312,19 @@ html:has(.zoom[open]){overflow:hidden}
 .ph.is-swapping .ph-page{opacity:.15}
 .ph-note{display:flex;flex-direction:column;align-items:center;gap:4px;margin-top:18px;font-size:12px;line-height:1.5;color:var(--dim);text-align:center}
 .ph-note b{font-weight:700;color:var(--soft)}
-@media (prefers-reduced-motion:reduce){.ph-page{transition:none}}
+/* Pour qu'on comprenne qu'on peut toucher l'écran : une étiquette au-dessus du téléphone et un rond qui clignote à l'endroit où appuyer */
+.tap-hint{display:inline-flex;align-items:center;gap:10px;margin:0 0 18px;padding:11px 18px;border-radius:999px;background:var(--champagne);color:#1a120c;font-size:14px;line-height:1.25;font-weight:700;letter-spacing:-.01em;text-align:left;box-shadow:0 12px 34px -12px rgba(230,201,170,.6)}
+.tap-hint svg{display:block;flex:0 0 auto;width:19px;height:19px}
+.tap-pulse{position:absolute;z-index:3;width:calc(48 * var(--u));height:calc(48 * var(--u));margin:calc(-24 * var(--u)) 0 0 calc(-24 * var(--u));pointer-events:none;transition:opacity .4s}
+.tap-pulse i{position:absolute;inset:0;border:calc(3 * var(--u)) solid var(--champagne);border-radius:50%;box-shadow:0 0 calc(20 * var(--u)) rgba(230,201,170,.6);animation:tapRing 1.5s ease-out infinite}
+.tap-pulse::after{content:"";position:absolute;left:50%;top:50%;width:calc(12 * var(--u));height:calc(12 * var(--u));margin:calc(-6 * var(--u)) 0 0 calc(-6 * var(--u));border-radius:50%;background:var(--champagne)}
+.tap-label{position:absolute;bottom:calc(100% + 12 * var(--u));left:50%;transform:translateX(-50%);padding:calc(7 * var(--u)) calc(12 * var(--u));border-radius:999px;background:var(--champagne);color:#1a120c;font:700 calc(15 * var(--u))/1 var(--sans);white-space:nowrap;box-shadow:0 6px 18px rgba(0,0,0,.5)}
+.tap-label::after{content:"";position:absolute;top:100%;left:50%;margin-left:calc(-7 * var(--u));border:calc(7 * var(--u)) solid transparent;border-top-color:var(--champagne)}
+.touched .tap-pulse{opacity:0}
+.t-click{display:none}
+@media (hover:hover) and (pointer:fine){.t-touch{display:none}.t-click{display:inline}}
+@keyframes tapRing{0%{transform:scale(.55);opacity:1}100%{transform:scale(1.5);opacity:0}}
+@media (prefers-reduced-motion:reduce){.ph-page{transition:none}.tap-pulse i{animation:none}}
 
 /* Maquette A : le téléphone suit les étapes */
 .tour{display:flex;flex-direction:column;gap:28px}
@@ -328,10 +340,11 @@ html:has(.zoom[open]){overflow:hidden}
 .tour-step .short{font-size:13.5px;font-style:normal;font-weight:700;letter-spacing:-.01em}
 .tour-step.on{border-color:var(--copper-line);background:var(--copper-soft);color:var(--ink)}
 .tour-desc{display:flex;flex-direction:column;gap:8px;min-height:120px}
+.tour-pick{margin:4px 0 -14px;font-size:14px;font-weight:700;color:var(--soft)}
 .tour-desc h3{font-size:25px;line-height:1.1;letter-spacing:-.035em}
 .tour-desc p{font-size:15px;line-height:1.7;color:var(--mute)}
 @media (min-width:960px){
-  .tour{display:grid;grid-template-columns:minmax(0,1fr) 360px;grid-template-areas:"intro device" "steps device";column-gap:88px;row-gap:42px;align-items:start}
+  .tour{display:grid;grid-template-columns:minmax(0,1fr) 400px;grid-template-areas:"intro device" "steps device";column-gap:72px;row-gap:42px;align-items:start}
   .tour-intro{grid-area:intro}
   .tour-device{grid-area:device;position:sticky;top:92px}
   .tour-device .ph{--pw:300px}
@@ -346,8 +359,9 @@ html:has(.zoom[open]){overflow:hidden}
   .tour-step small{display:block;padding-top:9px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--label)}
   .tour-step b{display:block;margin-top:10px;font-size:29px;line-height:1.08;letter-spacing:-.035em;color:var(--ink)}
   .tour-step .t{display:block;margin-top:10px;font-size:16px;line-height:1.7;color:var(--mute)}
-  .tour-desc{display:none}
+  .tour-desc,.tour-pick{display:none}
 }
+@media (min-width:960px) and (max-height:880px){.tour-device .ph{--pw:262px}}
 
 </style>
 </head>
@@ -414,12 +428,14 @@ html:has(.zoom[open]){overflow:hidden}
       <div class="tour-intro">
         <p class="kicker">Dans le VIP</p>
         <h2 id="vip-titre">Chaque trade,<br><em>de l'entrée à la clôture.</em></h2>
-        <p class="sec-lede">Tout se passe dans ton espace VIP, sur ton téléphone. Choisis une étape pour la voir à l’écran, ou touche l’écran pour naviguer.</p>
+        <p class="sec-lede">Tout se passe dans ton espace VIP, sur ton téléphone : les signaux, le suivi de chaque trade, mes analyses et ton journal.</p>
       </div>
       <div class="tour-device">
-        <div class="ph " id="phoneA" data-phone data-screen="signaux"><div class="ph-screen"><span class="ph-island" aria-hidden="true"></span><div class="ph-status" aria-hidden="true"><span>16:05</span><span class="ph-icons"><svg viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5.5" width="3" height="6.5" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg><svg viewBox="0 0 16 12"><path d="M8 11.5 5.6 9a3.4 3.4 0 0 1 4.8 0z"/><path d="M3.4 6.9a6.5 6.5 0 0 1 9.2 0l-1.4 1.4a4.5 4.5 0 0 0-6.4 0z"/><path d="M1.2 4.7a9.6 9.6 0 0 1 13.6 0l-1.4 1.4a7.6 7.6 0 0 0-10.8 0z"/></svg><svg viewBox="0 0 27 12"><rect x=".5" y=".5" width="23" height="11" rx="3.2" fill="none" stroke="currentColor" opacity=".45"/><rect x="2" y="2" width="18" height="8" rx="2"/><path d="M25 4v4a2 2 0 0 0 0-4z" opacity=".5"/></svg></span></div><div class="ph-scroll" tabindex="0" aria-label="Écran de l’espace VIP, fais défiler"><div class="ph-page"><img src="/vip-assets/espace/signaux.webp" width="390" height="1386" alt="Écran Signaux : deux trades en cours, EURUSD et XAUUSD, avec les niveaux et le lot calculé pour le compte du membre" loading="lazy" decoding="async"></div></div><div class="ph-nav"><div class="ph-navimg"><img src="/vip-assets/espace/nav-signaux.webp" width="390" height="71" alt="" loading="lazy" decoding="async"></div><span class="ph-home" aria-hidden="true"></span></div></div></div>
+        <p class="tap-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 14a8 8 0 0 1-8 8"/><path d="M18 11v-1a2 2 0 0 0-4 0"/><path d="M14 10V9a2 2 0 0 0-4 0v1"/><path d="M10 9.5V4a2 2 0 0 0-4 0v10"/><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg><span class="t-touch">Touche l’écran pour explorer l’appli</span><span class="t-click">Clique sur l’écran pour explorer l’appli</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg></p>
+        <div class="ph " id="phoneA" data-phone data-screen="signaux"><div class="ph-screen"><span class="ph-island" aria-hidden="true"></span><div class="ph-status" aria-hidden="true"><span>16:05</span><span class="ph-icons"><svg viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5.5" width="3" height="6.5" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg><svg viewBox="0 0 16 12"><path d="M8 11.5 5.6 9a3.4 3.4 0 0 1 4.8 0z"/><path d="M3.4 6.9a6.5 6.5 0 0 1 9.2 0l-1.4 1.4a4.5 4.5 0 0 0-6.4 0z"/><path d="M1.2 4.7a9.6 9.6 0 0 1 13.6 0l-1.4 1.4a7.6 7.6 0 0 0-10.8 0z"/></svg><svg viewBox="0 0 27 12"><rect x=".5" y=".5" width="23" height="11" rx="3.2" fill="none" stroke="currentColor" opacity=".45"/><rect x="2" y="2" width="18" height="8" rx="2"/><path d="M25 4v4a2 2 0 0 0 0-4z" opacity=".5"/></svg></span></div><div class="ph-scroll" tabindex="0" aria-label="Écran de l’espace VIP, fais défiler"><div class="ph-page"><img src="/vip-assets/espace/signaux.webp" width="390" height="1386" alt="Écran Signaux : deux trades en cours, EURUSD et XAUUSD, avec les niveaux et le lot calculé pour le compte du membre" loading="lazy" decoding="async"></div></div><div class="ph-nav"><div class="ph-navimg"><img src="/vip-assets/espace/nav-signaux.webp" width="390" height="71" alt="" loading="lazy" decoding="async"><span class="tap-pulse" style="left:30.77%;top:35.9%" aria-hidden="true"><i></i><b class="tap-label"><span class="t-touch">Touche ici</span><span class="t-click">Clique ici</span></b></span></div><span class="ph-home" aria-hidden="true"></span></div></div></div>
         <p class="ph-note"><b>L’espace VIP, tel qu’il s’affiche sur ton téléphone</b><span>Contenu d’exemple</span></p>
       </div>
+      <p class="tour-pick">Ou choisis une étape :</p>
       <ol class="tour-steps" aria-label="Les étapes d’un trade dans le VIP"><li><button class="tour-step on" type="button" data-show="signaux" aria-pressed="true" aria-controls="phoneA"><span class="n" aria-hidden="true">01</span><span class="tour-copy"><small>Le signal</small><i class="short">Signal</i><b>Recevoir chaque signal</b><span class="t">Actif, sens, entrée, stop et objectifs, avec une notification sur ton téléphone. Ton lot est déjà calculé pour ton compte.</span></span></button></li><li><button class="tour-step" type="button" data-show="fil-gold" aria-pressed="false" aria-controls="phoneA"><span class="n" aria-hidden="true">02</span><span class="tour-copy"><small>Le suivi</small><i class="short">Suivi</i><b>Suivre chaque trade</b><span class="t">Objectif touché, stop remonté au point d’entrée, clôture : tu vois tout en direct, jusqu’au résultat.</span></span></button></li><li><button class="tour-step" type="button" data-show="canal" aria-pressed="false" aria-controls="phoneA"><span class="n" aria-hidden="true">03</span><span class="tour-copy"><small>Les analyses</small><i class="short">Analyses</i><b>Lire mes analyses</b><span class="t">Mes analyses en H4 avec le graphique, au même endroit que les signaux et les suivis.</span></span></button></li><li><button class="tour-step" type="button" data-show="journal" aria-pressed="false" aria-controls="phoneA"><span class="n" aria-hidden="true">04</span><span class="tour-copy"><small>La progression</small><i class="short">Journal</i><b>Suivre ta progression</b><span class="t">Ton journal de trading, jour par jour, à côté des signaux du VIP. Et le calculateur de lot pour gérer ton risque.</span></span></button></li></ol>
       <div class="tour-desc" aria-live="polite"><h3>Recevoir chaque signal</h3><p>Actif, sens, entrée, stop et objectifs, avec une notification sur ton téléphone. Ton lot est déjà calculé pour ton compte.</p></div>
     </div>
@@ -734,6 +750,12 @@ html:has(.zoom[open]){overflow:hidden}
   }
   steps.forEach(function(b){ b.addEventListener("click", function(){ phone.phoneShow(b.getAttribute("data-show")); mark(b.getAttribute("data-show")); }); });
   phone.addEventListener("phone:screen", function(e){ mark(e.detail); });
+  // Dès que la personne touche le téléphone, fait défiler son écran ou choisit une étape, le rond qui clignote s'efface.
+  var tour = document.querySelector(".tour");
+  function touched(){ tour.classList.add("touched"); }
+  phone.addEventListener("click", touched);
+  phone.querySelector(".ph-scroll").addEventListener("scroll", touched, { passive: true });
+  steps.forEach(function(b){ b.addEventListener("click", touched); });
   // Sur ordinateur, l'écran suit l'étape qui passe au milieu de la fenêtre.
   var wide = window.matchMedia("(min-width:960px)");
   if ("IntersectionObserver" in window) {
