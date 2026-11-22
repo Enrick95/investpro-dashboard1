@@ -1056,7 +1056,6 @@ def build_draft(row: sqlite3.Row, name: str | None = None, now: datetime | None 
             call_line,
             "Et si ce n’est plus d’actualité, dis-le-moi simplement, je ne te relancerai plus.",
         ]
-    parts.append("(Le trading comporte un risque de perte.)")
     return "\n\n".join(parts)
 
 

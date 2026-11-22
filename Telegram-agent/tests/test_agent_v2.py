@@ -279,10 +279,11 @@ def test_each_category_gets_a_message_that_pushes_to_join_through_whatsapp():
     assert abo.startswith("Salut Lina, ça fait un moment !")
     for text in (cold, warm, hot, abo):
         assert "Si besoin, on peut aussi se faire un petit appel pour en parler." in text and "minutes" not in text.split("petit appel")[1]
+        assert "risque de perte" not in text, "pas de mention de risque dans les relances"
     assert cold.count("si tu préfères") == 1, "pas deux fois la même tournure dans le message froid"
+    assert cold.endswith("je ne te relancerai plus.") and hot.endswith("pour en parler.")
     for text in (cold, warm, hot):
         assert "essai" not in text and "démo" not in text and "30 novembre" not in text, "on pousse à rejoindre, pas à tester"
-        assert text.endswith("(Le trading comporte un risque de perte.)")
     assert cli.build_draft(draft_row("Telegram 12345")).startswith("Salut, j’espère")
     assert cli.first_name_from("🔥karim 95") == "Karim"
     assert cli.first_name_from("M.") is None
