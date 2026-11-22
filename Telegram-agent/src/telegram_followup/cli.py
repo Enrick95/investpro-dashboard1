@@ -5,6 +5,7 @@ import getpass
 import hashlib
 import json
 import os
+import re
 import sqlite3
 import sys
 import unicodedata
@@ -182,7 +183,9 @@ def first_name_from(display_name: str | None) -> str | None:
     name = (display_name or "").strip()
     if not name or (name.startswith("Telegram ") and name[9:].isdigit()):
         return None
-    token = name.split()[0]
+    # « Sarah_fx », « karim.95 » ou « 🔥Karim » : le prénom s’arrête au tiret bas, au point, aux chiffres et aux symboles.
+    words = re.sub(r"[_.\d]+", " ", name).split()
+    token = next((word for word in words if any(ch.isalpha() for ch in word)), "")
     cleaned = "".join(ch for ch in token if ch.isalpha() or ch in "-'’").strip("-'’")
     if len(cleaned) < 2 or normalize(cleaned) in NOT_FIRST_NAMES:
         return None
@@ -1041,7 +1044,8 @@ def build_draft(row: sqlite3.Row, name: str | None = None, now: datetime | None 
             f"Salut {first} ! 👋" if first else "Salut ! 👋",
             f"Tu m’avais demandé des infos pour rejoindre le VIP, je reviens vers toi. Entre-temps, j’ai mis en place {infra}.",
             f"N’hésite pas à passer sur le site pour voir à quoi ressemble le VIP 👉 {VIP_PAGE_LINK}",
-            "Pour aller plus vite, je t’ai ouvert un WhatsApp : je t’envoie le lien du broker, je te guide pour le dépôt et j’active ton accès au VIP.",
+            "Si tu veux toujours le rejoindre, c’est le bon moment. On s’en occupe ensemble sur WhatsApp : "
+            "je t’envoie le lien du broker, je te guide pour le dépôt et j’active ton accès.",
             f"👉 Écris-moi ici : {WHATSAPP_LINK}",
             free_line,
             call_line,
