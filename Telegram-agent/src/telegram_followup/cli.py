@@ -37,6 +37,8 @@ DEFAULT_SITE = "https://investprotrading.fr/vip"
 WHATSAPP_LINK = os.getenv("TG_AGENT_WHATSAPP_LINK", "https://investprotrading.fr/whatsapp")
 # L’essai VIP gratuit sur compte démo s’arrête le 30 novembre 2026 à minuit (heure de Paris).
 ESSAI_END = datetime(2026, 11, 30, 23, 59, 59, tzinfo=timezone(timedelta(hours=1)))
+# Offre du moment pour les anciens abonnés : l’abonnement à -25 %, jusqu’au 30 novembre (heure de Paris). Après, la phrase disparaît des relances.
+SUBSCRIPTION_OFFER_END = datetime(2026, 11, 30, 23, 59, 59, tzinfo=timezone(timedelta(hours=1)))
 # Notifications officielles de Telegram : jamais des prospects.
 TELEGRAM_SERVICE_IDS = {777000, 42777}
 DAILY_SEND_LIMIT = 100
@@ -1019,19 +1021,24 @@ def build_draft(row: sqlite3.Row, name: str | None = None, now: datetime | None 
     first = name or first_name_from(row["display_name"])
     free_line = "Avec un de mes brokers partenaires, le VIP est gratuit, sans abonnement. Sinon, il y a aussi l’abonnement."
     call_line = "Si besoin, on peut aussi se faire un petit appel pour en parler."
+    infra = "toute une nouvelle infrastructure : les signaux, le copy, le journal de trading et plein d’autres choses"
     if category == "abonne":
-        parts = [
-            f"Salut {first}, ça fait un moment ! 👋" if first else "Salut, ça fait un moment ! 👋",
-            "Tu avais pris l’abonnement VIP. Si tu as envie de revenir, tu peux aussi rejoindre sans abonnement : "
-            "tu ouvres ton compte chez un de mes brokers partenaires avec mon lien, tu fais ton dépôt, et le VIP est gratuit.",
-            f"Écris-moi sur WhatsApp, je te remets dedans rapidement 👉 {WHATSAPP_LINK}",
-            call_line,
-        ]
+        hello = f"Salut {first}, ça fait un moment ! 👋" if first else "Salut, ça fait un moment ! 👋"
+        brokers = ("tu ouvres ton compte chez un de mes brokers partenaires avec mon lien, tu fais ton dépôt, et le VIP est gratuit.")
+        if now <= SUBSCRIPTION_OFFER_END:
+            parts = [
+                hello,
+                "Tu avais pris l’abonnement VIP. Bonne nouvelle si tu veux revenir : en ce moment, l’abonnement est à -25 %, jusqu’au 30 novembre.",
+                "Tu peux aussi rejoindre sans abonnement : " + brokers,
+            ]
+        else:
+            parts = [hello, "Tu avais pris l’abonnement VIP. Si tu as envie de revenir, tu peux aussi rejoindre sans abonnement : " + brokers]
+        parts += [f"Écris-moi sur WhatsApp, je te remets dedans rapidement 👉 {WHATSAPP_LINK}", call_line]
     elif category == "chaud":
         parts = [
             f"Salut {first} ! 👋" if first else "Salut ! 👋",
-            "Tu m’avais demandé des infos pour rejoindre le VIP, je reviens vers toi. Pour aller plus vite, je t’ai ouvert un WhatsApp : "
-            "je t’envoie le lien du broker, je te guide pour le dépôt et j’active ton accès au VIP.",
+            f"Tu m’avais demandé des infos pour rejoindre le VIP, je reviens vers toi. Entre-temps, j’ai mis en place {infra}.",
+            "Pour aller plus vite, je t’ai ouvert un WhatsApp : je t’envoie le lien du broker, je te guide pour le dépôt et j’active ton accès au VIP.",
             f"👉 Écris-moi ici : {WHATSAPP_LINK}",
             free_line,
             call_line,
@@ -1046,14 +1053,13 @@ def build_draft(row: sqlite3.Row, name: str | None = None, now: datetime | None 
             call_line,
         ]
     else:
+        # Les froids : un message court, sans détails sur les brokers ni l’offre. D’abord WhatsApp, puis un appel s’ils le veulent.
         parts = [
             f"Salut {first}, j’espère que tu vas bien !" if first else "Salut, j’espère que tu vas bien !",
-            "On avait échangé il y a quelque temps sur le trading. Je reviens vers toi pour le VIP : tu y retrouves mes analyses "
-            "et mes signaux, et je t’accompagne pour tout mettre en place.",
-            "Le plus simple pour entrer : tu ouvres ton compte chez un de mes brokers partenaires avec mon lien, tu fais ton dépôt, "
-            "et le VIP est gratuit, sans abonnement. Tu peux aussi passer par l’abonnement si tu préfères.",
-            f"Écris-moi sur WhatsApp, je te mets en place en quelques minutes 👉 {WHATSAPP_LINK}",
-            call_line,
+            "On avait échangé il y a quelque temps sur le trading. Depuis, j’ai mis en place toute une nouvelle infrastructure pour le VIP : "
+            "les signaux et mes analyses, le journal de trading, le copy et plein d’autres choses.",
+            f"Si ça t’intéresse, écris-moi sur WhatsApp 👉 {WHATSAPP_LINK}",
+            "Ensuite, si tu veux, on se fait un petit appel pour que je t’explique tout ce que j’ai à disposition et ce que je peux t’apporter.",
             "Et si ce n’est plus d’actualité, dis-le-moi simplement, je ne te relancerai plus.",
         ]
     return "\n\n".join(parts)

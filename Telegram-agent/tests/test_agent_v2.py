@@ -269,21 +269,30 @@ def test_each_category_gets_a_message_that_pushes_to_join_through_whatsapp():
     now = datetime(2026, 11, 22, tzinfo=timezone.utc)
     cold = cli.build_draft(draft_row("JEAN-PIERRE Dupont"), now=now)
     assert cold.startswith("Salut Jean-Pierre, j’espère que tu vas bien !")
-    assert "le VIP est gratuit, sans abonnement" in cold and "l’abonnement si tu préfères" in cold
-    assert "https://investprotrading.fr/whatsapp" in cold and "je ne te relancerai plus" in cold
+    # Les froids : court, la nouvelle infrastructure, WhatsApp puis un appel ; ni broker, ni dépôt, ni offre.
+    for words in ("nouvelle infrastructure", "les signaux et mes analyses", "le journal de trading", "le copy", "https://investprotrading.fr/whatsapp", "petit appel"):
+        assert words in cold, words
+    assert cold.index("WhatsApp") < cold.index("petit appel")
+    for words in ("broker", "dépôt", "abonnement", "-25", "gratuit"):
+        assert words not in cold, words
+    assert cold.endswith("je ne te relancerai plus.")
     warm = cli.build_draft(draft_row("Sarah", outgoing=0), now=now)
     assert warm.startswith("Salut Sarah, désolé pour le retour tardif !") and "rejoindre le VIP" in warm
     hot = cli.build_draft(draft_row("Karim", status="infos_broker_demandees"), now=now)
     assert hot.startswith("Salut Karim ! 👋") and "lien du broker" in hot and "Écris-moi ici : https://investprotrading.fr/whatsapp" in hot
+    assert "nouvelle infrastructure : les signaux, le copy, le journal de trading et plein d’autres choses" in hot
     abo = cli.build_draft(draft_row("Lina", status="a_verifier") | {"join_hint": "abonnement"}, now=now)
     assert abo.startswith("Salut Lina, ça fait un moment !")
-    for text in (cold, warm, hot, abo):
+    assert "l’abonnement est à -25 %, jusqu’au 30 novembre" in abo and "le VIP est gratuit" in abo
+    december = datetime(2026, 12, 1, 9, tzinfo=timezone.utc)
+    later = cli.build_draft(draft_row("Lina", status="a_verifier", days=130) | {"join_hint": "abonnement"}, now=december)
+    assert later.startswith("Salut Lina, ça fait un moment !") and "-25" not in later and "le VIP est gratuit" in later, "l’offre s’arrête le 30 novembre"
+    for text in (warm, hot, abo):
         assert "Si besoin, on peut aussi se faire un petit appel pour en parler." in text and "minutes" not in text.split("petit appel")[1]
+    for text in (cold, warm, hot, abo, later):
         assert "risque de perte" not in text, "pas de mention de risque dans les relances"
-    assert cold.count("si tu préfères") == 1, "pas deux fois la même tournure dans le message froid"
-    assert cold.endswith("je ne te relancerai plus.") and hot.endswith("pour en parler.")
-    for text in (cold, warm, hot):
-        assert "essai" not in text and "démo" not in text and "30 novembre" not in text, "on pousse à rejoindre, pas à tester"
+        assert "essai" not in text and "démo" not in text, "on pousse à rejoindre, pas à tester"
+    assert hot.endswith("pour en parler.")
     assert cli.build_draft(draft_row("Telegram 12345")).startswith("Salut, j’espère")
     assert cli.first_name_from("🔥karim 95") == "Karim"
     assert cli.first_name_from("M.") is None
