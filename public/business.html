@@ -23,6 +23,8 @@
   <script defer src="/business-assets/lead-flow.js"></script>
   <script defer src="/business-assets/business.js?v=20261118-icons1"></script>
   <script defer src="/business-assets/reel.js"></script>
+  <link rel="stylesheet" href="/business-assets/conference.css?v=20261123-1">
+  <script defer src="/business-assets/conference.js?v=20261123-1"></script>
 </head>
 <body>
 <a class="skip-link" href="#business-title">Aller au contenu principal</a><div class="progress" id="progress" aria-hidden="true"></div><div class="topline" aria-hidden="true"></div>
@@ -55,4 +57,21 @@
 </div>
 <dialog class="lightbox" id="testimonial-lightbox" aria-label="Image agrandie"><div class="lightbox-top"><span id="lightbox-count" aria-live="polite"></span><button type="button" data-lightbox-close aria-label="Fermer l’image"><svg class="biz-ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div><img id="lightbox-image" alt=""><div class="lightbox-nav"><button type="button" data-lightbox-prev aria-label="Image précédente"><svg class="biz-ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 12H4m6-6-6 6 6 6"/></svg></button><button type="button" data-lightbox-next aria-label="Image suivante"><svg class="biz-ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 12h16m-6-6 6 6-6 6"/></svg></button></div></dialog>
 
+<!-- Invitation à la prochaine conférence, sans date. Pour la retirer : data-enabled="false". -->
+<dialog id="business-conference" class="biz-conference" aria-labelledby="conference-title" aria-describedby="conference-description" data-enabled="true">
+  <div class="biz-conference-visual">
+    <img src="/business-assets/enrick-portrait-vert.jpg" alt="Enrick 95" width="855" height="1280" loading="lazy" decoding="async">
+    <span class="biz-conference-badge"><span aria-hidden="true"></span>EN LIGNE · GRATUIT</span>
+    <button class="biz-conference-close" type="button" data-conference-close aria-label="Fermer l’invitation à la conférence" autofocus><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+    <span class="biz-conference-signature">UN RENDEZ-VOUS AVEC ENRICK 95</span>
+  </div>
+  <div class="biz-conference-content">
+    <p class="biz-conference-eyebrow">PROCHAINE CONFÉRENCE</p>
+    <h2 id="conference-title">Mon parcours.<br><em>De A à Z, avec toi.</em></h2>
+    <p id="conference-description">Je te raconte mon histoire et les principes qui ont changé ma façon d’aborder les marchés.</p>
+    <div class="biz-conference-next"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M8 3v4M16 3v4M4 10h16"/><rect x="4" y="5" width="16" height="16" rx="3"/><path d="m9 16 2 2 4-4"/></svg><div><strong>Les inscriptions sont ouvertes</strong><span>La date et l’heure seront annoncées très bientôt.</span></div></div>
+    <a class="biz-conference-register" href="https://lekacademy.com/enrick"><span>Je réserve ma place</span><span class="biz-conference-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M7 17 17 7M7 7h10v10"/></svg></span></a>
+    <button class="biz-conference-later" type="button" data-conference-close>Continuer à découvrir mon parcours</button>
+  </div>
+</dialog>
 </body></html>

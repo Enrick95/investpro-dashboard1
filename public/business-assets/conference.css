@@ -1,0 +1,32 @@
+/* Invitation à la prochaine conférence, sans date, aux couleurs cuivre et verre du site. */
+.biz-conference{box-sizing:border-box;width:calc(100% - 32px);max-width:460px;max-height:calc(100dvh - 32px);margin:auto;padding:0;overflow:auto;overscroll-behavior:contain;border:1px solid #c995765c;border-radius:26px;background:#10100f;color:#f4f0e8;font-family:Biotif,Arial,sans-serif;box-shadow:0 32px 100px #000a,inset 0 1px 0 #ffffff1a;color-scheme:dark}
+.biz-conference:not([open]){display:none}
+.biz-conference::backdrop{background:#030505c4;backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)}
+.biz-conference-open{overflow:hidden}
+.biz-conference *{box-sizing:border-box}
+.biz-conference svg{width:22px;height:22px;flex:none;pointer-events:none}
+.biz-conference-visual{position:relative;height:205px;overflow:hidden;background:#24291f}
+.biz-conference-visual:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,#0003,transparent 35%,#10100f 100%);pointer-events:none}
+.biz-conference-visual img{width:100%;height:100%;object-fit:cover;object-position:50% 10%}
+.biz-conference-badge{position:absolute;z-index:1;top:18px;left:20px;display:flex;align-items:center;gap:7px;border:1px solid #f2d7bd3b;border-radius:999px;background:#0b0c0bc7;backdrop-filter:blur(12px);padding:8px 11px;color:#edd2b7;font-size:9px;font-weight:600;letter-spacing:.12em}
+.biz-conference-badge>span{width:5px;height:5px;border-radius:50%;background:#e6b68d;box-shadow:0 0 9px #e6b68d88}
+.biz-conference-close{position:absolute;z-index:2;top:12px;right:12px;display:grid;place-items:center;width:44px;height:44px;border:1px solid #ffffff30;border-radius:50%;background:#111715b3;backdrop-filter:blur(12px);color:#fff;cursor:pointer}
+.biz-conference-signature{position:absolute;z-index:1;bottom:15px;left:26px;color:#e9d1bc;font-size:9px;letter-spacing:.18em;font-weight:600}
+.biz-conference-content{padding:9px 26px 20px}
+.biz-conference-eyebrow{margin:0 0 12px;color:#cd9b7b;font-size:10px;font-weight:600;letter-spacing:.15em}
+.biz-conference h2{margin:0 0 13px;font-size:36px;line-height:1.06;letter-spacing:-.045em;font-weight:600}
+.biz-conference h2 em{font-style:normal;font-weight:400;color:#dfbda1}
+.biz-conference #conference-description{margin:0 0 20px;color:#b6b5ad;font-size:14px;line-height:1.55}
+.biz-conference-next{display:flex;align-items:center;gap:12px;padding:15px 0;margin-bottom:20px;border-top:1px solid #ffffff19;border-bottom:1px solid #ffffff19}
+.biz-conference-next>svg{color:#c99576}
+.biz-conference-next strong{display:block;margin-bottom:4px;font-size:13px;font-weight:500}
+.biz-conference-next div>span{display:block;color:#a7a79f;font-size:12px;line-height:1.45}
+.biz-conference-register{display:flex;align-items:center;justify-content:center;gap:14px;min-height:55px;padding:10px 16px;border:1px solid #c9957699;border-radius:999px;background:linear-gradient(120deg,#443022,#211a14 60%,#161411);color:#f7ecdf;text-decoration:none;font-size:15px;font-weight:500;box-shadow:inset 0 1px 0 #f6dec94d,0 5px 24px #c9957612;transition:border-color .2s,background .2s}
+.biz-conference-arrow{display:grid;place-items:center;width:29px;height:29px;border:1px solid #e7c9a56b;border-radius:50%;background:linear-gradient(140deg,#f0d8bb20,#ffffff05);box-shadow:inset 0 1px 1px #fff3,inset 0 0 0 2px #090b0b50}
+.biz-conference-arrow svg{width:16px;height:16px}
+.biz-conference-register:hover{border-color:#efd7bd;background:linear-gradient(120deg,#513929,#2a2119 60%,#191612)}
+.biz-conference-later{display:block;min-height:44px;margin:8px auto 0;padding:10px 0;border:0;background:none;color:#aaa9a1;font:12px Biotif,Arial,sans-serif;text-decoration:underline;text-underline-offset:4px;cursor:pointer}
+.biz-conference a:focus-visible,.biz-conference button:focus-visible{outline:2px solid #efd7bd;outline-offset:4px}
+@media(max-width:360px){.biz-conference-content{padding:7px 20px 12px}.biz-conference h2{font-size:31px}.biz-conference-visual{height:165px}.biz-conference-signature{left:20px;font-size:8px}.biz-conference-badge{left:14px;font-size:8px}.biz-conference-next{gap:9px}.biz-conference-next strong{font-size:12px}}
+@media(max-height:700px){.biz-conference-visual{height:155px}.biz-conference-content{padding-top:5px}.biz-conference #conference-description{margin-bottom:14px}.biz-conference-next{padding:12px 0;margin-bottom:15px}}
+@media(prefers-reduced-motion:reduce){.biz-conference-register{transition:none}}
