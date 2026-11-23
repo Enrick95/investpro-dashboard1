@@ -39,3 +39,14 @@ test("the invitation opens on arrival once per visit and never over another wind
   assert.match(script, /typeof dialog\.showModal !== 'function'\) return;/);
   assert.ok(!/location\.(assign|replace|href\s*=)/.test(script));
 });
+
+test("from TikTok, the invitation also opens on the access guide, before the site", () => {
+  const access = fs.readFileSync(path.join(root, "public/business-access.html"), "utf8");
+  assert.match(access, /<script defer src="\/business-assets\/conference\.js\?v=[\w-]+"><\/script>/);
+  assert.match(access, /<link rel="stylesheet" href="\/business-assets\/conference\.css\?v=[\w-]+">/);
+  // Même invitation que sur /business, au caractère près (hors commentaire).
+  const dialogOf = page => page.slice(page.indexOf('<dialog id="business-conference"'), page.indexOf("</dialog>", page.indexOf('<dialog id="business-conference"')));
+  assert.equal(dialogOf(access), dialogOf(html));
+  assert.match(access, /<a class="biz-conference-register" href="https:\/\/lekacademy\.com\/enrick">/);
+});
+
