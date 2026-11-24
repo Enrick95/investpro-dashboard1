@@ -40,13 +40,20 @@ test("the invitation opens on arrival once per visit and never over another wind
   assert.ok(!/location\.(assign|replace|href\s*=)/.test(script));
 });
 
-test("from TikTok, the invitation also opens on the access guide, before the site", () => {
+test("under « Je réserve ma place », a button joins Enrick's Telegram", () => {
+  const dialog = html.slice(html.indexOf('<dialog id="business-conference"'), html.lastIndexOf("</dialog>"));
+  assert.match(dialog, /<a class="biz-conference-telegram" href="https:\/\/t\.me\/\+mAcBYu895IxiMTdk" target="_blank" rel="noopener noreferrer"><span>Rejoindre mon Telegram<\/span>/);
+  // Même lien que le bouton « Rejoindre mon Telegram » de la page.
+  assert.match(html, /<a class="biz-button biz-button-telegram" href="https:\/\/t\.me\/\+mAcBYu895IxiMTdk"/);
+  const order = ["biz-conference-register", "biz-conference-telegram", "biz-conference-later"].map(name => dialog.indexOf(`class="${name}"`));
+  assert.ok(order.every(index => index > 0) && order[0] < order[1] && order[1] < order[2], "réserver, puis Telegram, puis continuer");
+  assert.match(css, /\.biz-conference-telegram\{/);
+});
+
+test("the TikTok access guide stays as it was: no invitation before the site", () => {
   const access = fs.readFileSync(path.join(root, "public/business-access.html"), "utf8");
-  assert.match(access, /<script defer src="\/business-assets\/conference\.js\?v=[\w-]+"><\/script>/);
-  assert.match(access, /<link rel="stylesheet" href="\/business-assets\/conference\.css\?v=[\w-]+">/);
-  // Même invitation que sur /business, au caractère près (hors commentaire).
-  const dialogOf = page => page.slice(page.indexOf('<dialog id="business-conference"'), page.indexOf("</dialog>", page.indexOf('<dialog id="business-conference"')));
-  assert.equal(dialogOf(access), dialogOf(html));
-  assert.match(access, /<a class="biz-conference-register" href="https:\/\/lekacademy\.com\/enrick">/);
+  assert.ok(!access.includes("business-conference"), "pas de pop-up sur le guide TikTok");
+  assert.ok(!access.includes("conference.js") && !access.includes("conference.css"));
+  assert.ok(access.includes("Ouvrir dans le navigateur"));
 });
 

@@ -25,8 +25,11 @@
 .biz-conference-arrow{display:grid;place-items:center;width:29px;height:29px;border:1px solid #e7c9a56b;border-radius:50%;background:linear-gradient(140deg,#f0d8bb20,#ffffff05);box-shadow:inset 0 1px 1px #fff3,inset 0 0 0 2px #090b0b50}
 .biz-conference-arrow svg{width:16px;height:16px}
 .biz-conference-register:hover{border-color:#efd7bd;background:linear-gradient(120deg,#513929,#2a2119 60%,#191612)}
+.biz-conference-telegram{display:flex;align-items:center;justify-content:center;gap:14px;min-height:52px;margin-top:10px;padding:10px 16px;border:1px solid #9ddff04d;border-radius:999px;background:linear-gradient(120deg,#13212a,#0f1619 60%,#111312);color:#e3f5fc;text-decoration:none;font-size:15px;font-weight:500;box-shadow:inset 0 1px 0 #c9efff2b;transition:border-color .2s,background .2s}
+.biz-conference-telegram .biz-conference-arrow{border-color:#9ddff061;background:linear-gradient(140deg,#bcecff24,#70c9ee08 50%,#ffffff04);color:#d6f2fc}
+.biz-conference-telegram:hover{border-color:#c1ecfac4;background:linear-gradient(120deg,#182b36,#121b1f 60%,#131615)}
 .biz-conference-later{display:block;min-height:44px;margin:8px auto 0;padding:10px 0;border:0;background:none;color:#aaa9a1;font:12px Biotif,Arial,sans-serif;text-decoration:underline;text-underline-offset:4px;cursor:pointer}
 .biz-conference a:focus-visible,.biz-conference button:focus-visible{outline:2px solid #efd7bd;outline-offset:4px}
 @media(max-width:360px){.biz-conference-content{padding:7px 20px 12px}.biz-conference h2{font-size:31px}.biz-conference-visual{height:165px}.biz-conference-signature{left:20px;font-size:8px}.biz-conference-badge{left:14px;font-size:8px}.biz-conference-next{gap:9px}.biz-conference-next strong{font-size:12px}}
 @media(max-height:700px){.biz-conference-visual{height:155px}.biz-conference-content{padding-top:5px}.biz-conference #conference-description{margin-bottom:14px}.biz-conference-next{padding:12px 0;margin-bottom:15px}}
-@media(prefers-reduced-motion:reduce){.biz-conference-register{transition:none}}
+@media(prefers-reduced-motion:reduce){.biz-conference-register,.biz-conference-telegram{transition:none}}
