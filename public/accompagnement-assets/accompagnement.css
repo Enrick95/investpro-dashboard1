@@ -40,8 +40,7 @@ button,input,select{font:inherit;color:inherit}
 .page{max-width:1180px;margin:0 auto}
 .hero{display:grid;grid-template-columns:minmax(0,1fr);grid-template-areas:"photo" "intro" "apply"}
 .intro-photo{grid-area:photo;position:relative;margin:0 calc(-1 * var(--gutter-right)) 0 calc(-1 * var(--gutter-left));height:min(56vw,300px);overflow:hidden}
-.intro-photo img{width:100%;height:100%;object-fit:cover;object-position:50% 16%}
-.intro-photo::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,#08090900 38%,#080909d9 78%,var(--bg) 100%)}
+.intro-photo img{width:100%;height:100%;object-fit:cover;object-position:50% 16%;-webkit-mask-image:linear-gradient(180deg,#000 34%,#0009 60%,#0004 80%,#0001 92%,#0000);mask-image:linear-gradient(180deg,#000 34%,#0009 60%,#0004 80%,#0001 92%,#0000)}
 .intro{grid-area:intro;position:relative;z-index:1;min-width:0;margin-top:-78px}
 
 .kicker{display:flex;align-items:center;gap:10px;margin:0 0 14px;color:var(--copper);font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase}
@@ -196,8 +195,7 @@ h1 span,.pillars h2 span{display:block;color:transparent;background-image:var(--
   .hero{grid-template-columns:minmax(0,1fr) minmax(0,500px);column-gap:clamp(48px,6vw,96px);grid-template-areas:"intro apply" "photo apply"}
   .intro{margin-top:44px}
   .intro-photo{margin:40px 0 0;height:auto;aspect-ratio:5/4;border:1px solid #e5c7b033;border-radius:22px}
-  .intro-photo img{object-position:50% 22%}
-  .intro-photo::after{background:linear-gradient(180deg,transparent 70%,#08090966)}
+  .intro-photo img{object-position:50% 22%;-webkit-mask-image:none;mask-image:none}
   h1{font-size:clamp(54px,5.4vw,70px)}
   .lede{font-size:17px}
   .apply{position:sticky;top:20px;margin-top:20px;padding:30px 30px 22px}

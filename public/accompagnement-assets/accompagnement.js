@@ -30,7 +30,7 @@
       { valeur: 'pas-encore', label: 'Pas pour le moment', detail: 'Je préfère continuer à suivre le canal.', pause: true }
     ] },
     { cle: 'coordonnees', nom: 'Tes coordonnées', titre: 'Où peut-on te joindre ?', aide: 'Ces informations servent uniquement à organiser ton appel.', formulaire: true },
-    { cle: 'agenda', nom: 'Ton appel', titre: 'Choisis ton créneau', aide: 'Tes coordonnées sont déjà remplies. Vérifie-les, puis choisis le jour et l’heure qui t’arrangent.', agenda: true }
+    { cle: 'agenda', nom: 'Ton appel', titre: 'Choisis ton créneau', aide: 'Tes coordonnées sont déjà remplies : il ne te reste qu’à confirmer, puis à choisir ton jour et ton heure.', agenda: true }
   ];
 
   // Indicatifs proposés. « zero » : le 0 du début d'un numéro national disparaît dans le format international.
