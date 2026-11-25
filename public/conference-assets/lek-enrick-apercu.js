@@ -31,7 +31,11 @@ window.fetch = async function fetchConference(ressource, options) {
   }
 };
 
-// 2. La vidéo : l'image d'aperçu, puis un nouvel essai si son chargement échoue, en reprenant là où la personne en était.
+// 2. La vidéo : l'image d'aperçu, la copie servie par investprotrading.fr (réseau de diffusion de Vercel, sans le
+//    serveur de lekacademy.com), puis de nouveaux essais si son chargement échoue, en reprenant là où la personne en était.
+//    Si la copie ne répond pas, la vidéo repasse sur l'adresse d'origine.
+const videoOrigine = 'https://lekacademy.com/enrick-presentation-hd.mp4';
+const videoCopie = 'https://investprotrading.fr/conference-assets/enrick-presentation-hd.mp4';
 const videosSuivies = new WeakSet();
 let relancesVideo = 0;
 
@@ -46,9 +50,10 @@ function fiabiliserVideo(video) {
   video.addEventListener('playing', () => { essais = 0; });
 
   function relancer() {
-    if (!lisible || essais >= 5 || relancesVideo >= 15) return;
-    essais += 1;
-    relancesVideo += 1;
+    if (!lisible) return;
+    const surCopie = video.getAttribute('src') === videoCopie;
+    if (!surCopie && (essais >= 5 || relancesVideo >= 15)) return;
+    if (!surCopie) { essais += 1; relancesVideo += 1; }
     const instant = position, relire = enLecture;
     setTimeout(() => {
       if (reprise) video.removeEventListener('loadedmetadata', reprise);
@@ -61,8 +66,9 @@ function fiabiliserVideo(video) {
         };
         video.addEventListener('loadedmetadata', reprise, { once: true });
       }
-      video.load();
-    }, 700 * essais);
+      if (surCopie) video.setAttribute('src', videoOrigine);
+      else video.load();
+    }, surCopie ? 0 : 700 * essais);
   }
 
   video.addEventListener('error', relancer);
@@ -74,6 +80,7 @@ function preparerVideos() {
     if (videosSuivies.has(video)) continue;
     videosSuivies.add(video);
     if (!video.hasAttribute('poster')) video.setAttribute('poster', apercu);
+    if (video.getAttribute('src') === videoOrigine) video.setAttribute('src', videoCopie);
     fiabiliserVideo(video);
   }
 }

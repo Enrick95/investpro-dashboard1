@@ -37,9 +37,28 @@ test("la vidéo reçoit l'aperçu et se relance seule après une coupure, sans b
   assert.match(loader, /if \(!video\.hasAttribute\('poster'\)\) video\.setAttribute\('poster', apercu\);/, 'jamais par-dessus un aperçu existant');
   assert.match(loader, /'https:\/\/investprotrading\.fr\/conference-assets\/apercu-video-enrick\.jpg'/);
   assert.match(loader, /video\.addEventListener\('error', relancer\);/);
-  assert.match(loader, /if \(!lisible \|\| essais >= 5 \|\| relancesVideo >= 15\) return;/);
+  assert.match(loader, /if \(!surCopie && \(essais >= 5 \|\| relancesVideo >= 15\)\) return;/, 'cinq nouveaux essais au plus');
   assert.match(loader, /video\.currentTime = instant/, 'reprise là où la personne en était');
   assert.match(loader, /new MutationObserver\(preparerVideos\)/, 'la vidéo apparaît après le chargement des données de la page');
+});
+
+test("la vidéo est servie par la copie d'investprotrading.fr, et repasse sur l'origine si la copie ne répond pas", () => {
+  assert.match(loader, /^const videoOrigine = 'https:\/\/lekacademy\.com\/enrick-presentation-hd\.mp4';$/m);
+  assert.match(loader, /^const videoCopie = 'https:\/\/investprotrading\.fr\/conference-assets\/enrick-presentation-hd\.mp4';$/m);
+  assert.match(loader, /if \(video\.getAttribute\('src'\) === videoOrigine\) video\.setAttribute\('src', videoCopie\);/, 'seule la vidéo de la conférence est remplacée');
+  assert.match(loader, /if \(surCopie\) video\.setAttribute\('src', videoOrigine\);/, "retour à l'origine si la copie manque");
+});
+
+test("la copie est téléchargée et vérifiée à chaque construction, sans jamais bloquer la mise en ligne", () => {
+  const paquet = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+  assert.equal(paquet.scripts.build, 'node scripts/copie-video-conference.mjs && next build');
+  const script = readFileSync(new URL('../scripts/copie-video-conference.mjs', import.meta.url), 'utf8');
+  assert.match(script, /const source = 'https:\/\/lekacademy\.com\/enrick-presentation-hd\.mp4';/);
+  assert.match(script, /octets: 83_655_813, sha256: '11c0b44040d1dc8ccb0ae32c7d7f1a04f7033465f0679a92b69be8215a60b4ab'/, 'fichier vérifié avant publication');
+  assert.match(script, /public', 'conference-assets', 'enrick-presentation-hd\.mp4'/);
+  assert.doesNotMatch(script, /process\.exit\(|throw erreur/, 'la construction continue même si la copie échoue');
+  const ignores = readFileSync(new URL('../.gitignore', import.meta.url), 'utf8');
+  assert.match(ignores, /^\/public\/conference-assets\/enrick-presentation-hd\.mp4$/m, 'la vidéo (84 Mo) reste hors de Git');
 });
 
 test("l'image d'aperçu est la première image de la vidéo : un JPEG 16:9 léger", () => {

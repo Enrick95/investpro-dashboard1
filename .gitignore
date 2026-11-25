@@ -45,3 +45,7 @@ next-env.d.ts
 # Python bytecode from running the hosted connector locally
 __pycache__/
 *.pyc
+
+# Copie de la vidéo de lekacademy.com/enrick, téléchargée à chaque construction (scripts/copie-video-conference.mjs)
+/public/conference-assets/enrick-presentation-hd.mp4
+/public/conference-assets/enrick-presentation-hd.mp4.partiel
