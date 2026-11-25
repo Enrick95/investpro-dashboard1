@@ -51,3 +51,13 @@ test("« Copier le lien » copies the page's own link, the business link by defa
   const script = read("public/business-assets/access.js");
   assert.ok(script.includes("const url=document.body.dataset.copyUrl||'https://investprotrading.fr/business?navigation=externe';"));
 });
+
+test("« Ouvrir dans le navigateur » shows a globe on a blue badge instead of the small arrow, in the conference guide only", () => {
+  assert.ok(conference.includes('<span class="menu-icon menu-icon-globe" aria-hidden="true">'));
+  assert.ok(conference.includes('<circle cx="12" cy="12" r="8.6"/>'), "le globe");
+  assert.ok(!conference.includes("M7 13 14 6M7 6h7v7"), "plus de petite flèche");
+  assert.ok(conference.includes("conference-guide.css?v=20261125-3"), "nouvelle version de la feuille de style");
+  const css = read("public/business-assets/conference-guide.css");
+  assert.match(css, /html\.conference-guide #access-guide \.menu-icon-globe\{[^}]*radial-gradient\([^}]*#2f7bff/);
+  assert.ok(business.includes("M7 13 14 6M7 6h7v7"), "le guide de /business/acces reste comme avant");
+});
