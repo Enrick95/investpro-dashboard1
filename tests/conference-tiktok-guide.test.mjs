@@ -15,22 +15,36 @@ test("investprotrading.fr/conference/acces serves the conference guide", () => {
   assert.match(read("next.config.ts"), /\{source:"\/business\/acces",destination:"\/business-access\.html"\},\{source:"\/conference\/acces",destination:"\/conference-access\.html"\}/);
 });
 
-test("the conference guide is the business guide, with the conference as destination", () => {
+test("the conference guide keeps the business guide's steps, with the conference as destination", () => {
   // Hors navigateur TikTok : direction la page d'inscription.
   assert.ok(conference.includes("if(!preview&&!inApp&&external)location.replace('https://lekacademy.com/enrick');"));
-  assert.ok(conference.includes('<body class="access-page" data-copy-url="https://lekacademy.com/enrick">'));
+  assert.ok(conference.includes('data-copy-url="https://lekacademy.com/enrick"'));
   assert.ok(conference.includes('<a class="brand" href="https://lekacademy.com/enrick?navigation=externe"'));
-  // Tout le reste est identique au guide de /business (même image, même animation, mêmes textes).
-  const normalize = html => html
-    .replace(/https:\/\/investprotrading\.fr\/(business|conference)\/acces/, "CANONICAL")
-    .replace(/location\.replace\('[^']+'\)/, "location.replace(DESTINATION)")
-    .replace(/access\.js\?v=[\w-]+/, "access.js")
-    .replace(/<body class="access-page"[^>]*>/, "<body>")
-    .replace(/<a class="brand" href="[^"]+"/, '<a class="brand"');
-  assert.equal(normalize(conference), normalize(business));
+  // Mêmes étapes, mêmes boutons et même animation que le guide de /business.
+  const ids = html => [...html.matchAll(/\sid="([^"]+)"/g)].map(match => match[1]);
+  assert.deepEqual(ids(conference), ids(business));
+  for (const text of ["Touche le menu en haut à droite", "Choisis « Ouvrir dans le navigateur »", "Copier le lien", "Revoir l’animation", "Ouvrir dans le navigateur"]) {
+    assert.ok(conference.includes(text), text);
+  }
   // Le guide de /business ne change pas.
   assert.ok(business.includes("location.replace('/business?navigation=externe')"));
   assert.ok(business.includes('<body class="access-page">'));
+  assert.ok(!business.includes("conference-guide"));
+});
+
+test("the conference guide wears the conference page's look: navy, blue #0066ff, its texts", () => {
+  assert.ok(conference.includes('<html lang="fr" class="conference-guide">'));
+  assert.match(conference, /<link rel="stylesheet" href="\/business-assets\/conference-guide\.css\?v=[\w-]+">/);
+  assert.ok(conference.includes("<title>Accéder à la conférence d’Enrick depuis TikTok</title>"));
+  assert.ok(conference.includes('Pour accéder à ma conférence, suis ces <em>deux étapes simples.</em>'));
+  assert.ok(conference.includes("<span>lekacademy.com</span>"));
+  assert.ok(conference.includes("Le trading commence<br>par <em>tes décisions.</em>"));
+  assert.ok(!/#ff792f|#ffad78/.test(conference), "curseur bleu, plus orange");
+  const css = read("public/business-assets/conference-guide.css");
+  assert.ok(css.includes("background:#03070d!important"));
+  assert.ok(css.includes("#0066ff35 1px"), "la grille de la page conférence");
+  assert.ok(css.includes("font-family:Inter,Arial,sans-serif"));
+  assert.ok(!/#ff702e|#bd7957|#cf865f/i.test(css), "aucune couleur cuivre");
 });
 
 test("« Copier le lien » copies the page's own link, the business link by default", () => {

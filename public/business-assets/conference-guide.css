@@ -1,0 +1,53 @@
+/* Guide TikTok du lien lekacademy.com/enrick : même guide que /business/acces, aux couleurs de la page conférence
+   (fond bleu nuit #03070d, bleu #0066ff, grille lumineuse, police Inter puis Arial comme sur lekacademy.com/enrick). */
+html.conference-guide{--bg:#03070d;--panel:#0c1524;--panel2:#0b1526;--ink:#edf3ff;--muted:#99a7bc;--orange:#428cff;--orange2:#92bdff;--line:#ffffff1c;--sans:Inter,Arial,sans-serif;--serif:Inter,Arial,sans-serif}
+html.conference-guide,html.conference-guide body{background:#03070d!important;color:#edf3ff}
+html.conference-guide body,html.conference-guide #access-guide{font-family:Inter,Arial,sans-serif}
+html.conference-guide .topline{background:linear-gradient(90deg,transparent,#0066ff 25%,#69a8ff 54%,transparent)}
+
+/* Le halo bleu et la grille en perspective de la page conférence. */
+html.conference-guide #access-guide.guide-shell{background:radial-gradient(ellipse 85% 48% at 50% -6%,#0066ff3d,transparent 68%),#03070d}
+html.conference-guide #access-guide.guide-shell:before{inset:auto;top:150px;left:-50%;width:200%;height:680px;opacity:1;background-image:linear-gradient(#0066ff35 1px,transparent 1px),linear-gradient(90deg,#0066ff35 1px,transparent 1px);background-size:70px 65px;transform:perspective(350px) rotateX(62deg);transform-origin:center top;-webkit-mask-image:linear-gradient(transparent,#0008 35%,transparent 95%);mask-image:linear-gradient(transparent,#0008 35%,transparent 95%)}
+
+html.conference-guide #access-guide .brand-name{color:#edf3ff}
+html.conference-guide #access-guide .eyebrow{color:#649fff;font-weight:700;letter-spacing:3px}
+html.conference-guide #access-guide .guide-copy h1{font-family:Inter,Arial,sans-serif;font-weight:700;letter-spacing:-.045em}
+html.conference-guide #access-guide .guide-copy h1 em{font:inherit;font-size:1em;letter-spacing:inherit;color:transparent;-webkit-text-fill-color:transparent;background-image:linear-gradient(108deg,#2f7bff 0%,#7fb4ff 50%,#cfe2ff 78%,#428cff 100%);background-clip:text;-webkit-background-clip:text}
+html.conference-guide #access-guide .guide-lede{color:#99a7bc}
+
+/* Les deux étapes : cartes bleu nuit, l'étape en cours entourée de bleu. */
+html.conference-guide #access-guide .guide-step{border-color:#ffffff1c;border-radius:16px;background:linear-gradient(145deg,#0b1422,#070c14 78%)}
+html.conference-guide #access-guide .guide-step.active{border-color:#69a8ff70;background:linear-gradient(120deg,#0066ff24,#0c1524b8 65%);box-shadow:inset 0 1px #ffffff20,0 10px 40px #0066ff14}
+html.conference-guide #access-guide .guide-step:before{background:linear-gradient(180deg,#0066ff,#7fb4ff,#b8d4ff)}
+html.conference-guide #access-guide .step-num{border-color:#0066ff;color:#7fb0ff;background:#0066ff12;font:600 17px/1 Inter,Arial,sans-serif}
+html.conference-guide #access-guide .guide-step.active .step-num{border-color:#4d92ff;color:#cfe3ff;box-shadow:0 0 0 4px #0066ff17,0 0 16px #0066ff40}
+html.conference-guide #access-guide .step-copy small{color:#8ea3bf}
+html.conference-guide #access-guide .step-mark{color:#649fff}
+html.conference-guide #access-guide .guide-step:focus-visible,html.conference-guide #access-guide .btn:focus-visible{outline:2px solid #76adff;outline-offset:3px}
+
+/* « Copier le lien » et « Revoir l'animation » : les boutons de la page conférence. */
+html.conference-guide #access-guide .btn-secondary{border-color:#2e496c;border-radius:9px;background:#0d1b2d;color:#eaf2ff;box-shadow:inset 0 1px #ffffff0a}
+html.conference-guide #access-guide .btn-secondary:hover,html.conference-guide #access-guide .btn-secondary:focus-visible{border-color:#5795f2;background:#132743;box-shadow:0 7px 20px #0004}
+html.conference-guide #access-guide .guide-toast{color:#99c4ff}
+html.conference-guide #access-guide .guide-footer{border-top-color:#ffffff12;color:#8796ac}
+
+/* « Clique ici » et le téléphone d'exemple. */
+html.conference-guide #access-guide .guide-callout-arrows{filter:drop-shadow(0 0 8px #0066ffaa)}
+html.conference-guide #access-guide .guide-callout-arrows path{stroke:#9cc5ff}
+html.conference-guide #access-guide .guide-callout-label{text-shadow:0 1px 10px #000,0 0 10px #0066ffaa}
+html.conference-guide #access-guide .browser-dots:after{border-color:#0066ff}
+html.conference-guide #access-guide .menu-choice.is-target{border-color:#4d92ffaa;background:#f2f7ff;box-shadow:0 0 0 3px #0066ff24,0 0 22px #0066ff35}
+html.conference-guide #access-guide .mock-header{background:#0c1524;border-bottom-color:#ffffff14}
+html.conference-guide #access-guide .mock-header span:last-child{color:#649fff}
+html.conference-guide #access-guide .mock-photo{background:#0c1524}
+html.conference-guide #access-guide .mock-photo:after{background:linear-gradient(transparent,#03070dd9)}
+html.conference-guide #access-guide .mock-caption small{color:#92bdff;font-weight:700}
+html.conference-guide #access-guide .mock-caption strong{font-family:Inter,Arial,sans-serif;font-weight:700;letter-spacing:-.03em}
+html.conference-guide #access-guide .mock-caption strong em{font-style:normal;color:#69a4ff}
+html.conference-guide #access-guide .mock-content{background:#07101c}
+html.conference-guide #access-guide .mock-content p{color:#99a7bc}
+html.conference-guide #access-guide .mock-tease{border-top-color:#ffffff1c;color:#8ea3bf}
+html.conference-guide #access-guide .mock-story-preview{border-top-color:#ffffff1c}
+html.conference-guide #access-guide .mock-story-preview small{color:#649fff}
+html.conference-guide #access-guide .mock-story-preview strong{color:#edf3ff;font-family:Inter,Arial,sans-serif;font-weight:700;letter-spacing:-.02em}
+html.conference-guide #access-guide .mock-story-preview p{color:#8392a9}
