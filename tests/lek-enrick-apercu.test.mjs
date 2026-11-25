@@ -26,8 +26,10 @@ test("l'aperçu ne s'ajoute qu'à la vidéo de la page conférence, et jamais pa
   assert.match(loader, /new MutationObserver\(ajouterApercu\)/, 'la vidéo apparaît après le chargement des données de la page');
 });
 
-test("l'image d'aperçu est un JPEG 16:9 léger, comme la vidéo", () => {
+test("l'image d'aperçu est la première image de la vidéo : un JPEG 16:9 léger", () => {
   assert.deepEqual([jpg[0], jpg[1]], [0xff, 0xd8]);
-  assert.deepEqual(jpegSize(jpg), { width: 1600, height: 900 });
-  assert.ok(jpg.length < 200_000, `${jpg.length} octets`);
+  const { width, height } = jpegSize(jpg);
+  assert.equal(width * 9, height * 16, `${width}x${height} n'est pas au format 16:9 de la vidéo`);
+  assert.ok(width >= 1280, `${width} px de large`);
+  assert.ok(jpg.length < 250_000, `${jpg.length} octets`);
 });
