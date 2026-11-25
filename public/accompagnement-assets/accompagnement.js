@@ -1,6 +1,7 @@
-// Page « Accompagnement » : quelques questions, les coordonnées, puis l'agenda iClosed intégré dans la page.
+// Page « Accompagnement » : les questions de l'agenda iClosed (mêmes règles d'éligibilité), les coordonnées,
+// puis l'agenda iClosed intégré dans la page. Une personne non éligible ne voit jamais l'agenda.
 // Les réponses restent dans la page (rien n'est enregistré). Les coordonnées servent uniquement à préremplir
-// le formulaire de l'agenda iClosed, pour que la personne n'ait plus qu'à choisir son créneau.
+// le formulaire de l'agenda iClosed (prénom, nom, e-mail, téléphone).
 (() => {
   'use strict';
 
@@ -8,29 +9,25 @@
   const WIDGET_ICLOSED = 'https://app.iclosed.io/assets/widget.js';
   const TELEGRAM = 'https://t.me/+mAcBYu895IxiMTdk';
 
+  // Les trois questions de l'agenda iClosed « Appel stratégique accompagnement Enrick », dans le même ordre et avec les
+  // mêmes réponses. « refus » : la même règle de non-éligibilité que dans iClosed (moins de 18 ans, pas prêt,
+  // moins de 500 €) ; la personne ne peut alors pas réserver d'appel.
   const etapes = [
-    { cle: 'niveau', nom: 'Ton niveau', titre: 'Où en es-tu en trading ?', aide: 'Il n’y a pas de mauvais point de départ.', choix: [
-      { valeur: 'debutant', label: 'Je débute', detail: 'Je découvre encore les bases.' },
-      { valeur: 'commence', label: 'J’ai déjà commencé', detail: 'J’ai quelques notions ou premières expériences.' },
-      { valeur: 'pratique', label: 'Je pratique déjà', detail: 'Je veux structurer et faire progresser ma pratique.' }
+    { cle: 'majeur', nom: 'Ton âge', titre: 'Avant d’aller plus loin, confirmes-tu avoir 18 ans ou plus ?', choix: [
+      { valeur: 'oui', label: 'Oui' },
+      { valeur: 'non', label: 'Non', refus: true }
     ] },
-    { cle: 'objectif', nom: 'Ton objectif', titre: 'Que veux-tu améliorer en priorité ?', aide: 'Choisis ce qui compte le plus pour toi aujourd’hui.', choix: [
-      { valeur: 'bases', label: 'Comprendre les bases', detail: 'Poser des repères solides.' },
-      { valeur: 'methode', label: 'Structurer ma méthode', detail: 'Mieux organiser mon approche.' },
-      { valeur: 'regularite', label: 'Gagner en régularité', detail: 'Tenir ma gestion du risque et ma discipline.' },
-      { valeur: 'autonomie', label: 'Devenir autonome', detail: 'Prendre mes propres décisions, en confiance.' }
+    { cle: 'motivation', nom: 'Ta motivation', titre: 'Pour passer de l’envie à l’action, es-tu prêt(e) à suivre une méthode et à t’investir dans un accompagnement régulier ?', aide: 'L’accompagnement demande de l’implication, du temps et de la constance.', choix: [
+      { valeur: 'oui', label: 'Oui, je suis prêt(e) à suivre un cadre' },
+      { valeur: 'non', label: 'Non, pas pour le moment', refus: true }
     ] },
-    { cle: 'temps', nom: 'Ton temps', titre: 'Combien de temps peux-tu y consacrer chaque semaine ?', aide: 'Une estimation suffit.', choix: [
-      { valeur: 'moins-3h', label: 'Moins de 3 heures' },
-      { valeur: '3-6h', label: 'Entre 3 et 6 heures' },
-      { valeur: 'plus-6h', label: 'Plus de 6 heures' }
-    ] },
-    { cle: 'engagement', nom: 'Ta motivation', titre: 'Es-tu prêt à t’investir sérieusement ?', aide: 'L’accompagnement demande de l’implication, du temps et de la constance.', choix: [
-      { valeur: 'pret', label: 'Oui, je suis prêt', detail: 'Je veux avancer avec sérieux et régularité.' },
-      { valeur: 'pas-encore', label: 'Pas pour le moment', detail: 'Je préfère continuer à suivre le canal.', pause: true }
+    { cle: 'budget', nom: 'Ton budget', titre: 'Quel budget es-tu prêt(e) à consacrer aujourd’hui pour progresser vers plus d’autonomie en trading, avec une méthode et un accompagnement ?', choix: [
+      { valeur: 'moins-500', label: 'Moins de 500 €', refus: true },
+      { valeur: '500-999', label: '500 € à 999 €' },
+      { valeur: '1000-plus', label: '1 000 € ou plus' }
     ] },
     { cle: 'coordonnees', nom: 'Tes coordonnées', titre: 'Où peut-on te joindre ?', aide: 'Ces informations servent uniquement à organiser ton appel.', formulaire: true },
-    { cle: 'agenda', nom: 'Ton appel', titre: 'Choisis ton créneau', aide: 'Tes coordonnées sont déjà remplies : il ne te reste qu’à confirmer, puis à choisir ton jour et ton heure.', agenda: true }
+    { cle: 'agenda', nom: 'Ton appel', titre: 'Choisis ton créneau', aide: 'Tes coordonnées sont déjà remplies : confirme tes informations dans l’agenda, puis choisis ton jour et ton heure.', agenda: true }
   ];
 
   // Indicatifs proposés. « zero » : le 0 du début d'un numéro national disparaît dans le format international.
@@ -76,10 +73,10 @@
   const mouvementReduit = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const reponses = {};
-  const contact = { prenom: '', nom: '', pays: 'FR', telephone: '', majeur: false };
+  const contact = { prenom: '', nom: '', email: '', pays: 'FR', telephone: '' };
   let courante = 0;
   let plusLoin = 0;
-  let enPause = false;
+  let nonEligible = false;
   let verrou = false;
   let minuterieSecours = 0;
 
@@ -119,9 +116,12 @@
     return prenom + ' ' + nom;
   }
 
+  const emailValide = texte => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(texte || '').trim());
+
   function adresseAgenda() {
     const telephone = numeroInternational(contact.pays, contact.telephone);
     let adresse = AGENDA + '?iclosedName=' + encodeURIComponent(nomPourAgenda());
+    if (emailValide(contact.email)) adresse += '&iclosedEmail=' + encodeURIComponent(contact.email.trim());
     if (telephone) adresse += '&iclosedPhone=' + encodeURIComponent(telephone);
     return adresse;
   }
@@ -138,7 +138,7 @@
   }
 
   function titreEtAide(titre, aide) {
-    return '<h2 class="step-title" id="question" tabindex="-1">' + echapper(titre) + '</h2>' +
+    return '<h2 class="step-title' + (titre.length > 70 ? ' is-long' : '') + '" id="question" tabindex="-1">' + echapper(titre) + '</h2>' +
       (aide ? '<p class="step-hint" id="question-aide">' + echapper(aide) + '</p>' : '');
   }
 
@@ -149,12 +149,10 @@
         '<span class="choice-text"><strong>' + echapper(option.label) + '</strong>' + (option.detail ? '<small>' + echapper(option.detail) + '</small>' : '') + '</span>' +
         '<span class="choice-mark" aria-hidden="true"></span></button>';
     }).join('');
-    const pied = courante === 0
-      ? '<p class="step-foot-note">Aucune information financière n’est demandée.</p>'
-      : '<button class="back" type="button" data-retour>Retour</button>';
+    const pied = courante === 0 ? '' : '<button class="back" type="button" data-retour>Retour</button>';
     return titreEtAide(etape.titre, etape.aide) +
       '<div class="choices" role="group" aria-labelledby="question"' + (etape.aide ? ' aria-describedby="question-aide"' : '') + '>' + options + '</div>' +
-      '<div class="step-foot">' + pied + '</div>';
+      (pied ? '<div class="step-foot">' + pied + '</div>' : '');
   }
 
   function optionsPays() {
@@ -169,6 +167,9 @@
           champ('prenom', 'Prénom', 'text', 'given-name') +
           champ('nom', 'Nom', 'text', 'family-name') +
         '</div>' +
+        '<div class="field"><label for="email">E-mail</label>' +
+          '<input id="email" name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" maxlength="120" required aria-describedby="email-erreur" placeholder="prenom@exemple.fr">' +
+          '<p class="field-error" id="email-erreur" hidden></p></div>' +
         '<div class="field">' +
           '<label for="telephone">Téléphone</label>' +
           '<div class="phone">' +
@@ -179,8 +180,6 @@
           '</div>' +
           '<p class="field-error" id="telephone-erreur" hidden></p>' +
         '</div>' +
-        '<label class="check"><input type="checkbox" id="majeur" name="majeur" required aria-describedby="majeur-erreur"><span class="check-box" aria-hidden="true"></span><span>J’ai 18 ans ou plus</span></label>' +
-        '<p class="field-error" id="majeur-erreur" hidden></p>' +
         '<button class="cta" type="submit"><span>Voir les créneaux</span><i class="cta-icon">' + fleche + '</i></button>' +
       '</form>' +
       '<div class="step-foot"><button class="back" type="button" data-retour>Retour</button></div>';
@@ -199,15 +198,14 @@
       '<div class="step-foot"><button class="back" type="button" data-retour>Modifier mes coordonnées</button></div>';
   }
 
-  function rendrePause() {
-    return titreEtAide('Pas de souci, prends ton temps.', 'L’accompagnement demande de l’implication. Quand tu seras prêt, reviens sur cette page pour réserver ton appel. En attendant, continue de suivre mes analyses sur le canal.') +
-      '<a class="cta cta-telegram" href="' + TELEGRAM + '" target="_blank" rel="noopener"><i class="cta-logo">' + telegramIcone + '</i><span>Retourner sur le canal Telegram</span><i class="cta-icon">' + flecheSortie + '</i></a>' +
-      '<div class="step-foot"><button class="back" type="button" data-retour>Modifier ma réponse</button></div>';
+  function rendreRefus() {
+    return titreEtAide('Merci pour tes réponses.', 'Pour le moment, l’accompagnement ne correspond pas à ta situation : la réservation d’un appel n’est donc pas possible. Continue de suivre mes analyses sur le canal Telegram pour progresser à ton rythme.') +
+      '<a class="cta cta-telegram" href="' + TELEGRAM + '" target="_blank" rel="noopener"><i class="cta-logo">' + telegramIcone + '</i><span>Retourner sur le canal Telegram</span><i class="cta-icon">' + flecheSortie + '</i></a>';
   }
 
   function afficher(index, { historique = 'pousser', defiler = true } = {}) {
+    if (nonEligible) { afficherRefus({ historique: 'remplacer', defiler }); return; }
     clearTimeout(minuterieSecours);
-    enPause = false;
     courante = index;
     plusLoin = Math.max(plusLoin, index);
     const etape = etapes[index];
@@ -220,13 +218,17 @@
     animerEtFocaliser(defiler);
   }
 
-  function afficherPause({ historique = 'pousser', defiler = true } = {}) {
+  // Non éligible : comme dans iClosed, pas d'agenda. La page reste sur ce message pendant toute la visite
+  // (pas de retour arrière pour changer de réponse).
+  function afficherRefus({ historique = 'pousser', defiler = true } = {}) {
     clearTimeout(minuterieSecours);
-    enPause = true;
-    mettreAJourEntete(3);
-    carte.dataset.step = 'pause';
-    ecran.innerHTML = rendrePause();
-    noterHistorique({ vue: 'pause' }, '#plus-tard', historique);
+    nonEligible = true;
+    compteur.textContent = 'Candidature';
+    nomEtape.textContent = 'Non éligible';
+    bougies.forEach(bougie => bougie.classList.remove('is-done', 'is-current'));
+    carte.dataset.step = 'refus';
+    ecran.innerHTML = rendreRefus();
+    noterHistorique({ vue: 'refus' }, '#non-eligible', historique);
     animerEtFocaliser(defiler);
   }
 
@@ -255,31 +257,32 @@
     const nom = formulaire.querySelector('#nom');
     const choixPays = formulaire.querySelector('#pays');
     const telephone = formulaire.querySelector('#telephone');
-    const majeur = formulaire.querySelector('#majeur');
+    const email = formulaire.querySelector('#email');
     prenom.value = contact.prenom;
     nom.value = contact.nom;
+    email.value = contact.email;
     telephone.value = contact.telephone;
-    majeur.checked = contact.majeur;
     afficherPays(choixPays.value);
 
     choixPays.addEventListener('change', () => { contact.pays = choixPays.value; afficherPays(choixPays.value); effacerErreur('telephone'); });
     prenom.addEventListener('input', () => { contact.prenom = prenom.value; effacerErreur('prenom'); });
     nom.addEventListener('input', () => { contact.nom = nom.value; effacerErreur('nom'); });
+    email.addEventListener('input', () => { contact.email = email.value; effacerErreur('email'); });
     telephone.addEventListener('input', () => { contact.telephone = telephone.value; effacerErreur('telephone'); });
-    majeur.addEventListener('change', () => { contact.majeur = majeur.checked; effacerErreur('majeur'); });
 
     formulaire.addEventListener('submit', event => {
       event.preventDefault();
       const erreurs = [];
       if (!contact.prenom.trim()) erreurs.push(['prenom', 'Indique ton prénom.']);
       if (!contact.nom.trim()) erreurs.push(['nom', 'Indique ton nom.']);
+      if (!contact.email.trim()) erreurs.push(['email', 'Indique ton adresse e-mail.']);
+      else if (!emailValide(contact.email)) erreurs.push(['email', 'Vérifie ton adresse e-mail : elle semble incomplète.']);
       if (!contact.telephone.trim()) erreurs.push(['telephone', 'Indique ton numéro de téléphone.']);
       else if (!numeroInternational(contact.pays, contact.telephone)) {
         erreurs.push(['telephone', contact.pays === 'autre' && !/^\s*(\+|00)/.test(contact.telephone)
           ? 'Ajoute l’indicatif du pays au début du numéro, par exemple +44 7911 123456.'
           : 'Vérifie ton numéro : il semble incomplet ou contient une erreur.']);
       }
-      if (!contact.majeur) erreurs.push(['majeur', 'L’appel est réservé aux personnes majeures.']);
       erreurs.forEach(([id, message]) => montrerErreur(id, message));
       if (erreurs.length) {
         const premier = ecran.querySelector('#' + erreurs[0][0]);
@@ -357,20 +360,16 @@
       verrou = true;
       window.setTimeout(() => {
         verrou = false;
-        if (choix.pause) afficherPause();
+        if (choix.refus) afficherRefus();
         else afficher(courante + 1);
       }, mouvementReduit ? 60 : 280);
       return;
     }
-    if (event.target.closest('[data-retour]')) {
-      if (enPause) afficher(3);
-      else if (courante > 0) afficher(courante - 1);
-    }
+    if (event.target.closest('[data-retour]') && !nonEligible && courante > 0) afficher(courante - 1);
   });
 
   window.addEventListener('popstate', event => {
     const etat = event.state;
-    if (etat && etat.vue === 'pause' && reponses.engagement) { afficherPause({ historique: 'aucun' }); return; }
     const index = etat && Number.isInteger(etat.etape) ? etat.etape : 0;
     afficher(index <= plusLoin ? index : 0, { historique: 'aucun' });
   });

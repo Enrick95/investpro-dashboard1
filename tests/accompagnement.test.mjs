@@ -43,15 +43,16 @@ test("l'agenda est celui de l'appel stratégique, intégré par le script offici
 
 test("le préremplissage passe uniquement par l'adresse de l'agenda, jamais par l'adresse de la page", () => {
   assert.match(script, /AGENDA \+ '\?iclosedName=' \+ encodeURIComponent\(nomPourAgenda\(\)\)/);
+  assert.match(script, /'&iclosedEmail=' \+ encodeURIComponent\(contact\.email\.trim\(\)\)/);
   assert.match(script, /'&iclosedPhone=' \+ encodeURIComponent\(telephone\)/);
-  assert.doesNotMatch(script, /iclosedEmail|URLSearchParams/, "pas d'e-mail demandé ; espaces encodés en %20 et non en +");
+  assert.doesNotMatch(script, /URLSearchParams/, "espaces encodés en %20 et non en +");
   // L'agenda coupe au premier espace : un prénom composé garde des espaces insécables.
   assert.match(script, /contact\.prenom\.trim\(\)\.replace\(\/\\s\+\/g, '\\u00A0'\)/);
   // L'historique du navigateur ne contient que le numéro de l'étape.
   const appels = script.match(/noterHistorique\(\{[^;]+;/g);
   assert.equal(appels.length, 3);
   for (const appel of appels) {
-    assert.match(appel, /noterHistorique\(\{ (etape: (index|0)|vue: 'pause') \}, ('#etape-' \+ \(index \+ 1\)|'#plus-tard'|location\.pathname \+ location\.search), ('remplacer'|historique)\);/, appel);
+    assert.match(appel, /noterHistorique\(\{ (etape: (index|0)|vue: 'refus') \}, ('#etape-' \+ \(index \+ 1\)|'#non-eligible'|location\.pathname \+ location\.search), ('remplacer'|historique)\);/, appel);
   }
   assert.doesNotMatch(script, /localStorage|sessionStorage|document\.cookie|fetch\(/, "rien n'est enregistré ni envoyé par la page");
 });
@@ -77,10 +78,40 @@ test("le numéro est mis au format international attendu par l'agenda", () => {
   for (const [pays, saisie, attendu] of cas) assert.equal(numero(pays, saisie), attendu, `${pays} ${saisie}`);
 });
 
-test("les réponses « pas pour le moment » et les mineurs ne mènent pas à l'agenda", () => {
-  assert.match(script, /\{ valeur: 'pas-encore', label: 'Pas pour le moment', detail: '[^']+', pause: true \}/);
-  assert.match(script, /if \(choix\.pause\) afficherPause\(\);/);
-  assert.match(script, /if \(!contact\.majeur\) erreurs\.push\(\['majeur', 'L’appel est réservé aux personnes majeures\.'\]\);/);
+test("les questions et la règle d'éligibilité sont celles de l'agenda iClosed", () => {
+  // Questions et réponses de l'événement iClosed « Appel stratégique accompagnement Enrick » (bectanse/strategy-call),
+  // et sa règle de non-éligibilité : « Non » OU « Non, pas pour le moment » OU « Moins de 500 € ».
+  const iclosed = [
+    ["Avant d’aller plus loin, confirmes-tu avoir 18 ans ou plus ?", ["Oui", "Non"], ["Non"]],
+    ["Pour passer de l’envie à l’action, es-tu prêt(e) à suivre une méthode et à t’investir dans un accompagnement régulier ?", ["Oui, je suis prêt(e) à suivre un cadre", "Non, pas pour le moment"], ["Non, pas pour le moment"]],
+    ["Quel budget es-tu prêt(e) à consacrer aujourd’hui pour progresser vers plus d’autonomie en trading, avec une méthode et un accompagnement ?", ["Moins de 500 €", "500 € à 999 €", "1 000 € ou plus"], ["Moins de 500 €"]],
+  ];
+  const debut = script.indexOf("const etapes = [");
+  const fin = script.indexOf("];", debut) + 2;
+  const contexte = {};
+  vm.runInNewContext(script.slice(debut, fin) + "this.etapes = JSON.stringify(etapes);", contexte);
+  const etapes = JSON.parse(contexte.etapes);
+  const questions = etapes.filter(e => e.choix);
+  assert.equal(questions.length, iclosed.length);
+  questions.forEach((etape, i) => {
+    const [titre, reponses, refus] = iclosed[i];
+    assert.equal(etape.titre, titre);
+    assert.deepEqual(etape.choix.map(c => c.label), reponses);
+    assert.deepEqual(etape.choix.filter(c => c.refus).map(c => c.label), refus);
+  });
+  assert.deepEqual(etapes.slice(-2).map(e => e.cle), ["coordonnees", "agenda"], "l'agenda n'arrive qu'après les questions");
+  // Non éligible : message sans agenda, et la visite reste sur ce message.
+  assert.match(script, /if \(choix\.refus\) afficherRefus\(\);/);
+  assert.match(script, /if \(nonEligible\) \{ afficherRefus\(\{ historique: 'remplacer', defiler \}\); return; \}/);
+  const refus = script.slice(script.indexOf("function rendreRefus"), script.indexOf("function afficher("));
+  assert.doesNotMatch(refus, /data-retour|AGENDA|iclosed/, "pas de retour arrière ni d'agenda pour une personne non éligible");
+  assert.match(script, /if \(event\.target\.closest\('\[data-retour\]'\) && !nonEligible && courante > 0\)/);
+});
+
+test("les coordonnées demandées sont celles de l'agenda : prénom, nom, e-mail et téléphone", () => {
+  for (const id of ["prenom", "nom", "email", "telephone"]) assert.match(script, new RegExp(`id="${id}"|champ\\('${id}'`), id);
+  assert.match(script, /if \(!contact\.email\.trim\(\)\) erreurs\.push\(\['email', 'Indique ton adresse e-mail\.'\]\);/);
+  assert.match(script, /else if \(!emailValide\(contact\.email\)\)/);
   assert.match(script, /if \(erreurs\.length\) \{/);
 });
 

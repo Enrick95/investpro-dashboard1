@@ -69,24 +69,24 @@ h1 span,.pillars h2 span{display:block;color:transparent;background-image:var(--
 .candles i::before{bottom:100%;height:var(--wh,5px)}
 .candles i::after{top:100%;height:var(--wl,4px)}
 .candles i:nth-child(1){--h:10px;--y:3px;--wh:5px;--wl:3px}
-.candles i:nth-child(2){--h:14px;--y:6px;--wh:4px;--wl:5px}
-.candles i:nth-child(3){--h:9px;--y:12px;--wh:6px;--wl:3px}
-.candles i:nth-child(4){--h:16px;--y:10px;--wh:4px;--wl:6px}
-.candles i:nth-child(5){--h:11px;--y:19px;--wh:6px;--wl:3px}
-.candles i:nth-child(6){--h:17px;--y:19px;--wh:5px;--wl:4px}
+.candles i:nth-child(2){--h:14px;--y:7px;--wh:4px;--wl:5px}
+.candles i:nth-child(3){--h:9px;--y:13px;--wh:6px;--wl:3px}
+.candles i:nth-child(4){--h:16px;--y:12px;--wh:4px;--wl:6px}
+.candles i:nth-child(5){--h:17px;--y:20px;--wh:5px;--wl:4px}
 .candles i.is-done{border-color:#e2b897;background:linear-gradient(180deg,#f0d1b6,#c7845f)}
 .candles i.is-done::before,.candles i.is-done::after{background:#d9a684}
 .candles i.is-current{border-color:#fff;background:var(--ink);box-shadow:0 0 14px #f1d7bc99}
 .candles i.is-current::before,.candles i.is-current::after{background:var(--ink)}
 @keyframes bougie-entree{from{opacity:0;transform:translateY(8px) scaleY(.4)}to{opacity:1;transform:none}}
 .candles i{animation:bougie-entree .5s cubic-bezier(.2,.7,.2,1) both}
-.candles i:nth-child(2){animation-delay:.07s}.candles i:nth-child(3){animation-delay:.14s}.candles i:nth-child(4){animation-delay:.21s}.candles i:nth-child(5){animation-delay:.28s}.candles i:nth-child(6){animation-delay:.35s}
+.candles i:nth-child(2){animation-delay:.07s}.candles i:nth-child(3){animation-delay:.14s}.candles i:nth-child(4){animation-delay:.21s}.candles i:nth-child(5){animation-delay:.28s}
 
 /* Contenu d'une étape */
 .apply-body{min-height:300px}
 .apply-body.is-entering{animation:etape-entree .32s cubic-bezier(.2,.7,.2,1) both}
 @keyframes etape-entree{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .step-title{margin:22px 0 0;font-size:clamp(25px,6.6vw,32px);font-weight:700;line-height:1.08;letter-spacing:-.045em;text-wrap:balance}
+.step-title.is-long{font-size:clamp(21px,5.4vw,26px);line-height:1.16;letter-spacing:-.035em}
 .step-title:focus{outline:none}
 .step-hint{max-width:52ch;margin:9px 0 0;color:var(--muted);font-size:15px;line-height:1.55}
 
@@ -103,7 +103,6 @@ h1 span,.pillars h2 span{display:block;color:transparent;background-image:var(--
 .choice.is-selected .choice-mark::after{content:"";width:10px;height:10px;border-radius:50%;background:var(--copper-light);box-shadow:0 0 8px #e5c7b0aa}
 
 .step-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;margin-top:14px}
-.step-foot-note{margin:0;color:var(--faint);font-size:13px}
 .back{min-height:44px;padding:0 4px;border:0;background:none;color:var(--muted);font-size:14.5px;text-decoration:underline;text-decoration-color:#ffffff40;text-underline-offset:4px;cursor:pointer}
 .back:hover{color:var(--ink)}
 
@@ -126,14 +125,6 @@ h1 span,.pillars h2 span{display:block;color:transparent;background-image:var(--
 .phone input{flex:1;min-width:0;min-height:52px;padding:0 15px;border:0;border-radius:0 14px 14px 0;background:transparent;box-shadow:none}
 .phone input:focus{border:0;box-shadow:none}
 .field-error{margin:7px 0 0;color:var(--error);font-size:13.5px;line-height:1.4}
-.check{position:relative;display:flex;align-items:center;gap:12px;min-height:44px;font-size:15.5px;cursor:pointer}
-.check input{position:absolute;left:0;top:50%;width:24px;height:24px;margin:0;opacity:0;transform:translateY(-50%);cursor:pointer}
-.check-box{display:grid;flex:none;place-items:center;width:24px;height:24px;border:1.5px solid #8d8b84;border-radius:7px;background:var(--field);transition:background .18s,border-color .18s}
-.check input:checked+.check-box{border-color:var(--copper-light);background:linear-gradient(140deg,#e9c3a5,#c7845f)}
-.check input:checked+.check-box::after{content:"";width:6px;height:11px;margin-top:-2px;border:solid #1a120d;border-width:0 2px 2px 0;transform:rotate(45deg)}
-.check input:focus-visible+.check-box{outline:2px solid var(--copper-light);outline-offset:3px}
-.check input[aria-invalid="true"]+.check-box{border-color:#ff9b85}
-#majeur-erreur{margin-top:-8px}
 
 /* Bouton principal : la pastille de /business, avec son liseré cuivré qui tourne. */
 .cta{--orbite:0deg;position:relative;display:flex;width:100%;min-height:58px;align-items:center;justify-content:space-between;gap:12px;margin-top:4px;padding:0 8px 0 24px;border:1.5px solid transparent;border-radius:999px;background:linear-gradient(118deg,#2c1c13,#140f0c 62%,#0c0c0d) padding-box,conic-gradient(from var(--orbite),#5b3f31 0deg 250deg,#e8b48f 284deg,#fff6ec 304deg,#dc986f 328deg,#5b3f31 352deg) border-box;color:#fff4ea;font-size:16px;font-weight:700;text-align:left;text-decoration:none;cursor:pointer;box-shadow:0 12px 30px #0009,0 0 28px #dc986f24,inset 0 1px 0 #ffffff1f;animation:orbite 5.4s linear infinite;transition:transform .2s,filter .2s}
