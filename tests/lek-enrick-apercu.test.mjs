@@ -18,7 +18,7 @@ function jpegSize(buffer) {
 }
 
 test("le chargeur exécute le fichier d'origine de la page, sans repasser par la règle Vercel", () => {
-  assert.match(loader, /^const pageOrigine = '\/enrick\/assets\/index-Cswpr9qg\.js\?orig=1';$/m);
+  assert.match(loader, /^const pageOrigine = new URL\(import\.meta\.url\)\.pathname \+ '\?orig=1';$/m);
   assert.match(loader, /^import\(pageOrigine\)\.catch\(/m, 'chargé après la mise en place des nouveaux essais');
   assert.doesNotMatch(loader, /import\s*\(?\s*'\/enrick\/assets\/index-Cswpr9qg\.js'/, 'sans ?orig=1 le fichier se chargerait lui-même');
   assert.ok(loader.indexOf('window.fetch = ') < loader.indexOf('import(pageOrigine)'), 'les appels de la page passent déjà par les nouveaux essais');

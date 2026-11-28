@@ -1,14 +1,15 @@
 // Page lekacademy.com/enrick : l'image d'aperçu de la vidéo, et une page qui tient bon quand le serveur redémarre.
-// Une règle Vercel du projet lekacademy-enrick sert ce fichier à la place de /enrick/assets/index-Cswpr9qg.js,
-// pour cette version exacte de la page uniquement : si la page est republiée, la règle ne s'applique plus d'elle-même.
-// Le fichier d'origine est chargé tel quel juste après (le paramètre ?orig=1 passe à côté de la règle).
+// Une règle Vercel du projet lekacademy-enrick sert ce fichier à la place du fichier principal de la page
+// (/enrick/assets/index-<empreinte>.js, quelle que soit l'empreinte : la règle tient quand la page est republiée).
+// Le fichier d'origine est chargé tel quel juste après, à la même adresse avec ?orig=1 (qui passe à côté de la règle).
 //
 // Pourquoi les relances : le serveur de lekacademy.com démarre et s'arrête à la demande. Quand une visite tombe à ce
 // moment-là, le chargement de la vidéo échoue (sur iPhone : triangle barré, la vidéo ne se lance plus), ou bien les
 // informations de la conférence n'arrivent pas et la page reste sur un message d'erreur. Le navigateur ne réessaie
 // pas de lui-même : ce fichier le fait, quelques fois, uniquement pour ces lectures.
 
-const pageOrigine = '/enrick/assets/index-Cswpr9qg.js?orig=1';
+// Adresse du fichier demandé par la page (la règle réécrit sans changer l'adresse vue par le navigateur).
+const pageOrigine = new URL(import.meta.url).pathname + '?orig=1';
 const apercu = 'https://investprotrading.fr/conference-assets/apercu-video-enrick.jpg';
 const attendre = ms => new Promise(resolve => setTimeout(resolve, ms));
 
